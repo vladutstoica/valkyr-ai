@@ -8,26 +8,21 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarGroupContent,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuItem,
-  SidebarMenuButton,
   useSidebar,
 } from './ui/sidebar';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from './ui/collapsible';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import {
-  Home,
   ChevronRight,
   Plus,
   FolderOpen,
   Github,
   Archive,
   RotateCcw,
-  Globe,
   Server,
-  Puzzle,
 } from 'lucide-react';
 import SidebarEmptyState from './SidebarEmptyState';
 import { TaskItem } from './TaskItem';
@@ -44,7 +39,6 @@ interface LeftSidebarProps {
   archivedTasksVersion?: number;
   selectedProject: Project | null;
   onSelectProject: (project: Project) => void;
-  onGoHome: () => void;
   onOpenProject?: () => void;
   onNewProject?: () => void;
   onCloneProject?: () => void;
@@ -66,9 +60,6 @@ interface LeftSidebarProps {
   onDeleteProject?: (project: Project) => void | Promise<void>;
   pinnedTaskIds?: Set<string>;
   onPinTask?: (task: Task) => void;
-  isHomeView?: boolean;
-  onGoToSkills?: () => void;
-  isSkillsView?: boolean;
 }
 
 interface MenuItemButtonProps {
@@ -152,7 +143,6 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   archivedTasksVersion,
   selectedProject,
   onSelectProject,
-  onGoHome,
   onOpenProject,
   onNewProject,
   onCloneProject,
@@ -170,9 +160,6 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   onDeleteProject,
   pinnedTaskIds,
   onPinTask,
-  isHomeView,
-  onGoToSkills,
-  isSkillsView,
 }) => {
   const { open, isMobile, setOpen } = useSidebar();
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
@@ -249,45 +236,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   return (
     <div className="relative h-full">
       <Sidebar className="!w-full lg:border-r-0">
-        <SidebarHeader className="border-b-0 px-3 py-3">
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                className={`min-w-0 ${isHomeView ? 'bg-black/5 dark:bg-white/5' : ''}`}
-              >
-                <Button
-                  variant="ghost"
-                  onClick={onGoHome}
-                  aria-label="Home"
-                  className="w-full justify-start"
-                >
-                  <Home className="h-5 w-5 text-muted-foreground sm:h-4 sm:w-4" />
-                  <span className="hidden text-sm font-medium sm:inline">Home</span>
-                </Button>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            {onGoToSkills && (
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  className={`min-w-0 ${isSkillsView ? 'bg-black/5 dark:bg-white/5' : ''}`}
-                >
-                  <Button
-                    variant="ghost"
-                    onClick={onGoToSkills}
-                    aria-label="Skills"
-                    className="w-full justify-start"
-                  >
-                    <Puzzle className="h-5 w-5 text-muted-foreground sm:h-4 sm:w-4" />
-                    <span className="hidden text-sm font-medium sm:inline">Skills</span>
-                  </Button>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            )}
-          </SidebarMenu>
-        </SidebarHeader>
-        <SidebarContent>
+        <SidebarContent className="pt-3">
           {projects.length === 0 && (
             <SidebarEmptyState
               title="No projects yet"
@@ -325,8 +274,8 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                       }
                     }
                   }}
-                  className="m-0 min-w-0 list-none space-y-1 p-0"
-                  itemClassName="relative group cursor-pointer rounded-md list-none min-w-0"
+                  className="m-0 min-w-0 list-none space-y-2 p-0"
+                  itemClassName="relative group cursor-pointer rounded-lg border border-border list-none min-w-0"
                   getKey={(p) => (p as Project).id}
                 >
                   {(project) => {
@@ -339,8 +288,8 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                       <SidebarMenuItem>
                         <Collapsible defaultOpen className="group/collapsible">
                           <div
-                            className={`group/project group/task relative flex w-full min-w-0 items-center rounded-md px-2 py-2 text-sm font-medium focus-within:bg-accent focus-within:text-accent-foreground hover:bg-accent hover:text-accent-foreground ${
-                              isProjectActive ? 'bg-black/5 dark:bg-white/5' : ''
+                            className={`group/project group/task relative flex w-full min-w-0 items-center rounded-t-lg px-2 py-2 text-sm font-medium ${
+                              isProjectActive ? 'bg-accent/50' : ''
                             }`}
                             title={projectIsRemote ? 'Remote Project' : undefined}
                           >

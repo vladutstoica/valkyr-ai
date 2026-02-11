@@ -464,7 +464,6 @@ const AppContent: React.FC = () => {
                       archivedTasksVersion={taskMgmt.archivedTasksVersion}
                       selectedProject={selectedProject}
                       onSelectProject={projectMgmt.handleSelectProject}
-                      onGoHome={projectMgmt.handleGoHome}
                       onOpenProject={projectMgmt.handleOpenProject}
                       onNewProject={projectMgmt.handleNewProjectClick}
                       onCloneProject={projectMgmt.handleCloneProjectClick}
@@ -482,9 +481,6 @@ const AppContent: React.FC = () => {
                       onDeleteProject={projectMgmt.handleDeleteProject}
                       pinnedTaskIds={pinnedTaskIds}
                       onPinTask={handlePinTask}
-                      isHomeView={projectMgmt.showHomeView}
-                      onGoToSkills={projectMgmt.handleGoToSkills}
-                      isSkillsView={projectMgmt.showSkillsView}
                     />
                   </ResizablePanel>
                   <ResizableHandle
