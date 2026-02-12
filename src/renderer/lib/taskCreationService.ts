@@ -17,6 +17,7 @@ export interface CreateTaskParams {
   autoApprove?: boolean;
   useWorktree: boolean;
   baseRef?: string;
+  selectedSubRepos?: string[];
 }
 
 export interface CreateTaskCallbacks {
@@ -61,6 +62,7 @@ export async function createTask(params: CreateTaskParams, callbacks: CreateTask
     autoApprove,
     useWorktree,
     baseRef,
+    selectedSubRepos,
   } = params;
   const {
     selectedProject,

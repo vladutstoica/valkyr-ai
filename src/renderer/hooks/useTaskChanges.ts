@@ -127,7 +127,7 @@ export function useTaskChanges(
 
         if (result?.success && result.changes) {
           const filtered = result.changes.filter(
-            (c) => !c.path.startsWith('.emdash/') && c.path !== 'PLANNING.md'
+            (c) => !c.path.startsWith('.valkyr/') && c.path !== 'PLANNING.md'
           );
           const totalAdditions = filtered.reduce((sum, change) => sum + (change.additions || 0), 0);
           const totalDeletions = filtered.reduce((sum, change) => sum + (change.deletions || 0), 0);

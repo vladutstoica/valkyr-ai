@@ -24,7 +24,7 @@ interface GraphQLResponse<T> {
 }
 
 export class LinearService {
-  private readonly SERVICE_NAME = 'emdash-linear';
+  private readonly SERVICE_NAME = 'valkyr-linear';
   private readonly ACCOUNT_NAME = 'api-token';
 
   async saveToken(

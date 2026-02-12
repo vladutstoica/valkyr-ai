@@ -8,7 +8,7 @@ type Options = {
   snoozeHours?: number;
 };
 
-const LAST_NOTIFIED_KEY = 'emdash:update:lastNotified'; // JSON: { version: string, at: number }
+const LAST_NOTIFIED_KEY = 'valkyr:update:lastNotified'; // JSON: { version: string, at: number }
 
 export function useUpdateNotifier(opts: Options = {}) {
   const { checkOnMount = true, onOpenSettings, snoozeHours = 6 } = opts;

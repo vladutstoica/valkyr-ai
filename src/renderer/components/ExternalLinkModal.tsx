@@ -63,7 +63,7 @@ export const ExternalLinkModal: React.FC<ExternalLinkModalProps> = ({
 
         <div className="space-y-4">
           <AlertDialogDescription className="text-sm">
-            This link will open in your default browser outside of Emdash.
+            This link will open in your default browser outside of Valkyr.
           </AlertDialogDescription>
         </div>
 

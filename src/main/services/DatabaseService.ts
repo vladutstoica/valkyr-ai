@@ -4,6 +4,7 @@ import { readMigrationFiles } from 'drizzle-orm/migrator';
 import { resolveDatabasePath, resolveMigrationsPath } from '../db/path';
 import { getDrizzleClient } from '../db/drizzleClient';
 import { errorTracking } from '../errorTracking';
+import { log } from '../lib/logger';
 import {
   projects as projectsTable,
   tasks as tasksTable,
@@ -21,6 +22,22 @@ import {
   type SshConnectionInsert,
 } from '../db/schema';
 
+/** Git information for a sub-repository in a multi-repo project */
+export interface SubRepoGitInfo {
+  isGitRepo: boolean;
+  remote?: string;
+  branch?: string;
+  baseRef?: string;
+}
+
+/** A sub-repository within a multi-repo project */
+export interface SubRepo {
+  path: string; // Absolute path to the sub-repo
+  name: string; // Folder name (e.g., "frontend")
+  relativePath: string; // Relative from project root (e.g., "frontend")
+  gitInfo: SubRepoGitInfo;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -29,6 +46,8 @@ export interface Project {
   isRemote?: boolean;
   sshConnectionId?: string | null;
   remotePath?: string | null;
+  // Multi-repo project fields (optional)
+  subRepos?: SubRepo[] | null;
   gitInfo: {
     isGitRepo: boolean;
     remote?: string;
@@ -95,7 +114,7 @@ export class DatabaseService {
   private lastMigrationSummary: MigrationSummary | null = null;
 
   constructor() {
-    if (process.env.EMDASH_DISABLE_NATIVE_DB === '1') {
+    if (process.env.VALKYR_DISABLE_NATIVE_DB === '1') {
       this.disabled = true;
     }
     this.dbPath = resolveDatabasePath();
@@ -153,6 +172,8 @@ export class DatabaseService {
     );
     const githubRepository = project.githubInfo?.repository ?? null;
     const githubConnected = project.githubInfo?.connected ? 1 : 0;
+    const subReposJson =
+      project.subRepos && project.subRepos.length > 0 ? JSON.stringify(project.subRepos) : null;
 
     await db
       .insert(projectsTable)
@@ -168,6 +189,7 @@ export class DatabaseService {
         sshConnectionId: project.sshConnectionId ?? null,
         isRemote: project.isRemote ? 1 : 0,
         remotePath: project.remotePath ?? null,
+        subRepos: subReposJson,
         updatedAt: sql`CURRENT_TIMESTAMP`,
       })
       .onConflictDoUpdate({
@@ -182,6 +204,7 @@ export class DatabaseService {
           sshConnectionId: project.sshConnectionId ?? null,
           isRemote: project.isRemote ? 1 : 0,
           remotePath: project.remotePath ?? null,
+          subRepos: subReposJson,
           updatedAt: sql`CURRENT_TIMESTAMP`,
         },
       });
@@ -855,6 +878,16 @@ export class DatabaseService {
   }
 
   private mapDrizzleProjectRow(row: ProjectRow): Project {
+    // Parse subRepos from JSON if present
+    let subRepos: SubRepo[] | null = null;
+    if (row.subRepos) {
+      try {
+        subRepos = JSON.parse(row.subRepos) as SubRepo[];
+      } catch (e) {
+        log.warn(`Failed to parse subRepos for project ${row.id}:`, e);
+      }
+    }
+
     return {
       id: row.id,
       name: row.name,
@@ -862,6 +895,7 @@ export class DatabaseService {
       isRemote: row.isRemote === 1,
       sshConnectionId: row.sshConnectionId ?? null,
       remotePath: row.remotePath ?? null,
+      subRepos,
       gitInfo: {
         isGitRepo: !!(row.gitRemote || row.gitBranch),
         remote: row.gitRemote ?? undefined,
@@ -965,8 +999,8 @@ export class DatabaseService {
         '3. The installation is incomplete or corrupted',
         '4. Security software is blocking file access',
         '',
-        'To fix: Try downloading and installing Emdash directly from:',
-        'https://github.com/generalaction/emdash/releases',
+        'To fix: Try downloading and installing Valkyr directly from:',
+        'https://github.com/generalaction/valkyr/releases',
         '',
       ].join('\n');
 

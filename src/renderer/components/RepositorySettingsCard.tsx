@@ -8,7 +8,7 @@ type RepoSettings = {
 };
 
 const DEFAULTS: RepoSettings = {
-  branchPrefix: 'emdash',
+  branchPrefix: 'valkyr',
   pushOnCreate: true,
 };
 

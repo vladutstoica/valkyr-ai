@@ -123,7 +123,7 @@ let onboardingSeen: boolean = false;
 let sessionStartMs: number = Date.now();
 let lastActiveDate: string | undefined;
 
-const libName = 'emdash';
+const libName = 'valkyr';
 
 function getVersionSafe(): string {
   try {

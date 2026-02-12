@@ -60,7 +60,7 @@ export function UpdateCard(): JSX.Element {
 
         <div className="mt-2">
           <a
-            href="https://github.com/generalaction/emdash/releases"
+            href="https://github.com/generalaction/valkyr/releases"
             className="text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             View latest release →
@@ -104,7 +104,7 @@ export function UpdateCard(): JSX.Element {
 
       <div className="mt-2">
         <a
-          href="https://github.com/generalaction/emdash/releases"
+          href="https://github.com/generalaction/valkyr/releases"
           className="text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
           View latest release →
@@ -144,7 +144,7 @@ export function UpdateCard(): JSX.Element {
         return (
           <p className="flex items-center gap-1 text-xs text-green-600 dark:text-green-500">
             <CheckCircle2 className="h-3 w-3" />
-            Update ready. Restart Emdash to use the new version.
+            Update ready. Restart Valkyr to use the new version.
           </p>
         );
 

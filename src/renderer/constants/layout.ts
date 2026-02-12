@@ -1,13 +1,13 @@
 export const TITLEBAR_HEIGHT = '36px';
-export const PANEL_LAYOUT_STORAGE_KEY = 'emdash.layout.left-main-right.v2';
+export const PANEL_LAYOUT_STORAGE_KEY = 'valkyr.layout.left-main-right.v2';
 export const DEFAULT_PANEL_LAYOUT: [number, number, number] = [20, 60, 20];
 export const LEFT_SIDEBAR_MIN_SIZE = 16;
 export const LEFT_SIDEBAR_MAX_SIZE = 30;
-export const FIRST_LAUNCH_KEY = 'emdash:first-launch:v1';
+export const FIRST_LAUNCH_KEY = 'valkyr:first-launch:v1';
 export const RIGHT_SIDEBAR_MIN_SIZE = 16;
 export const RIGHT_SIDEBAR_MAX_SIZE = 50;
-export const ACTIVE_PROJECT_KEY = 'emdash:activeProjectId';
-export const ACTIVE_TASK_KEY = 'emdash:activeTaskId';
+export const ACTIVE_PROJECT_KEY = 'valkyr:activeProjectId';
+export const ACTIVE_TASK_KEY = 'valkyr:activeTaskId';
 export const MAIN_PANEL_MIN_SIZE = 30;
 
 export const getStoredActiveIds = (): { projectId: string | null; taskId: string | null } => {

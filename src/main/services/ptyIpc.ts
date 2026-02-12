@@ -103,13 +103,13 @@ function buildRemoteInitCommand(args: {
   if (args.cwd) {
     // Avoid `cd --` for maximum shell portability.
     parts.push(
-      `cd ${quoteShellArg(args.cwd)} || echo "emdash: could not cd to ${escapeForDoubleQuotes(args.cwd)}"`
+      `cd ${quoteShellArg(args.cwd)} || echo "valkyr: could not cd to ${escapeForDoubleQuotes(args.cwd)}"`
     );
   }
   if (args.provider) {
     const cli = args.provider.cli;
     const install = args.provider.installCommand ? ` Install: ${args.provider.installCommand}` : '';
-    const msg = `emdash: ${cli} not found on remote.${install}`;
+    const msg = `valkyr: ${cli} not found on remote.${install}`;
     parts.push(
       `if command -v ${quoteShellArg(cli)} >/dev/null 2>&1; then ${args.provider.cmd}; else echo "${escapeForDoubleQuotes(
         msg
@@ -128,7 +128,7 @@ function buildRemoteInitCommand(args: {
 
   // Ensure init runs under bash when available (falls back to sh).
   // We log the chosen shell minimally to the terminal output.
-  return `if [ -x /bin/bash ]; then echo "emdash: remote init shell=/bin/bash"; exec /bin/bash -ic ${quotedInit}; elif [ -x /usr/bin/bash ]; then echo "emdash: remote init shell=/usr/bin/bash"; exec /usr/bin/bash -ic ${quotedInit}; elif command -v bash >/dev/null 2>&1; then echo "emdash: remote init shell=bash"; exec bash -ic ${quotedInit}; else echo "emdash: remote init shell=sh"; exec sh -ic ${quotedInit}; fi`;
+  return `if [ -x /bin/bash ]; then echo "valkyr: remote init shell=/bin/bash"; exec /bin/bash -ic ${quotedInit}; elif [ -x /usr/bin/bash ]; then echo "valkyr: remote init shell=/usr/bin/bash"; exec /usr/bin/bash -ic ${quotedInit}; elif command -v bash >/dev/null 2>&1; then echo "valkyr: remote init shell=bash"; exec bash -ic ${quotedInit}; else echo "valkyr: remote init shell=sh"; exec sh -ic ${quotedInit}; fi`;
 }
 
 async function resolveSshInvocation(
@@ -281,8 +281,8 @@ export function registerPtyIpc(): void {
       }
     ) => {
       const ptyStartTime = performance.now();
-      if (process.env.EMDASH_DISABLE_PTY === '1') {
-        return { ok: false, error: 'PTY disabled via EMDASH_DISABLE_PTY=1' };
+      if (process.env.VALKYR_DISABLE_PTY === '1') {
+        return { ok: false, error: 'PTY disabled via VALKYR_DISABLE_PTY=1' };
       }
       try {
         const { id, cwd, remote, shell, env, cols, rows, autoApprove, initialPrompt, skipResume } =
@@ -631,8 +631,8 @@ export function registerPtyIpc(): void {
         resume?: boolean;
       }
     ) => {
-      if (process.env.EMDASH_DISABLE_PTY === '1') {
-        return { ok: false, error: 'PTY disabled via EMDASH_DISABLE_PTY=1' };
+      if (process.env.VALKYR_DISABLE_PTY === '1') {
+        return { ok: false, error: 'PTY disabled via VALKYR_DISABLE_PTY=1' };
       }
 
       try {

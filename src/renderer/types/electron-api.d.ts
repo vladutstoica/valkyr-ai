@@ -425,6 +425,41 @@ declare global {
         projectId: string;
       }) => Promise<{ success: boolean; error?: string }>;
 
+      // Multi-repo worktree management
+      worktreeCreateMultiRepo: (args: {
+        projectPath: string;
+        projectId: string;
+        taskName: string;
+        subRepos: Array<{
+          path: string;
+          name: string;
+          relativePath: string;
+          gitInfo: { isGitRepo: boolean; remote?: string; branch?: string; baseRef?: string };
+        }>;
+        selectedRepos: string[];
+        baseRef?: string;
+      }) => Promise<{
+        success: boolean;
+        compositeWorktreePath?: string;
+        repoMappings?: Array<{
+          relativePath: string;
+          originalPath: string;
+          targetPath: string;
+          isWorktree: boolean;
+          branch?: string;
+        }>;
+        error?: string;
+      }>;
+      worktreeRemoveMultiRepo: (args: {
+        compositeWorktreePath: string;
+        subRepos: Array<{
+          path: string;
+          name: string;
+          relativePath: string;
+          gitInfo: { isGitRepo: boolean; remote?: string; branch?: string; baseRef?: string };
+        }>;
+      }) => Promise<{ success: boolean; error?: string }>;
+
       // Lifecycle scripts
       lifecycleGetScript: (args: {
         projectPath: string;
@@ -508,6 +543,21 @@ declare global {
         behindCount?: number;
         path?: string;
         rootPath?: string;
+        error?: string;
+      }>;
+      detectSubRepos: (projectPath: string) => Promise<{
+        success: boolean;
+        subRepos: Array<{
+          path: string;
+          name: string;
+          relativePath: string;
+          gitInfo: {
+            isGitRepo: boolean;
+            remote?: string;
+            branch?: string;
+            baseRef?: string;
+          };
+        }>;
         error?: string;
       }>;
       getGitStatus: (taskPath: string) => Promise<{
@@ -1324,6 +1374,41 @@ export interface ElectronAPI {
     projectId: string;
   }) => Promise<{ success: boolean; error?: string }>;
 
+  // Multi-repo worktree management
+  worktreeCreateMultiRepo: (args: {
+    projectPath: string;
+    projectId: string;
+    taskName: string;
+    subRepos: Array<{
+      path: string;
+      name: string;
+      relativePath: string;
+      gitInfo: { isGitRepo: boolean; remote?: string; branch?: string; baseRef?: string };
+    }>;
+    selectedRepos: string[];
+    baseRef?: string;
+  }) => Promise<{
+    success: boolean;
+    compositeWorktreePath?: string;
+    repoMappings?: Array<{
+      relativePath: string;
+      originalPath: string;
+      targetPath: string;
+      isWorktree: boolean;
+      branch?: string;
+    }>;
+    error?: string;
+  }>;
+  worktreeRemoveMultiRepo: (args: {
+    compositeWorktreePath: string;
+    subRepos: Array<{
+      path: string;
+      name: string;
+      relativePath: string;
+      gitInfo: { isGitRepo: boolean; remote?: string; branch?: string; baseRef?: string };
+    }>;
+  }) => Promise<{ success: boolean; error?: string }>;
+
   // Lifecycle scripts
   lifecycleGetScript: (args: {
     projectPath: string;
@@ -1404,6 +1489,21 @@ export interface ElectronAPI {
     aheadCount?: number;
     behindCount?: number;
     path?: string;
+    error?: string;
+  }>;
+  detectSubRepos: (projectPath: string) => Promise<{
+    success: boolean;
+    subRepos: Array<{
+      path: string;
+      name: string;
+      relativePath: string;
+      gitInfo: {
+        isGitRepo: boolean;
+        remote?: string;
+        branch?: string;
+        baseRef?: string;
+      };
+    }>;
     error?: string;
   }>;
   listRemoteBranches: (args: { projectPath: string; remote?: string }) => Promise<{

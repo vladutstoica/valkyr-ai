@@ -589,9 +589,9 @@ const ChatInterface: React.FC<Props> = ({
       }
     };
 
-    window.addEventListener('emdash:switch-agent', handleAgentSwitch);
+    window.addEventListener('valkyr:switch-agent', handleAgentSwitch);
     return () => {
-      window.removeEventListener('emdash:switch-agent', handleAgentSwitch);
+      window.removeEventListener('valkyr:switch-agent', handleAgentSwitch);
     };
   }, [conversations, activeConversationId, handleSwitchChat]);
 

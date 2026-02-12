@@ -16,7 +16,7 @@ const ThemeCard: React.FC = () => {
     <div className="grid gap-3">
       <div>
         <div className="text-sm font-medium text-foreground">Appearance</div>
-        <div className="text-xs text-muted-foreground">Choose how Emdash looks.</div>
+        <div className="text-xs text-muted-foreground">Choose how Valkyr looks.</div>
       </div>
       <div className="grid grid-cols-2 gap-2">
         {options.map(({ value, label, icon: Icon }) => (

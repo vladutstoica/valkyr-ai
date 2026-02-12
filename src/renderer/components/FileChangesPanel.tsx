@@ -142,10 +142,10 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
   const [isMergingToMain, setIsMergingToMain] = useState(false);
   const [prMode, setPrMode] = useState<PrMode>(() => {
     try {
-      const stored = localStorage.getItem('emdash:prMode');
+      const stored = localStorage.getItem('valkyr:prMode');
       if (stored === 'create' || stored === 'draft' || stored === 'merge') return stored;
       // Migrate from old boolean key
-      if (localStorage.getItem('emdash:createPrAsDraft') === 'true') return 'draft';
+      if (localStorage.getItem('valkyr:createPrAsDraft') === 'true') return 'draft';
       return 'create';
     } catch {
       // localStorage not available in some environments
@@ -157,7 +157,7 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
   const selectPrMode = (mode: PrMode) => {
     setPrMode(mode);
     try {
-      localStorage.setItem('emdash:prMode', mode);
+      localStorage.setItem('valkyr:prMode', mode);
     } catch {
       // localStorage not available
     }

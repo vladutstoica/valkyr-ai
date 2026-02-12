@@ -382,4 +382,65 @@ export function registerWorktreeIpc(): void {
       return { success: false, error: (error as Error).message };
     }
   });
+
+  // Create a multi-repo composite worktree
+  ipcMain.handle(
+    'worktree:createMultiRepo',
+    async (
+      event,
+      args: {
+        projectPath: string;
+        projectId: string;
+        taskName: string;
+        subRepos: Array<{
+          path: string;
+          name: string;
+          relativePath: string;
+          gitInfo: { isGitRepo: boolean; remote?: string; branch?: string; baseRef?: string };
+        }>;
+        selectedRepos: string[];
+        baseRef?: string;
+      }
+    ) => {
+      try {
+        const result = await worktreeService.createMultiRepoWorktree({
+          projectPath: args.projectPath,
+          projectId: args.projectId,
+          taskName: args.taskName,
+          subRepos: args.subRepos,
+          selectedRepos: args.selectedRepos,
+          baseRef: args.baseRef,
+        });
+        return { success: true, ...result };
+      } catch (error) {
+        console.error('Failed to create multi-repo worktree:', error);
+        return { success: false, error: (error as Error).message };
+      }
+    }
+  );
+
+  // Remove a multi-repo composite worktree
+  ipcMain.handle(
+    'worktree:removeMultiRepo',
+    async (
+      event,
+      args: {
+        compositeWorktreePath: string;
+        subRepos: Array<{
+          path: string;
+          name: string;
+          relativePath: string;
+          gitInfo: { isGitRepo: boolean; remote?: string; branch?: string; baseRef?: string };
+        }>;
+      }
+    ) => {
+      try {
+        await worktreeService.removeMultiRepoWorktree(args.compositeWorktreePath, args.subRepos);
+        return { success: true };
+      } catch (error) {
+        console.error('Failed to remove multi-repo worktree:', error);
+        return { success: false, error: (error as Error).message };
+      }
+    }
+  );
 }

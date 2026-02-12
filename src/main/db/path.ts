@@ -2,8 +2,8 @@ import { existsSync, renameSync } from 'fs';
 import { dirname, join } from 'path';
 import { app } from 'electron';
 
-const CURRENT_DB_FILENAME = 'emdash.db';
-const LEGACY_DB_FILENAMES = ['database.sqlite', 'orcbench.db'];
+const CURRENT_DB_FILENAME = 'valkyr.db';
+const LEGACY_DB_FILENAMES = ['emdash.db', 'database.sqlite', 'orcbench.db'];
 
 export interface ResolveDatabasePathOptions {
   userDataPath?: string;
@@ -21,7 +21,7 @@ export function resolveDatabasePath(options: ResolveDatabasePathOptions = {}): s
   // (e.g. ~/Library/Application Support/Electron).
   try {
     const userDataParent = dirname(userDataPath);
-    const legacyDirs = ['Electron', 'emdash', 'Emdash'];
+    const legacyDirs = ['Electron', 'emdash', 'Emdash', 'valkyr', 'Valkyr'];
     for (const dirName of legacyDirs) {
       const candidateDir = join(userDataParent, dirName);
       const candidateCurrent = join(candidateDir, CURRENT_DB_FILENAME);

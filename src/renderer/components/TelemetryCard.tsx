@@ -11,7 +11,7 @@ const TelemetryCard: React.FC = () => {
     <div className="grid gap-3">
       <div className="flex items-center justify-between gap-4">
         <div className="space-y-1 text-xs text-muted-foreground">
-          <p>Help improve Emdash by sending anonymous usage data.</p>
+          <p>Help improve Valkyr by sending anonymous usage data.</p>
           <p>
             <span>See </span>
             <Button
@@ -20,7 +20,7 @@ const TelemetryCard: React.FC = () => {
               size="sm"
               className="group inline-flex h-auto items-center gap-1 px-0 text-xs font-normal text-muted-foreground hover:text-foreground hover:no-underline focus-visible:outline-none focus-visible:ring-0"
               onClick={() =>
-                window.electronAPI.openExternal('https://docs.emdash.sh/security/telemetry')
+                window.electronAPI.openExternal('https://docs.valkyr.dev/security/telemetry')
               }
             >
               <span className="transition-colors group-hover:text-foreground">

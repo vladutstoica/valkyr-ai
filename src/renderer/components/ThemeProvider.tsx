@@ -3,7 +3,7 @@ import { createContext, useEffect, useState, type ReactNode } from 'react';
 type Theme = 'light' | 'dark' | 'dark-black' | 'system';
 type EffectiveTheme = 'light' | 'dark' | 'dark-black';
 
-const STORAGE_KEY = 'emdash-theme';
+const STORAGE_KEY = 'valkyr-theme';
 
 function getSystemTheme(): EffectiveTheme {
   if (typeof window === 'undefined') return 'light';

@@ -20,7 +20,7 @@ export interface JiraConnectionStatus {
 }
 
 export default class JiraService {
-  private readonly SERVICE = 'emdash-jira';
+  private readonly SERVICE = 'valkyr-jira';
   private readonly ACCOUNT = 'api-token';
   private readonly CONF_FILE = join(app.getPath('userData'), 'jira.json');
 

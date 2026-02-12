@@ -133,7 +133,7 @@ describe('RemoteGitService', () => {
 
       expect(mockExecuteCommand).toHaveBeenCalledWith(
         'conn-1',
-        'mkdir -p .emdash/worktrees',
+        'mkdir -p .valkyr/worktrees',
         '/home/user/project'
       );
       // When no baseRef is provided, getDefaultBranch is called first (git rev-parse),
@@ -145,7 +145,7 @@ describe('RemoteGitService', () => {
       );
       expect(result.branch).toContain('task-name');
       expect(result.isMain).toBe(false);
-      expect(result.path).toContain('.emdash/worktrees');
+      expect(result.path).toContain('.valkyr/worktrees');
     });
 
     it('should create worktree with custom base ref', async () => {
@@ -219,7 +219,7 @@ describe('RemoteGitService', () => {
         'test-task'
       );
 
-      expect(result.path).toContain('/.emdash/worktrees/');
+      expect(result.path).toContain('/.valkyr/worktrees/');
       expect(result.path).toContain('test-task');
     });
   });
@@ -235,12 +235,12 @@ describe('RemoteGitService', () => {
       await service.removeWorktree(
         'conn-1',
         '/home/user/project',
-        '/home/user/project/.emdash/worktrees/test-123'
+        '/home/user/project/.valkyr/worktrees/test-123'
       );
 
       expect(mockExecuteCommand).toHaveBeenCalledWith(
         'conn-1',
-        "git worktree remove '/home/user/project/.emdash/worktrees/test-123' --force",
+        "git worktree remove '/home/user/project/.valkyr/worktrees/test-123' --force",
         '/home/user/project'
       );
     });
@@ -267,12 +267,12 @@ describe('RemoteGitService', () => {
       await service.removeWorktree(
         'conn-1',
         '/home/user/my project',
-        '/home/user/my project/.emdash/worktrees/test'
+        '/home/user/my project/.valkyr/worktrees/test'
       );
 
       expect(mockExecuteCommand).toHaveBeenCalledWith(
         'conn-1',
-        "git worktree remove '/home/user/my project/.emdash/worktrees/test' --force",
+        "git worktree remove '/home/user/my project/.valkyr/worktrees/test' --force",
         '/home/user/my project'
       );
     });

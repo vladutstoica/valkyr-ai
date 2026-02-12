@@ -82,7 +82,7 @@ export function useUpdater() {
     }
     if (!res.success) {
       const hint = res?.devDisabled
-        ? 'Cannot download updates in development unless EMDASH_DEV_UPDATES=true is set.'
+        ? 'Cannot download updates in development unless VALKYR_DEV_UPDATES=true is set.'
         : res.error || 'Failed to download update';
       setState({ status: 'error', message: hint });
     }

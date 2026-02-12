@@ -1,6 +1,6 @@
-export const LAST_URL_KEY = (id: string) => `emdash:browser:lastUrl:${id}`;
-export const RUNNING_KEY = (id: string) => `emdash:preview:running:${id}`;
-export const INSTALLED_KEY = (id: string) => `emdash:preview:installed:${id}`;
+export const LAST_URL_KEY = (id: string) => `valkyr:browser:lastUrl:${id}`;
+export const RUNNING_KEY = (id: string) => `valkyr:preview:running:${id}`;
+export const INSTALLED_KEY = (id: string) => `valkyr:preview:installed:${id}`;
 
 export function getLastUrl(id: string): string | null {
   try {

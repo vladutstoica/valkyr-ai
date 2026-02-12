@@ -17,6 +17,18 @@ import { type GitHubIssueSummary } from '../types/github';
 import { type GitHubIssueLink } from '../types/chat';
 import { type JiraIssueSummary } from '../types/jira';
 
+interface SubRepo {
+  path: string;
+  name: string;
+  relativePath: string;
+  gitInfo: {
+    isGitRepo: boolean;
+    remote?: string;
+    branch?: string;
+    baseRef?: string;
+  };
+}
+
 interface TaskAdvancedSettingsProps {
   isOpen: boolean;
   projectPath?: string;
@@ -24,6 +36,11 @@ interface TaskAdvancedSettingsProps {
   // Worktree
   useWorktree: boolean;
   onUseWorktreeChange: (value: boolean) => void;
+
+  // Multi-repo
+  subRepos?: SubRepo[] | null;
+  selectedSubRepos?: string[];
+  onSelectedSubReposChange?: (value: string[]) => void;
 
   // Auto-approve
   autoApprove: boolean;
@@ -62,6 +79,9 @@ export const TaskAdvancedSettings: React.FC<TaskAdvancedSettingsProps> = ({
   projectPath,
   useWorktree,
   onUseWorktreeChange,
+  subRepos,
+  selectedSubRepos = [],
+  onSelectedSubReposChange,
   autoApprove,
   onAutoApproveChange,
   hasAutoApproveSupport,
@@ -248,6 +268,48 @@ export const TaskAdvancedSettings: React.FC<TaskAdvancedSettingsProps> = ({
                   </label>
                 </div>
               </div>
+
+              {/* Multi-repo selection - only show when project has sub-repos and worktree is enabled */}
+              {subRepos && subRepos.length > 0 && useWorktree && (
+                <div className="flex items-start gap-4">
+                  <Label className="w-32 shrink-0 pt-1">Repositories</Label>
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      Select which repositories to create worktrees for. Unselected repos will be
+                      symlinked (read-only changes).
+                    </p>
+                    <div className="space-y-1">
+                      {subRepos.map((repo) => (
+                        <label
+                          key={repo.relativePath}
+                          className="flex cursor-pointer items-center gap-2 text-sm"
+                        >
+                          <Checkbox
+                            checked={selectedSubRepos.includes(repo.relativePath)}
+                            onCheckedChange={(checked) => {
+                              if (onSelectedSubReposChange) {
+                                if (checked) {
+                                  onSelectedSubReposChange([...selectedSubRepos, repo.relativePath]);
+                                } else {
+                                  onSelectedSubReposChange(
+                                    selectedSubRepos.filter((p) => p !== repo.relativePath)
+                                  );
+                                }
+                              }
+                            }}
+                          />
+                          <span className="font-mono text-xs">{repo.name}</span>
+                          {repo.gitInfo.branch && (
+                            <span className="text-xs text-muted-foreground">
+                              ({repo.gitInfo.branch})
+                            </span>
+                          )}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {hasAutoApproveSupport ? (
                 <div className="flex items-center gap-4">

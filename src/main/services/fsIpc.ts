@@ -6,7 +6,7 @@ import { FsListWorkerResponse } from '../types/fsListWorker';
 import { DEFAULT_IGNORES } from '../utils/fsIgnores';
 import { safeStat } from '../utils/safeStat';
 
-const DEFAULT_EMDASH_CONFIG = `{
+const DEFAULT_VALKYR_CONFIG = `{
   "preservePatterns": [
     ".env",
     ".env.keys",
@@ -546,7 +546,7 @@ export function registerFsIpc(): void {
           return { success: false, error: 'Unsupported attachment type' };
         }
 
-        const baseDir = path.join(taskPath, '.emdash', args.subdir || DEFAULT_ATTACHMENTS_SUBDIR);
+        const baseDir = path.join(taskPath, '.valkyr', args.subdir || DEFAULT_ATTACHMENTS_SUBDIR);
         fs.mkdirSync(baseDir, { recursive: true });
 
         const baseName = path.basename(srcPath);
@@ -661,7 +661,7 @@ export function registerFsIpc(): void {
     }
   });
 
-  // Get .emdash.json config file content (create with defaults if missing)
+  // Get .valkyr.json config file content (create with defaults if missing)
   ipcMain.handle('fs:getProjectConfig', async (_event, args: { projectPath: string }) => {
     try {
       const { projectPath } = args;
@@ -669,11 +669,11 @@ export function registerFsIpc(): void {
         return { success: false, error: 'Invalid project path' };
       }
 
-      const configPath = path.join(projectPath, '.emdash.json');
+      const configPath = path.join(projectPath, '.valkyr.json');
 
       // Create with defaults if missing
       if (!fs.existsSync(configPath)) {
-        fs.writeFileSync(configPath, DEFAULT_EMDASH_CONFIG, 'utf8');
+        fs.writeFileSync(configPath, DEFAULT_VALKYR_CONFIG, 'utf8');
       }
 
       const content = fs.readFileSync(configPath, 'utf8');
@@ -684,7 +684,7 @@ export function registerFsIpc(): void {
     }
   });
 
-  // Save .emdash.json config file content
+  // Save .valkyr.json config file content
   ipcMain.handle(
     'fs:saveProjectConfig',
     async (_event, args: { projectPath: string; content: string }) => {
@@ -701,7 +701,7 @@ export function registerFsIpc(): void {
           return { success: false, error: 'Invalid JSON format' };
         }
 
-        const configPath = path.join(projectPath, '.emdash.json');
+        const configPath = path.join(projectPath, '.valkyr.json');
         fs.writeFileSync(configPath, content, 'utf8');
         return { success: true, path: configPath };
       } catch (error) {

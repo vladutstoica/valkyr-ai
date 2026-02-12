@@ -3,29 +3,29 @@ import path from 'path';
 import { log } from '../lib/logger';
 import type { LifecyclePhase, LifecycleScriptConfig } from '@shared/lifecycle';
 
-export interface EmdashConfig {
+export interface ValkyrConfig {
   preservePatterns?: string[];
   scripts?: LifecycleScriptConfig;
 }
 
 /**
  * Manages lifecycle scripts for worktrees.
- * Scripts are configured in .emdash.json at the project root.
+ * Scripts are configured in .valkyr.json at the project root.
  */
 class LifecycleScriptsService {
   /**
-   * Read .emdash.json config from project root
+   * Read .valkyr.json config from project root
    */
-  readConfig(projectPath: string): EmdashConfig | null {
+  readConfig(projectPath: string): ValkyrConfig | null {
     try {
-      const configPath = path.join(projectPath, '.emdash.json');
+      const configPath = path.join(projectPath, '.valkyr.json');
       if (!fs.existsSync(configPath)) {
         return null;
       }
       const content = fs.readFileSync(configPath, 'utf8');
-      return JSON.parse(content) as EmdashConfig;
+      return JSON.parse(content) as ValkyrConfig;
     } catch (error) {
-      log.warn('Failed to read .emdash.json', { projectPath, error });
+      log.warn('Failed to read .valkyr.json', { projectPath, error });
       return null;
     }
   }

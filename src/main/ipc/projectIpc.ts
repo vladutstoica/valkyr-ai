@@ -178,4 +178,74 @@ export function registerProjectIpc() {
       return { isGitRepo: false, error: 'Failed to read Git information', path: projectPath };
     }
   });
+
+  // Detect sub-repositories in a multi-repo project folder
+  ipcMain.handle('git:detectSubRepos', async (_, projectPath: string) => {
+    try {
+      const resolvedProjectPath = await fs.promises.realpath(projectPath).catch(() => projectPath);
+
+      // Read immediate children of the project folder
+      const entries = await fs.promises.readdir(resolvedProjectPath, { withFileTypes: true });
+      const subRepos: Array<{
+        path: string;
+        name: string;
+        relativePath: string;
+        gitInfo: {
+          isGitRepo: boolean;
+          remote?: string;
+          branch?: string;
+          baseRef?: string;
+        };
+      }> = [];
+
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        // Skip hidden directories (except we check for .git inside)
+        if (entry.name.startsWith('.')) continue;
+
+        const subPath = join(resolvedProjectPath, entry.name);
+        const gitPath = join(subPath, '.git');
+
+        // Check if this subdirectory is a git repo
+        if (!fs.existsSync(gitPath)) continue;
+
+        // Get git info for this sub-repo
+        let remote: string | undefined;
+        let branch: string | undefined;
+        let baseRef: string | undefined;
+
+        try {
+          const { stdout } = await execAsync('git remote get-url origin', { cwd: subPath });
+          remote = stdout.trim() || undefined;
+        } catch {}
+
+        try {
+          const { stdout } = await execAsync('git branch --show-current', { cwd: subPath });
+          branch = stdout.trim() || undefined;
+        } catch {}
+
+        // Compute baseRef for this sub-repo
+        if (branch || remote) {
+          baseRef = computeBaseRef(remote, branch);
+        }
+
+        subRepos.push({
+          path: subPath,
+          name: entry.name,
+          relativePath: entry.name,
+          gitInfo: {
+            isGitRepo: true,
+            remote,
+            branch,
+            baseRef,
+          },
+        });
+      }
+
+      return { success: true, subRepos };
+    } catch (error) {
+      console.error('Failed to detect sub-repos:', error);
+      return { success: false, error: 'Failed to detect sub-repositories', subRepos: [] };
+    }
+  });
 }

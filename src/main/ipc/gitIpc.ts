@@ -835,7 +835,7 @@ current branch '${currentBranch}' ahead of base '${baseRef}'.`,
 
           // Never commit plan mode artifacts
           try {
-            await execAsync('git reset -q .emdash || true', { cwd: taskPath });
+            await execAsync('git reset -q .valkyr || true', { cwd: taskPath });
           } catch {}
           try {
             await execAsync('git reset -q PLANNING.md || true', { cwd: taskPath });

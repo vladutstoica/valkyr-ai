@@ -166,6 +166,30 @@ contextBridge.exposeInMainWorld('electronAPI', {
   worktreeRemoveReserve: (args: { projectId: string }) =>
     ipcRenderer.invoke('worktree:removeReserve', args),
 
+  // Multi-repo worktree management
+  worktreeCreateMultiRepo: (args: {
+    projectPath: string;
+    projectId: string;
+    taskName: string;
+    subRepos: Array<{
+      path: string;
+      name: string;
+      relativePath: string;
+      gitInfo: { isGitRepo: boolean; remote?: string; branch?: string; baseRef?: string };
+    }>;
+    selectedRepos: string[];
+    baseRef?: string;
+  }) => ipcRenderer.invoke('worktree:createMultiRepo', args),
+  worktreeRemoveMultiRepo: (args: {
+    compositeWorktreePath: string;
+    subRepos: Array<{
+      path: string;
+      name: string;
+      relativePath: string;
+      gitInfo: { isGitRepo: boolean; remote?: string; branch?: string; baseRef?: string };
+    }>;
+  }) => ipcRenderer.invoke('worktree:removeMultiRepo', args),
+
   // Lifecycle scripts
   lifecycleGetScript: (args: { projectPath: string; phase: 'setup' | 'run' | 'teardown' }) =>
     ipcRenderer.invoke('lifecycle:getScript', args),
@@ -222,6 +246,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   fetchProjectBaseRef: (args: { projectId: string; projectPath: string }) =>
     ipcRenderer.invoke('projectSettings:fetchBaseRef', args),
   getGitInfo: (projectPath: string) => ipcRenderer.invoke('git:getInfo', projectPath),
+  detectSubRepos: (projectPath: string) => ipcRenderer.invoke('git:detectSubRepos', projectPath),
   getGitStatus: (taskPath: string) => ipcRenderer.invoke('git:get-status', taskPath),
   watchGitStatus: (taskPath: string) => ipcRenderer.invoke('git:watch-status', taskPath),
   unwatchGitStatus: (taskPath: string, watchId?: string) =>

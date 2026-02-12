@@ -123,7 +123,7 @@ export function useFileChanges(taskPath?: string, options: UseFileChangesOptions
               isStaged: change.isStaged || false,
               diff: change.diff,
             }))
-            .filter((c) => !c.path.startsWith('.emdash/') && c.path !== 'PLANNING.md');
+            .filter((c) => !c.path.startsWith('.valkyr/') && c.path !== 'PLANNING.md');
           setFileChanges(changes);
         } else {
           setFileChanges([]);

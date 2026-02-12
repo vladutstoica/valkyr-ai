@@ -193,7 +193,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
           { title: 'Project prep', render: () => <ProjectPrepSettingsCard /> },
           { title: 'Updates', render: () => <UpdateCard /> },
           {
-            title: 'How to use Emdash',
+            title: 'How to use Valkyr',
             render: () => (
               <div className="flex items-center">
                 <Button

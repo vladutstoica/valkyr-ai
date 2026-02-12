@@ -59,8 +59,8 @@ const BrowserPane: React.FC<{
         setOverlayRaised(Boolean(e?.detail?.open));
       } catch {}
     };
-    window.addEventListener('emdash:overlay:changed', onOverlay as any);
-    return () => window.removeEventListener('emdash:overlay:changed', onOverlay as any);
+    window.addEventListener('valkyr:overlay:changed', onOverlay as any);
+    return () => window.removeEventListener('valkyr:overlay:changed', onOverlay as any);
   }, []);
 
   React.useEffect(() => {
@@ -353,7 +353,7 @@ const BrowserPane: React.FC<{
     let pointerId: number | null = null;
     let startX = 0;
     let startPct = widthPctRef.current;
-    const handle = document.getElementById('emdash-browser-drag');
+    const handle = document.getElementById('valkyr-browser-drag');
     if (!handle) return;
 
     const onPointerDown = (e: PointerEvent) => {
@@ -548,7 +548,7 @@ const BrowserPane: React.FC<{
 
         <div className="relative min-h-0 flex-1" style={{ minHeight: 0 }}>
           <div
-            id="emdash-browser-drag"
+            id="valkyr-browser-drag"
             className="absolute left-0 top-0 z-[200] h-full w-[6px] cursor-col-resize hover:bg-border/60"
           />
           <div ref={containerRef} className="h-full w-full bg-white dark:bg-background" />

@@ -23,7 +23,7 @@ const Context7Tooltip: React.FC<Props> = ({ enabled }) => {
       </div>
       <div className="mt-1 flex items-center gap-1.5 text-tiny text-muted-foreground">
         <span className="rounded-md border bg-muted/40 px-1.5 py-0.5 text-micro opacity-80">
-          Requires setup in your used agent CLIs. Once configured, Emdash auto‑invokes Context7 in
+          Requires setup in your used agent CLIs. Once configured, Valkyr auto‑invokes Context7 in
           prompts.
         </span>
       </div>

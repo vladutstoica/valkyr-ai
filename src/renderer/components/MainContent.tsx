@@ -38,7 +38,7 @@ const MainContent: React.FC<MainContentProps> = ({
                 textShadow: '2px 2px 0px #000',
               }}
             >
-              Emdash
+              Valkyr
             </h1>
             <h2 className="text-2xl text-muted-foreground">Codex</h2>
           </div>

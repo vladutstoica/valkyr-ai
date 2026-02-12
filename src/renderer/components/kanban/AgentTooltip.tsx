@@ -75,7 +75,7 @@ export const AgentTooltip: React.FC<AgentTooltipProps> = ({
         }
         const filtered = (res.changes as Array<any>).filter(
           (c) =>
-            !String(c?.path || '').startsWith('.emdash/') && String(c?.path || '') !== 'PLANNING.md'
+            !String(c?.path || '').startsWith('.valkyr/') && String(c?.path || '') !== 'PLANNING.md'
         );
         const additions = filtered.reduce((s, c) => s + Number(c?.additions || 0), 0);
         const deletions = filtered.reduce((s, c) => s + Number(c?.deletions || 0), 0);

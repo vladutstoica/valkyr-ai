@@ -32,7 +32,7 @@ function collectPaths(root: string) {
     }
     if (st.isDirectory()) {
       // Skip our internal folder so we can write logs/policies
-      if (rel === '.emdash' || rel.startsWith('.emdash' + path.sep)) continue;
+      if (rel === '.valkyr' || rel.startsWith('.valkyr' + path.sep)) continue;
       result.push(rel);
       let entries: string[] = [];
       try {
@@ -85,7 +85,7 @@ function applyLock(root: string): { success: boolean; changed: number; error?: s
       }
     }
     // Persist lock state
-    const baseDir = path.join(root, '.emdash');
+    const baseDir = path.join(root, '.valkyr');
     try {
       fs.mkdirSync(baseDir, { recursive: true });
     } catch {}
@@ -101,7 +101,7 @@ function applyLock(root: string): { success: boolean; changed: number; error?: s
 
 function releaseLock(root: string): { success: boolean; restored: number; error?: string } {
   try {
-    const statePath = path.join(root, '.emdash', '.planlock.json');
+    const statePath = path.join(root, '.valkyr', '.planlock.json');
     if (!fs.existsSync(statePath)) return { success: true, restored: 0 };
     let raw = '';
     try {

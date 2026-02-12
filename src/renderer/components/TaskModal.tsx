@@ -25,6 +25,18 @@ import BranchSelect, { type BranchOption } from './BranchSelect';
 
 const DEFAULT_AGENT: Agent = 'claude';
 
+interface SubRepo {
+  path: string;
+  name: string;
+  relativePath: string;
+  gitInfo: {
+    isGitRepo: boolean;
+    remote?: string;
+    branch?: string;
+    baseRef?: string;
+  };
+}
+
 interface TaskModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -37,7 +49,8 @@ interface TaskModalProps {
     linkedJiraIssue?: JiraIssueSummary | null,
     autoApprove?: boolean,
     useWorktree?: boolean,
-    baseRef?: string
+    baseRef?: string,
+    selectedSubRepos?: string[]
   ) => void;
   projectName: string;
   defaultBranch: string;
@@ -46,6 +59,7 @@ interface TaskModalProps {
   projectPath?: string;
   branchOptions?: BranchOption[];
   isLoadingBranches?: boolean;
+  subRepos?: SubRepo[] | null;
 }
 
 const TaskModal: React.FC<TaskModalProps> = ({
@@ -59,6 +73,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
   projectPath,
   branchOptions = [],
   isLoadingBranches = false,
+  subRepos,
 }) => {
   // Form state
   const [taskName, setTaskName] = useState('');
@@ -74,6 +89,16 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const [selectedJiraIssue, setSelectedJiraIssue] = useState<JiraIssueSummary | null>(null);
   const [autoApprove, setAutoApprove] = useState(false);
   const [useWorktree, setUseWorktree] = useState(true);
+
+  // Multi-repo selection state - initialized with all repos selected
+  const [selectedSubRepos, setSelectedSubRepos] = useState<string[]>([]);
+
+  // Sync selectedSubRepos when subRepos changes or modal opens
+  useEffect(() => {
+    if (isOpen && subRepos && subRepos.length > 0) {
+      setSelectedSubRepos(subRepos.map((r) => r.relativePath));
+    }
+  }, [isOpen, subRepos]);
 
   // Branch selection state - sync with defaultBranch unless user manually changed it
   const [selectedBranch, setSelectedBranch] = useState(defaultBranch);
@@ -241,7 +266,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
         selectedJiraIssue,
         hasAutoApproveSupport ? autoApprove : false,
         useWorktree,
-        selectedBranch
+        selectedBranch,
+        subRepos && subRepos.length > 0 ? selectedSubRepos : undefined
       );
     } catch (error) {
       console.error('Failed to create task:', error);
@@ -308,6 +334,9 @@ const TaskModal: React.FC<TaskModalProps> = ({
             projectPath={projectPath}
             useWorktree={useWorktree}
             onUseWorktreeChange={setUseWorktree}
+            subRepos={subRepos}
+            selectedSubRepos={selectedSubRepos}
+            onSelectedSubReposChange={setSelectedSubRepos}
             autoApprove={autoApprove}
             onAutoApproveChange={setAutoApprove}
             hasAutoApproveSupport={hasAutoApproveSupport}
