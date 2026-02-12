@@ -53,8 +53,8 @@ const DEFAULT_EXCLUDE_PATTERNS = [
   'venv',
 ];
 
-/** Project-level config stored in .emdash.json */
-interface EmdashConfig {
+/** Project-level config stored in .valkyr.json */
+interface ValkyrConfig {
   preservePatterns?: string[];
 }
 
@@ -114,16 +114,16 @@ export class WorktreeService {
   }
 
   /**
-   * Read .emdash.json config from project root
+   * Read .valkyr.json config from project root
    */
-  private readProjectConfig(projectPath: string): EmdashConfig | null {
+  private readProjectConfig(projectPath: string): ValkyrConfig | null {
     try {
-      const configPath = path.join(projectPath, '.emdash.json');
+      const configPath = path.join(projectPath, '.valkyr.json');
       if (!fs.existsSync(configPath)) {
         return null;
       }
       const content = fs.readFileSync(configPath, 'utf8');
-      return JSON.parse(content) as EmdashConfig;
+      return JSON.parse(content) as ValkyrConfig;
     } catch {
       return null;
     }
@@ -180,7 +180,7 @@ export class WorktreeService {
     try {
       const { getAppSettings } = await import('../settings');
       const settings = getAppSettings();
-      const prefix = settings?.repository?.branchPrefix || 'emdash';
+      const prefix = settings?.repository?.branchPrefix || 'valkyr';
       branchName = this.sanitizeBranchName(`${prefix}/${sluggedName}-${hash}`);
       worktreePath = path.join(projectPath, '..', `worktrees/${sluggedName}-${hash}`);
       const worktreeId = this.stableIdFromPath(worktreePath);
@@ -318,7 +318,7 @@ export class WorktreeService {
       const worktrees: WorktreeInfo[] = [];
       const lines = stdout.trim().split('\n');
       // Compute managed prefixes based on configured prefix
-      let managedPrefixes: string[] = ['emdash', 'agent', 'pr', 'orch'];
+      let managedPrefixes: string[] = ['valkyr', 'agent', 'pr', 'orch'];
       try {
         const { getAppSettings } = await import('../settings');
         const settings = getAppSettings();
@@ -384,7 +384,7 @@ export class WorktreeService {
       .replace(/\/+/g, '/');
     n = n.replace(/^[./-]+/, '').replace(/[./-]+$/, '');
     if (!n || n === 'HEAD') {
-      n = `emdash/${this.slugify('task')}-${this.generateShortHash()}`;
+      n = `valkyr/${this.slugify('task')}-${this.generateShortHash()}`;
     }
     return n;
   }
@@ -690,7 +690,7 @@ export class WorktreeService {
     const settings = await projectSettingsService.getProjectSettings(projectId);
     if (!settings) {
       throw new Error(
-        'Project settings not found. Please re-open the project in Emdash and try again.'
+        'Project settings not found. Please re-open the project in Valkyr and try again.'
       );
     }
 
@@ -1191,6 +1191,258 @@ export class WorktreeService {
    */
   registerWorktree(worktree: WorktreeInfo): void {
     this.worktrees.set(worktree.id, worktree);
+  }
+
+  /**
+   * Create a composite worktree folder for a multi-repo project.
+   * Selected repos get git worktrees, unselected repos get symlinks to originals.
+   */
+  async createMultiRepoWorktree(config: {
+    projectPath: string;
+    projectId: string;
+    taskName: string;
+    subRepos: Array<{
+      path: string;
+      name: string;
+      relativePath: string;
+      gitInfo: { isGitRepo: boolean; remote?: string; branch?: string; baseRef?: string };
+    }>;
+    selectedRepos: string[]; // relativePaths of repos to create worktrees for
+    baseRef?: string;
+  }): Promise<{
+    compositeWorktreePath: string;
+    repoMappings: Array<{
+      relativePath: string;
+      originalPath: string;
+      targetPath: string;
+      isWorktree: boolean;
+      branch?: string;
+    }>;
+  }> {
+    const { projectPath, projectId, taskName, subRepos, selectedRepos, baseRef } = config;
+    const sluggedName = this.slugify(taskName);
+    const hash = this.generateShortHash();
+
+    // Create composite worktree folder
+    const compositeWorktreePath = path.join(projectPath, '..', `worktrees/${sluggedName}-${hash}`);
+
+    if (fs.existsSync(compositeWorktreePath)) {
+      throw new Error(`Composite worktree directory already exists: ${compositeWorktreePath}`);
+    }
+
+    // Ensure worktrees directory exists
+    const worktreesDir = path.dirname(compositeWorktreePath);
+    if (!fs.existsSync(worktreesDir)) {
+      fs.mkdirSync(worktreesDir, { recursive: true });
+    }
+
+    // Create the composite folder
+    fs.mkdirSync(compositeWorktreePath, { recursive: true });
+
+    const repoMappings: Array<{
+      relativePath: string;
+      originalPath: string;
+      targetPath: string;
+      isWorktree: boolean;
+      branch?: string;
+    }> = [];
+
+    const { getAppSettings } = await import('../settings');
+    const settings = getAppSettings();
+    const prefix = settings?.repository?.branchPrefix || 'valkyr';
+
+    for (const subRepo of subRepos) {
+      const targetPath = path.join(compositeWorktreePath, subRepo.relativePath);
+      const isSelected = selectedRepos.includes(subRepo.relativePath);
+
+      if (isSelected && subRepo.gitInfo.isGitRepo) {
+        // Create git worktree for selected repos
+        const branchName = this.sanitizeBranchName(
+          `${prefix}/${sluggedName}-${subRepo.name}-${hash}`
+        );
+
+        try {
+          // Resolve base ref for this sub-repo
+          let baseRefToUse = baseRef || subRepo.gitInfo.baseRef;
+          if (!baseRefToUse) {
+            // Fallback to origin/main or just main
+            baseRefToUse = subRepo.gitInfo.remote ? 'origin/main' : 'main';
+          }
+
+          // Create the worktree
+          await execFileAsync(
+            'git',
+            ['worktree', 'add', '-b', branchName, targetPath, baseRefToUse],
+            { cwd: subRepo.path }
+          );
+
+          // Preserve .env files
+          try {
+            const patterns = this.getPreservePatterns(subRepo.path);
+            await this.preserveFilesToWorktree(subRepo.path, targetPath, patterns);
+          } catch (preserveErr) {
+            log.warn(`Failed to preserve files to worktree for ${subRepo.name}:`, preserveErr);
+          }
+
+          // Push the branch if configured
+          if (settings?.repository?.pushOnCreate !== false && subRepo.gitInfo.remote) {
+            try {
+              await execFileAsync('git', ['push', '--set-upstream', 'origin', branchName], {
+                cwd: targetPath,
+              });
+            } catch (pushErr) {
+              log.warn(`Initial push of worktree branch failed for ${subRepo.name}:`, pushErr);
+            }
+          }
+
+          repoMappings.push({
+            relativePath: subRepo.relativePath,
+            originalPath: subRepo.path,
+            targetPath,
+            isWorktree: true,
+            branch: branchName,
+          });
+
+          log.info(`Created worktree for sub-repo ${subRepo.name}: ${branchName}`);
+        } catch (error) {
+          log.error(`Failed to create worktree for sub-repo ${subRepo.name}:`, error);
+          // Clean up what we've created so far
+          await this.removeMultiRepoWorktree(compositeWorktreePath, subRepos);
+          throw error;
+        }
+      } else {
+        // Create symlink for unselected repos (or non-git repos)
+        try {
+          // Ensure parent directory exists
+          const targetDir = path.dirname(targetPath);
+          if (!fs.existsSync(targetDir)) {
+            fs.mkdirSync(targetDir, { recursive: true });
+          }
+
+          await fs.promises.symlink(subRepo.path, targetPath, 'dir');
+
+          repoMappings.push({
+            relativePath: subRepo.relativePath,
+            originalPath: subRepo.path,
+            targetPath,
+            isWorktree: false,
+          });
+
+          log.info(`Created symlink for sub-repo ${subRepo.name}: ${subRepo.path} -> ${targetPath}`);
+        } catch (error) {
+          log.error(`Failed to create symlink for sub-repo ${subRepo.name}:`, error);
+          // Clean up what we've created so far
+          await this.removeMultiRepoWorktree(compositeWorktreePath, subRepos);
+          throw error;
+        }
+      }
+    }
+
+    return { compositeWorktreePath, repoMappings };
+  }
+
+  /**
+   * Remove a composite worktree folder for a multi-repo project.
+   * Removes git worktrees properly and deletes symlinks.
+   */
+  async removeMultiRepoWorktree(
+    compositeWorktreePath: string,
+    subRepos: Array<{
+      path: string;
+      name: string;
+      relativePath: string;
+      gitInfo: { isGitRepo: boolean; remote?: string; branch?: string; baseRef?: string };
+    }>
+  ): Promise<void> {
+    if (!fs.existsSync(compositeWorktreePath)) {
+      log.info(`Composite worktree path does not exist, nothing to remove: ${compositeWorktreePath}`);
+      return;
+    }
+
+    // Safety check: ensure this looks like a worktree path
+    const isLikelyWorktree =
+      compositeWorktreePath.includes('/worktrees/') ||
+      compositeWorktreePath.includes('\\worktrees\\');
+
+    if (!isLikelyWorktree) {
+      log.warn(
+        `Path doesn't appear to be a worktree directory, skipping removal: ${compositeWorktreePath}`
+      );
+      return;
+    }
+
+    // Process each sub-repo
+    for (const subRepo of subRepos) {
+      const targetPath = path.join(compositeWorktreePath, subRepo.relativePath);
+
+      if (!fs.existsSync(targetPath)) {
+        continue;
+      }
+
+      try {
+        const stats = await fs.promises.lstat(targetPath);
+
+        if (stats.isSymbolicLink()) {
+          // Remove symlink
+          await fs.promises.unlink(targetPath);
+          log.info(`Removed symlink for sub-repo ${subRepo.name}`);
+        } else if (stats.isDirectory() && subRepo.gitInfo.isGitRepo) {
+          // This is likely a git worktree - remove it properly
+          try {
+            await execFileAsync('git', ['worktree', 'remove', '--force', targetPath], {
+              cwd: subRepo.path,
+            });
+            log.info(`Removed git worktree for sub-repo ${subRepo.name}`);
+          } catch (gitError) {
+            log.warn(`git worktree remove failed for ${subRepo.name}, removing directory:`, gitError);
+            await fs.promises.rm(targetPath, { recursive: true, force: true });
+          }
+
+          // Prune worktree metadata
+          try {
+            await execFileAsync('git', ['worktree', 'prune', '--verbose'], { cwd: subRepo.path });
+          } catch (pruneErr) {
+            log.warn(`git worktree prune failed for ${subRepo.name}:`, pruneErr);
+          }
+
+          // Try to delete the branch (best effort)
+          try {
+            // Find the branch name from the worktree
+            const branchPattern = new RegExp(`valkyr/.*-${subRepo.name}-`);
+            const { stdout } = await execFileAsync('git', ['branch'], { cwd: subRepo.path });
+            const branches = stdout.split('\n').map((b) => b.trim().replace(/^\*\s*/, ''));
+            const worktreeBranch = branches.find((b) => branchPattern.test(b));
+
+            if (worktreeBranch) {
+              await execFileAsync('git', ['branch', '-D', worktreeBranch], { cwd: subRepo.path });
+              log.info(`Deleted branch ${worktreeBranch} for sub-repo ${subRepo.name}`);
+
+              // Try to delete remote branch
+              try {
+                const remoteBranch = worktreeBranch.replace(/^origin\//, '');
+                await execFileAsync('git', ['push', 'origin', '--delete', remoteBranch], {
+                  cwd: subRepo.path,
+                });
+              } catch {
+                // Ignore remote deletion failures
+              }
+            }
+          } catch (branchErr) {
+            log.warn(`Failed to delete branch for ${subRepo.name}:`, branchErr);
+          }
+        }
+      } catch (error) {
+        log.error(`Failed to remove sub-repo ${subRepo.name} from composite worktree:`, error);
+      }
+    }
+
+    // Remove the composite folder itself
+    try {
+      await fs.promises.rm(compositeWorktreePath, { recursive: true, force: true });
+      log.info(`Removed composite worktree folder: ${compositeWorktreePath}`);
+    } catch (error) {
+      log.error(`Failed to remove composite worktree folder:`, error);
+    }
   }
 }
 

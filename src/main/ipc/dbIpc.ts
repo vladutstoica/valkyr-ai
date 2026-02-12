@@ -117,7 +117,7 @@ export function registerDatabaseIpc() {
     'db:cleanupSessionDirectory',
     async (_, args: { taskPath: string; conversationId: string }) => {
       try {
-        const sessionDir = path.join(args.taskPath, '.emdash-sessions', args.conversationId);
+        const sessionDir = path.join(args.taskPath, '.valkyr-sessions', args.conversationId);
 
         // Check if directory exists before trying to remove it
         if (fs.existsSync(sessionDir)) {
@@ -125,13 +125,13 @@ export function registerDatabaseIpc() {
           fs.rmSync(sessionDir, { recursive: true, force: true });
           log.info('Cleaned up session directory:', sessionDir);
 
-          // Also try to remove the parent .emdash-sessions if it's empty
-          const parentDir = path.join(args.taskPath, '.emdash-sessions');
+          // Also try to remove the parent .valkyr-sessions if it's empty
+          const parentDir = path.join(args.taskPath, '.valkyr-sessions');
           try {
             const entries = fs.readdirSync(parentDir);
             if (entries.length === 0) {
               fs.rmdirSync(parentDir);
-              log.info('Removed empty .emdash-sessions directory');
+              log.info('Removed empty .valkyr-sessions directory');
             }
           } catch (err) {
             // Parent directory removal is optional

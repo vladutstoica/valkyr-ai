@@ -1,6 +1,6 @@
 export type KanbanStatus = 'todo' | 'in-progress' | 'done';
 
-const STORAGE_KEY = 'emdash:kanban:statusByTask';
+const STORAGE_KEY = 'valkyr:kanban:statusByTask';
 
 type MapShape = Record<string, KanbanStatus>;
 

@@ -36,7 +36,7 @@ describe('SshCredentialService', () => {
       await service.storePassword('conn-1', 'secretpassword');
 
       expect(mockSetPassword).toHaveBeenCalledWith(
-        'emdash-ssh',
+        'valkyr-ssh',
         'conn-1:password',
         'secretpassword'
       );
@@ -47,7 +47,7 @@ describe('SshCredentialService', () => {
 
       const result = await service.getPassword('conn-1');
 
-      expect(mockGetPassword).toHaveBeenCalledWith('emdash-ssh', 'conn-1:password');
+      expect(mockGetPassword).toHaveBeenCalledWith('valkyr-ssh', 'conn-1:password');
       expect(result).toBe('secretpassword');
     });
 
@@ -62,7 +62,7 @@ describe('SshCredentialService', () => {
     it('should delete password from keychain', async () => {
       await service.deletePassword('conn-1');
 
-      expect(mockDeletePassword).toHaveBeenCalledWith('emdash-ssh', 'conn-1:password');
+      expect(mockDeletePassword).toHaveBeenCalledWith('valkyr-ssh', 'conn-1:password');
     });
 
     it('should check if password exists', async () => {
@@ -71,7 +71,7 @@ describe('SshCredentialService', () => {
       const result = await service.hasPassword('conn-1');
 
       expect(result).toBe(true);
-      expect(mockGetPassword).toHaveBeenCalledWith('emdash-ssh', 'conn-1:password');
+      expect(mockGetPassword).toHaveBeenCalledWith('valkyr-ssh', 'conn-1:password');
     });
 
     it('should return false when password does not exist', async () => {
@@ -122,7 +122,7 @@ describe('SshCredentialService', () => {
       await service.storePassphrase('conn-1', 'my-passphrase');
 
       expect(mockSetPassword).toHaveBeenCalledWith(
-        'emdash-ssh',
+        'valkyr-ssh',
         'conn-1:passphrase',
         'my-passphrase'
       );
@@ -133,7 +133,7 @@ describe('SshCredentialService', () => {
 
       const result = await service.getPassphrase('conn-1');
 
-      expect(mockGetPassword).toHaveBeenCalledWith('emdash-ssh', 'conn-1:passphrase');
+      expect(mockGetPassword).toHaveBeenCalledWith('valkyr-ssh', 'conn-1:passphrase');
       expect(result).toBe('my-passphrase');
     });
 
@@ -150,7 +150,7 @@ describe('SshCredentialService', () => {
 
       await service.deletePassphrase('conn-1');
 
-      expect(mockDeletePassword).toHaveBeenCalledWith('emdash-ssh', 'conn-1:passphrase');
+      expect(mockDeletePassword).toHaveBeenCalledWith('valkyr-ssh', 'conn-1:passphrase');
     });
 
     it('should check if passphrase exists', async () => {
@@ -159,7 +159,7 @@ describe('SshCredentialService', () => {
       const result = await service.hasPassphrase('conn-1');
 
       expect(result).toBe(true);
-      expect(mockGetPassword).toHaveBeenCalledWith('emdash-ssh', 'conn-1:passphrase');
+      expect(mockGetPassword).toHaveBeenCalledWith('valkyr-ssh', 'conn-1:passphrase');
     });
 
     it('should return false when passphrase does not exist', async () => {
@@ -214,12 +214,12 @@ describe('SshCredentialService', () => {
 
       expect(mockSetPassword).toHaveBeenCalledTimes(2);
       expect(mockSetPassword).toHaveBeenCalledWith(
-        'emdash-ssh',
+        'valkyr-ssh',
         'conn-1:password',
         'secretpassword'
       );
       expect(mockSetPassword).toHaveBeenCalledWith(
-        'emdash-ssh',
+        'valkyr-ssh',
         'conn-1:passphrase',
         'my-passphrase'
       );
@@ -234,7 +234,7 @@ describe('SshCredentialService', () => {
 
       expect(mockSetPassword).toHaveBeenCalledTimes(1);
       expect(mockSetPassword).toHaveBeenCalledWith(
-        'emdash-ssh',
+        'valkyr-ssh',
         'conn-1:password',
         'secretpassword'
       );
@@ -249,7 +249,7 @@ describe('SshCredentialService', () => {
 
       expect(mockSetPassword).toHaveBeenCalledTimes(1);
       expect(mockSetPassword).toHaveBeenCalledWith(
-        'emdash-ssh',
+        'valkyr-ssh',
         'conn-1:passphrase',
         'my-passphrase'
       );
@@ -267,8 +267,8 @@ describe('SshCredentialService', () => {
       await service.deleteAllCredentials('conn-1');
 
       expect(mockDeletePassword).toHaveBeenCalledTimes(2);
-      expect(mockDeletePassword).toHaveBeenCalledWith('emdash-ssh', 'conn-1:password');
-      expect(mockDeletePassword).toHaveBeenCalledWith('emdash-ssh', 'conn-1:passphrase');
+      expect(mockDeletePassword).toHaveBeenCalledWith('valkyr-ssh', 'conn-1:password');
+      expect(mockDeletePassword).toHaveBeenCalledWith('valkyr-ssh', 'conn-1:passphrase');
     });
 
     it('should not fail when deleting non-existent credentials', async () => {
@@ -297,7 +297,7 @@ describe('SshCredentialService', () => {
       await service.storePassphrase('conn-1', 'phrase');
 
       const calls = mockSetPassword.mock.calls;
-      expect(calls.every((call) => call[0] === 'emdash-ssh')).toBe(true);
+      expect(calls.every((call) => call[0] === 'valkyr-ssh')).toBe(true);
     });
 
     it('should use correct key format for password', async () => {
@@ -306,7 +306,7 @@ describe('SshCredentialService', () => {
       await service.storePassword('my-connection', 'password');
 
       expect(mockSetPassword).toHaveBeenCalledWith(
-        'emdash-ssh',
+        'valkyr-ssh',
         'my-connection:password',
         'password'
       );
@@ -318,7 +318,7 @@ describe('SshCredentialService', () => {
       await service.storePassphrase('my-connection', 'passphrase');
 
       expect(mockSetPassword).toHaveBeenCalledWith(
-        'emdash-ssh',
+        'valkyr-ssh',
         'my-connection:passphrase',
         'passphrase'
       );

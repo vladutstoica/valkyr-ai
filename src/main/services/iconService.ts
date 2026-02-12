@@ -134,7 +134,7 @@ export async function resolveServiceIcon(opts: {
 
   // 1) Task overrides
   if (opts.taskPath) {
-    const p = path.join(opts.taskPath, '.emdash', 'service-icons');
+    const p = path.join(opts.taskPath, '.valkyr', 'service-icons');
     const candidates = ['.svg', '.png', '.jpg', '.jpeg', '.ico'].map((ext) =>
       path.join(p, `${slug}${ext}`)
     );

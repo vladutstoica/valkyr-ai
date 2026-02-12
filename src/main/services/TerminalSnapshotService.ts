@@ -13,7 +13,7 @@ const MAX_SNAPSHOT_BYTES = 8 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 64 * 1024 * 1024;
 
 function resolveBaseDir(): string {
-  const override = process.env.EMDASH_TERMINAL_SNAPSHOT_DIR;
+  const override = process.env.VALKYR_TERMINAL_SNAPSHOT_DIR;
   if (override && override.trim().length > 0) {
     return path.resolve(override);
   }
@@ -23,7 +23,7 @@ function resolveBaseDir(): string {
     log.warn('terminalSnapshotService: unable to resolve userData path, using cwd fallback', {
       error,
     });
-    return path.join(process.cwd(), '.emdash-terminal-snapshots');
+    return path.join(process.cwd(), '.valkyr-terminal-snapshots');
   }
 }
 

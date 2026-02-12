@@ -1,5 +1,5 @@
 {
-  "name": "emdash",
+  "name": "valkyr",
   "version": "0.4.8",
   "description": "A cross-platform Electron app that orchestrates multiple coding agents in parallel",
   "main": "dist/main/main/entry.js",
@@ -35,8 +35,8 @@
     "openai"
   ],
   "author": {
-    "name": "Emdash Contributors",
-    "email": "support@emdash.sh"
+    "name": "Valkyr Contributors",
+    "email": "support@valkyr.dev"
   },
   "engines": {
     "node": ">=20.0.0 <23.0.0",
@@ -130,12 +130,12 @@
     "tsconfig-paths": "^3.15.0"
   },
   "build": {
-    "appId": "com.emdash",
-    "productName": "Emdash",
+    "appId": "com.valkyr",
+    "productName": "Valkyr",
     "directories": {
       "output": "release"
     },
-    "artifactName": "emdash-${arch}.${ext}",
+    "artifactName": "valkyr-${arch}.${ext}",
     "publish": [
       {
         "provider": "github",
@@ -175,11 +175,11 @@
           ]
         }
       ],
-      "icon": "src/assets/images/emdash/emdash.icns",
+      "icon": "src/assets/images/valkyr/valkyr.icns",
       "notarize": false
     },
     "dmg": {
-      "icon": "src/assets/images/emdash/emdash.icns"
+      "icon": "src/assets/images/valkyr/valkyr.icns"
     },
     "linux": {
       "category": "Development",

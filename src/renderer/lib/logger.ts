@@ -2,7 +2,7 @@ type Level = 'debug' | 'info' | 'warn' | 'error';
 
 function envLevel(): Level {
   try {
-    const ls = typeof window !== 'undefined' ? window.localStorage.getItem('emdash:debug') : null;
+    const ls = typeof window !== 'undefined' ? window.localStorage.getItem('valkyr:debug') : null;
     if (ls === '1' || ls === 'true') return 'debug';
   } catch {}
   // Default to warn in open-source builds without env

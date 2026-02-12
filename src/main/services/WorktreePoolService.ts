@@ -212,7 +212,7 @@ export class WorktreePoolService {
   ): Promise<ClaimResult> {
     const { getAppSettings } = await import('../settings');
     const settings = getAppSettings();
-    const prefix = settings?.repository?.branchPrefix || 'emdash';
+    const prefix = settings?.repository?.branchPrefix || 'valkyr';
 
     // Generate new names
     const sluggedName = this.slugify(taskName);

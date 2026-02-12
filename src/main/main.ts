@@ -115,7 +115,7 @@ import { errorTracking } from './errorTracking';
 import { join } from 'path';
 
 // Set app name for macOS dock and menu bar
-app.setName('Emdash');
+app.setName('Valkyr');
 
 // Prevent multiple instances in production (e.g. user clicks icon while auto-updater is restarting).
 // Skip in dev so dev server can run alongside the packaged app.
@@ -148,7 +148,7 @@ if (process.platform === 'darwin' && !app.isPackaged) {
     'src',
     'assets',
     'images',
-    'emdash',
+    'valkyr',
     'icon-dock.png'
   );
   try {
@@ -184,7 +184,7 @@ app.whenReady().then(async () => {
           '• Homebrew installation issues (try direct download)\n' +
           '• Incomplete installation\n\n' +
           'Please try:\n' +
-          '1. Move Emdash to Applications folder\n' +
+          '1. Move Valkyr to Applications folder\n' +
           '2. Download directly from GitHub releases\n' +
           '3. Check console for detailed error information'
       );

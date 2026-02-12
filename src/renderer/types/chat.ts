@@ -15,6 +15,15 @@ export interface GitHubIssueLink {
   taskName: string;
 }
 
+/** Mapping of a sub-repo to its worktree or symlink in a multi-repo task */
+export interface MultiRepoMapping {
+  relativePath: string; // Relative path from project root (e.g., "frontend")
+  originalPath: string; // Absolute path to original repo
+  targetPath: string; // Path in composite worktree folder
+  isWorktree: boolean; // true = git worktree, false = symlink
+  branch?: string; // Branch name for worktrees
+}
+
 export interface TaskMetadata {
   linearIssue?: LinearIssueSummary | null;
   githubIssue?: GitHubIssueSummary | null;
@@ -41,6 +50,14 @@ export interface TaskMetadata {
       worktreeId: string; // WorktreeService id (stable hash of path)
     }>;
     selectedAgent?: ProviderId | null;
+  } | null;
+  // When present, this task is for a multi-repo project with composite worktree
+  multiRepo?: {
+    enabled: boolean;
+    // Path to the composite worktree folder containing all repos
+    compositeWorktreePath: string;
+    // Mapping of each sub-repo to its worktree or symlink
+    repoMappings: MultiRepoMapping[];
   } | null;
 }
 

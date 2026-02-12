@@ -8,7 +8,7 @@ import { execSync } from 'child_process';
 vi.mock('electron', () => ({
   app: {
     getPath: vi.fn().mockReturnValue(os.tmpdir()),
-    getName: vi.fn().mockReturnValue('emdash-test'),
+    getName: vi.fn().mockReturnValue('valkyr-test'),
     getVersion: vi.fn().mockReturnValue('0.0.0-test'),
   },
 }));
@@ -204,16 +204,16 @@ describe('WorktreeService', () => {
       expect(fs.existsSync(path.join(destDir, 'local.config.json'))).toBe(true);
     });
 
-    it('should read patterns from .emdash.json if present', async () => {
-      // Create .emdash.json with custom patterns
+    it('should read patterns from .valkyr.json if present', async () => {
+      // Create .valkyr.json with custom patterns
       fs.writeFileSync(
-        path.join(sourceDir, '.emdash.json'),
+        path.join(sourceDir, '.valkyr.json'),
         JSON.stringify({ preservePatterns: ['custom.secret'] })
       );
 
       // Create the custom file
       fs.writeFileSync(path.join(sourceDir, 'custom.secret'), 'my-secret-value');
-      fs.writeFileSync(path.join(sourceDir, '.gitignore'), 'custom.secret\n.emdash.json\n');
+      fs.writeFileSync(path.join(sourceDir, '.gitignore'), 'custom.secret\n.valkyr.json\n');
       execSync('git add .gitignore', { cwd: sourceDir, stdio: 'pipe' });
       execSync('git commit -m "update gitignore"', { cwd: sourceDir, stdio: 'pipe' });
 
@@ -225,7 +225,7 @@ describe('WorktreeService', () => {
       expect(result.copied).toContain('custom.secret');
     });
 
-    it('should fall back to defaults when .emdash.json is missing', async () => {
+    it('should fall back to defaults when .valkyr.json is missing', async () => {
       const patterns = (service as any).getPreservePatterns(sourceDir);
       expect(patterns).toContain('.env');
       expect(patterns).toContain('.envrc');

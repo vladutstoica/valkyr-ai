@@ -9,7 +9,7 @@ import { isValidOpenInAppId, type OpenInAppId } from '@shared/openInApps';
 const DEFAULT_PROVIDER_ID: ProviderId = 'claude';
 
 export interface RepositorySettings {
-  branchPrefix: string; // e.g., 'emdash'
+  branchPrefix: string; // e.g., 'valkyr'
   pushOnCreate: boolean;
 }
 
@@ -78,7 +78,7 @@ export interface AppSettings {
 
 const DEFAULT_SETTINGS: AppSettings = {
   repository: {
-    branchPrefix: 'emdash',
+    branchPrefix: 'valkyr',
     pushOnCreate: true,
   },
   projectPrep: {
@@ -104,7 +104,7 @@ const DEFAULT_SETTINGS: AppSettings = {
     autoApproveByDefault: false,
   },
   projects: {
-    defaultDirectory: join(homedir(), 'emdash-projects'),
+    defaultDirectory: join(homedir(), 'valkyr-projects'),
   },
   keyboard: {
     commandPalette: { key: 'k', modifier: 'cmd' },

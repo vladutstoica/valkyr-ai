@@ -82,8 +82,8 @@ export function startSshPty(options: {
   rows?: number;
   env?: Record<string, string>;
 }): IPty {
-  if (process.env.EMDASH_DISABLE_PTY === '1') {
-    throw new Error('PTY disabled via EMDASH_DISABLE_PTY=1');
+  if (process.env.VALKYR_DISABLE_PTY === '1') {
+    throw new Error('PTY disabled via VALKYR_DISABLE_PTY=1');
   }
 
   const { id, target, sshArgs = [], remoteInitCommand, cols = 120, rows = 32, env } = options;
@@ -100,7 +100,7 @@ export function startSshPty(options: {
   const useEnv: Record<string, string> = {
     TERM: 'xterm-256color',
     COLORTERM: 'truecolor',
-    TERM_PROGRAM: 'emdash',
+    TERM_PROGRAM: 'valkyr',
     HOME: process.env.HOME || os.homedir(),
     USER: process.env.USER || os.userInfo().username,
     PATH: process.env.PATH || '/usr/local/bin:/usr/bin:/bin',
@@ -117,7 +117,7 @@ export function startSshPty(options: {
 
   if (env) {
     for (const [key, value] of Object.entries(env)) {
-      if (!key.startsWith('EMDASH_')) continue;
+      if (!key.startsWith('VALKYR_')) continue;
       if (typeof value === 'string') {
         useEnv[key] = value;
       }
@@ -159,8 +159,8 @@ export function startDirectPty(options: {
   env?: Record<string, string>;
   resume?: boolean;
 }): IPty | null {
-  if (process.env.EMDASH_DISABLE_PTY === '1') {
-    throw new Error('PTY disabled via EMDASH_DISABLE_PTY=1');
+  if (process.env.VALKYR_DISABLE_PTY === '1') {
+    throw new Error('PTY disabled via VALKYR_DISABLE_PTY=1');
   }
 
   const {
@@ -218,7 +218,7 @@ export function startDirectPty(options: {
   const useEnv: Record<string, string> = {
     TERM: 'xterm-256color',
     COLORTERM: 'truecolor',
-    TERM_PROGRAM: 'emdash',
+    TERM_PROGRAM: 'valkyr',
     HOME: process.env.HOME || os.homedir(),
     USER: process.env.USER || os.userInfo().username,
     // Include PATH so CLI can find its dependencies
@@ -236,7 +236,7 @@ export function startDirectPty(options: {
 
   if (env) {
     for (const [key, value] of Object.entries(env)) {
-      if (!key.startsWith('EMDASH_')) continue;
+      if (!key.startsWith('VALKYR_')) continue;
       if (typeof value === 'string') {
         useEnv[key] = value;
       }
@@ -293,8 +293,8 @@ export async function startPty(options: {
   initialPrompt?: string;
   skipResume?: boolean;
 }): Promise<IPty> {
-  if (process.env.EMDASH_DISABLE_PTY === '1') {
-    throw new Error('PTY disabled via EMDASH_DISABLE_PTY=1');
+  if (process.env.VALKYR_DISABLE_PTY === '1') {
+    throw new Error('PTY disabled via VALKYR_DISABLE_PTY=1');
   }
   const {
     id,
@@ -314,7 +314,7 @@ export async function startPty(options: {
 
   // Build a clean environment instead of inheriting process.env wholesale.
   //
-  // WHY: When Emdash runs as an AppImage on Linux (or other packaged Electron apps),
+  // WHY: When Valkyr runs as an AppImage on Linux (or other packaged Electron apps),
   // the parent process.env contains packaging artifacts like PYTHONHOME, APPDIR,
   // APPIMAGE, etc. These variables can break user tools, especially Python virtual
   // environments which fail with "Could not find platform independent libraries"
@@ -325,11 +325,11 @@ export async function startPty(options: {
   // (.profile, .bashrc, .zshrc, etc.). This is how `sudo -i`, `ssh`, and other
   // tools create clean user environments.
   //
-  // See: https://github.com/generalaction/emdash/issues/485
+  // See: https://github.com/generalaction/valkyr/issues/485
   const useEnv: Record<string, string> = {
     TERM: 'xterm-256color',
     COLORTERM: 'truecolor',
-    TERM_PROGRAM: 'emdash',
+    TERM_PROGRAM: 'valkyr',
     HOME: process.env.HOME || os.homedir(),
     USER: process.env.USER || os.userInfo().username,
     SHELL: process.env.SHELL || defaultShell,

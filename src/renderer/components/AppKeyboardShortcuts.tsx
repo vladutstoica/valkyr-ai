@@ -50,11 +50,11 @@ const AppKeyboardShortcuts: React.FC<AppKeyboardShortcutsProps> = ({
     onNewTask: handleNewTask,
     onNextAgent: () =>
       window.dispatchEvent(
-        new CustomEvent('emdash:switch-agent', { detail: { direction: 'next' } })
+        new CustomEvent('valkyr:switch-agent', { detail: { direction: 'next' } })
       ),
     onPrevAgent: () =>
       window.dispatchEvent(
-        new CustomEvent('emdash:switch-agent', { detail: { direction: 'prev' } })
+        new CustomEvent('valkyr:switch-agent', { detail: { direction: 'prev' } })
       ),
     onCloseModal: showCommandPalette
       ? handleCloseCommandPalette

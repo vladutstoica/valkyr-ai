@@ -582,19 +582,44 @@ const ProjectMainView: React.FC<ProjectMainViewProps> = ({
                     {project.path}
                   </p>
                 </div>
-                <BaseBranchControls
-                  baseBranch={baseBranch}
-                  branchOptions={branchOptions}
-                  isLoadingBranches={isLoadingBranches}
-                  isSavingBaseBranch={isSavingBaseBranch}
-                  onBaseBranchChange={handleBaseBranchChange}
-                  projectPath={project.path}
-                  onEditConfig={() => {
-                    preloadProjectConfig();
-                    setShowConfigEditor(true);
-                  }}
-                  onPreloadConfig={preloadProjectConfig}
-                />
+                {/* Show base branch controls only for single-repo projects */}
+                {!project.subRepos || project.subRepos.length === 0 ? (
+                  <BaseBranchControls
+                    baseBranch={baseBranch}
+                    branchOptions={branchOptions}
+                    isLoadingBranches={isLoadingBranches}
+                    isSavingBaseBranch={isSavingBaseBranch}
+                    onBaseBranchChange={handleBaseBranchChange}
+                    projectPath={project.path}
+                    onEditConfig={() => {
+                      preloadProjectConfig();
+                      setShowConfigEditor(true);
+                    }}
+                    onPreloadConfig={preloadProjectConfig}
+                  />
+                ) : (
+                  /* Show sub-repos for multi-repo projects */
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Folder className="h-4 w-4" />
+                      <span>Multi-repo project with {project.subRepos.length} repositories</span>
+                    </div>
+                    <div className="space-y-1 rounded-md border border-border bg-muted/30 p-3">
+                      {project.subRepos.map((repo) => (
+                        <div
+                          key={repo.relativePath}
+                          className="flex items-center justify-between gap-2 text-sm"
+                        >
+                          <span className="font-mono text-xs">{repo.name}</span>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <GitBranch className="h-3 w-3" />
+                            <span>{repo.gitInfo.branch || 'main'}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </header>
               <Separator className="my-2" />
             </div>

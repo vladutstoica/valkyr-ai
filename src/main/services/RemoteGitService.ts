@@ -102,13 +102,13 @@ export class RemoteGitService {
       .replace(/-+/g, '-')
       .replace(/^-|-$/g, '');
     const worktreeName = `${slug || 'task'}-${Date.now()}`;
-    const relWorktreePath = `.emdash/worktrees/${worktreeName}`;
+    const relWorktreePath = `.valkyr/worktrees/${worktreeName}`;
     const worktreePath = `${normalizedProjectPath}/${relWorktreePath}`.replace(/\/+/g, '/');
 
     // Create worktrees directory (relative so we avoid quoting issues)
     await this.sshService.executeCommand(
       connectionId,
-      'mkdir -p .emdash/worktrees',
+      'mkdir -p .valkyr/worktrees',
       normalizedProjectPath
     );
 

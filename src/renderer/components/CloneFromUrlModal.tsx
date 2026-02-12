@@ -141,7 +141,7 @@ export const CloneFromUrlModal: React.FC<CloneFromUrlModalProps> = ({
         const defaultDir =
           settingsResult.success && settingsResult.settings?.projects?.defaultDirectory
             ? settingsResult.settings.projects.defaultDirectory
-            : '~/emdash-projects';
+            : '~/valkyr-projects';
         const localPath = `${defaultDir}/${directoryName.trim()}`;
 
         setProgress(`Cloning to ${localPath}...`);

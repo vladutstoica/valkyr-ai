@@ -20,7 +20,7 @@ type TaskSnapshot = {
   activeTerminalId: string | null;
 };
 
-const STORAGE_PREFIX = 'emdash:taskTerminals:v1';
+const STORAGE_PREFIX = 'valkyr:taskTerminals:v1';
 
 const taskStates = new Map<string, TaskTerminalsState>();
 const taskListeners = new Map<string, Set<() => void>>();
@@ -34,7 +34,7 @@ const EMPTY_SNAPSHOT: TaskSnapshot = {
 const storageAvailable = (() => {
   if (typeof window === 'undefined') return false;
   try {
-    const key = '__emdash_terminal_test__';
+    const key = '__valkyr_terminal_test__';
     window.localStorage.setItem(key, '1');
     window.localStorage.removeItem(key);
     return true;

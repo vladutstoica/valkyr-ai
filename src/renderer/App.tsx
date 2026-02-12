@@ -52,7 +52,7 @@ import {
   MAIN_PANEL_MIN_SIZE,
 } from './constants/layout';
 
-const PINNED_TASKS_KEY = 'emdash-pinned-tasks';
+const PINNED_TASKS_KEY = 'valkyr-pinned-tasks';
 
 const RightSidebarBridge: React.FC<{
   onCollapsedChange: (collapsed: boolean) => void;
@@ -242,7 +242,8 @@ const AppContent: React.FC = () => {
       linkedJiraIssue: JiraIssueSummary | null = null,
       autoApprove?: boolean,
       useWorktree: boolean = true,
-      baseRef?: string
+      baseRef?: string,
+      selectedSubRepos?: string[]
     ) => {
       if (!projectMgmt.selectedProject) return;
       await createTask(
@@ -256,6 +257,7 @@ const AppContent: React.FC = () => {
           autoApprove,
           useWorktree,
           baseRef,
+          selectedSubRepos,
         },
         {
           selectedProject: projectMgmt.selectedProject,
@@ -580,6 +582,7 @@ const AppContent: React.FC = () => {
                 projectPath={selectedProject?.path}
                 branchOptions={projectMgmt.projectBranchOptions}
                 isLoadingBranches={projectMgmt.isLoadingBranches}
+                subRepos={selectedProject?.subRepos}
               />
               <NewProjectModal
                 isOpen={showNewProjectModal}

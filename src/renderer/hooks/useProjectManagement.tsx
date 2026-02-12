@@ -133,6 +133,46 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
           }
 
           if (!gitInfo.isGitRepo) {
+            // Check for sub-repos (multi-repo project)
+            const subReposResult = await window.electronAPI.detectSubRepos(selectedPath);
+            if (subReposResult.success && subReposResult.subRepos.length > 0) {
+              // This is a multi-repo project
+              const projectName =
+                selectedPath.split(/[/\\]/).filter(Boolean).pop() || 'Unknown Project';
+
+              const multiRepoProject: Project = {
+                id: Date.now().toString(),
+                name: projectName,
+                path: selectedPath,
+                repoKey,
+                subRepos: subReposResult.subRepos,
+                gitInfo: {
+                  isGitRepo: false, // Root folder is not a git repo
+                },
+                tasks: [],
+              };
+
+              const saveResult = await window.electronAPI.saveProject(multiRepoProject);
+              if (saveResult.success) {
+                const { captureTelemetry } = await import('../lib/telemetryClient');
+                captureTelemetry('project_added_success', { source: 'multi-repo' });
+                setProjects((prev) => [...prev, multiRepoProject]);
+                activateProjectView(multiRepoProject);
+                toast({
+                  title: 'Multi-repo project added',
+                  description: `Found ${subReposResult.subRepos.length} repositories: ${subReposResult.subRepos.map((r) => r.name).join(', ')}`,
+                });
+              } else {
+                toast({
+                  title: 'Failed to Add Project',
+                  description: 'Could not save multi-repo project to database.',
+                  variant: 'destructive',
+                });
+              }
+              return;
+            }
+
+            // No sub-repos found - not a valid project
             toast({
               title: 'Project Opened',
               description: `This directory is not a Git repository. Path: ${result.path}`,
@@ -193,10 +233,10 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
             } else {
               const updateHint =
                 platform === 'darwin'
-                  ? 'Tip: Update GitHub CLI with: brew upgrade gh — then restart Emdash.'
+                  ? 'Tip: Update GitHub CLI with: brew upgrade gh — then restart Valkyr.'
                   : platform === 'win32'
-                    ? 'Tip: Update GitHub CLI with: winget upgrade GitHub.cli — then restart Emdash.'
-                    : 'Tip: Update GitHub CLI via your package manager (e.g., apt/dnf) and restart Emdash.';
+                    ? 'Tip: Update GitHub CLI with: winget upgrade GitHub.cli — then restart Valkyr.'
+                    : 'Tip: Update GitHub CLI via your package manager (e.g., apt/dnf) and restart Valkyr.';
               toast({
                 title: 'GitHub Connection Failed',
                 description: `Git repository detected but couldn't connect to GitHub: ${githubInfo.error}\n\n${updateHint}`,

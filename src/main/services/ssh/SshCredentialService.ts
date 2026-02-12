@@ -1,6 +1,6 @@
 import keytar from 'keytar';
 
-const SERVICE_NAME = 'emdash-ssh';
+const SERVICE_NAME = 'valkyr-ssh';
 
 /**
  * Service for managing SSH credentials securely.

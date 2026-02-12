@@ -8,8 +8,8 @@ import { agentTargets, skillScanPaths } from '@shared/skills/agentTargets';
 import type { CatalogSkill, CatalogIndex, DetectedAgent } from '@shared/skills/types';
 
 const SKILLS_ROOT = path.join(os.homedir(), '.agentskills');
-const EMDASH_META = path.join(SKILLS_ROOT, '.emdash');
-const CATALOG_INDEX_PATH = path.join(EMDASH_META, 'catalog-index.json');
+const VALKYR_META = path.join(SKILLS_ROOT, '.valkyr');
+const CATALOG_INDEX_PATH = path.join(VALKYR_META, 'catalog-index.json');
 
 const MAX_REDIRECTS = 5;
 
@@ -21,7 +21,7 @@ function httpsGet(url: string, redirectCount = 0): Promise<string> {
     }
     const req = https.get(
       url,
-      { headers: { 'User-Agent': 'emdash-skills', Accept: 'application/vnd.github.v3+json' } },
+      { headers: { 'User-Agent': 'valkyr-skills', Accept: 'application/vnd.github.v3+json' } },
       (res) => {
         if (res.statusCode === 301 || res.statusCode === 302) {
           const location = res.headers.location;
@@ -54,7 +54,7 @@ export class SkillsService {
 
   async initialize(): Promise<void> {
     await fs.promises.mkdir(SKILLS_ROOT, { recursive: true });
-    await fs.promises.mkdir(EMDASH_META, { recursive: true });
+    await fs.promises.mkdir(VALKYR_META, { recursive: true });
   }
 
   async getCatalogIndex(): Promise<CatalogIndex> {

@@ -1,8 +1,8 @@
 import { motion } from 'framer-motion';
 import { FolderOpen, Github, Plus, Server } from 'lucide-react';
 import React from 'react';
-import emdashLogo from '../../assets/images/emdash/emdash_logo.svg';
-import emdashLogoWhite from '../../assets/images/emdash/emdash_logo_white.svg';
+import valkyrLogo from '../../assets/images/valkyr/valkyr_logo.svg';
+import valkyrLogoWhite from '../../assets/images/valkyr/valkyr_logo_white.svg';
 import { useTheme } from '../hooks/useTheme';
 
 interface HomeViewProps {
@@ -30,18 +30,18 @@ const HomeView: React.FC<HomeViewProps> = ({
                 key={effectiveTheme}
                 src={
                   effectiveTheme === 'dark' || effectiveTheme === 'dark-black'
-                    ? emdashLogoWhite
-                    : emdashLogo
+                    ? valkyrLogoWhite
+                    : valkyrLogo
                 }
-                alt="Emdash"
+                alt="Valkyr"
                 className="logo-shimmer-image"
               />
               <span
                 className="logo-shimmer-overlay"
                 aria-hidden="true"
                 style={{
-                  WebkitMaskImage: `url(${effectiveTheme === 'dark' || effectiveTheme === 'dark-black' ? emdashLogoWhite : emdashLogo})`,
-                  maskImage: `url(${effectiveTheme === 'dark' || effectiveTheme === 'dark-black' ? emdashLogoWhite : emdashLogo})`,
+                  WebkitMaskImage: `url(${effectiveTheme === 'dark' || effectiveTheme === 'dark-black' ? valkyrLogoWhite : valkyrLogo})`,
+                  maskImage: `url(${effectiveTheme === 'dark' || effectiveTheme === 'dark-black' ? valkyrLogoWhite : valkyrLogo})`,
                   WebkitMaskRepeat: 'no-repeat',
                   maskRepeat: 'no-repeat',
                   WebkitMaskSize: 'contain',
