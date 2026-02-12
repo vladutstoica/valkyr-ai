@@ -103,6 +103,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
   // Branch selection state - sync with defaultBranch unless user manually changed it
   const [selectedBranch, setSelectedBranch] = useState(defaultBranch);
   const userChangedBranchRef = useRef(false);
+  const taskNameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen && !userChangedBranchRef.current) {
@@ -274,9 +275,17 @@ const TaskModal: React.FC<TaskModalProps> = ({
     }
   };
 
+  const handleOpenAutoFocus = useCallback((event: Event) => {
+    event.preventDefault();
+    taskNameInputRef.current?.focus({ preventScroll: true });
+  }, []);
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[calc(100vh-48px)] max-w-md overflow-visible">
+      <DialogContent
+        className="max-h-[calc(100vh-48px)] max-w-md overflow-visible"
+        onOpenAutoFocus={handleOpenAutoFocus}
+      >
         <DialogHeader>
           <DialogTitle>New Task</DialogTitle>
           <div className="space-y-1 pt-1">
@@ -308,6 +317,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
               Task name
             </Label>
             <SlugInput
+              ref={taskNameInputRef}
               id="task-name"
               value={taskName}
               onChange={handleNameChange}
@@ -320,7 +330,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
               maxLength={MAX_TASK_NAME_LENGTH}
               className={`w-full ${touched && error && !isFocused ? 'border-destructive focus-visible:border-destructive focus-visible:ring-destructive' : ''}`}
               aria-invalid={touched && !!error && !isFocused}
-              autoFocus
             />
           </div>
 
