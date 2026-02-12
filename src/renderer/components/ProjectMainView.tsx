@@ -32,6 +32,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/t
 import { isActivePr, PrInfo } from '../lib/prStatus';
 import { refreshPrStatus } from '../lib/prStatusStore';
 import type { Project, Task } from '../types/app';
+import { UpdateProjectModal } from './UpdateProjectModal';
+import { BranchSwitcher } from './BranchSwitcher';
+import { RefreshCw } from 'lucide-react';
 
 const normalizeBaseRef = (ref?: string | null): string | undefined => {
   if (!ref) return undefined;
@@ -237,6 +240,7 @@ const ProjectMainView: React.FC<ProjectMainViewProps> = ({
   const [isArchiving, setIsArchiving] = useState(false);
   const [acknowledgeDirtyDelete, setAcknowledgeDirtyDelete] = useState(false);
   const [showConfigEditor, setShowConfigEditor] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
   const hasPreloadedConfigRef = useRef(false);
   const currentProjectPathRef = useRef(project.path);
 
@@ -553,6 +557,17 @@ const ProjectMainView: React.FC<ProjectMainViewProps> = ({
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <h1 className="text-3xl font-semibold tracking-tight">{project.name}</h1>
                     <div className="flex items-center gap-2 sm:self-start">
+                      {/* Update Project button */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowUpdateModal(true)}
+                        className="h-8 gap-1.5"
+                        aria-label="Update project repositories"
+                      >
+                        <RefreshCw className="size-3.5" />
+                        Update
+                      </Button>
                       {onDeleteProject ? (
                         <ProjectDeleteButton
                           projectName={project.name}
@@ -582,23 +597,30 @@ const ProjectMainView: React.FC<ProjectMainViewProps> = ({
                     {project.path}
                   </p>
                 </div>
-                {/* Show base branch controls only for single-repo projects */}
-                {!project.subRepos || project.subRepos.length === 0 ? (
-                  <BaseBranchControls
-                    baseBranch={baseBranch}
-                    branchOptions={branchOptions}
-                    isLoadingBranches={isLoadingBranches}
-                    isSavingBaseBranch={isSavingBaseBranch}
-                    onBaseBranchChange={handleBaseBranchChange}
+                {/* Branch controls - show BranchSwitcher for all projects */}
+                <div className="flex items-center gap-3">
+                  <BranchSwitcher
+                    projectId={project.id}
                     projectPath={project.path}
-                    onEditConfig={() => {
+                    currentBranch={project.gitInfo?.branch || 'main'}
+                    onBranchChange={(branch) => {
+                      // Refresh project data when branch changes
+                      handleBaseBranchChange(branch);
+                    }}
+                  />
+                  <button
+                    onClick={() => {
                       preloadProjectConfig();
                       setShowConfigEditor(true);
                     }}
-                    onPreloadConfig={preloadProjectConfig}
-                  />
-                ) : (
-                  /* Show sub-repos for multi-repo projects */
+                    onMouseEnter={preloadProjectConfig}
+                    className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+                  >
+                    Edit config
+                  </button>
+                </div>
+                {/* Show sub-repos info for multi-repo projects */}
+                {project.subRepos && project.subRepos.length > 0 && (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Folder className="h-4 w-4" />
@@ -889,6 +911,14 @@ const ProjectMainView: React.FC<ProjectMainViewProps> = ({
         isOpen={showConfigEditor}
         onClose={() => setShowConfigEditor(false)}
         projectPath={project.path}
+      />
+
+      <UpdateProjectModal
+        isOpen={showUpdateModal}
+        onClose={() => setShowUpdateModal(false)}
+        projectId={project.id}
+        projectPath={project.path}
+        subRepos={project.subRepos?.map((r) => r.relativePath)}
       />
     </div>
   );

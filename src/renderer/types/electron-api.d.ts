@@ -9,6 +9,86 @@ type ProjectSettingsPayload = {
   baseRef?: string;
 };
 
+// Update Project feature types
+export type RepoStatus = {
+  path: string;
+  name: string;
+  isMainRepo: boolean;
+  currentBranch: string;
+  trackingBranch?: string;
+  ahead: number;
+  behind: number;
+  isDirty: boolean;
+  dirtyFiles?: number;
+};
+
+export type BranchInfo = {
+  name: string;
+  tracking?: string;
+  ahead?: number;
+  behind?: number;
+};
+
+export type RepoUpdateResult = {
+  path: string;
+  success: boolean;
+  error?: string;
+  stashed?: boolean;
+};
+
+export type RepoBranchesResult = {
+  current: string;
+  local: BranchInfo[];
+  remote: Array<{ name: string; lastCommit?: string }>;
+  recent: string[];
+};
+
+export type GetRepoStatusArgs = {
+  projectId: string;
+};
+
+export type GetRepoStatusResult = {
+  success: boolean;
+  data?: {
+    repos: RepoStatus[];
+  };
+  error?: string;
+};
+
+export type UpdateReposArgs = {
+  projectId: string;
+  repoPaths?: string[];
+  stashIfDirty?: boolean;
+};
+
+export type UpdateReposResult = {
+  success: boolean;
+  data?: RepoUpdateResult[];
+  error?: string;
+};
+
+export type GetBranchesArgs = {
+  repoPath: string;
+};
+
+export type GetBranchesResult = {
+  success: boolean;
+  data?: RepoBranchesResult;
+  error?: string;
+};
+
+export type SwitchBranchArgs = {
+  repoPath: string;
+  branch: string;
+  stashIfDirty?: boolean;
+};
+
+export type SwitchBranchResult = {
+  success: boolean;
+  stashed?: boolean;
+  error?: string;
+};
+
 export type LineComment = {
   id: string;
   taskId: string;
@@ -560,6 +640,39 @@ declare global {
         }>;
         error?: string;
       }>;
+
+      // Update Project feature
+      getProjectRepoStatus: (args: { projectId: string }) => Promise<{
+        success: boolean;
+        data?: {
+          repos: RepoStatus[];
+        };
+        error?: string;
+      }>;
+      updateProjectRepos: (args: {
+        projectId: string;
+        repoPaths?: string[];
+        stashIfDirty?: boolean;
+      }) => Promise<{
+        success: boolean;
+        data?: RepoUpdateResult[];
+        error?: string;
+      }>;
+      getRepoBranches: (args: { repoPath: string }) => Promise<{
+        success: boolean;
+        data?: RepoBranchesResult;
+        error?: string;
+      }>;
+      switchRepoBranch: (args: {
+        repoPath: string;
+        branch: string;
+        stashIfDirty?: boolean;
+      }) => Promise<{
+        success: boolean;
+        stashed?: boolean;
+        error?: string;
+      }>;
+
       getGitStatus: (taskPath: string) => Promise<{
         success: boolean;
         changes?: Array<{
@@ -721,6 +834,20 @@ declare global {
       listRemoteBranches: (args: { projectPath: string; remote?: string }) => Promise<{
         success: boolean;
         branches?: Array<{ ref: string; remote: string; branch: string; label: string }>;
+        error?: string;
+      }>;
+      getRepoBranches: (args: { repoPath: string }) => Promise<{
+        success: boolean;
+        data?: RepoBranchesResult;
+        error?: string;
+      }>;
+      switchRepoBranch: (args: {
+        repoPath: string;
+        branch: string;
+        stashIfDirty?: boolean;
+      }) => Promise<{
+        success: boolean;
+        stashed?: boolean;
         error?: string;
       }>;
       openExternal: (url: string) => Promise<{ success: boolean; error?: string }>;

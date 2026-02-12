@@ -1,12 +1,121 @@
 import { ipcMain, dialog } from 'electron';
 import { join } from 'path';
 import * as fs from 'fs';
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 import { getMainWindow } from '../app/window';
 import { errorTracking } from '../errorTracking';
+import { databaseService } from '../services/DatabaseService';
+import { log } from '../lib/logger';
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
+
+// Helper to resolve git binary path
+function resolveGitBin(): string {
+  const fromEnv = (process.env.GIT_PATH || '').trim();
+  const candidates = [
+    fromEnv,
+    '/opt/homebrew/bin/git',
+    '/usr/local/bin/git',
+    '/usr/bin/git',
+  ].filter(Boolean) as string[];
+  for (const p of candidates) {
+    try {
+      if (p && fs.existsSync(p)) return p;
+    } catch {}
+  }
+  return 'git';
+}
+
+const GIT = resolveGitBin();
+
+// Types for Update Project feature
+interface RepoStatus {
+  path: string;
+  name: string;
+  isMainRepo: boolean;
+  currentBranch: string;
+  trackingBranch?: string;
+  ahead: number;
+  behind: number;
+  isDirty: boolean;
+  dirtyFiles?: number;
+}
+
+// SubRepo type matches the one in DatabaseService
+
+// Helper to get repo status for a single path
+async function getRepoStatusForPath(
+  repoPath: string,
+  name: string,
+  isMainRepo: boolean
+): Promise<RepoStatus> {
+  const result: RepoStatus = {
+    path: repoPath,
+    name,
+    isMainRepo,
+    currentBranch: '',
+    ahead: 0,
+    behind: 0,
+    isDirty: false,
+  };
+
+  try {
+    // Get current branch
+    const { stdout: branchOut } = await execFileAsync(GIT, ['rev-parse', '--abbrev-ref', 'HEAD'], {
+      cwd: repoPath,
+    });
+    result.currentBranch = branchOut.trim();
+
+    // Get tracking branch
+    try {
+      const { stdout: trackingOut } = await execFileAsync(
+        GIT,
+        ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'],
+        { cwd: repoPath }
+      );
+      result.trackingBranch = trackingOut.trim();
+    } catch {
+      // No tracking branch set
+    }
+
+    // Get ahead/behind counts (fetch first to get accurate counts)
+    if (result.trackingBranch) {
+      try {
+        const { stdout: countOut } = await execFileAsync(
+          GIT,
+          ['rev-list', '--left-right', '--count', `HEAD...@{u}`],
+          { cwd: repoPath }
+        );
+        const [ahead, behind] = countOut.trim().split(/\s+/);
+        result.ahead = parseInt(ahead || '0', 10) || 0;
+        result.behind = parseInt(behind || '0', 10) || 0;
+      } catch {
+        // Failed to get counts
+      }
+    }
+
+    // Check if dirty (uncommitted changes)
+    try {
+      const { stdout: statusOut } = await execFileAsync(GIT, ['status', '--porcelain'], {
+        cwd: repoPath,
+      });
+      const lines = statusOut
+        .trim()
+        .split('\n')
+        .filter((l) => l.trim());
+      result.isDirty = lines.length > 0;
+      result.dirtyFiles = lines.length;
+    } catch {
+      // Failed to get status
+    }
+  } catch (error) {
+    log.error(`Failed to get repo status for ${repoPath}:`, error);
+  }
+
+  return result;
+}
 const DEFAULT_REMOTE = 'origin';
 const DEFAULT_BRANCH = 'main';
 
@@ -248,4 +357,414 @@ export function registerProjectIpc() {
       return { success: false, error: 'Failed to detect sub-repositories', subRepos: [] };
     }
   });
+
+  // ============================================================================
+  // Update Project Feature - IPC Handlers
+  // ============================================================================
+
+  /**
+   * Get status for main repo and all sub-repos of a project
+   * Returns current branch, ahead/behind counts, and dirty state
+   */
+  ipcMain.handle('project:getRepoStatus', async (_, args: { projectId: string }) => {
+    const { projectId } = args;
+    try {
+      // Get project from database
+      const project = await databaseService.getProjectById(projectId);
+      if (!project) {
+        return { success: false, error: 'Project not found' };
+      }
+
+      const repos: RepoStatus[] = [];
+
+      // Check if the main project path is a git repo
+      const mainGitPath = join(project.path, '.git');
+      const mainIsGitRepo = fs.existsSync(mainGitPath);
+
+      if (mainIsGitRepo) {
+        // Single repo project - get status for main repo
+        const mainStatus = await getRepoStatusForPath(project.path, project.name, true);
+        repos.push(mainStatus);
+      }
+
+      // Get sub-repos from project settings (already parsed by DatabaseService)
+      if (project.subRepos && Array.isArray(project.subRepos)) {
+        for (const subRepo of project.subRepos) {
+          if (subRepo.gitInfo?.isGitRepo && fs.existsSync(subRepo.path)) {
+            const subStatus = await getRepoStatusForPath(subRepo.path, subRepo.name, false);
+            repos.push(subStatus);
+          }
+        }
+      }
+
+      // If no repos found, try to detect sub-repos dynamically
+      if (repos.length === 0 && !mainIsGitRepo) {
+        try {
+          const entries = await fs.promises.readdir(project.path, { withFileTypes: true });
+          for (const entry of entries) {
+            if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
+            const subPath = join(project.path, entry.name);
+            const subGitPath = join(subPath, '.git');
+            if (fs.existsSync(subGitPath)) {
+              const subStatus = await getRepoStatusForPath(
+                subPath,
+                entry.name,
+                repos.length === 0 // First one found is treated as "main"
+              );
+              repos.push(subStatus);
+            }
+          }
+        } catch {
+          // Failed to scan directory
+        }
+      }
+
+      return { success: true, data: { repos } };
+    } catch (error) {
+      log.error('project:getRepoStatus failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get repo status',
+      };
+    }
+  });
+
+  /**
+   * Update (fetch + pull) multiple repos
+   * Optionally stash dirty changes before pulling
+   */
+  ipcMain.handle(
+    'project:updateRepos',
+    async (
+      _,
+      args: {
+        projectId: string;
+        repoPaths?: string[];
+        stashIfDirty?: boolean;
+      }
+    ) => {
+      const { projectId, repoPaths, stashIfDirty = false } = args;
+      try {
+        // Get project to find all repos if repoPaths not specified
+        const project = await databaseService.getProjectById(projectId);
+        if (!project) {
+          return { success: false, error: 'Project not found' };
+        }
+
+        // Determine which repos to update
+        const pathsToUpdate: string[] = repoPaths ? [...repoPaths] : [];
+
+        if (pathsToUpdate.length === 0) {
+          // Update all repos
+          const mainGitPath = join(project.path, '.git');
+          if (fs.existsSync(mainGitPath)) {
+            pathsToUpdate.push(project.path);
+          }
+
+          if (project.subRepos && Array.isArray(project.subRepos)) {
+            for (const sr of project.subRepos) {
+              if (sr.gitInfo?.isGitRepo && fs.existsSync(sr.path)) {
+                pathsToUpdate.push(sr.path);
+              }
+            }
+          }
+        }
+
+        const results: Array<{
+          path: string;
+          success: boolean;
+          error?: string;
+          stashed?: boolean;
+        }> = [];
+
+        for (const repoPath of pathsToUpdate) {
+          const result: { path: string; success: boolean; error?: string; stashed?: boolean } = {
+            path: repoPath,
+            success: false,
+          };
+
+          try {
+            // Check if dirty
+            const { stdout: statusOut } = await execFileAsync(GIT, ['status', '--porcelain'], {
+              cwd: repoPath,
+            });
+            const isDirty = statusOut.trim().length > 0;
+
+            // Stash if dirty and requested
+            if (isDirty && stashIfDirty) {
+              await execFileAsync(GIT, ['stash', 'push', '-m', 'valkyr-auto-stash'], {
+                cwd: repoPath,
+              });
+              result.stashed = true;
+            } else if (isDirty && !stashIfDirty) {
+              result.error = 'Repository has uncommitted changes';
+              results.push(result);
+              continue;
+            }
+
+            // Fetch from origin
+            try {
+              await execFileAsync(GIT, ['fetch', 'origin'], { cwd: repoPath });
+            } catch (fetchError) {
+              log.warn(`Failed to fetch for ${repoPath}:`, fetchError);
+              // Continue anyway - might be a local-only repo
+            }
+
+            // Pull with fast-forward only
+            try {
+              await execFileAsync(GIT, ['pull', '--ff-only'], { cwd: repoPath });
+              result.success = true;
+            } catch (pullError: unknown) {
+              const err = pullError as { stderr?: string; message?: string };
+              const errMsg = err?.stderr || err?.message || String(pullError);
+              if (/not possible to fast-forward/i.test(errMsg)) {
+                result.error = 'Cannot fast-forward. Branches have diverged.';
+              } else if (/no tracking information/i.test(errMsg)) {
+                result.error = 'No tracking branch configured';
+              } else {
+                result.error = errMsg;
+              }
+
+              // If we stashed, pop it back on failure
+              if (result.stashed) {
+                try {
+                  await execFileAsync(GIT, ['stash', 'pop'], { cwd: repoPath });
+                } catch {
+                  log.warn(`Failed to pop stash for ${repoPath}`);
+                }
+              }
+            }
+          } catch (error: unknown) {
+            result.error = error instanceof Error ? error.message : String(error);
+          }
+
+          results.push(result);
+        }
+
+        const allSuccess = results.every((r) => r.success);
+        return { success: allSuccess, data: results };
+      } catch (error) {
+        log.error('project:updateRepos failed:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to update repos',
+        };
+      }
+    }
+  );
+
+  /**
+   * Get all branches for a repository
+   * Returns local, remote, and recently checked out branches
+   */
+  ipcMain.handle('project:getBranches', async (_, args: { repoPath: string }) => {
+    const { repoPath } = args;
+    try {
+      // Verify it's a git repo
+      if (!fs.existsSync(join(repoPath, '.git'))) {
+        return { success: false, error: 'Not a git repository' };
+      }
+
+      // Get current branch
+      const { stdout: currentOut } = await execFileAsync(
+        GIT,
+        ['rev-parse', '--abbrev-ref', 'HEAD'],
+        { cwd: repoPath }
+      );
+      const current = currentOut.trim();
+
+      // Get all local branches with tracking info
+      const localBranches: Array<{
+        name: string;
+        tracking?: string;
+        ahead?: number;
+        behind?: number;
+      }> = [];
+
+      try {
+        const { stdout: branchOut } = await execFileAsync(
+          GIT,
+          [
+            'for-each-ref',
+            '--format=%(refname:short)|%(upstream:short)|%(upstream:track)',
+            'refs/heads/',
+          ],
+          { cwd: repoPath }
+        );
+
+        for (const line of branchOut.trim().split('\n')) {
+          if (!line.trim()) continue;
+          const [name, tracking, trackInfo] = line.split('|');
+          const branch: { name: string; tracking?: string; ahead?: number; behind?: number } = {
+            name,
+          };
+
+          if (tracking) {
+            branch.tracking = tracking;
+            // Parse track info like "[ahead 2, behind 3]" or "[ahead 2]" or "[behind 3]"
+            const aheadMatch = trackInfo?.match(/ahead\s+(\d+)/);
+            const behindMatch = trackInfo?.match(/behind\s+(\d+)/);
+            if (aheadMatch) branch.ahead = parseInt(aheadMatch[1], 10);
+            if (behindMatch) branch.behind = parseInt(behindMatch[1], 10);
+          }
+
+          localBranches.push(branch);
+        }
+      } catch {}
+
+      // Get remote branches
+      const remoteBranches: Array<{ name: string; lastCommit?: string }> = [];
+      try {
+        const { stdout: remoteOut } = await execFileAsync(
+          GIT,
+          ['for-each-ref', '--format=%(refname:short)', 'refs/remotes/'],
+          { cwd: repoPath }
+        );
+
+        for (const line of remoteOut.trim().split('\n')) {
+          const name = line.trim();
+          if (!name || name.endsWith('/HEAD')) continue;
+          remoteBranches.push({ name });
+        }
+      } catch {}
+
+      // Get recent branches from reflog (last 5 unique branches checked out)
+      const recent: string[] = [];
+      try {
+        const { stdout: reflogOut } = await execFileAsync(
+          GIT,
+          ['reflog', '--format=%gs', '-n', '50'],
+          { cwd: repoPath }
+        );
+
+        const checkoutPattern = /checkout: moving from .+ to (.+)/;
+        for (const line of reflogOut.trim().split('\n')) {
+          const match = line.match(checkoutPattern);
+          if (match && match[1]) {
+            const branchName = match[1];
+            // Only add if it's a valid local branch and not already in list
+            if (
+              !recent.includes(branchName) &&
+              localBranches.some((b) => b.name === branchName)
+            ) {
+              recent.push(branchName);
+              if (recent.length >= 5) break;
+            }
+          }
+        }
+      } catch {}
+
+      return {
+        success: true,
+        data: {
+          current,
+          local: localBranches,
+          remote: remoteBranches,
+          recent,
+        },
+      };
+    } catch (error) {
+      log.error('project:getBranches failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get branches',
+      };
+    }
+  });
+
+  /**
+   * Switch to a different branch
+   * Optionally stash changes before switching and pop after
+   */
+  ipcMain.handle(
+    'project:switchBranch',
+    async (
+      _,
+      args: {
+        repoPath: string;
+        branch: string;
+        stashIfDirty?: boolean;
+      }
+    ) => {
+      const { repoPath, branch, stashIfDirty = false } = args;
+      try {
+        // Verify it's a git repo
+        if (!fs.existsSync(join(repoPath, '.git'))) {
+          return { success: false, error: 'Not a git repository' };
+        }
+
+        // Check for uncommitted changes
+        const { stdout: statusOut } = await execFileAsync(GIT, ['status', '--porcelain'], {
+          cwd: repoPath,
+        });
+        const isDirty = statusOut.trim().length > 0;
+        let stashed = false;
+
+        if (isDirty) {
+          if (stashIfDirty) {
+            await execFileAsync(GIT, ['stash', 'push', '-m', 'valkyr-branch-switch'], {
+              cwd: repoPath,
+            });
+            stashed = true;
+          } else {
+            return {
+              success: false,
+              error: 'Repository has uncommitted changes. Stash or commit them first.',
+            };
+          }
+        }
+
+        // Switch branch
+        try {
+          // Check if it's a remote branch that needs to be checked out locally
+          const isRemoteBranch = branch.includes('/');
+          if (isRemoteBranch) {
+            // e.g., "origin/feature-x" -> checkout as "feature-x"
+            const localName = branch.split('/').slice(1).join('/');
+            await execFileAsync(GIT, ['checkout', '-b', localName, branch], { cwd: repoPath });
+          } else {
+            await execFileAsync(GIT, ['checkout', branch], { cwd: repoPath });
+          }
+        } catch (checkoutError: unknown) {
+          const err = checkoutError as { stderr?: string; message?: string };
+          const errMsg = err?.stderr || err?.message || String(checkoutError);
+
+          // If we stashed, pop it back
+          if (stashed) {
+            try {
+              await execFileAsync(GIT, ['stash', 'pop'], { cwd: repoPath });
+            } catch {}
+          }
+
+          if (/already exists/i.test(errMsg)) {
+            return { success: false, error: 'Branch already exists locally' };
+          }
+          return { success: false, error: errMsg };
+        }
+
+        // Pop stash if we stashed
+        if (stashed) {
+          try {
+            await execFileAsync(GIT, ['stash', 'pop'], { cwd: repoPath });
+          } catch (popError: unknown) {
+            // Stash pop conflicts are not fatal but should be reported
+            log.warn('Stash pop had conflicts:', popError as Error);
+            return {
+              success: true,
+              stashed: true,
+              error: 'Switched branch but stash pop had conflicts. Resolve manually.',
+            };
+          }
+        }
+
+        return { success: true, stashed };
+      } catch (error) {
+        log.error('project:switchBranch failed:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to switch branch',
+        };
+      }
+    }
+  );
 }

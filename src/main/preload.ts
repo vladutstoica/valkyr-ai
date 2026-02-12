@@ -247,6 +247,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('projectSettings:fetchBaseRef', args),
   getGitInfo: (projectPath: string) => ipcRenderer.invoke('git:getInfo', projectPath),
   detectSubRepos: (projectPath: string) => ipcRenderer.invoke('git:detectSubRepos', projectPath),
+
+  // Update Project feature
+  getProjectRepoStatus: (args: { projectId: string }) =>
+    ipcRenderer.invoke('project:getRepoStatus', args),
+  updateProjectRepos: (args: { projectId: string; repoPaths?: string[]; stashIfDirty?: boolean }) =>
+    ipcRenderer.invoke('project:updateRepos', args),
+  getRepoBranches: (args: { repoPath: string }) =>
+    ipcRenderer.invoke('project:getBranches', args),
+  switchRepoBranch: (args: { repoPath: string; branch: string; stashIfDirty?: boolean }) =>
+    ipcRenderer.invoke('project:switchBranch', args),
+
   getGitStatus: (taskPath: string) => ipcRenderer.invoke('git:get-status', taskPath),
   watchGitStatus: (taskPath: string) => ipcRenderer.invoke('git:watch-status', taskPath),
   unwatchGitStatus: (taskPath: string, watchId?: string) =>
