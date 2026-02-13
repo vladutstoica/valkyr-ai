@@ -213,6 +213,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     root: string,
     opts?: { includeDirs?: boolean; maxEntries?: number; timeBudgetMs?: number }
   ) => ipcRenderer.invoke('fs:list', { root, ...(opts || {}) }),
+  fsReaddir: (dirPath: string) => ipcRenderer.invoke('fs:readdir', { dirPath }),
   fsRead: (root: string, relPath: string, maxBytes?: number) =>
     ipcRenderer.invoke('fs:read', { root, relPath, maxBytes }),
   fsReadImage: (root: string, relPath: string) =>
@@ -229,6 +230,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   fsWriteFile: (root: string, relPath: string, content: string, mkdirs?: boolean) =>
     ipcRenderer.invoke('fs:write', { root, relPath, content, mkdirs }),
   fsRemove: (root: string, relPath: string) => ipcRenderer.invoke('fs:remove', { root, relPath }),
+  fsCheckIgnored: (rootPath: string, paths: string[]) =>
+    ipcRenderer.invoke('fs:check-ignored', { rootPath, paths }),
   getProjectConfig: (projectPath: string) =>
     ipcRenderer.invoke('fs:getProjectConfig', { projectPath }),
   saveProjectConfig: (projectPath: string, content: string) =>
@@ -884,6 +887,11 @@ export interface ElectronAPI {
     truncated?: boolean;
     reason?: string;
     durationMs?: number;
+  }>;
+  fsReaddir: (dirPath: string) => Promise<{
+    success: boolean;
+    items?: Array<{ name: string; type: 'file' | 'dir' }>;
+    error?: string;
   }>;
   fsRead: (
     root: string,

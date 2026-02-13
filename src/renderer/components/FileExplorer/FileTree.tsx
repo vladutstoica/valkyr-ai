@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { ChevronRight, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { ChevronRight, ChevronDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FileIcon } from './FileIcons';
 import { useContentSearch } from '@/hooks/useContentSearch';
@@ -10,12 +10,13 @@ import type { FileChange } from '@/hooks/useFileChanges';
 export interface FileNode {
   id: string;
   name: string;
-  path: string;
+  path: string;       // Relative path from root
+  fullPath: string;   // Absolute path
   type: 'file' | 'directory';
   children?: FileNode[];
-  isHidden?: boolean;
-  extension?: string;
+  isLoading?: boolean;
   isLoaded?: boolean;
+  isIgnored?: boolean;
 }
 
 interface FileTreeProps {
@@ -35,36 +36,33 @@ const TreeNode: React.FC<{
   level: number;
   selectedPath?: string | null;
   expandedPaths: Set<string>;
-  onToggleExpand: (path: string) => void;
+  loadingPaths: Set<string>;
+  onToggleExpand: (node: FileNode) => void;
   onSelect: (path: string) => void;
   onOpen?: (path: string) => void;
-  onLoadChildren: (node: FileNode) => Promise<void>;
   fileChanges: FileChange[];
 }> = ({
   node,
   level,
   selectedPath,
   expandedPaths,
+  loadingPaths,
   onToggleExpand,
   onSelect,
   onOpen,
-  onLoadChildren,
   fileChanges,
 }) => {
   const isExpanded = expandedPaths.has(node.path);
+  const isLoading = loadingPaths.has(node.path);
   const isSelected = selectedPath === node.path;
-
-  // Determine file status from git changes
   const fileStatus = fileChanges.find((change) => change.path === node.path)?.status;
+  const isHidden = node.name.startsWith('.');
+  const isIgnored = node.isIgnored;
 
-  const handleClick = async (e: React.MouseEvent) => {
+  const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (node.type === 'directory') {
-      // If not expanded and not loaded, load children
-      if (!isExpanded && !node.isLoaded) {
-        await onLoadChildren(node);
-      }
-      onToggleExpand(node.path);
+      onToggleExpand(node);
     } else {
       onSelect(node.path);
     }
@@ -83,7 +81,7 @@ const TreeNode: React.FC<{
         className={cn(
           'flex h-6 cursor-pointer select-none items-center px-1 hover:bg-accent/50',
           isSelected && 'bg-accent',
-          node.isHidden && 'opacity-60'
+          isHidden && 'opacity-60'
         )}
         style={{ paddingLeft: `${level * 12 + 4}px` }}
         onClick={handleClick}
@@ -94,7 +92,9 @@ const TreeNode: React.FC<{
       >
         {node.type === 'directory' && (
           <span className="mr-1 text-muted-foreground">
-            {isExpanded ? (
+            {isLoading ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : isExpanded ? (
               <ChevronDown className="h-3 w-3" />
             ) : (
               <ChevronRight className="h-3 w-3" />
@@ -109,10 +109,13 @@ const TreeNode: React.FC<{
         <span
           className={cn(
             'flex-1 truncate text-sm',
+            // Git status colors (highest priority)
             fileStatus === 'added' && 'text-green-500',
             fileStatus === 'modified' && 'text-amber-500',
             fileStatus === 'deleted' && 'text-red-500 line-through',
-            fileStatus === 'renamed' && 'text-blue-500'
+            fileStatus === 'renamed' && 'text-blue-500',
+            // Ignored files (dimmed, lower priority than git status)
+            !fileStatus && isIgnored && 'text-muted-foreground opacity-50'
           )}
         >
           {node.name}
@@ -128,10 +131,10 @@ const TreeNode: React.FC<{
               level={level + 1}
               selectedPath={selectedPath}
               expandedPaths={expandedPaths}
+              loadingPaths={loadingPaths}
               onToggleExpand={onToggleExpand}
               onSelect={onSelect}
               onOpen={onOpen}
-              onLoadChildren={onLoadChildren}
               fileChanges={fileChanges}
             />
           ))}
@@ -148,16 +151,15 @@ export const FileTree: React.FC<FileTreeProps> = ({
   onOpenFile,
   className,
   showHiddenFiles = false,
-  excludePatterns = [],
   fileChanges = [],
 }) => {
   const [tree, setTree] = useState<FileNode[]>([]);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
+  const [loadingPaths, setLoadingPaths] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [allFiles, setAllFiles] = useState<any[]>([]);
 
-  // Use the clean content search hook
+  // Content search
   const {
     searchQuery,
     searchResults,
@@ -167,273 +169,164 @@ export const FileTree: React.FC<FileTreeProps> = ({
     clearSearch,
   } = useContentSearch(rootPath);
 
-  const defaultExcludePatterns = useMemo(
-    () => [
-      'node_modules',
-      '.git',
-      'dist',
-      'build',
-      '.next',
-      'out',
-      '.turbo',
-      'coverage',
-      '.nyc_output',
-      '.cache',
-      'tmp',
-      'temp',
-      '.DS_Store',
-      'Thumbs.db',
-      '.vscode-test',
-      '.idea',
-      '__pycache__',
-      '.pytest_cache',
-      'venv',
-      '.venv',
-      'target',
-      '.terraform',
-      '.serverless',
-      '.checkouts',
-      'checkouts',
-      'delete-github',
-      '.conductor',
-      '.cursor',
-      '.claude',
-      '.amp',
-      '.codex',
-      '.aider',
-      '.continue',
-      '.cody',
-      '.windsurf',
-      'worktrees',
-      '.worktrees',
-    ],
-    []
-  );
+  // Load a directory's contents
+  const loadDirectory = useCallback(
+    async (dirPath: string, fullPath: string): Promise<FileNode[]> => {
+      const result = await window.electronAPI.fsReaddir(fullPath);
 
-  const allExcludePatterns = useMemo(
-    () => [...defaultExcludePatterns, ...excludePatterns],
-    [defaultExcludePatterns, excludePatterns]
-  );
+      if (!result.success || !result.items) {
+        console.error('Failed to load directory:', result.error);
+        return [];
+      }
 
-  // Check if an item should be excluded
-  const shouldExclude = useCallback(
-    (path: string): boolean => {
-      const parts = path.split('/');
-      return parts.some((part) => {
-        const lowerPart = part.toLowerCase();
-        return allExcludePatterns.some((pattern) => {
-          const lowerPattern = pattern.toLowerCase();
-          return lowerPart === lowerPattern || lowerPart.includes(lowerPattern);
-        });
-      });
-    },
-    [allExcludePatterns]
-  );
+      const filteredItems = result.items.filter(
+        (item) => showHiddenFiles || !item.name.startsWith('.')
+      );
 
-  // Build tree nodes from path
-  const buildNodesFromPath = useCallback(
-    (dirPath: string, files: any[]): FileNode[] => {
-      const immediateChildren = new Map<string, { type: 'file' | 'dir' }>();
+      // Build paths for git ignore check
+      const paths = filteredItems.map((item) =>
+        dirPath ? `${dirPath}/${item.name}` : item.name
+      );
 
-      files.forEach((item) => {
-        // Skip excluded items
-        if (shouldExclude(item.path)) {
-          return;
+      // Check which paths are ignored by git
+      let ignoredSet = new Set<string>();
+      if (paths.length > 0) {
+        const ignoreResult = await window.electronAPI.fsCheckIgnored(rootPath, paths);
+        if (ignoreResult.success && ignoreResult.ignoredPaths) {
+          ignoredSet = new Set(ignoreResult.ignoredPaths);
         }
+      }
 
-        if (dirPath) {
-          if (!item.path.startsWith(dirPath + '/')) {
-            return;
-          }
-          // Remove the dirPath prefix to get relative path
-          const relativePath = item.path.substring(dirPath.length + 1);
-
-          // Get the first part only (immediate child)
-          const firstSlashIndex = relativePath.indexOf('/');
-          if (firstSlashIndex === -1) {
-            // It's a file in this directory
-            if (!showHiddenFiles && relativePath.startsWith('.')) {
-              return;
-            }
-            immediateChildren.set(relativePath, { type: item.type });
-          } else {
-            // It's a subdirectory or file in a subdirectory
-            const immediateChild = relativePath.substring(0, firstSlashIndex);
-            if (!showHiddenFiles && immediateChild.startsWith('.')) {
-              return;
-            }
-            // Mark it as a directory since it has children
-            immediateChildren.set(immediateChild, { type: 'dir' });
-          }
-        } else {
-          // We're at root - extract first part of path
-          const firstSlashIndex = item.path.indexOf('/');
-          if (firstSlashIndex === -1) {
-            // It's a file at root
-            if (!showHiddenFiles && item.path.startsWith('.')) {
-              return;
-            }
-            immediateChildren.set(item.path, { type: item.type });
-          } else {
-            // It's a directory or file in a subdirectory
-            const immediateChild = item.path.substring(0, firstSlashIndex);
-            if (!showHiddenFiles && immediateChild.startsWith('.')) {
-              return;
-            }
-            immediateChildren.set(immediateChild, { type: 'dir' });
-          }
-        }
-      });
-
-      // Convert map to array of FileNodes
-      const nodes: FileNode[] = [];
-      immediateChildren.forEach((itemInfo, itemName) => {
-        const nodePath = dirPath ? `${dirPath}/${itemName}` : itemName;
-        nodes.push({
-          id: nodePath,
-          name: itemName,
-          path: nodePath,
-          type: itemInfo.type === 'dir' ? 'directory' : 'file',
-          children: itemInfo.type === 'dir' ? [] : undefined,
-          isHidden: itemName.startsWith('.'),
-          extension:
-            itemInfo.type === 'file' && itemName.includes('.')
-              ? itemName.split('.').pop()
-              : undefined,
+      return filteredItems.map((item) => {
+        const relativePath = dirPath ? `${dirPath}/${item.name}` : item.name;
+        const itemFullPath = `${fullPath}/${item.name}`;
+        return {
+          id: relativePath,
+          name: item.name,
+          path: relativePath,
+          fullPath: itemFullPath,
+          type: item.type === 'dir' ? 'directory' : 'file',
+          children: item.type === 'dir' ? [] : undefined,
           isLoaded: false,
-        });
+          isIgnored: ignoredSet.has(relativePath),
+        } as FileNode;
       });
-
-      // Sort: directories first, then alphabetically
-      nodes.sort((a, b) => {
-        if (a.type !== b.type) {
-          return a.type === 'directory' ? -1 : 1;
-        }
-        return a.name.localeCompare(b.name);
-      });
-
-      return nodes;
     },
-    [showHiddenFiles, shouldExclude]
+    [showHiddenFiles, rootPath]
   );
 
-  // Load all files once at the beginning - only when rootPath changes
+  // Load root directory on mount or when rootPath changes
   useEffect(() => {
-    const loadAllFiles = async () => {
+    let cancelled = false;
+
+    const loadRoot = async () => {
+      if (!rootPath) {
+        setError('No path provided');
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
 
       try {
-        const result = await window.electronAPI.fsList(rootPath, { includeDirs: true });
-
-        if (result.canceled) {
-          return;
+        const nodes = await loadDirectory('', rootPath);
+        if (!cancelled) {
+          setTree(nodes);
         }
-
-        if (!result.success || !result.items) {
-          throw new Error(result.error || 'Failed to load files');
-        }
-
-        // Store all files for later use
-        setAllFiles(result.items);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load files');
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load files');
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
-    loadAllFiles();
-  }, [rootPath]); // Only reload when rootPath changes
+    loadRoot();
 
-  // Build tree when files or filters change
-  useEffect(() => {
-    if (allFiles.length === 0) return;
+    return () => {
+      cancelled = true;
+    };
+  }, [rootPath, loadDirectory]);
 
-    // Build tree with current filters
-    const rootNodes = buildNodesFromPath('', allFiles);
-
-    // Preserve expanded state when rebuilding tree
-    setTree((prevTree) => {
-      // If this is the first load, just set the tree
-      if (prevTree.length === 0) {
-        return rootNodes;
-      }
-
-      // Otherwise, preserve the isLoaded state from previous tree
-      const preserveLoadedState = (newNodes: FileNode[], oldNodes: FileNode[]): FileNode[] => {
-        return newNodes.map((newNode) => {
-          const oldNode = oldNodes.find((n) => n.path === newNode.path);
-          if (oldNode && oldNode.isLoaded && oldNode.children) {
-            // Preserve the loaded children
-            return {
-              ...newNode,
-              isLoaded: true,
-              children: preserveLoadedState(
-                buildNodesFromPath(newNode.path, allFiles),
-                oldNode.children
-              ),
-            };
-          }
-          return newNode;
-        });
-      };
-
-      return preserveLoadedState(rootNodes, prevTree);
-    });
-  }, [allFiles, buildNodesFromPath]); // Rebuild tree when files or filter function changes
-
-  // Load children for a node using the cached file list
-  const loadChildren = useCallback(
+  // Toggle expand/collapse with lazy loading
+  const handleToggleExpand = useCallback(
     async (node: FileNode) => {
-      const children = buildNodesFromPath(node.path, allFiles);
+      const isCurrentlyExpanded = expandedPaths.has(node.path);
 
-      setTree((currentTree) => {
-        const updateNode = (nodes: FileNode[]): FileNode[] => {
-          return nodes.map((n) => {
-            if (n.path === node.path) {
-              return { ...n, children, isLoaded: true };
-            }
-            if (n.children && n.children.length > 0) {
-              return { ...n, children: updateNode(n.children) };
-            }
-            return n;
-          });
-        };
+      if (isCurrentlyExpanded) {
+        // Collapse
+        setExpandedPaths((prev) => {
+          const next = new Set(prev);
+          next.delete(node.path);
+          return next;
+        });
+      } else {
+        // Expand - load children if not loaded
+        if (!node.isLoaded) {
+          setLoadingPaths((prev) => new Set(prev).add(node.path));
 
-        return updateNode(currentTree);
-      });
+          try {
+            const children = await loadDirectory(node.path, node.fullPath);
+
+            setTree((currentTree) => {
+              const updateNode = (nodes: FileNode[]): FileNode[] => {
+                return nodes.map((n) => {
+                  if (n.path === node.path) {
+                    return { ...n, children, isLoaded: true };
+                  }
+                  if (n.children && n.children.length > 0) {
+                    return { ...n, children: updateNode(n.children) };
+                  }
+                  return n;
+                });
+              };
+              return updateNode(currentTree);
+            });
+          } finally {
+            setLoadingPaths((prev) => {
+              const next = new Set(prev);
+              next.delete(node.path);
+              return next;
+            });
+          }
+        }
+
+        setExpandedPaths((prev) => new Set(prev).add(node.path));
+      }
     },
-    [allFiles, buildNodesFromPath]
+    [expandedPaths, loadDirectory]
   );
 
-  // Toggle expand/collapse
-  const handleToggleExpand = useCallback((path: string) => {
-    setExpandedPaths((prev) => {
-      const next = new Set(prev);
-      if (next.has(path)) {
-        next.delete(path);
-      } else {
-        next.add(path);
-      }
-      return next;
-    });
-  }, []);
+  // Handle file selection
+  const handleSelectFile = useCallback(
+    (path: string) => {
+      onSelectFile(path);
+    },
+    [onSelectFile]
+  );
 
-  // Handle clicking on a search result
+  // Handle search result click
   const handleSearchResultClick = useCallback(
     (filePath: string) => {
       onSelectFile(filePath);
       if (onOpenFile) {
         onOpenFile(filePath);
       }
+      clearSearch();
     },
-    [onSelectFile, onOpenFile]
+    [onSelectFile, onOpenFile, clearSearch]
   );
 
   if (loading) {
     return (
-      <div className={cn('p-4 text-sm text-muted-foreground', className)}>Loading files...</div>
+      <div className={cn('flex items-center gap-2 p-4 text-sm text-muted-foreground', className)}>
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading...
+      </div>
     );
   }
 
@@ -442,7 +335,7 @@ export const FileTree: React.FC<FileTreeProps> = ({
   }
 
   if (tree.length === 0) {
-    return <div className={cn('p-4 text-sm text-muted-foreground', className)}>No files found</div>;
+    return <div className={cn('p-4 text-sm text-muted-foreground', className)}>Empty directory</div>;
   }
 
   return (
@@ -458,7 +351,6 @@ export const FileTree: React.FC<FileTreeProps> = ({
 
       <div className="flex-1 overflow-auto">
         {searchQuery ? (
-          // Search results view
           <div className="p-2">
             <ContentSearchResults
               results={searchResults}
@@ -468,7 +360,6 @@ export const FileTree: React.FC<FileTreeProps> = ({
             />
           </div>
         ) : (
-          // File tree view
           <div role="tree" aria-label="File explorer">
             {tree.map((child) => (
               <TreeNode
@@ -477,10 +368,10 @@ export const FileTree: React.FC<FileTreeProps> = ({
                 level={0}
                 selectedPath={selectedFile}
                 expandedPaths={expandedPaths}
+                loadingPaths={loadingPaths}
                 onToggleExpand={handleToggleExpand}
-                onSelect={onSelectFile}
+                onSelect={handleSelectFile}
                 onOpen={onOpenFile}
-                onLoadChildren={loadChildren}
                 fileChanges={fileChanges}
               />
             ))}
@@ -490,5 +381,3 @@ export const FileTree: React.FC<FileTreeProps> = ({
     </div>
   );
 };
-
-export default FileTree;

@@ -2,6 +2,7 @@ import { ipcMain, shell } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Worker } from 'worker_threads';
+import { execSync } from 'child_process';
 import { FsListWorkerResponse } from '../types/fsListWorker';
 import { DEFAULT_IGNORES } from '../utils/fsIgnores';
 import { safeStat } from '../utils/safeStat';
@@ -66,6 +67,125 @@ export function registerFsIpc(): void {
       }
     } catch {}
   }
+
+  // Simple directory listing - no recursion, no limits (like IntelliJ/VS Code)
+  ipcMain.handle(
+    'fs:readdir',
+    async (_event, args: { dirPath: string }): Promise<{
+      success: boolean;
+      items?: Array<{ name: string; type: 'file' | 'dir' }>;
+      error?: string;
+    }> => {
+      try {
+        const { dirPath } = args;
+        if (!dirPath || !fs.existsSync(dirPath)) {
+          return { success: false, error: 'Invalid path' };
+        }
+
+        const stat = safeStat(dirPath);
+        if (!stat || !stat.isDirectory()) {
+          return { success: false, error: 'Not a directory' };
+        }
+
+        const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+        const items = entries.map((entry) => ({
+          name: entry.name,
+          type: entry.isDirectory() ? 'dir' as const : 'file' as const,
+        }));
+
+        // Sort: directories first, then alphabetically
+        items.sort((a, b) => {
+          if (a.type !== b.type) return a.type === 'dir' ? -1 : 1;
+          return a.name.localeCompare(b.name);
+        });
+
+        return { success: true, items };
+      } catch (error) {
+        console.error('fs:readdir failed:', error);
+        return { success: false, error: 'Failed to read directory' };
+      }
+    }
+  );
+
+  // Check which files/directories are ignored by git
+  ipcMain.handle(
+    'fs:check-ignored',
+    async (
+      _event,
+      args: { rootPath: string; paths: string[] }
+    ): Promise<{
+      success: boolean;
+      ignoredPaths?: string[];
+      error?: string;
+    }> => {
+      try {
+        const { rootPath, paths } = args;
+
+        if (!rootPath || !fs.existsSync(rootPath)) {
+          return { success: false, error: 'Invalid root path' };
+        }
+
+        if (!paths || paths.length === 0) {
+          return { success: true, ignoredPaths: [] };
+        }
+
+        // Check if it's a git repository
+        const gitDir = path.join(rootPath, '.git');
+        const isGitRepo = fs.existsSync(gitDir);
+
+        if (!isGitRepo) {
+          // Fallback to DEFAULT_IGNORES pattern matching for non-git directories
+          const ignoredPaths = paths.filter((p) => {
+            const name = path.basename(p);
+            return DEFAULT_IGNORES.has(name);
+          });
+          return { success: true, ignoredPaths };
+        }
+
+        // Use git check-ignore --stdin to batch-check paths
+        try {
+          const input = paths.join('\n');
+          const result = execSync('git check-ignore --stdin', {
+            cwd: rootPath,
+            input,
+            encoding: 'utf8',
+            // Don't throw on non-zero exit (git returns 1 if no files are ignored)
+            stdio: ['pipe', 'pipe', 'pipe'],
+          });
+
+          // Result contains one ignored path per line
+          const ignoredPaths = result
+            .split('\n')
+            .map((line) => line.trim())
+            .filter((line) => line.length > 0);
+
+          return { success: true, ignoredPaths };
+        } catch (gitError: any) {
+          // git check-ignore returns exit code 1 if no files are ignored
+          // This is expected behavior, not an error
+          if (gitError.status === 1 && gitError.stdout !== undefined) {
+            const ignoredPaths = (gitError.stdout || '')
+              .split('\n')
+              .map((line: string) => line.trim())
+              .filter((line: string) => line.length > 0);
+            return { success: true, ignoredPaths };
+          }
+
+          // For other git errors, fallback to DEFAULT_IGNORES
+          console.warn('git check-ignore failed, falling back to DEFAULT_IGNORES:', gitError.message);
+          const ignoredPaths = paths.filter((p) => {
+            const name = path.basename(p);
+            return DEFAULT_IGNORES.has(name);
+          });
+          return { success: true, ignoredPaths };
+        }
+      } catch (error) {
+        console.error('fs:check-ignored failed:', error);
+        return { success: false, error: 'Failed to check ignored files' };
+      }
+    }
+  );
+
   ipcMain.handle('fs:list', async (_event, args: ListArgs) => {
     try {
       const root = args.root;

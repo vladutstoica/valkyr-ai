@@ -328,8 +328,8 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
 
   const isRunSelection = !selectedLifecycle || selectedLifecycle === 'run';
   const selectedTerminalScope = useMemo(() => {
-    if (parsed?.mode === 'task') return 'WORKTREE';
-    if (parsed?.mode === 'global') return 'GLOBAL';
+    if (parsed?.mode === 'task') return 'SESSION';
+    if (parsed?.mode === 'global') return 'PROJECT';
     if (parsed?.mode === 'script') return 'SCRIPT';
     return null;
   }, [parsed?.mode]);
@@ -492,7 +492,7 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
             {task && (
               <SelectGroup>
                 <div className="flex items-center justify-between px-2 py-1.5">
-                  <span className="text-[10px] font-semibold text-muted-foreground">Worktree</span>
+                  <span className="text-[10px] font-semibold text-muted-foreground">Session</span>
                   <button
                     type="button"
                     className="flex h-4 w-4 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-accent-foreground"
@@ -501,11 +501,11 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
                       e.stopPropagation();
                       void (async () => {
                         const { captureTelemetry } = await import('../lib/telemetryClient');
-                        captureTelemetry('terminal_new_terminal_created', { scope: 'task' });
+                        captureTelemetry('terminal_new_terminal_created', { scope: 'session' });
                       })();
                       taskTerminals.createTerminal({ cwd: task?.path });
                     }}
-                    title="New worktree terminal"
+                    title="New session terminal"
                   >
                     <Plus className="h-3 w-3" />
                   </button>
@@ -525,7 +525,7 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
             {projectPath && (
               <SelectGroup>
                 <div className="flex items-center justify-between px-2 py-1.5">
-                  <span className="text-[10px] font-semibold text-muted-foreground">Global</span>
+                  <span className="text-[10px] font-semibold text-muted-foreground">Project</span>
                   <button
                     type="button"
                     className="flex h-4 w-4 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-accent-foreground"
@@ -534,11 +534,11 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
                       e.stopPropagation();
                       void (async () => {
                         const { captureTelemetry } = await import('../lib/telemetryClient');
-                        captureTelemetry('terminal_new_terminal_created', { scope: 'global' });
+                        captureTelemetry('terminal_new_terminal_created', { scope: 'project' });
                       })();
                       globalTerminals.createTerminal({ cwd: projectPath });
                     }}
-                    title="New global terminal"
+                    title="New project terminal"
                   >
                     <Plus className="h-3 w-3" />
                   </button>

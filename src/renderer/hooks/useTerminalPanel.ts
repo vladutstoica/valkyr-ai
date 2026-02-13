@@ -93,7 +93,7 @@ class TerminalPanelStore {
     this.state = {
       isCollapsed: stored?.isCollapsed ?? false,
       height: stored?.height ?? DEFAULT_HEIGHT,
-      activeTerminal: stored?.activeTerminal ?? 'task',
+      activeTerminal: stored?.activeTerminal ?? 'session',
       status: 'idle', // Status is not persisted
     };
   }
