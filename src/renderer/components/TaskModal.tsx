@@ -60,6 +60,7 @@ interface TaskModalProps {
   branchOptions?: BranchOption[];
   isLoadingBranches?: boolean;
   subRepos?: SubRepo[] | null;
+  hasExistingNonWorktreeTask?: boolean;
 }
 
 const TaskModal: React.FC<TaskModalProps> = ({
@@ -74,6 +75,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
   branchOptions = [],
   isLoadingBranches = false,
   subRepos,
+  hasExistingNonWorktreeTask = false,
 }) => {
   // Form state
   const [taskName, setTaskName] = useState('');
@@ -343,6 +345,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
             projectPath={projectPath}
             useWorktree={useWorktree}
             onUseWorktreeChange={setUseWorktree}
+            hasExistingNonWorktreeTask={hasExistingNonWorktreeTask}
             subRepos={subRepos}
             selectedSubRepos={selectedSubRepos}
             onSelectedSubReposChange={setSelectedSubRepos}

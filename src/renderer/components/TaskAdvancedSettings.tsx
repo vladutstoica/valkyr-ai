@@ -36,6 +36,7 @@ interface TaskAdvancedSettingsProps {
   // Worktree
   useWorktree: boolean;
   onUseWorktreeChange: (value: boolean) => void;
+  hasExistingNonWorktreeTask?: boolean;
 
   // Multi-repo
   subRepos?: SubRepo[] | null;
@@ -79,6 +80,7 @@ export const TaskAdvancedSettings: React.FC<TaskAdvancedSettingsProps> = ({
   projectPath,
   useWorktree,
   onUseWorktreeChange,
+  hasExistingNonWorktreeTask = false,
   subRepos,
   selectedSubRepos = [],
   onSelectedSubReposChange,
@@ -247,19 +249,28 @@ export const TaskAdvancedSettings: React.FC<TaskAdvancedSettingsProps> = ({
               <div className="flex items-center gap-4">
                 <Label className="w-32 shrink-0">Run in worktree</Label>
                 <div className="min-w-0 flex-1">
-                  <label className="inline-flex cursor-pointer items-start gap-2 text-sm leading-tight">
+                  <label className={`inline-flex items-start gap-2 text-sm leading-tight ${hasExistingNonWorktreeTask ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
                     <Checkbox
-                      checked={useWorktree}
-                      onCheckedChange={(checked) => onUseWorktreeChange(checked === true)}
+                      checked={useWorktree || hasExistingNonWorktreeTask}
+                      onCheckedChange={(checked) => {
+                        if (hasExistingNonWorktreeTask) return;
+                        onUseWorktreeChange(checked === true);
+                      }}
+                      disabled={hasExistingNonWorktreeTask}
                       className="mt-[1px]"
                     />
                     <div className="space-y-1">
                       <span className="text-muted-foreground">
-                        {useWorktree
+                        {useWorktree || hasExistingNonWorktreeTask
                           ? 'Create isolated Git worktree (recommended)'
                           : 'Work directly on current branch'}
                       </span>
-                      {!useWorktree && (
+                      {hasExistingNonWorktreeTask && (
+                        <p className="text-xs text-muted-foreground">
+                          Required: another session already uses the project directory
+                        </p>
+                      )}
+                      {!useWorktree && !hasExistingNonWorktreeTask && (
                         <p className="text-xs text-destructive">
                           ⚠️ Changes will affect your current working directory
                         </p>

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ArrowUpRight, Pencil, Pin, PinOff, MoreVertical, Archive, Trash2 } from 'lucide-react';
+import { ArrowUpRight, Pencil, Pin, PinOff, MoreVertical, Archive, Trash2, GitBranch } from 'lucide-react';
 import { usePrStatus } from '../hooks/usePrStatus';
 import { useTaskBusy } from '../hooks/useTaskBusy';
 import { useTaskIdle } from '../hooks/useTaskIdle';
@@ -168,6 +168,11 @@ export const TaskItem: React.FC<TaskItemProps> = ({
         ) : (
           <>
             {isPinned && <Pin className="h-3 w-3 flex-shrink-0 text-muted-foreground" />}
+            {task.useWorktree !== false && (
+              <span title="Running in worktree">
+                <GitBranch className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+              </span>
+            )}
             <span className="block truncate text-xs font-medium text-foreground">{task.name}</span>
           </>
         )}
