@@ -33,7 +33,7 @@ export function TabBar() {
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              'relative flex cursor-pointer items-center gap-2 px-3 py-2 text-sm font-medium transition-colors',
+              'group relative flex cursor-pointer items-center gap-2 px-3 py-2 text-sm font-medium transition-colors',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               isActive
                 ? 'text-foreground'
@@ -51,7 +51,14 @@ export function TabBar() {
             </span>
             <span className="hidden sm:inline">{tab.label}</span>
             {showBadge && (
-              <span className="ml-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-medium text-primary-foreground">
+              <span
+                className={cn(
+                  'flex h-5 min-w-5 items-center justify-center px-1.5 text-xs font-medium transition-colors',
+                  isActive
+                    ? 'bg-foreground/15 text-foreground'
+                    : 'bg-muted-foreground/20 text-muted-foreground group-hover:bg-foreground/15 group-hover:text-foreground'
+                )}
+              >
                 {gitChangesCount > 99 ? '99+' : gitChangesCount}
               </span>
             )}

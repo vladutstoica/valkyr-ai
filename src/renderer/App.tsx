@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import AppKeyboardShortcuts from './components/AppKeyboardShortcuts';
 import { CloneFromUrlModal } from './components/CloneFromUrlModal';
 import { AddRemoteProjectModal } from './components/ssh/AddRemoteProjectModal';
@@ -9,7 +9,6 @@ import { GithubDeviceFlowModal } from './components/GithubDeviceFlowModal';
 import LeftSidebar from './components/LeftSidebar';
 import MainContentArea from './components/MainContentArea';
 import { NewProjectModal } from './components/NewProjectModal';
-import CodeEditor from './components/FileExplorer/CodeEditor';
 import SettingsModal from './components/SettingsModal';
 import TaskModal from './components/TaskModal';
 import { ThemeProvider } from './components/ThemeProvider';
@@ -51,11 +50,8 @@ const AppContent: React.FC = () => {
     document.documentElement.style.setProperty('--spinner-sync-time', String(Date.now() % 1000000));
   }, []);
 
-  // Ref for selectedProject, so useModalState can read it without re-instantiation
-  const selectedProjectRef = useRef<{ id: string } | null>(null);
-
   // --- Modal / UI visibility state ---
-  const modals = useModalState({ selectedProjectRef });
+  const modals = useModalState();
 
   const {
     showSettings,
@@ -65,11 +61,7 @@ const AppContent: React.FC = () => {
     showTaskModal,
     showNewProjectModal,
     showCloneModal,
-    showEditorMode,
-    showKanban,
     showDeviceFlowModal,
-    setShowEditorMode,
-    setShowKanban,
     setShowTaskModal,
     setShowNewProjectModal,
     setShowCloneModal,
@@ -80,8 +72,6 @@ const AppContent: React.FC = () => {
     handleCloseSettings,
     handleToggleCommandPalette,
     handleCloseCommandPalette,
-    handleToggleKanban,
-    handleToggleEditor,
     handleWelcomeGetStarted,
   } = modals;
   const [showRemoteProjectModal, setShowRemoteProjectModal] = useState<boolean>(false);
@@ -113,8 +103,6 @@ const AppContent: React.FC = () => {
     ghInstalled: github.ghInstalled,
     toast,
     handleGithubConnect: github.handleGithubConnect,
-    setShowEditorMode,
-    setShowKanban,
     setShowNewProjectModal,
     setShowCloneModal,
     setShowTaskModal,
@@ -124,12 +112,6 @@ const AppContent: React.FC = () => {
     storedActiveIds: appInit.storedActiveIds,
   });
 
-  // Keep the selectedProject ref in sync for useModalState's kanban toggle guard
-  // Using useEffect to avoid writing to ref during render (react-hooks/refs lint rule)
-  useEffect(() => {
-    selectedProjectRef.current = projectMgmt.selectedProject;
-  }, [projectMgmt.selectedProject]);
-
   // --- Task management ---
   const taskMgmt = useTaskManagement({
     projects: projectMgmt.projects,
@@ -137,8 +119,6 @@ const AppContent: React.FC = () => {
     setProjects: projectMgmt.setProjects,
     setSelectedProject: projectMgmt.setSelectedProject,
     setShowHomeView: projectMgmt.setShowHomeView,
-    setShowEditorMode,
-    setShowKanban,
     setShowTaskModal,
     toast,
     activateProjectView: projectMgmt.activateProjectView,
@@ -330,18 +310,6 @@ const AppContent: React.FC = () => {
                 : selectedProject?.path) ||
               null
         }
-        defaultPreviewUrl={null}
-        taskId={activeTask?.id || null}
-        taskPath={activeTask?.path || null}
-        projectPath={selectedProject?.path || null}
-        isTaskMultiAgent={Boolean(activeTask?.metadata?.multiAgent?.enabled)}
-        githubUser={github.user}
-        onToggleKanban={handleToggleKanban}
-        isKanbanOpen={Boolean(showKanban)}
-        kanbanAvailable={Boolean(selectedProject)}
-        onToggleEditor={handleToggleEditor}
-        showEditorButton={Boolean(activeTask)}
-        isEditorOpen={showEditorMode}
         projects={projectMgmt.projects}
         selectedProject={selectedProject}
         activeTask={activeTask}
@@ -354,11 +322,6 @@ const AppContent: React.FC = () => {
       showSettings,
       activeTask,
       selectedProject,
-      github.user,
-      handleToggleKanban,
-      showKanban,
-      handleToggleEditor,
-      showEditorMode,
       projectMgmt.projects,
       projectMgmt.handleSelectProject,
       taskMgmt.handleSelectTask,
@@ -424,7 +387,6 @@ const AppContent: React.FC = () => {
         selectedProject={selectedProject}
         activeTask={activeTask}
         activeTaskAgent={activeTaskAgent}
-        showKanban={showKanban}
         showHomeView={projectMgmt.showHomeView}
         showSkillsView={projectMgmt.showSkillsView}
         projectDefaultBranch={projectMgmt.projectDefaultBranch}
@@ -440,14 +402,12 @@ const AppContent: React.FC = () => {
         handleCloneProjectClick={projectMgmt.handleCloneProjectClick}
         handleAddRemoteProject={handleAddRemoteProjectClick}
         setShowTaskModal={(show: boolean) => setShowTaskModal(show)}
-        setShowKanban={(show: boolean) => setShowKanban(show)}
       />
     ),
     [
       selectedProject,
       activeTask,
       activeTaskAgent,
-      showKanban,
       projectMgmt.showHomeView,
       projectMgmt.showSkillsView,
       projectMgmt.projectDefaultBranch,
@@ -463,7 +423,6 @@ const AppContent: React.FC = () => {
       projectMgmt.handleCloneProjectClick,
       handleAddRemoteProjectClick,
       setShowTaskModal,
-      setShowKanban,
     ]
   );
 
@@ -478,8 +437,6 @@ const AppContent: React.FC = () => {
             handleOpenSettings={handleOpenSettings}
             handleCloseCommandPalette={handleCloseCommandPalette}
             handleCloseSettings={handleCloseSettings}
-            handleToggleKanban={handleToggleKanban}
-            handleToggleEditor={handleToggleEditor}
             handleNextTask={taskMgmt.handleNextTask}
             handlePrevTask={taskMgmt.handlePrevTask}
             handleNewTask={taskMgmt.handleNewTask}
@@ -495,8 +452,6 @@ const AppContent: React.FC = () => {
               activeTask={activeTask}
               activeTaskAgent={activeTaskAgent}
               projectDefaultBranch={projectMgmt.projectDefaultBranch}
-              showLeftSidebar={!showEditorMode}
-              showEditorMode={showEditorMode}
               titlebar={titlebar}
               showTitlebar={true}
             />
@@ -519,14 +474,6 @@ const AppContent: React.FC = () => {
             handleOpenSettings={handleOpenSettings}
             handleOpenKeyboardShortcuts={handleOpenKeyboardShortcuts}
           />
-          {showEditorMode && activeTask && selectedProject && (
-            <CodeEditor
-              taskPath={activeTask.path}
-              taskName={activeTask.name}
-              projectName={selectedProject.name}
-              onClose={() => setShowEditorMode(false)}
-            />
-          )}
           <TaskModal
             isOpen={showTaskModal}
             onClose={() => setShowTaskModal(false)}
@@ -539,6 +486,7 @@ const AppContent: React.FC = () => {
             branchOptions={projectMgmt.projectBranchOptions}
             isLoadingBranches={projectMgmt.isLoadingBranches}
             subRepos={selectedProject?.subRepos}
+            hasExistingNonWorktreeTask={(selectedProject?.tasks || []).some((t) => t.useWorktree === false)}
           />
           <NewProjectModal
             isOpen={showNewProjectModal}

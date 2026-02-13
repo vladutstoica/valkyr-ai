@@ -8,8 +8,6 @@ import {
   Home,
   Settings,
   Keyboard,
-  PanelLeft,
-  PanelRight,
   GitBranch,
   CornerDownLeft,
   ArrowUp,
@@ -38,8 +36,6 @@ interface CommandPaletteProps {
   onSelectTask?: (projectId: string, taskId: string) => void;
   onOpenSettings?: () => void;
   onOpenKeyboardShortcuts?: () => void;
-  onToggleLeftSidebar?: () => void;
-  onToggleRightSidebar?: () => void;
   onToggleTheme?: () => void;
   onGoHome?: () => void;
   onOpenProject?: () => void;
@@ -67,8 +63,6 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
   onSelectTask,
   onOpenSettings,
   onOpenKeyboardShortcuts,
-  onToggleLeftSidebar,
-  onToggleRightSidebar,
   onToggleTheme,
   onGoHome,
   onOpenProject,
@@ -162,38 +156,6 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
     }
 
     // Toggle commands
-    if (onToggleLeftSidebar) {
-      items.push({
-        id: 'toggle-left',
-        label: 'Toggle Left Sidebar',
-        description: APP_SHORTCUTS.TOGGLE_LEFT_SIDEBAR.description,
-        icon: <PanelLeft className="h-4 w-4" />,
-        group: 'Toggles',
-        keywords: ['sidebar', 'panel', 'left', 'toggle'],
-        shortcut: {
-          key: APP_SHORTCUTS.TOGGLE_LEFT_SIDEBAR.key.toUpperCase(),
-          modifier: APP_SHORTCUTS.TOGGLE_LEFT_SIDEBAR.modifier,
-        },
-        onSelect: () => runCommand(onToggleLeftSidebar),
-      });
-    }
-
-    if (onToggleRightSidebar) {
-      items.push({
-        id: 'toggle-right',
-        label: 'Toggle Right Sidebar',
-        description: APP_SHORTCUTS.TOGGLE_RIGHT_SIDEBAR.description,
-        icon: <PanelRight className="h-4 w-4" />,
-        group: 'Toggles',
-        keywords: ['sidebar', 'panel', 'right', 'toggle'],
-        shortcut: {
-          key: APP_SHORTCUTS.TOGGLE_RIGHT_SIDEBAR.key,
-          modifier: APP_SHORTCUTS.TOGGLE_RIGHT_SIDEBAR.modifier,
-        },
-        onSelect: () => runCommand(onToggleRightSidebar),
-      });
-    }
-
     if (onToggleTheme) {
       items.push({
         id: 'toggle-theme',
@@ -254,8 +216,6 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
     onOpenKeyboardShortcuts,
     onSelectProject,
     onSelectTask,
-    onToggleLeftSidebar,
-    onToggleRightSidebar,
     onToggleTheme,
     runCommand,
   ]);

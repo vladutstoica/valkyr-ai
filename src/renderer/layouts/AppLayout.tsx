@@ -29,10 +29,6 @@ interface AppLayoutProps {
   activeTaskAgent: Agent | null;
   /** Project's default branch */
   projectDefaultBranch: string;
-  /** Whether to show the left sidebar */
-  showLeftSidebar?: boolean;
-  /** Whether in editor mode (hides left sidebar) */
-  showEditorMode?: boolean;
   /** Titlebar component */
   titlebar?: React.ReactNode;
   /** Whether the titlebar is shown */
@@ -71,8 +67,6 @@ export function AppLayout({
   activeTask,
   activeTaskAgent,
   projectDefaultBranch,
-  showLeftSidebar = true,
-  showEditorMode = false,
   titlebar,
   showTitlebar = true,
   onChangesClick,
@@ -147,9 +141,6 @@ export function AppLayout({
     return <PreviewTab taskId={taskId} />;
   }, [taskId]);
 
-  // Determine if left sidebar should be visible
-  const shouldShowLeftSidebar = showLeftSidebar && !showEditorMode;
-
   return (
     <div
       className="flex h-[100dvh] w-full flex-col bg-background text-foreground"
@@ -168,11 +159,9 @@ export function AppLayout({
         className={`flex flex-1 overflow-hidden ${showTitlebar ? 'pt-[var(--tb)]' : ''}`}
       >
         {/* Left Sidebar - Fixed width */}
-        {shouldShowLeftSidebar && (
-          <div className="w-[280px] flex-shrink-0 overflow-hidden border-r">
-            {leftSidebar}
-          </div>
-        )}
+        <div className="w-[280px] flex-shrink-0 overflow-hidden border-r">
+          {leftSidebar}
+        </div>
 
         {/* Main Panel with Tabs */}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">

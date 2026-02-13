@@ -15,8 +15,6 @@ interface UseProjectManagementOptions {
   ghInstalled: boolean;
   toast: (opts: any) => void;
   handleGithubConnect: () => void;
-  setShowEditorMode: React.Dispatch<React.SetStateAction<boolean>>;
-  setShowKanban: React.Dispatch<React.SetStateAction<boolean>>;
   setShowNewProjectModal: React.Dispatch<React.SetStateAction<boolean>>;
   setShowCloneModal: React.Dispatch<React.SetStateAction<boolean>>;
   setShowTaskModal: React.Dispatch<React.SetStateAction<boolean>>;
@@ -33,8 +31,6 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
     ghInstalled,
     toast,
     handleGithubConnect,
-    setShowEditorMode,
-    setShowKanban,
     setShowNewProjectModal,
     setShowCloneModal,
     setShowTaskModal,
@@ -65,8 +61,6 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
     setShowHomeView(false);
     setShowSkillsView(false);
     setActiveTask(null);
-    setShowEditorMode(false);
-    setShowKanban(false);
     saveActiveIds(project.id, null);
 
     // Start creating a reserve worktree in the background for instant task creation
@@ -89,8 +83,6 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
     setShowHomeView(true);
     setShowSkillsView(false);
     setActiveTask(null);
-    setShowEditorMode(false);
-    setShowKanban(false);
     saveActiveIds(null, null);
   };
 
@@ -99,8 +91,6 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
     setShowHomeView(false);
     setShowSkillsView(true);
     setActiveTask(null);
-    setShowEditorMode(false);
-    setShowKanban(false);
     saveActiveIds(null, null);
   };
 

@@ -74,8 +74,6 @@ interface UseTaskManagementOptions {
   setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
   setSelectedProject: React.Dispatch<React.SetStateAction<Project | null>>;
   setShowHomeView: React.Dispatch<React.SetStateAction<boolean>>;
-  setShowEditorMode: React.Dispatch<React.SetStateAction<boolean>>;
-  setShowKanban: React.Dispatch<React.SetStateAction<boolean>>;
   setShowTaskModal: React.Dispatch<React.SetStateAction<boolean>>;
   toast: (opts: any) => void;
   activateProjectView: (project: Project) => void;
@@ -88,8 +86,6 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
     setProjects,
     setSelectedProject,
     setShowHomeView,
-    setShowEditorMode,
-    setShowKanban,
     setShowTaskModal,
     toast,
     activateProjectView,
@@ -131,17 +127,12 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
       : -1;
     const nextIndex = (currentIndex + 1) % allTasks.length;
     const { task, project } = allTasks[nextIndex];
-    // Only reset view state when actually switching projects
-    if (!selectedProject || selectedProject.id !== project.id) {
-      setShowEditorMode(false);
-      setShowKanban(false);
-    }
     setSelectedProject(project);
     setShowHomeView(false);
     setActiveTask(task);
     setActiveTaskAgent(getAgentForTask(task));
     saveActiveIds(project.id, task.id);
-  }, [allTasks, activeTask, selectedProject]);
+  }, [allTasks, activeTask]);
 
   const handlePrevTask = useCallback(() => {
     if (allTasks.length === 0) return;
@@ -150,17 +141,12 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
       : -1;
     const prevIndex = currentIndex <= 0 ? allTasks.length - 1 : currentIndex - 1;
     const { task, project } = allTasks[prevIndex];
-    // Only reset view state when actually switching projects
-    if (!selectedProject || selectedProject.id !== project.id) {
-      setShowEditorMode(false);
-      setShowKanban(false);
-    }
     setSelectedProject(project);
     setShowHomeView(false);
     setActiveTask(task);
     setActiveTaskAgent(getAgentForTask(task));
     saveActiveIds(project.id, task.id);
-  }, [allTasks, activeTask, selectedProject]);
+  }, [allTasks, activeTask]);
 
   const handleNewTask = useCallback(() => {
     // Only open modal if a project is selected

@@ -1,6 +1,4 @@
 import React from 'react';
-import { useSidebar } from '../components/ui/sidebar';
-import { useRightSidebar } from '../components/ui/right-sidebar';
 import { useTheme } from '../hooks/useTheme';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useKeyboardSettings } from '../contexts/KeyboardSettingsContext';
@@ -12,8 +10,6 @@ export interface AppKeyboardShortcutsProps {
   handleOpenSettings: () => void;
   handleCloseCommandPalette: () => void;
   handleCloseSettings: () => void;
-  handleToggleKanban: () => void;
-  handleToggleEditor: () => void;
   handleNextTask: () => void;
   handlePrevTask: () => void;
   handleNewTask: () => void;
@@ -26,25 +22,17 @@ const AppKeyboardShortcuts: React.FC<AppKeyboardShortcutsProps> = ({
   handleOpenSettings,
   handleCloseCommandPalette,
   handleCloseSettings,
-  handleToggleKanban,
-  handleToggleEditor,
   handleNextTask,
   handlePrevTask,
   handleNewTask,
 }) => {
-  const { toggle: toggleLeftSidebar } = useSidebar();
-  const { toggle: toggleRightSidebar } = useRightSidebar();
   const { toggleTheme } = useTheme();
   const { settings: keyboardSettings } = useKeyboardSettings();
 
   useKeyboardShortcuts({
     onToggleCommandPalette: handleToggleCommandPalette,
     onOpenSettings: handleOpenSettings,
-    onToggleLeftSidebar: toggleLeftSidebar,
-    onToggleRightSidebar: toggleRightSidebar,
     onToggleTheme: toggleTheme,
-    onToggleKanban: handleToggleKanban,
-    onToggleEditor: handleToggleEditor,
     onNextProject: handleNextTask,
     onPrevProject: handlePrevTask,
     onNewTask: handleNewTask,

@@ -1,6 +1,5 @@
 import React from 'react';
 import ChatInterface from './ChatInterface';
-import KanbanBoard from './kanban/KanbanBoard';
 import MultiAgentTask from './MultiAgentTask';
 import ProjectMainView from './ProjectMainView';
 import HomeView from './HomeView';
@@ -12,7 +11,6 @@ interface MainContentAreaProps {
   selectedProject: Project | null;
   activeTask: Task | null;
   activeTaskAgent: Agent | null;
-  showKanban: boolean;
   showHomeView: boolean;
   showSkillsView: boolean;
   projectDefaultBranch: string;
@@ -36,14 +34,12 @@ interface MainContentAreaProps {
   handleCloneProjectClick: () => void;
   handleAddRemoteProject: () => void;
   setShowTaskModal: (show: boolean) => void;
-  setShowKanban: (show: boolean) => void;
 }
 
 const MainContentArea: React.FC<MainContentAreaProps> = ({
   selectedProject,
   activeTask,
   activeTaskAgent,
-  showKanban,
   showHomeView,
   showSkillsView,
   projectDefaultBranch,
@@ -59,23 +55,7 @@ const MainContentArea: React.FC<MainContentAreaProps> = ({
   handleCloneProjectClick,
   handleAddRemoteProject,
   setShowTaskModal,
-  setShowKanban,
 }) => {
-  if (selectedProject && showKanban) {
-    return (
-      <div className="flex h-full min-h-0 flex-col overflow-hidden">
-        <KanbanBoard
-          project={selectedProject}
-          onOpenTask={(ws: any) => {
-            handleSelectTask(ws);
-            setShowKanban(false);
-          }}
-          onCreateTask={() => setShowTaskModal(true)}
-        />
-      </div>
-    );
-  }
-
   if (showSkillsView) {
     return <SkillsView />;
   }

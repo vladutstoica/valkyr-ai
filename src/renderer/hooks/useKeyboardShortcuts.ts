@@ -11,11 +11,7 @@ import type {
 export type ShortcutSettingsKey =
   | 'commandPalette'
   | 'settings'
-  | 'toggleLeftSidebar'
-  | 'toggleRightSidebar'
   | 'toggleTheme'
-  | 'toggleKanban'
-  | 'toggleEditor'
   | 'closeModal'
   | 'nextProject'
   | 'prevProject'
@@ -52,24 +48,6 @@ export const APP_SHORTCUTS: Record<string, AppShortcut> = {
     settingsKey: 'settings',
   },
 
-  TOGGLE_LEFT_SIDEBAR: {
-    key: 'b',
-    modifier: 'cmd',
-    label: 'Toggle Left Sidebar',
-    description: 'Show or hide the left sidebar',
-    category: 'View',
-    settingsKey: 'toggleLeftSidebar',
-  },
-
-  TOGGLE_RIGHT_SIDEBAR: {
-    key: '.',
-    modifier: 'cmd',
-    label: 'Toggle Right Sidebar',
-    description: 'Show or hide the right sidebar',
-    category: 'View',
-    settingsKey: 'toggleRightSidebar',
-  },
-
   TOGGLE_THEME: {
     key: 't',
     modifier: 'cmd',
@@ -77,24 +55,6 @@ export const APP_SHORTCUTS: Record<string, AppShortcut> = {
     description: 'Cycle through light, dark navy, and dark black themes',
     category: 'View',
     settingsKey: 'toggleTheme',
-  },
-
-  TOGGLE_KANBAN: {
-    key: 'p',
-    modifier: 'cmd',
-    label: 'Toggle Kanban',
-    description: 'Show or hide the Kanban board',
-    category: 'Navigation',
-    settingsKey: 'toggleKanban',
-  },
-
-  TOGGLE_EDITOR: {
-    key: 'e',
-    modifier: 'cmd',
-    label: 'Toggle Editor',
-    description: 'Show or hide the code editor',
-    category: 'View',
-    settingsKey: 'toggleEditor',
   },
 
   CLOSE_MODAL: {
@@ -287,11 +247,7 @@ export function useKeyboardShortcuts(handlers: GlobalShortcutHandlers) {
     return {
       commandPalette: getEffectiveConfig(APP_SHORTCUTS.COMMAND_PALETTE, custom),
       settings: getEffectiveConfig(APP_SHORTCUTS.SETTINGS, custom),
-      toggleLeftSidebar: getEffectiveConfig(APP_SHORTCUTS.TOGGLE_LEFT_SIDEBAR, custom),
-      toggleRightSidebar: getEffectiveConfig(APP_SHORTCUTS.TOGGLE_RIGHT_SIDEBAR, custom),
       toggleTheme: getEffectiveConfig(APP_SHORTCUTS.TOGGLE_THEME, custom),
-      toggleKanban: getEffectiveConfig(APP_SHORTCUTS.TOGGLE_KANBAN, custom),
-      toggleEditor: getEffectiveConfig(APP_SHORTCUTS.TOGGLE_EDITOR, custom),
       closeModal: getEffectiveConfig(APP_SHORTCUTS.CLOSE_MODAL, custom),
       nextProject: getEffectiveConfig(APP_SHORTCUTS.NEXT_TASK, custom),
       prevProject: getEffectiveConfig(APP_SHORTCUTS.PREV_TASK, custom),
@@ -317,32 +273,8 @@ export function useKeyboardShortcuts(handlers: GlobalShortcutHandlers) {
         requiresClosed: true,
       },
       {
-        config: effectiveShortcuts.toggleLeftSidebar,
-        handler: () => handlers.onToggleLeftSidebar?.(),
-        priority: 'global',
-        requiresClosed: true,
-      },
-      {
-        config: effectiveShortcuts.toggleRightSidebar,
-        handler: () => handlers.onToggleRightSidebar?.(),
-        priority: 'global',
-        requiresClosed: true,
-      },
-      {
         config: effectiveShortcuts.toggleTheme,
         handler: () => handlers.onToggleTheme?.(),
-        priority: 'global',
-        requiresClosed: true,
-      },
-      {
-        config: effectiveShortcuts.toggleKanban,
-        handler: () => handlers.onToggleKanban?.(),
-        priority: 'global',
-        requiresClosed: true,
-      },
-      {
-        config: effectiveShortcuts.toggleEditor,
-        handler: () => handlers.onToggleEditor?.(),
         priority: 'global',
         requiresClosed: true,
       },

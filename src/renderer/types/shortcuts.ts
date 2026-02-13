@@ -8,11 +8,7 @@ export interface ShortcutBinding {
 export interface KeyboardSettings {
   commandPalette?: ShortcutBinding;
   settings?: ShortcutBinding;
-  toggleLeftSidebar?: ShortcutBinding;
-  toggleRightSidebar?: ShortcutBinding;
   toggleTheme?: ShortcutBinding;
-  toggleKanban?: ShortcutBinding;
-  toggleEditor?: ShortcutBinding;
   closeModal?: ShortcutBinding;
   nextProject?: ShortcutBinding;
   prevProject?: ShortcutBinding;
@@ -58,18 +54,8 @@ export interface GlobalShortcutHandlers {
   // Settings
   onOpenSettings?: () => void;
 
-  // Sidebars
-  onToggleLeftSidebar?: () => void;
-  onToggleRightSidebar?: () => void;
-
   // Theme
   onToggleTheme?: () => void;
-
-  // Kanban
-  onToggleKanban?: () => void;
-
-  // Editor
-  onToggleEditor?: () => void;
 
   // Project navigation
   onNextProject?: () => void;

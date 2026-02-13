@@ -10,8 +10,6 @@ export interface ModalState {
   showTaskModal: boolean;
   showNewProjectModal: boolean;
   showCloneModal: boolean;
-  showEditorMode: boolean;
-  showKanban: boolean;
   showDeviceFlowModal: boolean;
 }
 
@@ -23,8 +21,6 @@ export interface ModalActions {
   setShowTaskModal: React.Dispatch<React.SetStateAction<boolean>>;
   setShowNewProjectModal: React.Dispatch<React.SetStateAction<boolean>>;
   setShowCloneModal: React.Dispatch<React.SetStateAction<boolean>>;
-  setShowEditorMode: React.Dispatch<React.SetStateAction<boolean>>;
-  setShowKanban: React.Dispatch<React.SetStateAction<boolean>>;
   setShowDeviceFlowModal: React.Dispatch<React.SetStateAction<boolean>>;
   openSettings: (tab?: SettingsTab) => void;
   handleToggleSettings: () => void;
@@ -33,15 +29,11 @@ export interface ModalActions {
   handleCloseSettings: () => void;
   handleToggleCommandPalette: () => void;
   handleCloseCommandPalette: () => void;
-  handleToggleKanban: () => void;
-  handleToggleEditor: () => void;
   handleWelcomeGetStarted: () => void;
   markFirstLaunchSeen: () => void;
 }
 
-export function useModalState(deps: {
-  selectedProjectRef: React.RefObject<{ id: string } | null>;
-}): ModalState & ModalActions {
+export function useModalState(): ModalState & ModalActions {
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab>('general');
   const [showCommandPalette, setShowCommandPalette] = useState<boolean>(false);
@@ -49,8 +41,6 @@ export function useModalState(deps: {
   const [showTaskModal, setShowTaskModal] = useState<boolean>(false);
   const [showNewProjectModal, setShowNewProjectModal] = useState<boolean>(false);
   const [showCloneModal, setShowCloneModal] = useState<boolean>(false);
-  const [showEditorMode, setShowEditorMode] = useState(false);
-  const [showKanban, setShowKanban] = useState<boolean>(false);
   const [showDeviceFlowModal, setShowDeviceFlowModal] = useState(false);
 
   const openSettings = useCallback((tab: SettingsTab = 'general') => {
@@ -85,17 +75,6 @@ export function useModalState(deps: {
 
   const handleCloseCommandPalette = useCallback(() => {
     setShowCommandPalette(false);
-  }, []);
-
-  const handleToggleKanban = useCallback(() => {
-    if (!deps.selectedProjectRef.current) return;
-    setShowEditorMode(false);
-    setShowKanban((v) => !v);
-  }, [deps.selectedProjectRef]);
-
-  const handleToggleEditor = useCallback(() => {
-    setShowKanban(false);
-    setShowEditorMode((v) => !v);
   }, []);
 
   const markFirstLaunchSeen = useCallback(() => {
@@ -147,8 +126,6 @@ export function useModalState(deps: {
     showTaskModal,
     showNewProjectModal,
     showCloneModal,
-    showEditorMode,
-    showKanban,
     showDeviceFlowModal,
     setShowSettings,
     setSettingsInitialTab,
@@ -157,8 +134,6 @@ export function useModalState(deps: {
     setShowTaskModal,
     setShowNewProjectModal,
     setShowCloneModal,
-    setShowEditorMode,
-    setShowKanban,
     setShowDeviceFlowModal,
     openSettings,
     handleToggleSettings,
@@ -167,8 +142,6 @@ export function useModalState(deps: {
     handleCloseSettings,
     handleToggleCommandPalette,
     handleCloseCommandPalette,
-    handleToggleKanban,
-    handleToggleEditor,
     handleWelcomeGetStarted,
     markFirstLaunchSeen,
   };
