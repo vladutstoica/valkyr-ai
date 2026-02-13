@@ -478,8 +478,7 @@ export default function EditorMode({ taskPath, taskName, onClose }: EditorModePr
 
       <div className="flex flex-1 overflow-hidden">
         <div className="border-r border-border bg-muted/10" style={{ width: explorerWidth }}>
-          <div className="flex h-10 items-center justify-between border-b border-border px-2">
-            <span className="text-xs font-medium uppercase">Explorer</span>
+          <div className="flex h-10 items-center justify-end border-b border-border px-2">
             <div className="flex items-center gap-1">
               <Button
                 variant="ghost"

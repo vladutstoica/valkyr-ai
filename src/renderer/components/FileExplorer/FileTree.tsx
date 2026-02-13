@@ -2,9 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronRight, ChevronDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FileIcon } from './FileIcons';
-import { useContentSearch } from '@/hooks/useContentSearch';
-import { SearchInput } from './SearchInput';
-import { ContentSearchResults } from './ContentSearchResults';
 import type { FileChange } from '@/hooks/useFileChanges';
 
 export interface FileNode {
@@ -159,16 +156,6 @@ export const FileTree: React.FC<FileTreeProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Content search
-  const {
-    searchQuery,
-    searchResults,
-    isSearching,
-    error: searchError,
-    handleSearchChange,
-    clearSearch,
-  } = useContentSearch(rootPath);
-
   // Load a directory's contents
   const loadDirectory = useCallback(
     async (dirPath: string, fullPath: string): Promise<FileNode[]> => {
@@ -309,18 +296,6 @@ export const FileTree: React.FC<FileTreeProps> = ({
     [onSelectFile]
   );
 
-  // Handle search result click
-  const handleSearchResultClick = useCallback(
-    (filePath: string) => {
-      onSelectFile(filePath);
-      if (onOpenFile) {
-        onOpenFile(filePath);
-      }
-      clearSearch();
-    },
-    [onSelectFile, onOpenFile, clearSearch]
-  );
-
   if (loading) {
     return (
       <div className={cn('flex items-center gap-2 p-4 text-sm text-muted-foreground', className)}>
@@ -339,44 +314,22 @@ export const FileTree: React.FC<FileTreeProps> = ({
   }
 
   return (
-    <div className={cn('flex flex-col', className)}>
-      <div>
-        <SearchInput
-          value={searchQuery}
-          onChange={handleSearchChange}
-          onClear={clearSearch}
-          placeholder="Search..."
-        />
-      </div>
-
-      <div className="flex-1 overflow-auto">
-        {searchQuery ? (
-          <div className="p-2">
-            <ContentSearchResults
-              results={searchResults}
-              isSearching={isSearching}
-              error={searchError}
-              onResultClick={handleSearchResultClick}
-            />
-          </div>
-        ) : (
-          <div role="tree" aria-label="File explorer">
-            {tree.map((child) => (
-              <TreeNode
-                key={child.id}
-                node={child}
-                level={0}
-                selectedPath={selectedFile}
-                expandedPaths={expandedPaths}
-                loadingPaths={loadingPaths}
-                onToggleExpand={handleToggleExpand}
-                onSelect={handleSelectFile}
-                onOpen={onOpenFile}
-                fileChanges={fileChanges}
-              />
-            ))}
-          </div>
-        )}
+    <div className={cn('flex flex-1 flex-col overflow-auto', className)}>
+      <div role="tree" aria-label="File explorer">
+        {tree.map((child) => (
+          <TreeNode
+            key={child.id}
+            node={child}
+            level={0}
+            selectedPath={selectedFile}
+            expandedPaths={expandedPaths}
+            loadingPaths={loadingPaths}
+            onToggleExpand={handleToggleExpand}
+            onSelect={handleSelectFile}
+            onOpen={onOpenFile}
+            fileChanges={fileChanges}
+          />
+        ))}
       </div>
     </div>
   );

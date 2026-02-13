@@ -249,13 +249,6 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
           maxSize={40}
           className="flex flex-col border-r border-border"
         >
-          {/* Explorer Header */}
-          <div className="flex h-9 items-center border-b border-border bg-muted/30 px-3">
-            <span className="text-xs font-medium uppercase text-muted-foreground">
-              Explorer
-            </span>
-          </div>
-
           {/* File Tree */}
           <FileTree
             rootPath={taskPath}
