@@ -5,7 +5,6 @@ import {
   ChevronRight,
   ExternalLink,
   X,
-  RefreshCw,
   FolderOpen,
 } from 'lucide-react';
 import {
@@ -40,7 +39,7 @@ interface EditorTabProps {
 export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
   const { effectiveTheme } = useTheme();
   const { icons, installedApps } = useOpenInApps();
-  const { fileChanges, refreshChanges } = useFileChanges(taskPath);
+  const { fileChanges } = useFileChanges(taskPath);
 
   // Editor state from zustand store
   const {
@@ -71,7 +70,6 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
   } = useFileManager({
     taskPath,
     autoSave: true,
-    onFileChange: refreshChanges,
   });
 
   // Sync editor state with file manager
@@ -193,19 +191,10 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
           className="flex flex-col border-r border-border"
         >
           {/* Explorer Header */}
-          <div className="flex h-9 items-center justify-between border-b border-border bg-muted/30 px-3">
+          <div className="flex h-9 items-center border-b border-border bg-muted/30 px-3">
             <span className="text-xs font-medium uppercase text-muted-foreground">
               Explorer
             </span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              onClick={refreshChanges}
-              title="Refresh"
-            >
-              <RefreshCw className="h-3 w-3" />
-            </Button>
           </div>
 
           {/* File Tree */}
