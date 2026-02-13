@@ -1,6 +1,7 @@
 import * as React from 'react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Plus, FileDiff, RefreshCw } from 'lucide-react';
+import { preloadHighlighter } from '@pierre/diffs';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
@@ -21,7 +22,6 @@ interface GitTabProps {
 export function GitTab({ taskId: _taskId, taskPath, className }: GitTabProps) {
   const { toast } = useToast();
   const { effectiveTheme } = useTheme();
-  const isDark = effectiveTheme === 'dark' || effectiveTheme === 'dark-black';
 
   // File changes from existing hook
   const { fileChanges, refreshChanges, isLoading: isLoadingChanges } = useFileChanges(taskPath);
@@ -55,6 +55,13 @@ export function GitTab({ taskId: _taskId, taskPath, className }: GitTabProps) {
   const [discardingFiles, setDiscardingFiles] = useState<Set<string>>(new Set());
   const [isCreatingPR, setIsCreatingPR] = useState(false);
   const [prUrl, setPrUrl] = useState<string | undefined>();
+
+  // Cache for fetched diffs (path -> diff string)
+  // Use refs to track current state without causing callback recreation
+  const [fileDiffs, setFileDiffs] = useState<Map<string, string>>(new Map());
+  const [loadingDiffs, setLoadingDiffs] = useState<Set<string>>(new Set());
+  const fileDiffsRef = useRef<Map<string, string>>(new Map());
+  const loadingDiffsRef = useRef<Set<string>>(new Set());
 
   // Sync file changes to local state
   useEffect(() => {
@@ -94,6 +101,131 @@ export function GitTab({ taskId: _taskId, taskPath, className }: GitTabProps) {
 
     checkPrStatus();
   }, [taskPath]);
+
+  // Fetch diff for a file
+  // Uses refs to check state without recreating the callback (prevents infinite loops)
+  const fetchDiff = useCallback(
+    async (filePath: string) => {
+      // Use refs to check current state without causing callback recreation
+      if (!taskPath || fileDiffsRef.current.has(filePath) || loadingDiffsRef.current.has(filePath)) {
+        return;
+      }
+
+      // Update ref and state
+      loadingDiffsRef.current.add(filePath);
+      setLoadingDiffs(new Set(loadingDiffsRef.current));
+
+      try {
+        const result = await window.electronAPI.getFileDiff({ taskPath, filePath });
+        if (result?.success && result.diff) {
+          // Use rawPatch if available (complete unified diff with headers)
+          // Otherwise fall back to reconstructing from lines
+          let patch: string;
+          if (result.diff.rawPatch) {
+            patch = result.diff.rawPatch;
+          } else {
+            const lines = result.diff.lines || [];
+            const patchLines: string[] = [];
+            for (const line of lines) {
+              if (line.type === 'context') {
+                patchLines.push(` ${line.left || line.right || ''}`);
+              } else if (line.type === 'del') {
+                patchLines.push(`-${line.left || ''}`);
+              } else if (line.type === 'add') {
+                patchLines.push(`+${line.right || ''}`);
+              }
+            }
+            patch = patchLines.join('\n');
+          }
+          // Update ref and state
+          fileDiffsRef.current.set(filePath, patch);
+          setFileDiffs(new Map(fileDiffsRef.current));
+        }
+      } catch (err) {
+        console.error('Failed to fetch diff for', filePath, err);
+      } finally {
+        loadingDiffsRef.current.delete(filePath);
+        setLoadingDiffs(new Set(loadingDiffsRef.current));
+      }
+    },
+    [taskPath] // Only depends on taskPath now - stable callback
+  );
+
+  // Handle expand toggle with diff fetching
+  const handleToggleExpanded = useCallback(
+    (path: string) => {
+      const isCurrentlyExpanded = expandedFiles.has(path);
+      toggleExpanded(path);
+
+      // Fetch diff when expanding (if not already fetched)
+      if (!isCurrentlyExpanded) {
+        fetchDiff(path);
+      }
+    },
+    [expandedFiles, toggleExpanded, fetchDiff]
+  );
+
+  // Handle expand all with batched diff fetching to prevent overwhelming the renderer
+  const handleExpandAll = useCallback(async () => {
+    // Use ref to check current state without callback recreation
+    const filesToFetch = files.filter((file) => !fileDiffsRef.current.has(file.path));
+
+    // Batch size - fetch 3 diffs at a time to prevent overwhelming the system
+    const BATCH_SIZE = 3;
+    const BATCH_DELAY_MS = 100;
+
+    // Process files in batches
+    for (let i = 0; i < filesToFetch.length; i += BATCH_SIZE) {
+      const batch = filesToFetch.slice(i, i + BATCH_SIZE);
+
+      // Expand and fetch this batch
+      batch.forEach((file) => {
+        if (!expandedFiles.has(file.path)) {
+          toggleExpanded(file.path);
+        }
+        fetchDiff(file.path);
+      });
+
+      // Small delay between batches to let React render
+      if (i + BATCH_SIZE < filesToFetch.length) {
+        await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
+      }
+    }
+
+    // Expand any remaining files that already have cached diffs
+    files.forEach((file) => {
+      if (!expandedFiles.has(file.path) && fileDiffsRef.current.has(file.path)) {
+        toggleExpanded(file.path);
+      }
+    });
+  }, [files, expandedFiles, toggleExpanded, fetchDiff]);
+
+  // Preload Shiki highlighter themes and languages to eliminate cold-start latency
+  useEffect(() => {
+    preloadHighlighter({
+      themes: ['pierre-dark', 'pierre-light'],
+      langs: [
+        'typescript',
+        'javascript',
+        'tsx',
+        'jsx',
+        'css',
+        'scss',
+        'json',
+        'html',
+        'python',
+        'rust',
+        'go',
+        'java',
+        'markdown',
+        'yaml',
+        'bash',
+        'shell',
+      ],
+    }).catch((err) => {
+      console.warn('[GitTab] Failed to preload highlighter:', err);
+    });
+  }, []);
 
   // Map status string to FileStatus type
   const mapStatus = (status: string): FileStatus => {
@@ -441,7 +573,7 @@ export function GitTab({ taskId: _taskId, taskPath, className }: GitTabProps) {
               variant="ghost"
               size="sm"
               className="h-7 gap-1.5 px-2 text-xs"
-              onClick={expandedFiles.size > 0 ? collapseAll : expandAll}
+              onClick={expandedFiles.size > 0 ? collapseAll : handleExpandAll}
             >
               <FileDiff className="h-3 w-3" />
               {expandedFiles.size > 0 ? 'Collapse All' : 'Expand All'}
@@ -488,13 +620,14 @@ export function GitTab({ taskId: _taskId, taskPath, className }: GitTabProps) {
                 deletions={file.deletions}
                 isStaged={stagedFiles.has(file.path)}
                 isExpanded={expandedFiles.has(file.path)}
-                diff={file.diff}
+                diff={fileDiffs.get(file.path)}
+                isLoadingDiff={loadingDiffs.has(file.path)}
                 onToggleStaged={handleToggleStaged}
-                onToggleExpanded={toggleExpanded}
+                onToggleExpanded={handleToggleExpanded}
                 onDiscard={handleDiscard}
                 isStaging={stagingFiles.has(file.path)}
                 isDiscarding={discardingFiles.has(file.path)}
-                theme={isDark ? 'dark' : 'light'}
+                theme={effectiveTheme}
               />
             ))}
           </div>

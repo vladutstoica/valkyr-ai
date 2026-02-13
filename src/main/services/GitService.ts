@@ -214,13 +214,19 @@ export async function revertFile(
 export async function getFileDiff(
   taskPath: string,
   filePath: string
-): Promise<{ lines: Array<{ left?: string; right?: string; type: 'context' | 'add' | 'del' }> }> {
+): Promise<{
+  lines: Array<{ left?: string; right?: string; type: 'context' | 'add' | 'del' }>;
+  rawPatch?: string;
+}> {
   try {
     const { stdout } = await execFileAsync(
       'git',
-      ['diff', '--no-color', '--unified=2000', 'HEAD', '--', filePath],
+      ['diff', '--no-color', '--unified=3', 'HEAD', '--', filePath],
       { cwd: taskPath }
     );
+
+    // Store raw patch for PatchDiff component
+    const rawPatch = stdout;
 
     const linesRaw = stdout.split('\n');
     const result: Array<{ left?: string; right?: string; type: 'context' | 'add' | 'del' }> = [];
@@ -247,31 +253,52 @@ export async function getFileDiff(
         const abs = path.join(taskPath, filePath);
         const content = await readFileTextCapped(abs, MAX_UNTRACKED_DIFF_BYTES);
         if (content !== null) {
-          return { lines: content.split('\n').map((l) => ({ right: l, type: 'add' as const })) };
+          // For new untracked files, construct a complete unified diff
+          const lines = content.split('\n');
+          const addLines = lines.map((l) => `+${l}`).join('\n');
+          const constructedPatch = `--- /dev/null\n+++ b/${filePath}\n@@ -0,0 +1,${lines.length} @@\n${addLines}`;
+          return {
+            lines: lines.map((l) => ({ right: l, type: 'add' as const })),
+            rawPatch: constructedPatch,
+          };
         }
         const { stdout: prev } = await execFileAsync('git', ['show', `HEAD:${filePath}`], {
           cwd: taskPath,
         });
-        return { lines: prev.split('\n').map((l) => ({ left: l, type: 'del' as const })) };
+        // For deleted files, construct a complete unified diff
+        const lines = prev.split('\n');
+        const delLines = lines.map((l) => `-${l}`).join('\n');
+        const constructedPatch = `--- a/${filePath}\n+++ /dev/null\n@@ -1,${lines.length} +0,0 @@\n${delLines}`;
+        return {
+          lines: lines.map((l) => ({ left: l, type: 'del' as const })),
+          rawPatch: constructedPatch,
+        };
       } catch {
         return { lines: [] };
       }
     }
 
-    return { lines: result };
+    return { lines: result, rawPatch };
   } catch {
     const abs = path.join(taskPath, filePath);
     const content = await readFileTextCapped(abs, MAX_UNTRACKED_DIFF_BYTES);
     if (content !== null) {
       const lines = content.split('\n');
-      return { lines: lines.map((l) => ({ right: l, type: 'add' as const })) };
+      // For new untracked files, construct a complete unified diff
+      const addLines = lines.map((l) => `+${l}`).join('\n');
+      const constructedPatch = `--- /dev/null\n+++ b/${filePath}\n@@ -0,0 +1,${lines.length} @@\n${addLines}`;
+      return {
+        lines: lines.map((l) => ({ right: l, type: 'add' as const })),
+        rawPatch: constructedPatch,
+      };
     }
     try {
       const { stdout } = await execFileAsync(
         'git',
-        ['diff', '--no-color', '--unified=2000', 'HEAD', '--', filePath],
+        ['diff', '--no-color', '--unified=3', 'HEAD', '--', filePath],
         { cwd: taskPath }
       );
+      const rawPatch = stdout;
       const linesRaw = stdout.split('\n');
       const result: Array<{ left?: string; right?: string; type: 'context' | 'add' | 'del' }> = [];
       for (const line of linesRaw) {
@@ -296,12 +323,19 @@ export async function getFileDiff(
           const { stdout: prev } = await execFileAsync('git', ['show', `HEAD:${filePath}`], {
             cwd: taskPath,
           });
-          return { lines: prev.split('\n').map((l) => ({ left: l, type: 'del' as const })) };
+          // For deleted files, construct a complete unified diff
+          const lines = prev.split('\n');
+          const delLines = lines.map((l) => `-${l}`).join('\n');
+          const constructedPatch = `--- a/${filePath}\n+++ /dev/null\n@@ -1,${lines.length} +0,0 @@\n${delLines}`;
+          return {
+            lines: lines.map((l) => ({ left: l, type: 'del' as const })),
+            rawPatch: constructedPatch,
+          };
         } catch {
           return { lines: [] };
         }
       }
-      return { lines: result };
+      return { lines: result, rawPatch };
     } catch {
       return { lines: [] };
     }

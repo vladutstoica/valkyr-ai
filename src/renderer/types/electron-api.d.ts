@@ -708,6 +708,7 @@ declare global {
             right?: string;
             type: 'context' | 'add' | 'del';
           }>;
+          rawPatch?: string;
         };
         error?: string;
       }>;
