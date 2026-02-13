@@ -280,7 +280,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
           role="dialog"
           aria-modal="true"
           aria-label="Command palette"
-          className="fixed inset-0 z-[130] flex items-start justify-center bg-black/60 pt-[15vh] backdrop-blur-sm"
+          className="fixed inset-0 z-[130] flex items-start justify-center bg-black/60 pt-[15vh] backdrop-blur-xs"
           initial={shouldReduceMotion ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
@@ -312,7 +312,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                   value={search}
                   onValueChange={setSearch}
                   placeholder="Search commands, projects, tasks..."
-                  className="flex h-12 w-full rounded-md bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex h-12 w-full rounded-md bg-transparent text-sm text-foreground outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
                   autoFocus
                 />
               </div>
@@ -333,7 +333,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                           key={item.id}
                           value={`${item.label} ${item.description || ''} ${item.keywords?.join(' ') || ''}`}
                           onSelect={() => item.onSelect()}
-                          className="relative flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-3 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground aria-selected:bg-accent aria-selected:text-accent-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground"
+                          className="relative flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-3 text-sm outline-hidden transition-colors hover:bg-accent hover:text-accent-foreground aria-selected:bg-accent aria-selected:text-accent-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground"
                         >
                           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
                             {item.icon}

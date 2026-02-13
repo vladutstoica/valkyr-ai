@@ -92,8 +92,8 @@ function TaskRow({
         tabIndex={0}
         className={[
           'group flex items-start justify-between gap-3 rounded-t-xl',
-          'px-4 py-3 transition-all hover:bg-muted/40 hover:shadow-sm',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+          'px-4 py-3 transition-all hover:bg-muted/40 hover:shadow-xs',
+          'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary',
         ].join(' ')}
       >
         <div className="min-w-0 flex-1">
@@ -580,7 +580,7 @@ const ProjectMainView: React.FC<ProjectMainViewProps> = ({
                         <motion.button
                           whileTap={{ scale: 0.97 }}
                           transition={{ duration: 0.1, ease: 'easeInOut' }}
-                          className="inline-flex h-8 items-center justify-center gap-1 rounded-md border border-input bg-background px-3 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          className="inline-flex h-8 items-center justify-center gap-1 rounded-md border border-input bg-background px-3 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                           onClick={() =>
                             window.electronAPI.openExternal(
                               `https://github.com/${project.githubInfo?.repository}`
@@ -693,11 +693,11 @@ const ProjectMainView: React.FC<ProjectMainViewProps> = ({
                     <motion.button
                       whileTap={{ scale: 0.97 }}
                       transition={{ duration: 0.1, ease: 'easeInOut' }}
-                      className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+                      className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
                       onClick={onCreateTask}
                     >
                       <Plus className="mr-2 size-4" />
-                      New Task
+                      New Session
                     </motion.button>
                   </div>
                 )}

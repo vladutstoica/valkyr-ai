@@ -31,7 +31,7 @@ const ThemeCard: React.FC = () => {
               }
               setTheme(value);
             }}
-            className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+            className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
               theme === value
                 ? 'border-primary bg-primary/10 text-foreground'
                 : 'border-border/60 bg-background text-muted-foreground hover:border-border hover:bg-muted/40'

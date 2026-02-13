@@ -27,7 +27,7 @@ const StatusPill = ({ state }: { state?: string | null }) => {
 
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[11px] ${getStatusColor(state)}`}
+      className={`inline-flex items-center gap-1 rounded-none border border-border px-2 py-0.5 text-[11px] ${getStatusColor(state)}`}
     >
       {state}
     </span>
@@ -53,7 +53,7 @@ export const GitHubIssuePreviewTooltip: React.FC<Props> = ({ issue, children, si
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.98 }}
             transition={{ duration: 0.16, ease: 'easeOut' }}
-            className="min-w-[260px] max-w-sm rounded-lg border border-border/70 bg-popover/95 p-3 shadow-xl backdrop-blur-sm"
+            className="min-w-[260px] max-w-sm rounded-none border border-border/70 bg-popover/95 p-3 shadow-xl backdrop-blur-xs"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-2">

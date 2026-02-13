@@ -89,7 +89,7 @@ const RunLauncher: React.FC<RunLauncherProps> = ({ repo, onCreateRun, onCancel }
           <select
             value={numAgents}
             onChange={(e) => setNumAgents(parseInt(e.target.value))}
-            className="w-full rounded border border-border bg-muted p-3 text-white focus:border-blue-500 focus:outline-none"
+            className="w-full rounded border border-border bg-muted p-3 text-white focus:border-blue-500 focus:outline-hidden"
           >
             <option value={1}>1 Agent</option>
             <option value={2}>2 Agents</option>

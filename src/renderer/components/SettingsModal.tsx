@@ -325,7 +325,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
         <motion.div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-xs"
           initial={shouldReduceMotion ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
@@ -357,7 +357,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
                         key={tab}
                         type="button"
                         onClick={() => setActiveTab(tab)}
-                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
                           activeTab === tab
                             ? 'bg-primary/10 text-foreground'
                             : 'text-muted-foreground hover:bg-muted/60'

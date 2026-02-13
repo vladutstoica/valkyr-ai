@@ -48,7 +48,7 @@ const DefaultAgentSettingsCard: React.FC = () => {
   return (
     <div className="space-y-3">
       <div className="space-y-1 text-xs text-muted-foreground">
-        <div>The agent that will be selected by default when creating a new task.</div>
+        <div>The agent that will be selected by default when creating a new session.</div>
       </div>
       <div className="w-full max-w-xs">
         <AgentSelector

@@ -19,33 +19,42 @@ interface UseAppInitializationReturn {
   platform: string;
   isInitialLoadComplete: boolean;
   storedActiveIds: { projectId: string | null; taskId: string | null };
-  applyProjectOrder: (list: Project[]) => Project[];
   saveProjectOrder: (list: Project[]) => void;
 }
 
-const ORDER_KEY = 'sidebarProjectOrder';
+const LEGACY_ORDER_KEY = 'sidebarProjectOrder';
 
-// Pure functions for project ordering
-const applyProjectOrder = (list: Project[]) => {
+// Save project order to database
+const saveProjectOrder = (list: Project[]) => {
+  const ids = list.map((p) => p.id);
+  window.electronAPI.updateProjectOrder(ids).catch((error) => {
+    console.error('Failed to save project order:', error);
+  });
+};
+
+// Migrate legacy localStorage order to database (one-time)
+const migrateLegacyOrder = async (projects: Project[]): Promise<Project[]> => {
   try {
-    const raw = localStorage.getItem(ORDER_KEY);
-    if (!raw) return list;
+    const raw = localStorage.getItem(LEGACY_ORDER_KEY);
+    if (!raw) return projects;
+
     const order: string[] = JSON.parse(raw);
     const indexOf = (id: string) => {
       const idx = order.indexOf(id);
       return idx === -1 ? Number.MAX_SAFE_INTEGER : idx;
     };
-    return [...list].sort((a, b) => indexOf(a.id) - indexOf(b.id));
-  } catch {
-    return list;
-  }
-};
+    const sorted = [...projects].sort((a, b) => indexOf(a.id) - indexOf(b.id));
 
-const saveProjectOrder = (list: Project[]) => {
-  try {
-    const ids = list.map((p) => p.id);
-    localStorage.setItem(ORDER_KEY, JSON.stringify(ids));
-  } catch {}
+    // Save the migrated order to database
+    await window.electronAPI.updateProjectOrder(sorted.map((p) => p.id));
+
+    // Remove the legacy localStorage key
+    localStorage.removeItem(LEGACY_ORDER_KEY);
+
+    return sorted;
+  } catch {
+    return projects;
+  }
 };
 
 export function useAppInitialization(
@@ -76,7 +85,10 @@ export function useAppInitialization(
         ]);
 
         setPlatform(appPlatform);
-        const initialProjects = applyProjectOrder(projects.map((p) => withRepoKey(p, appPlatform)));
+        // Projects come pre-sorted by displayOrder from the database
+        // Migrate legacy localStorage order if present (one-time)
+        const migratedProjects = await migrateLegacyOrder(projects);
+        const initialProjects = migratedProjects.map((p) => withRepoKey(p, appPlatform));
         onProjectsLoaded(initialProjects);
 
         checkGithubStatus();
@@ -87,12 +99,11 @@ export function useAppInitialization(
             return withRepoKey({ ...project, tasks }, appPlatform);
           })
         );
-        const ordered = applyProjectOrder(projectsWithTasks);
-        onProjectsLoaded(ordered);
+        onProjectsLoaded(projectsWithTasks);
 
         const { projectId: storedProjectId, taskId: storedTaskId } = storedActiveIds;
         if (storedProjectId) {
-          const project = ordered.find((p) => p.id === storedProjectId);
+          const project = projectsWithTasks.find((p) => p.id === storedProjectId);
           if (project) {
             onProjectSelected(project);
             onShowHomeView(false);
@@ -129,7 +140,6 @@ export function useAppInitialization(
     platform,
     isInitialLoadComplete,
     storedActiveIds,
-    applyProjectOrder,
     saveProjectOrder,
   };
 }

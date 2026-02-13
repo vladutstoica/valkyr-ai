@@ -420,6 +420,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Database methods
   getProjects: () => ipcRenderer.invoke('db:getProjects'),
   saveProject: (project: any) => ipcRenderer.invoke('db:saveProject', project),
+  updateProjectOrder: (projectIds: string[]) => ipcRenderer.invoke('db:updateProjectOrder', projectIds),
   getTasks: (projectId?: string) => ipcRenderer.invoke('db:getTasks', projectId),
   saveTask: (task: any) => ipcRenderer.invoke('db:saveTask', task),
   deleteProject: (projectId: string) => ipcRenderer.invoke('db:deleteProject', projectId),
@@ -623,6 +624,40 @@ contextBridge.exposeInMainWorld('electronAPI', {
   skillsGetDetectedAgents: () => ipcRenderer.invoke('skills:getDetectedAgents'),
   skillsCreate: (args: { name: string; description: string }) =>
     ipcRenderer.invoke('skills:create', args),
+
+  // Script runner
+  getScripts: (projectPath: string) => ipcRenderer.invoke('scripts:getScripts', projectPath),
+  runScript: (projectPath: string, scriptName: string) =>
+    ipcRenderer.invoke('scripts:runScript', { projectPath, scriptName }),
+  stopScript: (ptyId: string) => ipcRenderer.invoke('scripts:stopScript', ptyId),
+  getRunningScripts: (projectPath: string) => ipcRenderer.invoke('scripts:getRunning', projectPath),
+  onScriptData: (ptyId: string, listener: (data: string) => void) => {
+    const channel = `scripts:data:${ptyId}`;
+    const wrapped = (_: Electron.IpcRendererEvent, data: string) => listener(data);
+    ipcRenderer.on(channel, wrapped);
+    return () => ipcRenderer.removeListener(channel, wrapped);
+  },
+  onScriptExit: (ptyId: string, listener: (info: { exitCode: number; signal?: number }) => void) => {
+    const channel = `scripts:exit:${ptyId}`;
+    const wrapped = (_: Electron.IpcRendererEvent, info: { exitCode: number; signal?: number }) =>
+      listener(info);
+    ipcRenderer.on(channel, wrapped);
+    return () => ipcRenderer.removeListener(channel, wrapped);
+  },
+  onScriptStarted: (
+    listener: (data: { ptyId: string; scriptName: string; projectPath: string }) => void
+  ) => {
+    const channel = 'scripts:started';
+    const wrapped = (
+      _: Electron.IpcRendererEvent,
+      data: { ptyId: string; scriptName: string; projectPath: string }
+    ) => listener(data);
+    ipcRenderer.on(channel, wrapped);
+    return () => ipcRenderer.removeListener(channel, wrapped);
+  },
+  scriptInput: (args: { ptyId: string; data: string }) => ipcRenderer.send('scripts:input', args),
+  scriptResize: (args: { ptyId: string; cols: number; rows: number }) =>
+    ipcRenderer.send('scripts:resize', args),
 });
 
 // Type definitions for the exposed API

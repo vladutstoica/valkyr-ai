@@ -49,10 +49,10 @@ const STATUS_LABELS: Record<IntegrationStatus, string> = {
 };
 
 const BUTTON_BASE =
-  'inline-flex h-8 min-w-[2.5rem] items-center justify-center rounded-md border border-border/70 bg-background px-2.5 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60';
+  'inline-flex h-8 min-w-[2.5rem] items-center justify-center rounded-md border border-border/70 bg-background px-2.5 text-xs font-medium transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60';
 
 const ICON_BUTTON =
-  'rounded-md p-1.5 text-muted-foreground transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
+  'rounded-md p-1.5 text-muted-foreground transition hover:bg-muted/40 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
 
 const ICON_WRAPPER =
   'flex h-6 w-6 items-center justify-center rounded-md bg-muted/40 text-muted-foreground';
@@ -138,7 +138,7 @@ const IntegrationRow: React.FC<IntegrationRowProps> = ({
           <button
             type="button"
             onClick={onNameClick}
-            className="group flex items-center gap-1 text-sm font-medium text-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="group flex items-center gap-1 text-sm font-medium text-foreground transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             <span>{name}</span>
             <span className="text-xs text-muted-foreground transition group-hover:text-foreground/80">

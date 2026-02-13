@@ -234,7 +234,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, githubUs
           role="dialog"
           aria-modal="true"
           aria-label="Feedback"
-          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-xs"
           initial={shouldReduceMotion ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
@@ -253,7 +253,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, githubUs
             transition={
               shouldReduceMotion ? { duration: 0 } : { duration: 0.2, ease: [0.22, 1, 0.36, 1] }
             }
-            className="w-full max-w-lg transform-gpu rounded-xl border border-border bg-white shadow-2xl outline-none will-change-transform dark:border-border dark:bg-background"
+            className="w-full max-w-lg transform-gpu rounded-xl border border-border bg-white shadow-2xl outline-hidden will-change-transform dark:border-border dark:bg-background"
           >
             <div className="flex items-start justify-between px-6 pb-2 pt-6">
               <div className="flex flex-col gap-1">

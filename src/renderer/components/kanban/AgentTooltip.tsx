@@ -108,7 +108,7 @@ export const AgentTooltip: React.FC<AgentTooltipProps> = ({
         <TooltipTrigger asChild>{children}</TooltipTrigger>
         <TooltipContent
           side={side}
-          className="max-w-xs rounded-md border border-border bg-background p-2 text-xs shadow-sm"
+          className="max-w-xs rounded-md border border-border bg-background p-2 text-xs shadow-xs"
         >
           {taskName ? (
             <div className="mb-1 flex items-center gap-1.5 text-code font-semibold leading-tight text-foreground">
@@ -126,10 +126,10 @@ export const AgentTooltip: React.FC<AgentTooltipProps> = ({
                   <img
                     src={it.logo}
                     alt={it.label}
-                    className={`h-3.5 w-3.5 shrink-0 rounded-sm ${it.invert ? 'dark:invert' : ''}`}
+                    className={`h-3.5 w-3.5 shrink-0 rounded-xs ${it.invert ? 'dark:invert' : ''}`}
                   />
                 ) : (
-                  <span className="h-3.5 w-3.5 shrink-0 rounded-sm bg-muted" />
+                  <span className="h-3.5 w-3.5 shrink-0 rounded-xs bg-muted" />
                 )}
                 <span className="leading-none">{it.label}</span>
               </div>

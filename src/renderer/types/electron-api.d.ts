@@ -1141,6 +1141,7 @@ declare global {
       // Database operations
       getProjects: () => Promise<any[]>;
       saveProject: (project: any) => Promise<{ success: boolean; error?: string }>;
+      updateProjectOrder: (projectIds: string[]) => Promise<{ success: boolean; error?: string }>;
       getTasks: (projectId?: string) => Promise<any[]>;
       saveTask: (task: any) => Promise<{ success: boolean; error?: string }>;
       deleteProject: (projectId: string) => Promise<{ success: boolean; error?: string }>;
@@ -1376,6 +1377,40 @@ declare global {
         data?: import('@shared/skills/types').CatalogSkill;
         error?: string;
       }>;
+
+      // Script runner
+      getScripts: (projectPath: string) => Promise<{
+        success: boolean;
+        data?: { name: string; command: string }[];
+        error?: string;
+      }>;
+      runScript: (
+        projectPath: string,
+        scriptName: string
+      ) => Promise<{
+        success: boolean;
+        data?: { ptyId: string };
+        error?: string;
+      }>;
+      stopScript: (ptyId: string) => Promise<{
+        success: boolean;
+        error?: string;
+      }>;
+      getRunningScripts: (projectPath: string) => Promise<{
+        success: boolean;
+        data?: { scriptName: string; ptyId: string }[];
+        error?: string;
+      }>;
+      onScriptData: (ptyId: string, listener: (data: string) => void) => () => void;
+      onScriptExit: (
+        ptyId: string,
+        listener: (info: { exitCode: number; signal?: number }) => void
+      ) => () => void;
+      onScriptStarted: (
+        listener: (data: { ptyId: string; scriptName: string; projectPath: string }) => void
+      ) => () => void;
+      scriptInput: (args: { ptyId: string; data: string }) => void;
+      scriptResize: (args: { ptyId: string; cols: number; rows: number }) => void;
     };
   }
 }
@@ -1861,6 +1896,7 @@ export interface ElectronAPI {
   // Database operations
   getProjects: () => Promise<any[]>;
   saveProject: (project: any) => Promise<{ success: boolean; error?: string }>;
+  updateProjectOrder: (projectIds: string[]) => Promise<{ success: boolean; error?: string }>;
   getTasks: (projectId?: string) => Promise<any[]>;
   saveTask: (task: any) => Promise<{ success: boolean; error?: string }>;
   deleteProject: (projectId: string) => Promise<{ success: boolean; error?: string }>;
@@ -1960,6 +1996,40 @@ export interface ElectronAPI {
     data?: import('@shared/skills/types').CatalogSkill;
     error?: string;
   }>;
+
+  // Script runner
+  getScripts: (projectPath: string) => Promise<{
+    success: boolean;
+    data?: { name: string; command: string }[];
+    error?: string;
+  }>;
+  runScript: (
+    projectPath: string,
+    scriptName: string
+  ) => Promise<{
+    success: boolean;
+    data?: { ptyId: string };
+    error?: string;
+  }>;
+  stopScript: (ptyId: string) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+  getRunningScripts: (projectPath: string) => Promise<{
+    success: boolean;
+    data?: { scriptName: string; ptyId: string }[];
+    error?: string;
+  }>;
+  onScriptData: (ptyId: string, listener: (data: string) => void) => () => void;
+  onScriptExit: (
+    ptyId: string,
+    listener: (info: { exitCode: number; signal?: number }) => void
+  ) => () => void;
+  onScriptStarted: (
+    listener: (data: { ptyId: string; scriptName: string; projectPath: string }) => void
+  ) => () => void;
+  scriptInput: (args: { ptyId: string; data: string }) => void;
+  scriptResize: (args: { ptyId: string; cols: number; rows: number }) => void;
 }
 import type { TerminalSnapshotPayload } from '#types/terminalSnapshot';
 import type { OpenInAppId } from '#shared/openInApps';

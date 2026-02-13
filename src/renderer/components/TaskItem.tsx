@@ -1,20 +1,35 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { GitBranch, ArrowUpRight, AlertCircle, Pencil, Pin, PinOff } from 'lucide-react';
-import TaskDeleteButton from './TaskDeleteButton';
-import { useTaskChanges } from '../hooks/useTaskChanges';
-import { ChangesBadge } from './TaskChanges';
-import { Spinner } from './ui/spinner';
+import { ArrowUpRight, Pencil, Pin, PinOff, MoreVertical, Archive, Trash2 } from 'lucide-react';
 import { usePrStatus } from '../hooks/usePrStatus';
 import { useTaskBusy } from '../hooks/useTaskBusy';
+import { useTaskIdle } from '../hooks/useTaskIdle';
 import PrPreviewTooltip from './PrPreviewTooltip';
 import { normalizeTaskName, MAX_TASK_NAME_LENGTH } from '../lib/taskNames';
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuTrigger,
 } from './ui/context-menu';
-import { Archive } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
+import { Button } from './ui/button';
 
 function stopPropagation(e: React.MouseEvent): void {
   e.stopPropagation();
@@ -38,7 +53,6 @@ interface TaskItemProps {
   onPin?: () => void | Promise<void>;
   isPinned?: boolean;
   showDelete?: boolean;
-  showDirectBadge?: boolean;
 }
 
 export const TaskItem: React.FC<TaskItemProps> = ({
@@ -49,17 +63,28 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   onPin,
   isPinned,
   showDelete,
-  showDirectBadge = true,
 }) => {
-  const { totalAdditions, totalDeletions, isLoading } = useTaskChanges(task.path, task.id);
   const { pr } = usePrStatus(task.path);
   const isRunning = useTaskBusy(task.id);
+  const isIdle = useTaskIdle(task.id);
 
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(task.name);
   const inputRef = useRef<HTMLInputElement>(null);
   const isSubmittingRef = useRef(false);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!onDelete) return;
+    try {
+      setIsDeleting(true);
+      await onDelete();
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  }, [onDelete]);
 
   const handleStartEdit = useCallback(() => {
     if (!onRename) return;
@@ -117,10 +142,16 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   const taskContent = (
     <div className="flex min-w-0 items-center justify-between">
       <div className="flex min-w-0 flex-1 items-center gap-2 py-1">
+        {/* Status dot indicator */}
         {isRunning || task.status === 'running' ? (
-          <Spinner size="sm" className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+          // Amber dot - agent in progress
+          <span className="h-2 w-2 flex-shrink-0 rounded-full bg-amber-500 animate-pulse" title="In progress" />
+        ) : isIdle ? (
+          // Red dot - agent needs user input
+          <span className="h-2 w-2 flex-shrink-0 rounded-full bg-red-500" title="Needs input" />
         ) : (
-          <GitBranch className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+          // Green dot - work done / inactive
+          <span className="h-2 w-2 flex-shrink-0 rounded-full bg-green-500" title="Done" />
         )}
         {isEditing ? (
           <input
@@ -131,7 +162,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
             onKeyDown={handleKeyDown}
             onBlur={handleConfirmEdit}
             maxLength={MAX_TASK_NAME_LENGTH}
-            className="min-w-0 flex-1 rounded border border-border bg-background px-1.5 py-0.5 text-xs font-medium text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+            className="min-w-0 flex-1 rounded border border-border bg-background px-1.5 py-0.5 text-xs font-medium text-foreground outline-hidden focus:border-ring focus:ring-1 focus:ring-ring"
             onClick={stopPropagation}
           />
         ) : (
@@ -140,118 +171,190 @@ export const TaskItem: React.FC<TaskItemProps> = ({
             <span className="block truncate text-xs font-medium text-foreground">{task.name}</span>
           </>
         )}
-        {showDirectBadge && task.useWorktree === false && (
-          <span
-            className="inline-flex items-center gap-0.5 rounded bg-muted px-1 py-0.5 text-[10px] font-medium text-muted-foreground"
-            title="Running directly on branch (no worktree isolation)"
-          >
-            <AlertCircle className="h-2.5 w-2.5" />
-            Direct
-          </span>
-        )}
       </div>
       <div className="flex flex-shrink-0 items-center gap-1">
-        {showDelete && onDelete ? (
-          <TaskDeleteButton
-            taskName={task.name}
-            taskId={task.id}
-            taskPath={task.path}
-            useWorktree={task.useWorktree}
-            onConfirm={async () => {
-              try {
-                setIsDeleting(true);
-                await onDelete();
-              } finally {
-                setIsDeleting(false);
-              }
-            }}
-            isDeleting={isDeleting}
-            aria-label={`Delete Task ${task.name}`}
-            className={`text-muted-foreground ${
-              isDeleting ? '' : 'opacity-0 group-hover/task:opacity-100'
-            }`}
-          />
-        ) : null}
-        <div aria-hidden={isLoading ? 'true' : 'false'}>
-          {!isLoading && (totalAdditions > 0 || totalDeletions > 0) ? (
-            <ChangesBadge additions={totalAdditions} deletions={totalDeletions} />
-          ) : pr ? (
-            <PrPreviewTooltip pr={pr} side="top">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (pr.url) window.electronAPI.openExternal(pr.url);
-                }}
-                className="inline-flex items-center gap-1 rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                title={`${pr.title || 'Pull Request'} (#${pr.number})`}
+        {showDelete && (onDelete || onRename || onArchive || onPin) ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`h-6 w-6 cursor-pointer text-muted-foreground ${
+                  isDeleting ? '' : 'opacity-0 group-hover/task:opacity-100'
+                }`}
+                onClick={stopPropagation}
+                disabled={isDeleting}
               >
-                {pr.isDraft
-                  ? 'Draft'
-                  : String(pr.state).toUpperCase() === 'OPEN'
-                    ? 'View PR'
-                    : `PR ${String(pr.state).charAt(0).toUpperCase() + String(pr.state).slice(1).toLowerCase()}`}
-                <ArrowUpRight className="size-3" />
-              </button>
-            </PrPreviewTooltip>
-          ) : null}
-        </div>
+                <MoreVertical className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" onClick={stopPropagation}>
+              {onPin && (
+                <DropdownMenuItem className="cursor-pointer" onClick={() => onPin()}>
+                  {isPinned ? (
+                    <>
+                      <PinOff className="mr-2 h-3.5 w-3.5" />
+                      Unpin
+                    </>
+                  ) : (
+                    <>
+                      <Pin className="mr-2 h-3.5 w-3.5" />
+                      Pin
+                    </>
+                  )}
+                </DropdownMenuItem>
+              )}
+              {onRename && (
+                <DropdownMenuItem className="cursor-pointer" onClick={() => handleStartEdit()}>
+                  <Pencil className="mr-2 h-3.5 w-3.5" />
+                  Edit
+                </DropdownMenuItem>
+              )}
+              {onArchive && (
+                <DropdownMenuItem className="cursor-pointer" onClick={() => onArchive()}>
+                  <Archive className="mr-2 h-3.5 w-3.5" />
+                  Archive
+                </DropdownMenuItem>
+              )}
+              {onDelete && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="cursor-pointer text-destructive focus:text-destructive"
+                    onClick={() => setShowDeleteDialog(true)}
+                  >
+                    <Trash2 className="mr-2 h-3.5 w-3.5" />
+                    Delete
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
+        {pr ? (
+          <PrPreviewTooltip pr={pr} side="top">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (pr.url) window.electronAPI.openExternal(pr.url);
+              }}
+              className="inline-flex items-center gap-1 rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+              title={`${pr.title || 'Pull Request'} (#${pr.number})`}
+            >
+              {pr.isDraft
+                ? 'Draft'
+                : String(pr.state).toUpperCase() === 'OPEN'
+                  ? 'View PR'
+                  : `PR ${String(pr.state).charAt(0).toUpperCase() + String(pr.state).slice(1).toLowerCase()}`}
+              <ArrowUpRight className="size-3" />
+            </button>
+          </PrPreviewTooltip>
+        ) : null}
       </div>
     </div>
   );
 
-  // Wrap with context menu if rename, archive, or pin is available
-  if (onRename || onArchive || onPin) {
+  const deleteDialog = (
+    <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete session</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete "{task.name}"? This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel className="cursor-pointer">Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            className="cursor-pointer bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={handleConfirmDelete}
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
+  // Wrap with context menu if rename, archive, delete, or pin is available
+  if (onRename || onArchive || onPin || onDelete) {
     return (
-      <ContextMenu>
-        <ContextMenuTrigger asChild>{taskContent}</ContextMenuTrigger>
-        <ContextMenuContent>
-          {onPin && (
-            <ContextMenuItem
-              onClick={(e) => {
-                e.stopPropagation();
-                onPin();
-              }}
-            >
-              {isPinned ? (
-                <>
-                  <PinOff className="mr-2 h-3.5 w-3.5" />
-                  Unpin
-                </>
-              ) : (
-                <>
-                  <Pin className="mr-2 h-3.5 w-3.5" />
-                  Pin
-                </>
-              )}
-            </ContextMenuItem>
-          )}
-          {onRename && (
-            <ContextMenuItem
-              onClick={(e) => {
-                e.stopPropagation();
-                handleStartEdit();
-              }}
-            >
-              <Pencil className="mr-2 h-3.5 w-3.5" />
-              Rename
-            </ContextMenuItem>
-          )}
-          {onArchive && (
-            <ContextMenuItem
-              onClick={(e) => {
-                e.stopPropagation();
-                onArchive();
-              }}
-            >
-              <Archive className="mr-2 h-3.5 w-3.5" />
-              Archive
-            </ContextMenuItem>
-          )}
-        </ContextMenuContent>
-      </ContextMenu>
+      <>
+        {deleteDialog}
+        <ContextMenu>
+          <ContextMenuTrigger asChild>{taskContent}</ContextMenuTrigger>
+          <ContextMenuContent>
+            {onPin && (
+              <ContextMenuItem
+                className="cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPin();
+                }}
+              >
+                {isPinned ? (
+                  <>
+                    <PinOff className="mr-2 h-3.5 w-3.5" />
+                    Unpin
+                  </>
+                ) : (
+                  <>
+                    <Pin className="mr-2 h-3.5 w-3.5" />
+                    Pin
+                  </>
+                )}
+              </ContextMenuItem>
+            )}
+            {onRename && (
+              <ContextMenuItem
+                className="cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleStartEdit();
+                }}
+              >
+                <Pencil className="mr-2 h-3.5 w-3.5" />
+                Edit
+              </ContextMenuItem>
+            )}
+            {onArchive && (
+              <ContextMenuItem
+                className="cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onArchive();
+                }}
+              >
+                <Archive className="mr-2 h-3.5 w-3.5" />
+                Archive
+              </ContextMenuItem>
+            )}
+            {onDelete && (
+              <>
+                <ContextMenuSeparator />
+                <ContextMenuItem
+                  className="cursor-pointer text-destructive focus:text-destructive"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowDeleteDialog(true);
+                  }}
+                >
+                  <Trash2 className="mr-2 h-3.5 w-3.5" />
+                  Delete
+                </ContextMenuItem>
+              </>
+            )}
+          </ContextMenuContent>
+        </ContextMenu>
+      </>
     );
   }
 
-  return taskContent;
+  return (
+    <>
+      {deleteDialog}
+      {taskContent}
+    </>
+  );
 };

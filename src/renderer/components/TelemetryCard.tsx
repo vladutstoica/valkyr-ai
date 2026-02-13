@@ -18,7 +18,7 @@ const TelemetryCard: React.FC = () => {
               type="button"
               variant="link"
               size="sm"
-              className="group inline-flex h-auto items-center gap-1 px-0 text-xs font-normal text-muted-foreground hover:text-foreground hover:no-underline focus-visible:outline-none focus-visible:ring-0"
+              className="group inline-flex h-auto items-center gap-1 px-0 text-xs font-normal text-muted-foreground hover:text-foreground hover:no-underline focus-visible:outline-hidden focus-visible:ring-0"
               onClick={() =>
                 window.electronAPI.openExternal('https://docs.valkyr.dev/security/telemetry')
               }

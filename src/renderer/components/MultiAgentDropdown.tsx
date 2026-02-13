@@ -97,7 +97,7 @@ export const MultiAgentDropdown: React.FC<MultiAgentDropdownProps> = ({
               <img
                 src={singleAgentConfig.logo}
                 alt={singleAgentConfig.alt}
-                className={`h-4 w-4 flex-shrink-0 rounded-sm ${singleAgentConfig.invertInDark ? 'dark:invert' : ''}`}
+                className={`h-4 w-4 flex-shrink-0 rounded-none ${singleAgentConfig.invertInDark ? 'dark:invert' : ''}`}
               />
             )}
             <span className="truncate">{triggerText}</span>
@@ -127,7 +127,7 @@ export const MultiAgentDropdown: React.FC<MultiAgentDropdownProps> = ({
                   }}
                 >
                   <div
-                    className="flex h-8 cursor-pointer items-center justify-between rounded-sm px-2 hover:bg-accent"
+                    className="flex h-8 cursor-pointer items-center justify-between rounded-none px-2 hover:bg-accent"
                     onClick={() => handleRowClick(agent)}
                   >
                     <div className="flex flex-1 items-center gap-2">
@@ -145,7 +145,7 @@ export const MultiAgentDropdown: React.FC<MultiAgentDropdownProps> = ({
                       <img
                         src={config.logo}
                         alt={config.alt}
-                        className={`h-4 w-4 flex-shrink-0 rounded-sm ${config.invertInDark ? 'dark:invert' : ''}`}
+                        className={`h-4 w-4 flex-shrink-0 rounded-none ${config.invertInDark ? 'dark:invert' : ''}`}
                       />
                       <span className="text-sm">{config.name}</span>
                     </div>
@@ -205,7 +205,7 @@ export const MultiAgentDropdown: React.FC<MultiAgentDropdownProps> = ({
                 /* Disabled agents with tooltip */
                 <Tooltip key={key}>
                   <TooltipTrigger asChild>
-                    <div className="flex h-8 cursor-not-allowed items-center justify-between rounded-sm px-2 opacity-50">
+                    <div className="flex h-8 cursor-not-allowed items-center justify-between rounded-none px-2 opacity-50">
                       <div className="flex flex-1 items-center gap-2">
                         <input
                           type="checkbox"
@@ -216,7 +216,7 @@ export const MultiAgentDropdown: React.FC<MultiAgentDropdownProps> = ({
                         <img
                           src={config.logo}
                           alt={config.alt}
-                          className={`h-4 w-4 flex-shrink-0 rounded-sm ${config.invertInDark ? 'dark:invert' : ''} grayscale`}
+                          className={`h-4 w-4 flex-shrink-0 rounded-none ${config.invertInDark ? 'dark:invert' : ''} grayscale`}
                         />
                         <span className="text-sm text-muted-foreground">
                           {config.name}

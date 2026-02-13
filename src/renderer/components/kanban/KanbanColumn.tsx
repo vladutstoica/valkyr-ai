@@ -8,7 +8,7 @@ const KanbanColumn: React.FC<{
   action?: React.ReactNode;
 }> = ({ title, count, onDropCard, children, action }) => {
   return (
-    <div className="flex min-h-0 flex-col rounded-xl border border-border bg-background shadow-sm">
+    <div className="flex min-h-0 flex-col rounded-xl border border-border bg-background shadow-xs">
       <div className="flex items-center justify-between border-b border-border px-3 py-2 text-sm font-medium">
         <div className="flex items-center gap-2">
           <span>{title}</span>

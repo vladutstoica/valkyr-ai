@@ -141,10 +141,10 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const validate = useCallback(
     (value: string): string | null => {
       const normalized = normalizeTaskName(value);
-      if (!normalized) return 'Please enter a Task name.';
-      if (normalizedExisting.includes(normalized)) return 'A Task with this name already exists.';
+      if (!normalized) return 'Please enter a session name.';
+      if (normalizedExisting.includes(normalized)) return 'A session with this name already exists.';
       if (normalized.length > MAX_TASK_NAME_LENGTH)
-        return `Task name is too long (max ${MAX_TASK_NAME_LENGTH} characters).`;
+        return `Session name is too long (max ${MAX_TASK_NAME_LENGTH} characters).`;
       return null;
     },
     [normalizedExisting]
@@ -287,7 +287,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
         onOpenAutoFocus={handleOpenAutoFocus}
       >
         <DialogHeader>
-          <DialogTitle>New Task</DialogTitle>
+          <DialogTitle>New Session</DialogTitle>
           <div className="space-y-1 pt-1">
             <p className="text-sm font-medium text-foreground">{projectName}</p>
             <div className="flex items-center gap-1.5">
@@ -314,7 +314,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="task-name" className="mb-2 block">
-              Task name
+              Session name
             </Label>
             <SlugInput
               ref={taskNameInputRef}

@@ -560,7 +560,7 @@ const BrowserPane: React.FC<{
           ) : null}
           {busy && !url ? (
             <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
-              <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-background/95 px-4 py-3 text-sm text-muted-foreground shadow-sm backdrop-blur-[1px]">
+              <div className="flex items-center gap-3 rounded-none border border-border/70 bg-background/95 px-4 py-3 text-sm text-muted-foreground shadow-xs backdrop-blur-[1px]">
                 <Spinner size="md" />
                 <div className="leading-tight">
                   <div className="font-medium text-foreground">Loading preview…</div>
@@ -571,7 +571,7 @@ const BrowserPane: React.FC<{
           ) : null}
           {url && failed && !busy ? (
             <div className="pointer-events-auto absolute inset-0 z-20 flex items-center justify-center bg-background/80 backdrop-blur-[1px]">
-              <div className="flex flex-col items-center gap-3 rounded-xl border border-border/70 bg-background/95 px-4 py-3 text-sm text-muted-foreground shadow-sm">
+              <div className="flex flex-col items-center gap-3 rounded-none border border-border/70 bg-background/95 px-4 py-3 text-sm text-muted-foreground shadow-xs">
                 <div className="text-center leading-tight">
                   <div className="font-medium text-foreground">Preview unavailable</div>
                   <div className="mt-1 text-xs text-muted-foreground/80">

@@ -171,11 +171,11 @@ body {
 }
 
 .rounded {
-  border-radius: 0.25rem;
+  border-radius: 0;
 }
 
 .rounded-lg {
-  border-radius: 0.5rem;
+  border-radius: 0;
 }
 
 .border {

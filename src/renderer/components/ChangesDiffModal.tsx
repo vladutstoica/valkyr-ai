@@ -612,7 +612,7 @@ export const ChangesDiffModal: React.FC<ChangesDiffModalProps> = ({
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-xs"
           role="dialog"
           aria-modal="true"
           initial={shouldReduceMotion ? false : { opacity: 0 }}

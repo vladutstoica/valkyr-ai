@@ -344,6 +344,7 @@ declare global {
       // Database methods
       getProjects: () => Promise<any[]>;
       saveProject: (project: any) => Promise<{ success: boolean; error?: string }>;
+      updateProjectOrder: (projectIds: string[]) => Promise<{ success: boolean; error?: string }>;
       getTasks: (projectId?: string) => Promise<any[]>;
       saveTask: (task: any) => Promise<{ success: boolean; error?: string }>;
       deleteProject: (projectId: string) => Promise<{ success: boolean; error?: string }>;

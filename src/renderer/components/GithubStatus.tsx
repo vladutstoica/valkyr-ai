@@ -108,7 +108,7 @@ export function GithubStatus({
       <img
         src={githubLogo}
         alt="GitHub"
-        className="h-5 w-5 rounded-sm object-contain dark:invert"
+        className="h-5 w-5 rounded-xs object-contain dark:invert"
       />
       <span className="truncate font-medium">{displayName}</span>
     </div>

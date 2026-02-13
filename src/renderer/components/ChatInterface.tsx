@@ -761,8 +761,8 @@ const ChatInterface: React.FC<Props> = ({
         />
 
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="px-6 pt-4">
-            <div className="mx-auto max-w-4xl space-y-2">
+          <div className="shrink-0 p-3 pb-0">
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {conversations
@@ -890,9 +890,9 @@ const ChatInterface: React.FC<Props> = ({
               })()}
             </div>
           </div>
-          <div className="mt-4 min-h-0 flex-1 px-6">
+          <div className="flex min-h-0 flex-1 flex-col p-3 pt-3">
             <div
-              className={`mx-auto h-full max-w-4xl overflow-hidden rounded-md ${
+              className={`min-h-0 flex-1 overflow-hidden rounded-md ${
                 agent === 'charm'
                   ? effectiveTheme === 'dark-black'
                     ? 'bg-black'

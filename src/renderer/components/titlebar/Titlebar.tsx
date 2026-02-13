@@ -181,7 +181,7 @@ const Titlebar: React.FC<TitlebarProps> = ({
 
   return (
     <>
-      <header className="fixed inset-x-0 top-0 z-[80] flex h-[var(--tb,36px)] items-center justify-end bg-muted pr-2 shadow-[inset_0_-1px_0_hsl(var(--border))] [-webkit-app-region:drag] dark:bg-background">
+      <header className="fixed inset-x-0 top-0 z-[80] flex h-[var(--tb,36px)] items-center justify-end border-b border-border bg-muted pr-2 [-webkit-app-region:drag] dark:bg-background">
         <div className="pointer-events-none absolute inset-x-0 flex justify-center">
           <div className="w-[min(60vw,720px)]">
             <TitlebarContext

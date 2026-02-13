@@ -35,7 +35,7 @@ export const AgentDropdown: React.FC<AgentDropdownProps> = ({
                   <img
                     src={config.logo}
                     alt={config.alt}
-                    className={`h-4 w-4 rounded-sm ${isDisabled ? 'grayscale' : ''} ${config.invertInDark ? 'dark:invert' : ''}`}
+                    className={`h-4 w-4 rounded-none ${isDisabled ? 'grayscale' : ''} ${config.invertInDark ? 'dark:invert' : ''}`}
                   />
                   <span className={isDisabled ? 'text-muted-foreground' : ''}>
                     {config.name}

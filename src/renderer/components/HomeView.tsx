@@ -66,7 +66,7 @@ const HomeView: React.FC<HomeViewProps> = ({
               })();
               onOpenProject();
             }}
-            className="group flex flex-col items-start justify-between rounded-lg border border-border bg-muted/20 p-4 text-card-foreground shadow-sm transition-all hover:bg-muted/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="group flex flex-col items-start justify-between rounded-lg border border-border bg-muted/20 p-4 text-card-foreground shadow-xs transition-all hover:bg-muted/40 hover:shadow-md focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <FolderOpen className="mb-5 h-5 w-5 text-foreground opacity-70" />
             <div className="w-full min-w-0 text-left">
@@ -78,7 +78,7 @@ const HomeView: React.FC<HomeViewProps> = ({
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.1, ease: 'easeInOut' }}
             onClick={onNewProjectClick}
-            className="group flex flex-col items-start justify-between rounded-lg border border-border bg-muted/20 p-4 text-card-foreground shadow-sm transition-all hover:bg-muted/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="group flex flex-col items-start justify-between rounded-lg border border-border bg-muted/20 p-4 text-card-foreground shadow-xs transition-all hover:bg-muted/40 hover:shadow-md focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <Plus className="mb-5 h-5 w-5 text-foreground opacity-70" />
             <div className="w-full min-w-0 text-left">
@@ -90,7 +90,7 @@ const HomeView: React.FC<HomeViewProps> = ({
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.1, ease: 'easeInOut' }}
             onClick={onCloneProjectClick}
-            className="group flex flex-col items-start justify-between rounded-lg border border-border bg-muted/20 p-4 text-card-foreground shadow-sm transition-all hover:bg-muted/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="group flex flex-col items-start justify-between rounded-lg border border-border bg-muted/20 p-4 text-card-foreground shadow-xs transition-all hover:bg-muted/40 hover:shadow-md focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <Github className="mb-5 h-5 w-5 text-foreground opacity-70" />
             <div className="w-full min-w-0 text-left">
@@ -102,7 +102,7 @@ const HomeView: React.FC<HomeViewProps> = ({
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.1, ease: 'easeInOut' }}
             onClick={onAddRemoteProject}
-            className="group flex flex-col items-start justify-between rounded-lg border border-border bg-muted/20 p-4 text-card-foreground shadow-sm transition-all hover:bg-muted/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="group flex flex-col items-start justify-between rounded-lg border border-border bg-muted/20 p-4 text-card-foreground shadow-xs transition-all hover:bg-muted/40 hover:shadow-md focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <Server className="mb-5 h-5 w-5 text-foreground opacity-70" />
             <div className="w-full min-w-0 text-left">

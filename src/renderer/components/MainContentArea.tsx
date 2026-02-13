@@ -63,7 +63,7 @@ const MainContentArea: React.FC<MainContentAreaProps> = ({
 }) => {
   if (selectedProject && showKanban) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="flex h-full min-h-0 flex-col overflow-hidden">
         <KanbanBoard
           project={selectedProject}
           onOpenTask={(ws: any) => {
@@ -93,7 +93,7 @@ const MainContentArea: React.FC<MainContentAreaProps> = ({
 
   if (selectedProject) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="flex h-full min-h-0 flex-col overflow-hidden">
         {activeTask ? (
           (activeTask.metadata as any)?.multiAgent?.enabled ? (
             <MultiAgentTask
@@ -109,7 +109,7 @@ const MainContentArea: React.FC<MainContentAreaProps> = ({
               projectName={selectedProject.name}
               projectPath={selectedProject.path}
               defaultBranch={projectDefaultBranch}
-              className="min-h-0 flex-1"
+              className="h-full min-h-0"
               initialAgent={activeTaskAgent || undefined}
             />
           )

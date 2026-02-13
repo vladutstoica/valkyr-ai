@@ -83,7 +83,7 @@ const TaskSettingsCard: React.FC = () => {
     <div className="rounded-xl border border-border/60 bg-muted/10 p-4">
       <div className="space-y-3">
         <label className="flex items-center justify-between gap-2">
-          <span className="text-sm">Auto-generate task names</span>
+          <span className="text-sm">Auto-generate session names</span>
           <Switch
             checked={autoGenerateName}
             disabled={loading || saving}
@@ -92,7 +92,7 @@ const TaskSettingsCard: React.FC = () => {
         </label>
         <label className="flex items-center justify-between gap-2">
           <div className="space-y-1">
-            <div className="text-sm">Enable Auto-approve by default in new tasks</div>
+            <div className="text-sm">Enable Auto-approve by default in new sessions</div>
             <div className="text-xs text-muted-foreground">
               Skips permission prompts for file operations.{' '}
               <a

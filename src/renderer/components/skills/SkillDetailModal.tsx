@@ -110,7 +110,7 @@ const SkillDetailModal: React.FC<SkillDetailModalProps> = ({
                   : 'https://github.com/anthropics.png'
               }
               alt=""
-              className="h-5 w-5 rounded-sm"
+              className="h-5 w-5 rounded-xs"
             />
             <span>From {skill.source === 'openai' ? 'OpenAI' : 'Anthropic'} skill library</span>
           </div>

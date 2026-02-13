@@ -115,7 +115,7 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
       variant === 'default'
         ? isMobile
           ? cn(
-              'fixed inset-y-0 left-0 w-[var(--sidebar-width-mobile,18rem)] bg-background shadow-lg',
+              'fixed inset-y-0 left-0 w-[var(--sidebar-width-mobile,18rem)] bg-background shadow-md',
               open ? 'translate-x-0' : '-translate-x-full'
             )
           : cn(open ? 'w-full' : 'w-0')
@@ -136,7 +136,7 @@ const Sidebar = React.forwardRef<HTMLDivElement, SidebarProps>(
           <button
             type="button"
             aria-label="Close sidebar overlay"
-            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm lg:hidden"
+            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-xs lg:hidden"
             onClick={() => setOpen(false)}
           />
         ) : null}
@@ -167,7 +167,7 @@ const SidebarContent = React.forwardRef<HTMLDivElement, SidebarContentProps>(
       ref={ref}
       className={cn(
         'flex-1 overflow-y-auto',
-        variant === 'default' ? 'px-3 py-4 text-sm text-muted-foreground' : '',
+        variant === 'default' ? 'p-3 text-sm text-muted-foreground' : '',
         className
       )}
       {...props}
@@ -196,7 +196,7 @@ SidebarInset.displayName = 'SidebarInset';
 
 const SidebarGroup = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn('mb-6 grid gap-1', className)} {...props} />
+    <div ref={ref} className={cn('mb-6 grid w-full gap-1 overflow-hidden', className)} {...props} />
   )
 );
 SidebarGroup.displayName = 'SidebarGroup';
@@ -217,7 +217,7 @@ SidebarGroupLabel.displayName = 'SidebarGroupLabel';
 
 const SidebarGroupContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn('grid gap-1', className)} {...props} />
+    <div ref={ref} className={cn('grid w-full gap-1 overflow-hidden', className)} {...props} />
   )
 );
 SidebarGroupContent.displayName = 'SidebarGroupContent';
@@ -251,7 +251,7 @@ const SidebarMenuButton = React.forwardRef<HTMLButtonElement, SidebarMenuButtonP
         ref={ref as any}
         data-active={isActive ? 'true' : undefined}
         className={cn(
-          'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground',
+          'flex w-full items-center gap-2 rounded-none px-2 py-1.5 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground',
           className
         )}
         {...props}
@@ -297,7 +297,7 @@ const SidebarTrigger = React.forwardRef<
       type="button"
       onClick={() => toggle()}
       className={cn(
-        'inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:hidden',
+        'inline-flex h-9 w-9 items-center justify-center rounded-none border border-border bg-background text-sm font-medium text-foreground shadow-xs transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:hidden',
         className
       )}
       {...props}

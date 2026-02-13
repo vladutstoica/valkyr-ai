@@ -43,7 +43,7 @@ const BaseBranchControls: React.FC<BaseBranchControlsProps> = ({
         />
       </div>
       <p className="text-xs text-muted-foreground">
-        New tasks start from the latest code.
+        New sessions start from the latest code.
         {projectPath && onEditConfig && (
           <>
             {' · '}

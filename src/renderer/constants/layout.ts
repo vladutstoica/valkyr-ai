@@ -1,8 +1,6 @@
 export const TITLEBAR_HEIGHT = '36px';
 export const PANEL_LAYOUT_STORAGE_KEY = 'valkyr.layout.left-main-right.v2';
-export const DEFAULT_PANEL_LAYOUT: [number, number, number] = [20, 60, 20];
-export const LEFT_SIDEBAR_MIN_SIZE = 16;
-export const LEFT_SIDEBAR_MAX_SIZE = 30;
+export const DEFAULT_PANEL_LAYOUT: [number, number, number] = [0, 80, 20];
 export const FIRST_LAUNCH_KEY = 'valkyr:first-launch:v1';
 export const RIGHT_SIDEBAR_MIN_SIZE = 16;
 export const RIGHT_SIDEBAR_MAX_SIZE = 50;
@@ -35,12 +33,6 @@ export const saveActiveIds = (projectId: string | null, taskId: string | null): 
     }
   } catch {}
 };
-
-export const clampLeftSidebarSize = (value: number) =>
-  Math.min(
-    Math.max(Number.isFinite(value) ? value : DEFAULT_PANEL_LAYOUT[0], LEFT_SIDEBAR_MIN_SIZE),
-    LEFT_SIDEBAR_MAX_SIZE
-  );
 
 export const clampRightSidebarSize = (value: number) =>
   Math.min(

@@ -50,7 +50,7 @@ const KanbanCard: React.FC<{
       <div
         role="button"
         tabIndex={0}
-        className="rounded-lg border border-border bg-background p-3 shadow-sm transition hover:bg-muted/40 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
+        className="rounded-lg border border-border bg-background p-3 shadow-xs transition hover:bg-muted/40 focus:outline-hidden focus:ring-0 focus-visible:outline-hidden focus-visible:ring-0"
         draggable={draggable}
         onDragStart={(e) => {
           e.dataTransfer.setData('text/plain', ws.id);
@@ -91,7 +91,7 @@ const KanbanCard: React.FC<{
                         <img
                           src={asset.logo}
                           alt={asset.alt}
-                          className={`h-3.5 w-3.5 shrink-0 rounded-sm ${
+                          className={`h-3.5 w-3.5 shrink-0 rounded-xs ${
                             asset.invertInDark ? 'dark:invert' : ''
                           }`}
                         />
@@ -112,7 +112,7 @@ const KanbanCard: React.FC<{
                 <img
                   src={asset.logo}
                   alt={asset.alt}
-                  className={`h-3.5 w-3.5 shrink-0 rounded-sm ${asset.invertInDark ? 'dark:invert' : ''}`}
+                  className={`h-3.5 w-3.5 shrink-0 rounded-xs ${asset.invertInDark ? 'dark:invert' : ''}`}
                 />
               </span>
             ) : busy ? (
@@ -128,7 +128,7 @@ const KanbanCard: React.FC<{
               <img
                 src={agentAssets[adminAgent].logo}
                 alt={agentAssets[adminAgent].alt}
-                className={`h-3.5 w-3.5 rounded-sm ${
+                className={`h-3.5 w-3.5 rounded-xs ${
                   agentAssets[adminAgent].invertInDark ? 'dark:invert' : ''
                 }`}
               />

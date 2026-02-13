@@ -41,7 +41,7 @@ const Context7SettingsCard: React.FC = () => {
           <img
             src={context7Logo}
             alt="Context7"
-            className="mt-0.5 h-6 w-6 rounded-sm border border-border/50 object-contain"
+            className="mt-0.5 h-6 w-6 rounded-xs border border-border/50 object-contain"
           />
           <div className="space-y-1 text-xs text-muted-foreground">
             <p>

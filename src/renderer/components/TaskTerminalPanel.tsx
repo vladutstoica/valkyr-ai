@@ -26,6 +26,11 @@ interface Task {
   status: 'active' | 'idle' | 'running';
 }
 
+export interface RunningScript {
+  name: string;
+  ptyId: string;
+}
+
 interface Props {
   task: Task | null;
   agent?: Agent;
@@ -37,10 +42,16 @@ interface Props {
   };
   defaultBranch?: string;
   portSeed?: string;
+  /** Running scripts to display in the terminal selector */
+  runningScripts?: RunningScript[];
+  /** PTY ID of a script to focus (auto-select when a script starts) */
+  focusScriptPtyId?: string | null;
+  /** Called after focusing a script (to clear the focusScriptPtyId) */
+  onScriptFocused?: () => void;
 }
 
 type LifecyclePhaseStatus = 'idle' | 'running' | 'succeeded' | 'failed';
-type SelectedMode = 'task' | 'global' | 'lifecycle';
+type SelectedMode = 'task' | 'global' | 'lifecycle' | 'script';
 type LifecyclePhase = 'setup' | 'run' | 'teardown';
 type LifecycleLogs = Record<LifecyclePhase, string[]>;
 
@@ -52,6 +63,9 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
   remote,
   defaultBranch,
   portSeed,
+  runningScripts = [],
+  focusScriptPtyId,
+  onScriptFocused,
 }) => {
   const { effectiveTheme } = useTheme();
 
@@ -84,7 +98,7 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
   });
 
   const parseValue = (value: string): { mode: SelectedMode; id: string } | null => {
-    const match = value.match(/^(task|global|lifecycle)::(.+)$/);
+    const match = value.match(/^(task|global|lifecycle|script)::(.+)$/);
     if (!match) return null;
     return { mode: match[1] as SelectedMode, id: match[2] };
   };
@@ -280,6 +294,16 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
     }
   }, [selectedValue, taskTerminals.terminals, globalTerminals.terminals, task]);
 
+  // Auto-focus script terminal when focusScriptPtyId changes
+  useEffect(() => {
+    if (!focusScriptPtyId) return;
+    const script = runningScripts.find((s) => s.ptyId === focusScriptPtyId);
+    if (script) {
+      setSelectedValue(`script::${script.ptyId}`);
+      onScriptFocused?.();
+    }
+  }, [focusScriptPtyId, runningScripts, onScriptFocused]);
+
   const handleSelectChange = (value: string) => {
     setSelectedValue(value);
     const p = parseValue(value);
@@ -306,6 +330,7 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
   const selectedTerminalScope = useMemo(() => {
     if (parsed?.mode === 'task') return 'WORKTREE';
     if (parsed?.mode === 'global') return 'GLOBAL';
+    if (parsed?.mode === 'script') return 'SCRIPT';
     return null;
   }, [parsed?.mode]);
 
@@ -441,10 +466,10 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
 
   if (!task && !projectPath) {
     return (
-      <div className={`flex h-full flex-col items-center justify-center bg-muted ${className}`}>
+      <div className={`flex h-full flex-col bg-muted p-3 ${className}`}>
         <Bot className="mb-2 h-8 w-8 text-muted-foreground" />
         <h3 className="mb-1 text-sm text-muted-foreground">No Task Selected</h3>
-        <p className="text-center text-xs text-muted-foreground dark:text-muted-foreground">
+        <p className="text-xs text-muted-foreground dark:text-muted-foreground">
           Select a task to view its terminal
         </p>
       </div>
@@ -525,6 +550,26 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
                     className="text-xs"
                   >
                     {terminal.title}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            )}
+
+            {runningScripts.length > 0 && (
+              <SelectGroup>
+                <div className="px-2 py-1.5">
+                  <span className="text-[10px] font-semibold text-muted-foreground">Scripts</span>
+                </div>
+                {runningScripts.map((script) => (
+                  <SelectItem
+                    key={`script::${script.ptyId}`}
+                    value={`script::${script.ptyId}`}
+                    className="text-xs"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="h-2 w-2 animate-pulse rounded-full bg-amber-500" />
+                      {script.name}
+                    </span>
                   </SelectItem>
                 ))}
               </SelectGroup>
@@ -680,7 +725,7 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
               <div
                 key={`task::${terminal.id}`}
                 className={cn(
-                  'absolute inset-0 h-full w-full transition-opacity',
+                  'absolute inset-3 transition-opacity',
                   isActive ? 'opacity-100' : 'pointer-events-none opacity-0'
                 )}
               >
@@ -705,7 +750,7 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
               <div
                 key={`global::${terminal.id}`}
                 className={cn(
-                  'absolute inset-0 h-full w-full transition-opacity',
+                  'absolute inset-3 transition-opacity',
                   isActive ? 'opacity-100' : 'pointer-events-none opacity-0'
                 )}
               >
@@ -723,8 +768,32 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
               </div>
             );
           })}
-          {totalTerminals === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center text-xs text-muted-foreground">
+          {runningScripts.map((script) => {
+            const isActive = parsed?.mode === 'script' && parsed?.id === script.ptyId;
+            return (
+              <div
+                key={`script::${script.ptyId}`}
+                className={cn(
+                  'absolute inset-3 transition-opacity',
+                  isActive ? 'opacity-100' : 'pointer-events-none opacity-0'
+                )}
+              >
+                <TerminalPane
+                  id={script.ptyId}
+                  cwd={projectPath}
+                  remote={remote?.connectionId ? { connectionId: remote.connectionId } : undefined}
+                  variant={
+                    effectiveTheme === 'dark' || effectiveTheme === 'dark-black' ? 'dark' : 'light'
+                  }
+                  themeOverride={themeOverride}
+                  className="h-full w-full"
+                  keepAlive
+                />
+              </div>
+            );
+          })}
+          {totalTerminals === 0 && runningScripts.length === 0 ? (
+            <div className="p-3 text-xs text-muted-foreground">
               <p>No terminal found.</p>
             </div>
           ) : null}
