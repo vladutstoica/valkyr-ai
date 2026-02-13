@@ -916,6 +916,11 @@ declare global {
         reason?: string;
         durationMs?: number;
       }>;
+      fsReaddir: (dirPath: string) => Promise<{
+        success: boolean;
+        items?: Array<{ name: string; type: 'file' | 'dir' }>;
+        error?: string;
+      }>;
       fsRead: (
         root: string,
         relPath: string,
@@ -966,6 +971,10 @@ declare global {
         mkdirs?: boolean
       ) => Promise<{ success: boolean; error?: string }>;
       fsRemove: (root: string, relPath: string) => Promise<{ success: boolean; error?: string }>;
+      fsCheckIgnored: (
+        rootPath: string,
+        paths: string[]
+      ) => Promise<{ success: boolean; ignoredPaths?: string[]; error?: string }>;
       getProjectConfig: (
         projectPath: string
       ) => Promise<{ success: boolean; path?: string; content?: string; error?: string }>;
@@ -1756,6 +1765,11 @@ export interface ElectronAPI {
     reason?: string;
     durationMs?: number;
   }>;
+  fsReaddir: (dirPath: string) => Promise<{
+    success: boolean;
+    items?: Array<{ name: string; type: 'file' | 'dir' }>;
+    error?: string;
+  }>;
   fsRead: (
     root: string,
     relPath: string,
@@ -1789,6 +1803,10 @@ export interface ElectronAPI {
     }>;
     error?: string;
   }>;
+  fsCheckIgnored: (
+    rootPath: string,
+    paths: string[]
+  ) => Promise<{ success: boolean; ignoredPaths?: string[]; error?: string }>;
 
   // GitHub integration
   githubAuth: () => Promise<{

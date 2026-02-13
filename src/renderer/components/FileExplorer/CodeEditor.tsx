@@ -13,11 +13,7 @@ import {
   addMonacoKeyboardShortcuts,
 } from '@/lib/monaco-config';
 import { defineMonacoThemes, getMonacoTheme } from '@/lib/monaco-themes';
-import {
-  DEFAULT_EXCLUDE_PATTERNS,
-  EXPLORER_WIDTH,
-  DEFAULT_EDITOR_OPTIONS,
-} from '@/constants/file-explorer';
+import { EXPLORER_WIDTH, DEFAULT_EDITOR_OPTIONS } from '@/constants/file-explorer';
 import { FileTree } from './FileTree';
 import { FileTabs } from './FileTabs';
 import { EditorHeader } from './EditorHeader';
@@ -304,7 +300,6 @@ const FileExplorer: React.FC<FileExplorerProps> = ({
           onOpenFile={onOpenFile}
           className="flex-1 overflow-y-auto"
           showHiddenFiles={false}
-          excludePatterns={DEFAULT_EXCLUDE_PATTERNS}
           fileChanges={fileChanges}
         />
       </div>

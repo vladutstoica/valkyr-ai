@@ -4,8 +4,8 @@ import { TabContainer } from '@/components/tabs/TabContainer';
 import { EditorTab } from '@/components/tabs/EditorTab';
 import { GitTab } from '@/components/tabs/GitTab';
 import { PreviewTab } from '@/components/tabs/PreviewTab';
-import { TerminalPanel } from '@/components/terminal/TerminalPanel';
 import { StatusBar } from '@/components/navigation/StatusBar';
+import { TerminalPanel } from '@/components/terminal/TerminalPanel';
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 import { useTabState } from '@/hooks/useTabState';
 import { useFileChanges } from '@/hooks/useFileChanges';
@@ -188,18 +188,12 @@ export function AppLayout({
             className="min-h-0 flex-1"
           />
 
-          {/* Terminal Panel (collapsible) */}
+          {/* Bottom Terminal Panel */}
           <TerminalPanel
-            terminals={[
-              { value: 'task', label: 'Task Terminal', group: 'task' },
-              { value: 'global', label: 'Global Terminal', group: 'global' },
-            ]}
-          >
-            {/* Terminal content placeholder - will be connected to actual terminal later */}
-            <div className="flex h-full items-center justify-center bg-card text-muted-foreground">
-              <p className="text-sm">Terminal content for: {taskPath || 'No task selected'}</p>
-            </div>
-          </TerminalPanel>
+            taskPath={taskPath}
+            taskId={taskId}
+            projectPath={selectedProject?.path}
+          />
         </div>
       </div>
 
