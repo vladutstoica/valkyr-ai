@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import {
   ChevronRight,
@@ -74,7 +74,66 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
     onFileChange: refreshChanges,
   });
 
-  // Sync editor state with file manager
+  // Track if we've validated files for this taskPath
+  const validatedTaskPath = useRef<string | null>(null);
+
+  // Validate and load all persisted files on mount or when taskPath changes
+  useEffect(() => {
+    // Skip if we've already validated for this taskPath
+    if (validatedTaskPath.current === taskPath) return;
+    if (!taskPath || openFiles.length === 0) {
+      validatedTaskPath.current = taskPath;
+      return;
+    }
+
+    const validateAndLoadFiles = async () => {
+      const validFiles: string[] = [];
+      const invalidFiles: string[] = [];
+
+      // Validate each persisted file exists on disk
+      for (const filePath of openFiles) {
+        try {
+          const result = await window.electronAPI.fsRead(taskPath, filePath);
+          if (result.success && result.content !== undefined) {
+            validFiles.push(filePath);
+          } else {
+            invalidFiles.push(filePath);
+          }
+        } catch {
+          invalidFiles.push(filePath);
+        }
+      }
+
+      // Close any invalid files from the editor state
+      invalidFiles.forEach((filePath) => {
+        storeCloseFile(taskPath, filePath);
+      });
+
+      // Load all valid files that aren't already loaded in file manager
+      for (const filePath of validFiles) {
+        if (!managedFiles.has(filePath)) {
+          await loadFile(filePath);
+        }
+      }
+
+      // If the active file was invalid, set a new active file
+      if (activeFile && invalidFiles.includes(activeFile)) {
+        if (validFiles.length > 0) {
+          storeSetActiveFile(taskPath, validFiles[0]);
+          managerSetActiveFile(validFiles[0]);
+        }
+      } else if (activeFile && validFiles.includes(activeFile)) {
+        // Make sure the active file is set in the manager
+        managerSetActiveFile(activeFile);
+      }
+
+      validatedTaskPath.current = taskPath;
+    };
+
+    validateAndLoadFiles();
+  }, [taskPath, openFiles, activeFile, storeCloseFile, storeSetActiveFile, loadFile, managedFiles, managerSetActiveFile]);
+
+  // Sync editor state with file manager - load active file content
   useEffect(() => {
     if (activeFile && !managedFiles.has(activeFile)) {
       loadFile(activeFile);

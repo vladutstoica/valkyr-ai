@@ -17,6 +17,7 @@ export interface EditorState {
   getActiveFile: (taskPath: string) => string | null;
   isUnsaved: (taskPath: string, filePath: string) => boolean;
   closeAllFiles: (taskPath: string) => void;
+  cleanupInvalidFiles: (taskPath: string, validFiles: string[]) => void;
 }
 
 // Helper to create a unique key for unsaved tracking
@@ -145,6 +146,41 @@ export const useEditorState = create<EditorState>()(
           return {
             openFilesByTask: newOpenFiles,
             activeFileByTask: newActiveFiles,
+            unsavedFiles: newUnsaved,
+          };
+        });
+      },
+
+      cleanupInvalidFiles: (taskPath, validFiles) => {
+        set((state) => {
+          const currentFiles = state.openFilesByTask[taskPath] || [];
+          const validSet = new Set(validFiles);
+          const filteredFiles = currentFiles.filter((f) => validSet.has(f));
+
+          // Check if active file is still valid
+          const currentActive = state.activeFileByTask[taskPath];
+          const newActive =
+            currentActive && validSet.has(currentActive)
+              ? currentActive
+              : filteredFiles[0] || null;
+
+          // Clean up unsaved set
+          const newUnsaved = new Set(state.unsavedFiles);
+          currentFiles.forEach((f) => {
+            if (!validSet.has(f)) {
+              newUnsaved.delete(makeUnsavedKey(taskPath, f));
+            }
+          });
+
+          return {
+            openFilesByTask: {
+              ...state.openFilesByTask,
+              [taskPath]: filteredFiles,
+            },
+            activeFileByTask: {
+              ...state.activeFileByTask,
+              [taskPath]: newActive,
+            },
             unsavedFiles: newUnsaved,
           };
         });
