@@ -45,7 +45,7 @@ export const TaskDeleteButton: React.FC<Props> = ({
   taskPath,
   onConfirm,
   className,
-  'aria-label': ariaLabel = 'Delete Task',
+  'aria-label': ariaLabel = 'Delete Session',
   isDeleting = false,
   useWorktree = true,
 }) => {
@@ -98,7 +98,7 @@ export const TaskDeleteButton: React.FC<Props> = ({
                 variant="ghost"
                 size="icon-sm"
                 className={cn(className, isDeleting && 'opacity-100')}
-                title="Delete Task"
+                title="Delete Session"
                 aria-label={ariaLabel}
                 aria-busy={isDeleting}
                 disabled={isDeleting}
@@ -113,17 +113,17 @@ export const TaskDeleteButton: React.FC<Props> = ({
             </AlertDialogTrigger>
           </TooltipTrigger>
           <TooltipContent side="top" className="text-xs">
-            Delete Task
+            Delete Session
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
       <AlertDialogContent onClick={(e) => e.stopPropagation()} className="space-y-4">
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete task?</AlertDialogTitle>
+          <AlertDialogTitle>Delete session?</AlertDialogTitle>
           <AlertDialogDescription>
             {useWorktree
-              ? 'This will permanently delete this task and its worktree.'
-              : 'This will permanently delete this task from the project.'}
+              ? 'This will permanently delete this session and its worktree.'
+              : 'This will permanently delete this session from the project.'}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <div className="space-y-3 text-sm">
@@ -141,7 +141,7 @@ export const TaskDeleteButton: React.FC<Props> = ({
                 <div className="flex min-w-0 flex-col gap-1">
                   <span className="text-sm font-semibold text-foreground">Please wait...</span>
                   <span className="text-xs text-muted-foreground">
-                    Scanning task for uncommitted changes and open pull requests
+                    Scanning session for uncommitted changes and open pull requests
                   </span>
                 </div>
               </motion.div>
@@ -207,7 +207,7 @@ export const TaskDeleteButton: React.FC<Props> = ({
                   onCheckedChange={(checked) => setAcknowledge(checked === true)}
                   className="mt-0.5"
                 />
-                <span className="text-sm leading-tight text-foreground">Delete task anyway</span>
+                <span className="text-sm leading-tight text-foreground">Delete session anyway</span>
               </motion.label>
             ) : null}
           </AnimatePresence>

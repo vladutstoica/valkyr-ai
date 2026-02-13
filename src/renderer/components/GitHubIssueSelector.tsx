@@ -232,7 +232,7 @@ export const GitHubIssueSelector: React.FC<GitHubIssueSelectorProps> = ({
             placeholder="Search by title or assignee…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="h-7 w-full border-none bg-transparent pl-9 pr-3 focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+            className="h-7 w-full border-none bg-transparent pl-9 pr-3 focus:outline-hidden focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0"
           />
         </div>
         <Separator />

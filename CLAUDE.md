@@ -230,3 +230,26 @@ All optional:
 - `tailwind.config.js` — Tailwind configuration
 - `.nvmrc` — Node version (22.20.0)
 - Electron Builder config is in `package.json` under `"build"` key
+
+## Project Documentation (`.notes/`)
+
+The `.notes/` directory contains planning and research documents (gitignored):
+
+- **`competitors.md`** — Direct competitors (Termpad, Ona, Superset, Soloterm, Conductor) and adjacent competitors (Cursor, Windsurf, Aider, OpenHands, Devin). Includes research on status detection approaches used in the industry.
+- **`plan.md`** — Implementation plans for major features. Current: Status Detection Refactor using Claude Code's official APIs (`--output-format stream-json`, hooks system) to replace fragile regex-based terminal parsing.
+
+### Competitors Overview
+
+| Direct | Adjacent |
+|--------|----------|
+| [Termpad](https://termpad.com) | Cursor IDE |
+| [Ona](https://ona.com) | Windsurf/Codeium |
+| [Superset](https://superset.sh) | GitHub Copilot Workspace |
+| [Soloterm](https://soloterm.com) | Aider |
+| [Conductor](https://conductor.build) | OpenHands, Devin |
+
+### Key Protocols to Monitor
+
+- **AG-UI Protocol** — Open standard for agent-UI communication
+- **MCP** — Anthropic's Model Context Protocol for tool/context integration
+- **A2A Protocol** — Google/Linux Foundation agent-to-agent standard

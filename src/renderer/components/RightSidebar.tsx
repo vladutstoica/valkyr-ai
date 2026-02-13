@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import FileChangesPanel from './FileChangesPanel';
 import { useFileChanges } from '@/hooks/useFileChanges';
@@ -7,8 +7,11 @@ import { useRightSidebar } from './ui/right-sidebar';
 import { agentAssets } from '@/providers/assets';
 import { agentMeta } from '@/providers/meta';
 import type { Agent } from '../types';
+import type { SubRepo } from '../types/app';
 import { TaskScopeProvider, useTaskScope } from './TaskScopeContext';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import RepoBranchesPanel from './RepoBranchesPanel';
+import { ScriptsPanel, type RunningScript } from './ScriptsPanel';
 
 export interface RightSidebarTask {
   id: string;
@@ -27,6 +30,20 @@ interface RightSidebarProps extends React.HTMLAttributes<HTMLElement> {
   projectRemotePath?: string | null;
   projectDefaultBranch?: string | null;
   forceBorder?: boolean;
+  /** Project name for single-repo display */
+  projectName?: string | null;
+  /** Project git branch (for single-repo projects) */
+  projectBranch?: string | null;
+  /** Sub-repositories (for multi-repo projects) */
+  projectSubRepos?: SubRepo[] | null;
+  /** Whether the current task uses a worktree */
+  taskUseWorktree?: boolean;
+  /** Callback when Update Project is clicked */
+  onUpdateProject?: () => void;
+  /** Callback when Commit is clicked */
+  onCommit?: () => void;
+  /** Callback when Push is clicked */
+  onPush?: () => void;
 }
 
 const RightSidebar: React.FC<RightSidebarProps> = ({
@@ -35,6 +52,13 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
   projectRemoteConnectionId,
   projectRemotePath,
   projectDefaultBranch,
+  projectName,
+  projectBranch,
+  projectSubRepos,
+  taskUseWorktree = true,
+  onUpdateProject,
+  onCommit,
+  onPush,
   className,
   forceBorder = false,
   ...rest
@@ -42,6 +66,37 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
   const { collapsed } = useRightSidebar();
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [collapsedVariants, setCollapsedVariants] = useState<Set<string>>(new Set());
+  const [runningScripts, setRunningScripts] = useState<Map<string, RunningScript>>(new Map());
+  const [focusScriptPtyId, setFocusScriptPtyId] = useState<string | null>(null);
+
+  const handleScriptStart = useCallback((scriptName: string, ptyId: string) => {
+    setRunningScripts((prev) => {
+      const next = new Map(prev);
+      next.set(scriptName, { name: scriptName, ptyId });
+      return next;
+    });
+    // Auto-focus the new script's terminal
+    setFocusScriptPtyId(ptyId);
+  }, []);
+
+  const handleScriptStop = useCallback((scriptName: string) => {
+    setRunningScripts((prev) => {
+      const next = new Map(prev);
+      next.delete(scriptName);
+      return next;
+    });
+  }, []);
+
+  const handleScriptClick = useCallback((_scriptName: string, ptyId: string) => {
+    setFocusScriptPtyId(ptyId);
+  }, []);
+
+  const handleScriptFocused = useCallback(() => {
+    setFocusScriptPtyId(null);
+  }, []);
+
+  // Convert Map to array for passing to TaskTerminalPanel
+  const runningScriptsArray = Array.from(runningScripts.values());
 
   const toggleVariantCollapsed = (variantKey: string) => {
     setCollapsedVariants((prev) => {
@@ -139,6 +194,34 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
     >
       <TaskScopeProvider value={{ taskId: task?.id, taskPath: task?.path, projectPath }}>
         <div className="flex h-full w-full min-w-0 flex-col">
+          {/* Repo branches panel at top */}
+          {(projectName || (projectSubRepos && projectSubRepos.length > 0)) && (
+            <RepoBranchesPanel
+              mainRepo={
+                projectName
+                  ? { name: projectName, branch: projectBranch || undefined }
+                  : undefined
+              }
+              subRepos={projectSubRepos}
+              sessionBranch={task?.branch}
+              useWorktree={taskUseWorktree}
+              onUpdateProject={onUpdateProject}
+              onCommit={onCommit}
+              onPush={onPush}
+            />
+          )}
+          {/* Scripts panel */}
+          {projectPath && (
+            <div className="border-b border-border">
+              <ScriptsPanel
+                projectPath={projectPath}
+                runningScripts={runningScripts}
+                onScriptStart={handleScriptStart}
+                onScriptStop={handleScriptStop}
+                onScriptClick={handleScriptClick}
+              />
+            </div>
+          )}
           {task || projectPath ? (
             <div className="flex h-full flex-col">
               {task && variants.length > 1 ? (
@@ -216,6 +299,9 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
                               defaultBranch={projectDefaultBranch || undefined}
                               portSeed={v.worktreeId}
                               className="min-h-[200px]"
+                              runningScripts={runningScriptsArray}
+                              focusScriptPtyId={focusScriptPtyId}
+                              onScriptFocused={handleScriptFocused}
                             />
                           </TaskScopeProvider>
                         )}
@@ -253,6 +339,9 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
                         defaultBranch={projectDefaultBranch || undefined}
                         portSeed={v.worktreeId}
                         className="min-h-0 flex-1"
+                        runningScripts={runningScriptsArray}
+                        focusScriptPtyId={focusScriptPtyId}
+                        onScriptFocused={handleScriptFocused}
                       />
                     </>
                   );
@@ -274,6 +363,9 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
                     }
                     defaultBranch={projectDefaultBranch || undefined}
                     className="min-h-0 flex-1"
+                    runningScripts={runningScriptsArray}
+                    focusScriptPtyId={focusScriptPtyId}
+                    onScriptFocused={handleScriptFocused}
                   />
                 </>
               ) : (
@@ -284,7 +376,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
                     </div>
                     <div className="flex flex-1 items-center justify-center px-4 text-center text-sm text-muted-foreground">
                       <span className="overflow-hidden text-ellipsis whitespace-nowrap">
-                        Select a task to review file changes.
+                        Select a session to review file changes.
                       </span>
                     </div>
                   </div>
@@ -302,6 +394,9 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
                     }
                     defaultBranch={projectDefaultBranch || undefined}
                     className="h-1/2 min-h-0"
+                    runningScripts={runningScriptsArray}
+                    focusScriptPtyId={focusScriptPtyId}
+                    onScriptFocused={handleScriptFocused}
                   />
                 </>
               )}
@@ -314,7 +409,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
                 </div>
                 <div className="flex flex-1 items-center justify-center px-4 text-center">
                   <span className="overflow-hidden text-ellipsis whitespace-nowrap">
-                    Select a task to review file changes.
+                    Select a session to review file changes.
                   </span>
                 </div>
               </div>
@@ -324,7 +419,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
                 </div>
                 <div className="flex flex-1 items-center justify-center px-4 text-center">
                   <span className="overflow-hidden text-ellipsis whitespace-nowrap">
-                    Select a task to open its terminal.
+                    Select a session to open its terminal.
                   </span>
                 </div>
               </div>

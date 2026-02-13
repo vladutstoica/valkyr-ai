@@ -71,7 +71,7 @@ export const InstallBanner: React.FC<Props> = ({
   }, []);
 
   return (
-    <div className="rounded-md border border-border bg-muted p-3 text-sm text-foreground dark:border-border dark:bg-background dark:text-foreground">
+    <div className="rounded-none border border-border bg-muted p-3 text-sm text-foreground dark:border-border dark:bg-background dark:text-foreground">
       <div className="space-y-2">
         <div className="text-foreground" aria-label={`${baseLabel} status`}>
           <span className="font-normal">

@@ -49,7 +49,7 @@ function CommentItem({ comment, prUrl }: { comment: PrComment; prUrl?: string })
         <img
           src={comment.author.avatarUrl || `https://github.com/${comment.author.login}.png?size=40`}
           alt=""
-          className="h-5 w-5 shrink-0 rounded-sm"
+          className="h-5 w-5 shrink-0 rounded-none"
         />
         <span className="shrink-0 text-sm font-medium text-foreground">{comment.author.login}</span>
         {preview && (

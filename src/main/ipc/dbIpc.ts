@@ -24,6 +24,16 @@ export function registerDatabaseIpc() {
     }
   });
 
+  ipcMain.handle('db:updateProjectOrder', async (_, projectIds: string[]) => {
+    try {
+      await databaseService.updateProjectOrder(projectIds);
+      return { success: true };
+    } catch (error) {
+      log.error('Failed to update project order:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
   ipcMain.handle('db:getTasks', async (_, projectId?: string) => {
     try {
       return await databaseService.getTasks(projectId);

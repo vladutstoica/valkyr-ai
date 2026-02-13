@@ -43,7 +43,7 @@ export const RoutingInfoCard: React.FC = () => {
   const CopyIndicatorIcon = copied ? Check : Copy;
 
   return (
-    <div className="w-80 max-w-[20rem] rounded-lg bg-background p-3 text-foreground shadow-sm">
+    <div className="w-80 max-w-[20rem] rounded-lg bg-background p-3 text-foreground shadow-xs">
       <div className="mb-2 flex items-center gap-2">
         <Workflow className="h-5 w-5" aria-hidden="true" />
         <div className="flex items-baseline gap-1 text-sm leading-none">

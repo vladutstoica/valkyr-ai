@@ -1,21 +1,34 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ReorderList from './ReorderList';
 import { Button } from './ui/button';
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarGroupContent,
-  SidebarMenu,
-  SidebarMenuItem,
   useSidebar,
 } from './ui/sidebar';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from './ui/collapsible';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from './ui/context-menu';
+import { ScrollArea } from './ui/scroll-area';
+import { Separator } from './ui/separator';
+import {
+  ChevronDown,
   ChevronRight,
   Plus,
   FolderOpen,
@@ -23,10 +36,24 @@ import {
   Archive,
   RotateCcw,
   Server,
+  Pencil,
+  MoreVertical,
+  Copy,
+  Star,
+  Trash2,
 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
 import SidebarEmptyState from './SidebarEmptyState';
 import { TaskItem } from './TaskItem';
-import ProjectDeleteButton from './ProjectDeleteButton';
 import { TaskDeleteButton } from './TaskDeleteButton';
 import { RemoteProjectIndicator } from './ssh/RemoteProjectIndicator';
 import { useRemoteProject } from '../hooks/useRemoteProject';
@@ -58,15 +85,9 @@ interface LeftSidebarProps {
   onArchiveTask?: (project: Project, task: Task) => void | Promise<void | boolean>;
   onRestoreTask?: (project: Project, task: Task) => void | Promise<void>;
   onDeleteProject?: (project: Project) => void | Promise<void>;
+  onRenameProject?: (project: Project, newName: string) => void | Promise<void>;
   pinnedTaskIds?: Set<string>;
   onPinTask?: (task: Task) => void;
-}
-
-interface MenuItemButtonProps {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  ariaLabel: string;
-  onClick: () => void;
 }
 
 // Helper to determine if a project is remote
@@ -79,14 +100,11 @@ const getConnectionId = (project: Project): string | null => {
   return (project as any).sshConnectionId || null;
 };
 
-// Project item with remote indicator
-interface ProjectItemProps {
+// Project header with remote indicator
+const ProjectHeader: React.FC<{
   project: Project;
   isActive: boolean;
-  onSelect: () => void;
-}
-
-const ProjectItem: React.FC<ProjectItemProps> = ({ project, isActive, onSelect }) => {
+}> = ({ project, isActive }) => {
   const remote = useRemoteProject(project);
   const connectionId = getConnectionId(project);
 
@@ -96,45 +114,13 @@ const ProjectItem: React.FC<ProjectItemProps> = ({ project, isActive, onSelect }
         <RemoteProjectIndicator
           host={remote.host || undefined}
           connectionState={remote.connectionState as ConnectionState}
-          size="md"
+          size="sm"
           onReconnect={remote.reconnect}
           disabled={remote.isLoading}
         />
       )}
-      <span className="flex-1 truncate">{project.name}</span>
+      <span className="flex-1 truncate font-semibold">{project.name}</span>
     </div>
-  );
-};
-
-const MenuItemButton: React.FC<MenuItemButtonProps> = ({
-  icon: Icon,
-  label,
-  ariaLabel,
-  onClick,
-}) => {
-  const handleKeyDown = React.useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        onClick();
-      }
-    },
-    [onClick]
-  );
-
-  return (
-    <button
-      type="button"
-      role="menuitem"
-      tabIndex={0}
-      aria-label={ariaLabel}
-      className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm text-foreground hover:bg-muted dark:text-muted-foreground dark:hover:bg-accent"
-      onClick={onClick}
-      onKeyDown={handleKeyDown}
-    >
-      <Icon className="h-4 w-4" />
-      {label}
-    </button>
   );
 };
 
@@ -158,12 +144,17 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   onArchiveTask,
   onRestoreTask,
   onDeleteProject,
+  onRenameProject,
   pinnedTaskIds,
   onPinTask,
 }) => {
   const { open, isMobile, setOpen } = useSidebar();
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
   const [archivedTasksByProject, setArchivedTasksByProject] = useState<Record<string, Task[]>>({});
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  const [editProjectName, setEditProjectName] = useState('');
+  const projectInputRef = useRef<HTMLInputElement>(null);
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
 
   // Fetch archived tasks for all projects
   const fetchArchivedTasks = useCallback(async () => {
@@ -181,9 +172,6 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
     setArchivedTasksByProject(archived);
   }, [projects]);
 
-  // Fetch when projects load or when archivedTasksVersion changes (after successful archive)
-  // We use projects.length (not projects) to avoid race conditions where optimistic
-  // task removal triggers a refetch before the database is updated
   useEffect(() => {
     if (projects.length > 0) {
       fetchArchivedTasks();
@@ -191,12 +179,10 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projects.length, archivedTasksVersion]);
 
-  // Refresh archived tasks when a task is archived or restored
   const handleRestoreTask = useCallback(
     async (project: Project, task: Task) => {
       if (onRestoreTask) {
         await onRestoreTask(project, task);
-        // Refresh archived tasks after restore
         fetchArchivedTasks();
       }
     },
@@ -207,26 +193,51 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
     async (project: Project, task: Task) => {
       if (onArchiveTask) {
         await onArchiveTask(project, task);
-        // Refresh archived tasks after archive
         fetchArchivedTasks();
       }
     },
     [onArchiveTask, fetchArchivedTasks]
   );
 
-  const handleDeleteProject = useCallback(
+  const handleConfirmDeleteProject = useCallback(
     async (project: Project) => {
-      if (!onDeleteProject) {
-        return;
-      }
+      if (!onDeleteProject) return;
       setDeletingProjectId(project.id);
       try {
         await onDeleteProject(project);
       } finally {
         setDeletingProjectId((current) => (current === project.id ? null : current));
+        setProjectToDelete(null);
       }
     },
     [onDeleteProject]
+  );
+
+  const handleStartProjectEdit = useCallback((project: Project) => {
+    setEditProjectName(project.name);
+    setEditingProjectId(project.id);
+    setTimeout(() => {
+      projectInputRef.current?.focus();
+      projectInputRef.current?.select();
+    }, 0);
+  }, []);
+
+  const handleCancelProjectEdit = useCallback(() => {
+    setEditingProjectId(null);
+    setEditProjectName('');
+  }, []);
+
+  const handleConfirmProjectEdit = useCallback(
+    async (project: Project) => {
+      const trimmed = editProjectName.trim();
+      if (!trimmed || trimmed === project.name) {
+        handleCancelProjectEdit();
+        return;
+      }
+      setEditingProjectId(null);
+      await onRenameProject?.(project, trimmed);
+    },
+    [editProjectName, onRenameProject, handleCancelProjectEdit]
   );
 
   useEffect(() => {
@@ -234,24 +245,45 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   }, [open, isMobile, setOpen, onSidebarContextChange]);
 
   return (
-    <div className="relative h-full">
-      <Sidebar className="!w-full lg:border-r-0">
-        <SidebarContent className="pt-3">
-          {projects.length === 0 && (
-            <SidebarEmptyState
-              title="No projects yet"
-              description="Open a project to start creating worktrees and running coding agents."
-              actionLabel={onOpenProject ? 'Open Project' : undefined}
-              onAction={onOpenProject}
-              secondaryActionLabel={onNewProject ? 'New Project' : undefined}
-              onSecondaryAction={onNewProject}
-            />
-          )}
+    <>
+      <AlertDialog open={!!projectToDelete} onOpenChange={(open) => !open && setProjectToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete project</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{projectToDelete?.name}"? This action cannot be undone
+              and will remove all sessions associated with this project.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="cursor-pointer">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="cursor-pointer bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => projectToDelete && handleConfirmDeleteProject(projectToDelete)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-          <SidebarGroup>
-            <SidebarGroupLabel className="sr-only">Projects</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
+      <Sidebar className="h-full w-full !border-r-0">
+        <SidebarContent className="h-full w-full">
+          <ScrollArea className="h-full w-full">
+          <div className="w-full">
+            {projects.length === 0 && (
+              <SidebarEmptyState
+                title="No projects yet"
+                description="Open a project to start creating worktrees and running coding agents."
+                actionLabel={onOpenProject ? 'Open Project' : undefined}
+                onAction={onOpenProject}
+                secondaryActionLabel={onNewProject ? 'New Project' : undefined}
+                onSecondaryAction={onNewProject}
+              />
+            )}
+
+            <SidebarGroup>
+              <SidebarGroupContent>
                 <ReorderList
                   as="div"
                   axis="y"
@@ -274,100 +306,127 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                       }
                     }
                   }}
-                  className="m-0 min-w-0 list-none space-y-2 p-0"
-                  itemClassName="relative group cursor-pointer rounded-lg border border-border list-none min-w-0"
+                  className="flex w-full flex-col gap-0 overflow-hidden"
+                  itemClassName="list-none w-full overflow-hidden"
                   getKey={(p) => (p as Project).id}
                 >
                   {(project) => {
                     const typedProject = project as Project;
                     const isDeletingProject = deletingProjectId === typedProject.id;
-                    const showProjectDelete = Boolean(onDeleteProject);
                     const isProjectActive = selectedProject?.id === typedProject.id;
-                    const projectIsRemote = isRemoteProject(typedProject);
-                    return (
-                      <SidebarMenuItem>
-                        <Collapsible defaultOpen className="group/collapsible">
-                          <div
-                            className={`group/project group/task relative flex w-full min-w-0 items-center rounded-t-lg px-2 py-2 text-sm font-medium ${
-                              isProjectActive ? 'bg-accent/50' : ''
-                            }`}
-                            title={projectIsRemote ? 'Remote Project' : undefined}
-                          >
-                            <motion.button
-                              type="button"
-                              whileTap={{ scale: 0.97 }}
-                              transition={{ duration: 0.1, ease: 'easeInOut' }}
-                              className="flex min-w-0 flex-1 flex-col overflow-hidden bg-transparent pr-7 text-left outline-none focus-visible:outline-none"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onSelectProject(typedProject);
-                              }}
-                            >
-                              <span className="block w-full truncate">
-                                <ProjectItem
-                                  project={typedProject}
-                                  isActive={isProjectActive}
-                                  onSelect={() => onSelectProject(typedProject)}
-                                />
-                              </span>
-                              <span className="hidden w-full truncate text-xs text-muted-foreground sm:block">
-                                {typedProject.githubInfo?.repository || typedProject.path}
-                              </span>
-                            </motion.button>
-                            <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
-                              {showProjectDelete ? (
-                                <ProjectDeleteButton
-                                  projectName={typedProject.name}
-                                  tasks={typedProject.tasks || []}
-                                  onConfirm={() => handleDeleteProject(typedProject)}
-                                  isDeleting={isDeletingProject}
-                                  aria-label={`Delete project ${typedProject.name}`}
-                                  className={`bg-accent text-muted-foreground ${
-                                    isDeletingProject
-                                      ? ''
-                                      : 'opacity-0 group-hover/project:opacity-100'
-                                  }`}
-                                />
-                              ) : null}
-                              <CollapsibleTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  aria-label={`Toggle tasks for ${typedProject.name}`}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="text-muted-foreground opacity-0 group-hover/project:opacity-100 group-data-[state=open]/collapsible:opacity-100"
-                                >
-                                  <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
-                                </Button>
-                              </CollapsibleTrigger>
-                            </div>
-                          </div>
+                    const taskCount = typedProject.tasks?.length || 0;
 
-                          <CollapsibleContent asChild>
-                            <div className="mt-1 min-w-0">
-                              <motion.button
-                                type="button"
-                                whileTap={{ scale: 0.97 }}
-                                transition={{ duration: 0.1, ease: 'easeInOut' }}
-                                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-white/5"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (onSelectProject && selectedProject?.id !== typedProject.id) {
-                                    onSelectProject(typedProject);
-                                  } else if (!selectedProject) {
-                                    onSelectProject?.(typedProject);
-                                  }
-                                  onCreateTaskForProject?.(typedProject);
-                                }}
-                                aria-label={`New Task for ${typedProject.name}`}
-                              >
-                                <Plus
-                                  className="h-3 w-3 flex-shrink-0 text-muted-foreground"
-                                  aria-hidden
-                                />
-                                <span className="truncate">New Task</span>
-                              </motion.button>
-                              <div className="hidden min-w-0 space-y-0.5 sm:block">
+                    const isEditingThisProject = editingProjectId === typedProject.id;
+
+                    return (
+                      <ContextMenu>
+                        <ContextMenuTrigger asChild>
+                          <Card
+                            className={`w-full cursor-pointer transition-colors ${
+                              isProjectActive ? 'ring-2 ring-ring' : ''
+                            }`}
+                            onClick={() => onSelectProject(typedProject)}
+                          >
+                            <Collapsible defaultOpen className="group/collapsible w-full">
+                              <CardHeader className="w-full p-3">
+                                <div className="flex w-full items-center justify-between gap-2">
+                                  <div className="min-w-0 flex-1">
+                                    {isEditingThisProject ? (
+                                      <input
+                                        ref={projectInputRef}
+                                        type="text"
+                                        value={editProjectName}
+                                        onChange={(e) => setEditProjectName(e.target.value)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleConfirmProjectEdit(typedProject);
+                                          } else if (e.key === 'Escape') {
+                                            e.preventDefault();
+                                            handleCancelProjectEdit();
+                                          }
+                                        }}
+                                        onBlur={() => handleConfirmProjectEdit(typedProject)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="w-full border border-border bg-background px-2 py-1 text-sm font-semibold text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                                      />
+                                    ) : (
+                                      <CardTitle className="text-sm">
+                                        <ProjectHeader
+                                          project={typedProject}
+                                          isActive={isProjectActive}
+                                        />
+                                      </CardTitle>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7 cursor-pointer opacity-0 group-hover/collapsible:opacity-100"
+                                          onClick={(e) => e.stopPropagation()}
+                                          disabled={isDeletingProject}
+                                        >
+                                          <MoreVertical className="h-4 w-4" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                        {onRenameProject && (
+                                          <DropdownMenuItem
+                                            className="cursor-pointer"
+                                            onClick={() => handleStartProjectEdit(typedProject)}
+                                          >
+                                            <Pencil className="mr-2 h-4 w-4" />
+                                            Edit
+                                          </DropdownMenuItem>
+                                        )}
+                                        <DropdownMenuItem className="cursor-pointer" disabled>
+                                          <Copy className="mr-2 h-4 w-4" />
+                                          Make a copy
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem className="cursor-pointer" disabled>
+                                          <Star className="mr-2 h-4 w-4" />
+                                          Favorite
+                                        </DropdownMenuItem>
+                                        {onDeleteProject && (
+                                          <>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem
+                                              className="cursor-pointer text-destructive focus:text-destructive"
+                                              onClick={() => setProjectToDelete(typedProject)}
+                                            >
+                                              <Trash2 className="mr-2 h-4 w-4" />
+                                              Delete
+                                            </DropdownMenuItem>
+                                          </>
+                                        )}
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                    <CollapsibleTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 cursor-pointer"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <ChevronDown className="h-4 w-4 transition-transform group-data-[state=closed]/collapsible:-rotate-90" />
+                                      </Button>
+                                    </CollapsibleTrigger>
+                                  </div>
+                                </div>
+                                {taskCount > 0 && (
+                                  <p className="mt-2 text-xs text-muted-foreground">
+                                    {taskCount} session{taskCount !== 1 ? 's' : ''}
+                                  </p>
+                                )}
+                              </CardHeader>
+
+                          <CollapsibleContent>
+                            <CardContent className="w-full p-0">
+                              <Separator />
+                              <div className="w-full">
                                 {typedProject.tasks
                                   ?.slice()
                                   .sort((a, b) => {
@@ -382,23 +441,18 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                                         key={task.id}
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          if (
-                                            onSelectProject &&
-                                            selectedProject?.id !== typedProject.id
-                                          ) {
+                                          if (selectedProject?.id !== typedProject.id) {
                                             onSelectProject(typedProject);
                                           }
-                                          onSelectTask && onSelectTask(task);
+                                          onSelectTask?.(task);
                                         }}
-                                        className={`group/task min-w-0 rounded-md px-2 py-1.5 hover:bg-black/5 dark:hover:bg-white/5 ${
-                                          isActive ? 'bg-black/5 dark:bg-white/5' : ''
+                                        className={`group/task w-full cursor-pointer px-3 py-1.5 transition-colors hover:bg-accent ${
+                                          isActive ? 'bg-accent' : ''
                                         }`}
-                                        title={task.name}
                                       >
                                         <TaskItem
                                           task={task}
                                           showDelete
-                                          showDirectBadge={false}
                                           isPinned={pinnedTaskIds?.has(task.id)}
                                           onPin={onPinTask ? () => onPinTask(task) : undefined}
                                           onDelete={
@@ -407,7 +461,6 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                                               : undefined
                                           }
                                           onRename={
-                                            // Disable rename for multi-agent tasks (variant metadata would become stale)
                                             onRenameTask && !task.metadata?.multiAgent?.enabled
                                               ? (newName) =>
                                                   onRenameTask(typedProject, task, newName)
@@ -424,57 +477,67 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                                     );
                                   })}
 
-                                {/* Archived tasks section */}
+                                {/* New Session button */}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="w-full justify-start rounded-none px-3"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (selectedProject?.id !== typedProject.id) {
+                                      onSelectProject(typedProject);
+                                    }
+                                    onCreateTaskForProject?.(typedProject);
+                                  }}
+                                >
+                                  <Plus className="mr-2 h-4 w-4" />
+                                  New Session
+                                </Button>
+
+                                {/* Archived sessions section */}
                                 {archivedTasksByProject[typedProject.id]?.length > 0 && (
-                                  <Collapsible className="mt-1">
+                                  <Collapsible>
                                     <CollapsibleTrigger asChild>
-                                      <button
-                                        type="button"
-                                        className="group/archived flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground dark:hover:bg-white/5"
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="group/archived w-full justify-start rounded-none px-3 text-muted-foreground"
+                                        onClick={(e) => e.stopPropagation()}
                                       >
-                                        <Archive className="h-3 w-3 opacity-50" />
-                                        <span>
-                                          Archived ({archivedTasksByProject[typedProject.id].length}
-                                          )
-                                        </span>
-                                        <div className="ml-auto flex h-3 w-3 flex-shrink-0 items-center justify-center">
-                                          <ChevronRight className="h-3 w-3 transition-transform group-data-[state=open]/archived:rotate-90" />
-                                        </div>
-                                      </button>
+                                        <Archive className="mr-2 h-4 w-4" />
+                                        Archived ({archivedTasksByProject[typedProject.id].length})
+                                        <ChevronRight className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/archived:rotate-90" />
+                                      </Button>
                                     </CollapsibleTrigger>
                                     <CollapsibleContent>
-                                      <div className="ml-1.5 space-y-0.5 border-l border-border/50 pl-2">
+                                      <div className="ml-4 mt-1 space-y-1 border-l pl-4">
                                         {archivedTasksByProject[typedProject.id].map(
                                           (archivedTask) => (
                                             <div
                                               key={archivedTask.id}
-                                              className="group/archived-task flex min-w-0 items-center justify-between gap-2 rounded-md px-2 py-1.5 text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5"
+                                              className="group/archived-task flex items-center justify-between rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
+                                              onClick={(e) => e.stopPropagation()}
                                             >
-                                              <span className="truncate text-xs font-medium">
-                                                {archivedTask.name}
-                                              </span>
-                                              <div className="flex flex-shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/archived-task:opacity-100">
+                                              <span className="truncate">{archivedTask.name}</span>
+                                              <div className="flex items-center gap-1 opacity-0 group-hover/archived-task:opacity-100">
                                                 <TooltipProvider>
                                                   <Tooltip>
                                                     <TooltipTrigger asChild>
                                                       <Button
                                                         variant="ghost"
-                                                        size="icon-sm"
-                                                        className="h-5 w-5"
-                                                        onClick={(e) => {
-                                                          e.stopPropagation();
+                                                        size="icon"
+                                                        className="h-6 w-6"
+                                                        onClick={() =>
                                                           handleRestoreTask(
                                                             typedProject,
                                                             archivedTask
-                                                          );
-                                                        }}
+                                                          )
+                                                        }
                                                       >
                                                         <RotateCcw className="h-3 w-3" />
                                                       </Button>
                                                     </TooltipTrigger>
-                                                    <TooltipContent side="top" className="text-xs">
-                                                      Restore Task
-                                                    </TooltipContent>
+                                                    <TooltipContent>Restore</TooltipContent>
                                                   </Tooltip>
                                                 </TooltipProvider>
                                                 <TaskDeleteButton
@@ -482,13 +545,10 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                                                   taskId={archivedTask.id}
                                                   taskPath={archivedTask.path}
                                                   useWorktree={archivedTask.useWorktree !== false}
-                                                  className="h-5 w-5"
+                                                  className="h-6 w-6"
                                                   onConfirm={async () => {
                                                     if (onDeleteTask) {
-                                                      await onDeleteTask(
-                                                        typedProject,
-                                                        archivedTask
-                                                      );
+                                                      await onDeleteTask(typedProject, archivedTask);
                                                       fetchArchivedTasks();
                                                     }
                                                   }}
@@ -502,68 +562,93 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                                   </Collapsible>
                                 )}
                               </div>
-                            </div>
+                            </CardContent>
                           </CollapsibleContent>
-                        </Collapsible>
-                      </SidebarMenuItem>
+                            </Collapsible>
+                          </Card>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          {onRenameProject && (
+                            <ContextMenuItem
+                              className="cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleStartProjectEdit(typedProject);
+                              }}
+                            >
+                              <Pencil className="mr-2 h-3.5 w-3.5" />
+                              Edit
+                            </ContextMenuItem>
+                          )}
+                          <ContextMenuItem className="cursor-pointer" disabled>
+                            <Copy className="mr-2 h-3.5 w-3.5" />
+                            Make a copy
+                          </ContextMenuItem>
+                          <ContextMenuItem className="cursor-pointer" disabled>
+                            <Star className="mr-2 h-3.5 w-3.5" />
+                            Favorite
+                          </ContextMenuItem>
+                          {onDeleteProject && (
+                            <>
+                              <ContextMenuSeparator />
+                              <ContextMenuItem
+                                className="cursor-pointer text-destructive focus:text-destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setProjectToDelete(typedProject);
+                                }}
+                              >
+                                <Trash2 className="mr-2 h-3.5 w-3.5" />
+                                Delete
+                              </ContextMenuItem>
+                            </>
+                          )}
+                        </ContextMenuContent>
+                      </ContextMenu>
                     );
                   }}
                 </ReorderList>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
 
-          {projects.length > 0 && onOpenProject && (
-            <SidebarGroup className="mt-2">
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="mt-1 w-full justify-start">
+                {/* Add Project button */}
+                {projects.length > 0 && onOpenProject && (
+                  <div className="">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="w-full">
                           <Plus className="mr-2 h-4 w-4" />
-                          <span className="text-sm font-medium">Add Project</span>
+                          Add Project
                         </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-48 p-1" align="start" sideOffset={4}>
-                        <div className="space-y-1">
-                          <MenuItemButton
-                            icon={FolderOpen}
-                            label="Open Folder"
-                            ariaLabel="Open Folder"
-                            onClick={() => onOpenProject?.()}
-                          />
-                          <MenuItemButton
-                            icon={Plus}
-                            label="Create New"
-                            ariaLabel="Create New Project"
-                            onClick={() => onNewProject?.()}
-                          />
-                          <MenuItemButton
-                            icon={Github}
-                            label="Clone from GitHub"
-                            ariaLabel="Clone from GitHub"
-                            onClick={() => onCloneProject?.()}
-                          />
-                          {onAddRemoteProject && (
-                            <MenuItemButton
-                              icon={Server}
-                              label="Add Remote Project"
-                              ariaLabel="Add Remote Project"
-                              onClick={() => onAddRemoteProject?.()}
-                            />
-                          )}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </SidebarMenuItem>
-                </SidebarMenu>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-48">
+                        <DropdownMenuItem onClick={() => onOpenProject?.()}>
+                          <FolderOpen className="mr-2 h-4 w-4" />
+                          Open Folder
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onNewProject?.()}>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Create New
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onCloneProject?.()}>
+                          <Github className="mr-2 h-4 w-4" />
+                          Clone from GitHub
+                        </DropdownMenuItem>
+                        {onAddRemoteProject && (
+                          <DropdownMenuItem onClick={() => onAddRemoteProject?.()}>
+                            <Server className="mr-2 h-4 w-4" />
+                            Add Remote Project
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                )}
               </SidebarGroupContent>
             </SidebarGroup>
-          )}
+          </div>
+        </ScrollArea>
         </SidebarContent>
       </Sidebar>
-    </div>
+    </>
   );
 };
 

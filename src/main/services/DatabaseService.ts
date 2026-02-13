@@ -213,8 +213,27 @@ export class DatabaseService {
   async getProjects(): Promise<Project[]> {
     if (this.disabled) return [];
     const { db } = await getDrizzleClient();
-    const rows = await db.select().from(projectsTable).orderBy(desc(projectsTable.updatedAt));
+    const rows = await db
+      .select()
+      .from(projectsTable)
+      .orderBy(asc(projectsTable.displayOrder), desc(projectsTable.updatedAt));
     return rows.map((row) => this.mapDrizzleProjectRow(row));
+  }
+
+  async updateProjectOrder(projectIds: string[]): Promise<void> {
+    if (this.disabled) return;
+    const { db } = await getDrizzleClient();
+
+    // Update each project's displayOrder based on its position in the array
+    for (let i = 0; i < projectIds.length; i++) {
+      await db
+        .update(projectsTable)
+        .set({
+          displayOrder: i,
+          updatedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .where(eq(projectsTable.id, projectIds[i]));
+    }
   }
 
   async getProjectById(projectId: string): Promise<Project | null> {

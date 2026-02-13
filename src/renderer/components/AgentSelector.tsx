@@ -63,7 +63,7 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({
                     <img
                       src={config.logo}
                       alt={config.alt}
-                      className={`h-4 w-4 rounded-sm ${config.invertInDark ? 'dark:invert' : ''}`}
+                      className={`h-4 w-4 rounded-xs ${config.invertInDark ? 'dark:invert' : ''}`}
                     />
                     <span>{config.name}</span>
                   </div>

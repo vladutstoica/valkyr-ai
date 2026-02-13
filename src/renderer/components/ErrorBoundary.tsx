@@ -52,13 +52,13 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
 
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-background p-6">
-        <div className="max-w-xl rounded-md border border-border bg-card p-6 text-card-foreground shadow-sm">
+        <div className="max-w-xl rounded-none border border-border bg-card p-6 text-card-foreground shadow-xs">
           <h1 className="mb-2 text-lg font-semibold">Something went wrong</h1>
           <p className="mb-4 break-all text-sm text-muted-foreground">{message}</p>
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm"
+              className="inline-flex h-9 items-center justify-center rounded-none border border-input bg-primary px-4 text-sm font-medium text-primary-foreground shadow-xs"
               onClick={this.handleReload}
             >
               Reload

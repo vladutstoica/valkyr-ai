@@ -335,8 +335,8 @@ export const BranchSwitcher: React.FC<BranchSwitcherProps> = ({
       <button
         key={branch.name}
         className={cn(
-          'flex w-full items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-left text-sm',
-          'hover:bg-accent focus:bg-accent focus:outline-none',
+          'flex w-full items-center justify-between gap-2 rounded-xs px-2 py-1.5 text-left text-sm',
+          'hover:bg-accent focus:bg-accent focus:outline-hidden',
           isSelected && 'bg-accent',
           isSwitching && 'pointer-events-none opacity-50'
         )}
@@ -376,8 +376,8 @@ export const BranchSwitcher: React.FC<BranchSwitcherProps> = ({
       <div key={group.prefix} className="space-y-0.5">
         <button
           className={cn(
-            'flex w-full items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-left text-sm',
-            'hover:bg-accent focus:bg-accent focus:outline-none'
+            'flex w-full items-center justify-between gap-2 rounded-xs px-2 py-1.5 text-left text-sm',
+            'hover:bg-accent focus:bg-accent focus:outline-hidden'
           )}
           onClick={() => toggleGroup(group.prefix)}
         >
@@ -456,8 +456,8 @@ export const BranchSwitcher: React.FC<BranchSwitcherProps> = ({
         <div className="p-1">
           <button
             className={cn(
-              'flex w-full items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-left text-sm',
-              'hover:bg-accent focus:bg-accent focus:outline-none',
+              'flex w-full items-center justify-between gap-2 rounded-xs px-2 py-1.5 text-left text-sm',
+              'hover:bg-accent focus:bg-accent focus:outline-hidden',
               selectedIndex === 0 && 'bg-accent'
             )}
             onClick={handleNewBranch}

@@ -181,10 +181,20 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
   const removeTaskFromState = (projectId: string, taskId: string, wasActive: boolean) => {
     const filterTasks = (list?: Task[]) => (list || []).filter((w) => w.id !== taskId);
 
+    // Get the remaining tasks after filtering to find next task to select
+    let remainingTasks: Task[] = [];
+    let deletedTaskIndex = -1;
+
     setProjects((prev) =>
-      prev.map((project) =>
-        project.id === projectId ? { ...project, tasks: filterTasks(project.tasks) } : project
-      )
+      prev.map((project) => {
+        if (project.id === projectId) {
+          const tasks = project.tasks || [];
+          deletedTaskIndex = tasks.findIndex((t) => t.id === taskId);
+          remainingTasks = filterTasks(tasks);
+          return { ...project, tasks: remainingTasks };
+        }
+        return project;
+      })
     );
 
     setSelectedProject((prev) =>
@@ -198,8 +208,19 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
     }
 
     if (wasActive) {
-      setActiveTask(null);
-      setActiveTaskAgent(null);
+      // Select the next available task in the same project, or fall back to project view
+      if (remainingTasks.length > 0) {
+        // Try to select the task at the same index, or the previous one if we deleted the last
+        const nextIndex = Math.min(deletedTaskIndex, remainingTasks.length - 1);
+        const nextTask = remainingTasks[Math.max(0, nextIndex)];
+        setActiveTask(nextTask);
+        setActiveTaskAgent(getAgentForTask(nextTask));
+        saveActiveIds(projectId, nextTask.id);
+      } else {
+        // No tasks left - clear active task to show project view
+        setActiveTask(null);
+        setActiveTaskAgent(null);
+      }
     }
   };
 

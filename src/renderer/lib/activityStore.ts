@@ -2,10 +2,13 @@ import { classifyActivity } from './activityClassifier';
 import { CLEAR_BUSY_MS, BUSY_HOLD_MS } from './activityConstants';
 
 type Listener = (busy: boolean) => void;
+type IdleListener = (idle: boolean) => void;
 
 class ActivityStore {
   private listeners = new Map<string, Set<Listener>>();
+  private idleListeners = new Map<string, Set<IdleListener>>();
   private states = new Map<string, boolean>();
+  private idleStates = new Map<string, boolean>();
   private timers = new Map<string, ReturnType<typeof setTimeout>>();
   private busySince = new Map<string, number>();
   private subscribed = false;
@@ -25,8 +28,10 @@ class ActivityStore {
           const signal = classifyActivity(prov, info?.chunk || '');
           if (signal === 'busy') {
             this.setBusy(wsId, true, true);
+            this.setIdle(wsId, false);
           } else if (signal === 'idle') {
             this.setBusy(wsId, false, true);
+            this.setIdle(wsId, true);
           } else {
             // neutral: keep current but set soft clear timer
             if (this.states.get(wsId)) this.armTimer(wsId);
@@ -38,7 +43,10 @@ class ActivityStore {
       try {
         const id = String(info?.id || '');
         for (const wsId of this.subscribedIds) {
-          if (id.endsWith(wsId)) this.setBusy(wsId, false, true);
+          if (id.endsWith(wsId)) {
+            this.setBusy(wsId, false, true);
+            this.setIdle(wsId, false);
+          }
         }
       } catch {}
     });
@@ -106,6 +114,41 @@ class ActivityStore {
     this.setBusy(wsId, busy, false);
   }
 
+  private setIdle(wsId: string, idle: boolean) {
+    const current = this.idleStates.get(wsId) || false;
+    if (current !== idle) {
+      this.idleStates.set(wsId, idle);
+      this.emitIdle(wsId, idle);
+    }
+  }
+
+  private emitIdle(wsId: string, idle: boolean) {
+    const ls = this.idleListeners.get(wsId);
+    if (!ls) return;
+    for (const fn of ls) {
+      try {
+        fn(idle);
+      } catch {}
+    }
+  }
+
+  subscribeIdle(wsId: string, fn: IdleListener) {
+    this.ensureSubscribed();
+    this.subscribedIds.add(wsId);
+    const set = this.idleListeners.get(wsId) || new Set<IdleListener>();
+    set.add(fn);
+    this.idleListeners.set(wsId, set);
+    // emit current
+    fn(this.idleStates.get(wsId) || false);
+    return () => {
+      const s = this.idleListeners.get(wsId);
+      if (s) {
+        s.delete(fn);
+        if (s.size === 0) this.idleListeners.delete(wsId);
+      }
+    };
+  }
+
   subscribe(wsId: string, fn: Listener) {
     this.ensureSubscribed();
     this.subscribedIds.add(wsId);
@@ -145,9 +188,13 @@ class ActivityStore {
         const off = api?.onPtyData?.(ptyId, (chunk: string) => {
           try {
             const signal = classifyActivity(prov, chunk || '');
-            if (signal === 'busy') this.setBusy(wsId, true, true);
-            else if (signal === 'idle') this.setBusy(wsId, false, true);
-            else if (this.states.get(wsId)) this.armTimer(wsId);
+            if (signal === 'busy') {
+              this.setBusy(wsId, true, true);
+              this.setIdle(wsId, false);
+            } else if (signal === 'idle') {
+              this.setBusy(wsId, false, true);
+              this.setIdle(wsId, true);
+            } else if (this.states.get(wsId)) this.armTimer(wsId);
           } catch {}
         });
         if (off) offDirect.push(off);

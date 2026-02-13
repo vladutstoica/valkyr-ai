@@ -50,7 +50,7 @@ export default function BrowserPreviewSettingsCard() {
           <img
             src={iconSrc}
             alt=""
-            className="h-3.5 w-3.5 rounded-sm"
+            className="h-3.5 w-3.5 rounded-xs"
             onError={() => setBroken(true)}
           />
         ) : (

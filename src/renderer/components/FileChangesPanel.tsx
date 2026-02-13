@@ -535,7 +535,7 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
   const isActionLoading = isCreatingPR || isMergingToMain;
 
   return (
-    <div className={`flex h-full flex-col bg-card shadow-sm ${className}`}>
+    <div className={`flex h-full flex-col bg-card shadow-xs ${className}`}>
       <div className="bg-muted px-3 py-2">
         {hasChanges ? (
           <div className="space-y-3">

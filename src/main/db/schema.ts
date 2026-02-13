@@ -42,6 +42,7 @@ export const projects = sqliteTable(
     isRemote: integer('is_remote').notNull().default(0), // boolean, 0=false, 1=true
     remotePath: text('remote_path'), // path on remote server
     subRepos: text('sub_repos'), // JSON array of SubRepo for multi-repo projects
+    displayOrder: integer('display_order').notNull().default(0), // Order in sidebar
     createdAt: text('created_at')
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),

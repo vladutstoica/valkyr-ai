@@ -107,7 +107,7 @@ export const AgentDisplay: React.FC<Props> = ({
                 <img
                   src={config.logo}
                   alt={config.name}
-                  className={`h-3.5 w-3.5 flex-shrink-0 rounded-sm object-contain ${
+                  className={`h-3.5 w-3.5 flex-shrink-0 rounded-xs object-contain ${
                     agent === 'codex' || agent === 'auggie' ? 'dark-black:invert dark:invert' : ''
                   }`}
                 />
