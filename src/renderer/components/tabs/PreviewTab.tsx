@@ -2,59 +2,206 @@ import * as React from 'react';
 import {
   RefreshCw,
   ExternalLink,
-  Monitor,
-  Tablet,
-  Smartphone,
+  ArrowLeft,
+  ArrowRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
   TooltipProvider,
 } from '@/components/ui/tooltip';
-import {
-  usePreviewState,
-  DEVICE_DIMENSIONS,
-  ZOOM_LEVELS,
-  type DevicePreset,
-  type ZoomLevel,
-} from '@/hooks/usePreviewState';
+import { usePreviewState } from '@/hooks/usePreviewState';
+import { useTabState } from '@/hooks/useTabState';
+
+// Browser view IPC methods (not in typed interface)
+const browserAPI = () => (window as any).electronAPI as {
+  browserShow?: (bounds: { x: number; y: number; width: number; height: number }, url?: string) => Promise<any>;
+  browserHide?: () => Promise<any>;
+  browserSetBounds?: (bounds: { x: number; y: number; width: number; height: number }) => Promise<any>;
+  browserLoadURL?: (url: string, forceReload?: boolean) => Promise<any>;
+  browserGoBack?: () => Promise<any>;
+  browserGoForward?: () => Promise<any>;
+  browserReload?: () => Promise<any>;
+  openExternal?: (url: string) => void;
+};
 
 interface PreviewTabProps {
   taskId?: string | null;
   className?: string;
 }
 
+const BOUNDS_CHANGE_THRESHOLD = 2;
+const BOUNDS_UPDATE_DELAY_MS = 100;
+
 export function PreviewTab({ taskId, className }: PreviewTabProps) {
-  const {
-    url,
-    devicePreset,
-    zoom,
-    refreshKey,
-    setUrl,
-    setDevicePreset,
-    setZoom,
-    refresh,
-  } = usePreviewState();
+  const { url, setUrl, refresh, refreshKey } = usePreviewState();
+  const activeTab = useTabState((state) => state.activeTab);
+  const isActive = activeTab === 'preview';
 
   const [inputUrl, setInputUrl] = React.useState(url);
-  const iframeRef = React.useRef<HTMLIFrameElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const lastBoundsRef = React.useRef<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
 
   // Sync input URL with store URL
   React.useEffect(() => {
     setInputUrl(url);
   }, [url]);
+
+  // Compute bounds for the native browser view
+  const computeBounds = React.useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return null;
+    const rect = el.getBoundingClientRect();
+    const x = Math.round(rect.left);
+    const y = Math.round(rect.top);
+    const w = Math.max(1, Math.round(rect.width));
+    const h = Math.max(1, Math.round(rect.height));
+    return { x, y, width: w, height: h };
+  }, []);
+
+  // Check if bounds have changed significantly
+  const hasBoundsChanged = React.useCallback(
+    (newBounds: { x: number; y: number; width: number; height: number }) => {
+      if (!lastBoundsRef.current) return true;
+      const old = lastBoundsRef.current;
+      return (
+        Math.abs(old.x - newBounds.x) > BOUNDS_CHANGE_THRESHOLD ||
+        Math.abs(old.y - newBounds.y) > BOUNDS_CHANGE_THRESHOLD ||
+        Math.abs(old.width - newBounds.width) > BOUNDS_CHANGE_THRESHOLD ||
+        Math.abs(old.height - newBounds.height) > BOUNDS_CHANGE_THRESHOLD
+      );
+    },
+    []
+  );
+
+  // Track overlay state to hide browser view when modals are open
+  const [overlayActive, setOverlayActive] = React.useState(false);
+
+  // Listen for overlay events (modals, settings, etc.)
+  React.useEffect(() => {
+    const handleOverlay = (e: CustomEvent<{ open: boolean }>) => {
+      setOverlayActive(e.detail?.open ?? false);
+    };
+    window.addEventListener('valkyr:overlay:changed', handleOverlay as EventListener);
+    return () => {
+      window.removeEventListener('valkyr:overlay:changed', handleOverlay as EventListener);
+    };
+  }, []);
+
+  // Track last loaded URL to detect changes
+  const lastLoadedUrlRef = React.useRef<string | null>(null);
+
+  // Show/hide browser view based on tab visibility and overlay state
+  React.useEffect(() => {
+    let rafId: number | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+
+    const shouldShow = isActive && !!url && !overlayActive;
+
+    if (!shouldShow) {
+      try {
+        browserAPI().browserHide?.();
+        lastBoundsRef.current = null;
+      } catch {}
+      return;
+    }
+
+    // Show the browser view and load URL
+    const showBrowser = () => {
+      if (cancelled) return;
+      const bounds = computeBounds();
+      if (bounds && bounds.width > 0 && bounds.height > 0) {
+        const boundsChanged = hasBoundsChanged(bounds);
+        const urlChanged = lastLoadedUrlRef.current !== url;
+
+        if (boundsChanged) {
+          lastBoundsRef.current = bounds;
+        }
+
+        // Show/update view if bounds or URL changed
+        if (boundsChanged || urlChanged) {
+          try {
+            browserAPI().browserShow?.(bounds, url || undefined);
+            lastLoadedUrlRef.current = url;
+
+            // Update bounds after a short delay for layout stability
+            timeoutId = setTimeout(() => {
+              if (cancelled) return;
+              const updatedBounds = computeBounds();
+              if (updatedBounds && updatedBounds.width > 0 && updatedBounds.height > 0) {
+                if (hasBoundsChanged(updatedBounds)) {
+                  lastBoundsRef.current = updatedBounds;
+                  try {
+                    browserAPI().browserSetBounds?.(updatedBounds);
+                  } catch {}
+                }
+              }
+            }, BOUNDS_UPDATE_DELAY_MS);
+          } catch {}
+        }
+      }
+    };
+
+    rafId = requestAnimationFrame(showBrowser);
+
+    // Handle resize events
+    const onResize = () => {
+      if (cancelled) return;
+      const bounds = computeBounds();
+      if (bounds && bounds.width > 0 && bounds.height > 0) {
+        if (hasBoundsChanged(bounds)) {
+          lastBoundsRef.current = bounds;
+          try {
+            browserAPI().browserSetBounds?.(bounds);
+          } catch {}
+        }
+      }
+    };
+
+    window.addEventListener('resize', onResize);
+    const resizeObserver = new ResizeObserver(() => onResize());
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
+    return () => {
+      cancelled = true;
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
+      try {
+        browserAPI().browserHide?.();
+      } catch {}
+      window.removeEventListener('resize', onResize);
+      try {
+        resizeObserver.disconnect();
+      } catch {}
+    };
+  }, [isActive, url, overlayActive, computeBounds, hasBoundsChanged]);
+
+  // Handle refresh
+  React.useEffect(() => {
+    if (isActive && url && refreshKey > 0) {
+      try {
+        browserAPI().browserReload?.();
+      } catch {}
+    }
+    // Only trigger on refreshKey changes, not initial mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]);
 
   // Handle URL form submission
   const handleUrlSubmit = React.useCallback(
@@ -71,82 +218,94 @@ export function PreviewTab({ taskId, className }: PreviewTabProps) {
     [inputUrl, setUrl]
   );
 
-  // Handle refresh
+  // Handle refresh button
   const handleRefresh = React.useCallback(() => {
     refresh();
-    // Also reload iframe directly
-    if (iframeRef.current) {
-      try {
-        iframeRef.current.src = iframeRef.current.src;
-      } catch {
-        // Ignore cross-origin errors
-      }
-    }
+    try {
+      browserAPI().browserReload?.();
+    } catch {}
   }, [refresh]);
 
   // Handle open in external browser
   const handleOpenExternal = React.useCallback(() => {
-    if (url && window.electronAPI?.openExternal) {
+    if (url && browserAPI().openExternal) {
       window.electronAPI.openExternal(url);
     }
   }, [url]);
 
-  // Calculate iframe dimensions based on device preset and zoom
-  const getIframeDimensions = React.useCallback(() => {
-    const dimensions = DEVICE_DIMENSIONS[devicePreset];
-    const scale = zoom / 100;
+  // Handle navigation
+  const handleGoBack = React.useCallback(() => {
+    try {
+      browserAPI().browserGoBack?.();
+    } catch {}
+  }, []);
 
-    if (devicePreset === 'desktop') {
-      return {
-        width: '100%',
-        height: '100%',
-        transform: `scale(${scale})`,
-        transformOrigin: 'top left',
-      };
-    }
-
-    return {
-      width: dimensions.width,
-      height: dimensions.height,
-      transform: `scale(${scale})`,
-      transformOrigin: 'top center',
-    };
-  }, [devicePreset, zoom]);
-
-  const iframeDimensions = getIframeDimensions();
+  const handleGoForward = React.useCallback(() => {
+    try {
+      browserAPI().browserGoForward?.();
+    } catch {}
+  }, []);
 
   return (
     <TooltipProvider>
-    <div className={cn('flex h-full flex-col bg-background', className)}>
-      {/* Top toolbar with URL bar */}
-      <div className="flex h-10 flex-shrink-0 items-center gap-2 border-b border-border bg-muted/50 px-3">
-        <form
-          className="flex min-w-0 flex-1 items-center gap-2"
-          onSubmit={handleUrlSubmit}
-        >
-          <span className="text-xs text-muted-foreground">URL:</span>
-          <Input
-            className="h-7 min-w-0 flex-1 px-2 text-xs"
-            value={inputUrl}
-            onChange={(e) => setInputUrl(e.target.value)}
-            placeholder="http://localhost:3000"
-          />
-        </form>
+      <div className={cn('flex h-full flex-col bg-background', className)}>
+        {/* Top toolbar with URL bar */}
+        <div className="flex h-10 flex-shrink-0 items-center gap-2 border-b border-border bg-muted/50 px-3">
+          <div className="flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={handleGoBack}
+                  aria-label="Go back"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Back</TooltipContent>
+            </Tooltip>
 
-        <div className="flex items-center gap-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={handleRefresh}
-                aria-label="Refresh preview"
-              >
-                <RefreshCw className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Refresh</TooltipContent>
-          </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={handleGoForward}
+                  aria-label="Go forward"
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Forward</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={handleRefresh}
+                  aria-label="Refresh preview"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Refresh</TooltipContent>
+            </Tooltip>
+          </div>
+
+          <form
+            className="flex min-w-0 flex-1 items-center gap-2"
+            onSubmit={handleUrlSubmit}
+          >
+            <Input
+              className="h-7 min-w-0 flex-1 px-2 text-xs"
+              value={inputUrl}
+              onChange={(e) => setInputUrl(e.target.value)}
+              placeholder="http://localhost:3000"
+            />
+          </form>
 
           <Tooltip>
             <TooltipTrigger asChild>
@@ -162,127 +321,19 @@ export function PreviewTab({ taskId, className }: PreviewTabProps) {
             <TooltipContent side="bottom">Open in browser</TooltipContent>
           </Tooltip>
         </div>
-      </div>
 
-      {/* Preview container */}
-      <div
-        ref={containerRef}
-        className="relative flex-1 overflow-auto bg-muted/30"
-      >
+        {/* Browser view container - native WebContentsView renders here */}
         <div
-          className={cn(
-            'flex h-full w-full',
-            devicePreset !== 'desktop' && 'items-start justify-center pt-4'
+          ref={containerRef}
+          className="relative flex-1 bg-white dark:bg-background"
+        >
+          {!url && (
+            <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+              <p className="text-sm">Enter a URL to preview</p>
+            </div>
           )}
-        >
-          <div
-            className={cn(
-              'relative bg-white',
-              devicePreset !== 'desktop' &&
-                'rounded-lg border border-border shadow-lg'
-            )}
-            style={{
-              width: iframeDimensions.width,
-              height: iframeDimensions.height,
-              transform: iframeDimensions.transform,
-              transformOrigin: iframeDimensions.transformOrigin,
-            }}
-          >
-            <iframe
-              ref={iframeRef}
-              key={refreshKey}
-              src={url}
-              className="h-full w-full border-0"
-              title="Preview"
-              sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
-            />
-          </div>
         </div>
       </div>
-
-      {/* Bottom toolbar with device presets and zoom */}
-      <div className="flex h-10 flex-shrink-0 items-center justify-between border-t border-border bg-muted/50 px-3">
-        <div className="flex items-center gap-1">
-          <DevicePresetButton
-            preset="desktop"
-            currentPreset={devicePreset}
-            onClick={() => setDevicePreset('desktop')}
-            icon={<Monitor className="h-4 w-4" />}
-            label="Desktop"
-          />
-          <DevicePresetButton
-            preset="tablet"
-            currentPreset={devicePreset}
-            onClick={() => setDevicePreset('tablet')}
-            icon={<Tablet className="h-4 w-4" />}
-            label="Tablet (768px)"
-          />
-          <DevicePresetButton
-            preset="mobile"
-            currentPreset={devicePreset}
-            onClick={() => setDevicePreset('mobile')}
-            icon={<Smartphone className="h-4 w-4" />}
-            label="Mobile (375px)"
-          />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Zoom:</span>
-          <Select
-            value={String(zoom)}
-            onValueChange={(value) => setZoom(Number(value) as ZoomLevel)}
-          >
-            <SelectTrigger className="h-7 w-20 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {ZOOM_LEVELS.map((level) => (
-                <SelectItem key={level} value={String(level)}>
-                  {level}%
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-    </div>
-    </TooltipProvider>
-  );
-}
-
-interface DevicePresetButtonProps {
-  preset: DevicePreset;
-  currentPreset: DevicePreset;
-  onClick: () => void;
-  icon: React.ReactNode;
-  label: string;
-}
-
-function DevicePresetButton({
-  preset,
-  currentPreset,
-  onClick,
-  icon,
-  label,
-}: DevicePresetButtonProps) {
-  const isActive = preset === currentPreset;
-
-  return (
-    <TooltipProvider>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant={isActive ? 'secondary' : 'ghost'}
-          size="icon-sm"
-          onClick={onClick}
-          aria-label={label}
-          aria-pressed={isActive}
-        >
-          {icon}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="top">{label}</TooltipContent>
-    </Tooltip>
     </TooltipProvider>
   );
 }

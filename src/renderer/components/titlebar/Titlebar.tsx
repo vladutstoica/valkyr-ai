@@ -15,7 +15,6 @@ import { Button } from '../ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import OpenInMenu from './OpenInMenu';
 import FeedbackModal from '../FeedbackModal';
-import BrowserToggleButton from './BrowserToggleButton';
 import TitlebarContext from './TitlebarContext';
 import type { Project, Task } from '../../types/app';
 
@@ -249,14 +248,6 @@ const Titlebar: React.FC<TitlebarProps> = ({
                   <ShortcutHint settingsKey="toggleKanban" />
                 </div>
               }
-            />
-          ) : null}
-          {taskId && !isTaskMultiAgent ? (
-            <BrowserToggleButton
-              defaultUrl={defaultPreviewUrl || undefined}
-              taskId={taskId}
-              taskPath={taskPath}
-              parentProjectPath={projectPath}
             />
           ) : null}
           <TooltipProvider delayDuration={200}>

@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AppKeyboardShortcuts from './components/AppKeyboardShortcuts';
-import BrowserPane from './components/BrowserPane';
 import { CloneFromUrlModal } from './components/CloneFromUrlModal';
 import { AddRemoteProjectModal } from './components/ssh/AddRemoteProjectModal';
 import CommandPaletteWrapper from './components/CommandPaletteWrapper';
@@ -24,7 +23,6 @@ import { useToast } from './hooks/use-toast';
 import { useAutoPrRefresh } from './hooks/useAutoPrRefresh';
 import { useTheme } from './hooks/useTheme';
 import useUpdateNotifier from './hooks/useUpdateNotifier';
-import { BrowserProvider } from './providers/BrowserProvider';
 import { AppLayout } from './layouts/AppLayout';
 import type { LinearIssueSummary } from './types/linear';
 import type { GitHubIssueSummary } from './types/github';
@@ -470,10 +468,9 @@ const AppContent: React.FC = () => {
   );
 
   return (
-    <BrowserProvider>
-      <KeyboardSettingsProvider>
-        <SidebarProvider>
-          <RightSidebarProvider>
+    <KeyboardSettingsProvider>
+      <SidebarProvider>
+        <RightSidebarProvider>
           <AppKeyboardShortcuts
             showCommandPalette={showCommandPalette}
             showSettings={showSettings}
@@ -565,17 +562,9 @@ const AppContent: React.FC = () => {
             onError={github.handleDeviceFlowError}
           />
           <Toaster />
-          <BrowserPane
-            taskId={activeTask?.id || null}
-            taskPath={activeTask?.path || null}
-            overlayActive={
-              showSettings || showCommandPalette || showTaskModal || showWelcomeScreen
-            }
-          />
           </RightSidebarProvider>
         </SidebarProvider>
       </KeyboardSettingsProvider>
-    </BrowserProvider>
   );
 };
 
