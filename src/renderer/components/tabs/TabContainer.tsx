@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useTabState, type TabId } from '@/hooks/useTabState';
 
@@ -45,6 +46,7 @@ interface TabPanelProps {
 
 function TabPanel({ tabId, activeTab, children }: TabPanelProps) {
   const isActive = tabId === activeTab;
+  const [hasFocus, setHasFocus] = useState(false);
 
   return (
     <div
@@ -55,8 +57,21 @@ function TabPanel({ tabId, activeTab, children }: TabPanelProps) {
       role="tabpanel"
       aria-hidden={!isActive}
       data-tab={tabId}
+      onFocus={() => setHasFocus(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+          setHasFocus(false);
+        }
+      }}
     >
       {children}
+      {/* Focus indicator ring */}
+      {hasFocus && isActive && (
+        <div
+          className="pointer-events-none absolute inset-0 z-50 ring-1 ring-inset ring-white/15"
+          aria-hidden="true"
+        />
+      )}
     </div>
   );
 }

@@ -1,252 +1,376 @@
-import React, { useCallback, useState } from 'react';
-import { ChevronDown, ChevronUp, Terminal } from 'lucide-react';
+import React, { useCallback, useState, useEffect, useMemo } from 'react';
+import { ChevronDown, ChevronUp, Plus, Terminal, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../ui/select';
-import {
-  useTerminalPanel,
-  type TerminalType,
-} from '../../hooks/useTerminalPanel';
+import { useTerminalPanel } from '../../hooks/useTerminalPanel';
 import { useTerminalShortcut } from '../../hooks/useTerminalShortcut';
-
-interface TerminalOption {
-  value: TerminalType;
-  label: string;
-  group?: 'task' | 'global' | 'scripts';
-}
+import { useTaskTerminals } from '@/lib/taskTerminalsStore';
+import { TerminalPane } from '../TerminalPane';
+import { useTheme } from '../../hooks/useTheme';
 
 interface TerminalPanelProps {
   /** Additional CSS classes */
   className?: string;
-  /** Available terminal options */
-  terminals?: TerminalOption[];
-  /** Custom content to render in the terminal area */
+  /** Task/session path (worktree path) */
+  taskPath?: string;
+  /** Task/session ID */
+  taskId?: string;
+  /** Project path (for fallback when no task selected) */
+  projectPath?: string;
+  /** Custom content to render instead of terminal (deprecated) */
   children?: React.ReactNode;
-  /** Callback when terminal selection changes */
-  onTerminalChange?: (terminal: TerminalType) => void;
 }
 
-const COLLAPSED_HEIGHT = 32;
-
 /**
- * Status indicator component
+ * Terminal tab component - styled like main TabBar
  */
-function StatusIndicator({ status }: { status: 'idle' | 'working' }) {
-  if (status === 'working') {
-    return (
-      <span className="flex items-center gap-1.5 text-xs text-amber-500">
-        <span className="h-2 w-2 animate-pulse rounded-full bg-amber-500" />
-        Working...
-      </span>
-    );
-  }
-
+function TerminalTab({
+  title,
+  isActive,
+  canClose,
+  onClick,
+  onClose,
+}: {
+  title: string;
+  isActive: boolean;
+  canClose: boolean;
+  onClick: () => void;
+  onClose: () => void;
+}) {
   return (
-    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-      <span className="h-2 w-2 rounded-full bg-muted-foreground/50" />
-      Idle
-    </span>
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'group relative flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        isActive
+          ? 'text-foreground'
+          : 'text-muted-foreground hover:text-foreground'
+      )}
+    >
+      <Terminal className="h-4 w-4" />
+      <span className="max-w-[120px] truncate">{title}</span>
+      {canClose && (
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.stopPropagation();
+              e.preventDefault();
+              onClose();
+            }
+          }}
+          className={cn(
+            'flex h-4 w-4 items-center justify-center rounded transition-colors',
+            isActive
+              ? 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              : 'text-muted-foreground/50 opacity-0 group-hover:opacity-100 hover:bg-muted hover:text-foreground'
+          )}
+        >
+          <X className="h-3 w-3" />
+        </span>
+      )}
+    </button>
   );
 }
 
 /**
- * Collapsible terminal panel component
+ * Collapsible terminal panel with tab bar
  *
  * Features:
  * - Collapsible with smooth animation
- * - Terminal selector dropdown
- * - Status indicator (Working/Idle)
+ * - Horizontal tab bar for multiple terminals (styled like main TabBar)
+ * - Auto-creates terminal when panel opens and none exists
  * - Keyboard shortcut: Cmd+` (Mac) or Ctrl+` (Windows/Linux)
  */
 export function TerminalPanel({
   className,
-  terminals = [
-    { value: 'task', label: 'Task Terminal', group: 'task' },
-    { value: 'global', label: 'Global Terminal', group: 'global' },
-  ],
+  taskPath,
+  taskId,
+  projectPath,
   children,
-  onTerminalChange,
 }: TerminalPanelProps) {
-  const {
-    isCollapsed,
-    height,
-    activeTerminal,
-    status,
-    toggleCollapsed,
-    setActiveTerminal,
-  } = useTerminalPanel();
+  const { effectiveTheme } = useTheme();
+  const { isCollapsed, toggleCollapsed } = useTerminalPanel();
 
   // Register keyboard shortcut
   useTerminalShortcut();
 
+  // Determine the terminal store key and cwd
+  const terminalKey = taskId ? `bottom::${taskId}::${taskPath}` : 'bottom::project';
+  const terminalCwd = taskPath || projectPath;
+
+  // Use the task terminals store
+  const {
+    terminals,
+    activeTerminalId,
+    createTerminal,
+    setActiveTerminal,
+    closeTerminal,
+  } = useTaskTerminals(terminalKey, terminalCwd);
+
   // Track focus state for visual indicator
   const [hasFocus, setHasFocus] = useState(false);
 
-  const handleTerminalChange = useCallback(
-    (value: string) => {
-      setActiveTerminal(value as TerminalType);
-      onTerminalChange?.(value as TerminalType);
+  // Auto-create terminal when panel opens and no terminal exists
+  useEffect(() => {
+    if (!isCollapsed && terminals.length === 0 && terminalCwd) {
+      createTerminal({ cwd: terminalCwd });
+    }
+  }, [isCollapsed, terminals.length, terminalCwd, createTerminal]);
+
+  const handleCreateTerminal = useCallback(() => {
+    if (terminalCwd) {
+      createTerminal({ cwd: terminalCwd });
+    }
+  }, [terminalCwd, createTerminal]);
+
+  const handleCloseTerminal = useCallback(
+    (terminalId: string) => {
+      if (terminals.length > 1) {
+        closeTerminal(terminalId);
+      }
     },
-    [setActiveTerminal, onTerminalChange]
+    [terminals.length, closeTerminal]
   );
 
-  const activeTerminalLabel =
-    terminals.find((t) => t.value === activeTerminal)?.label ?? 'Terminal';
+  // Get theme configuration
+  const themeOverride = useMemo(() => {
+    const isDark = effectiveTheme === 'dark' || effectiveTheme === 'dark-black';
+    const isBlack = effectiveTheme === 'dark-black';
+    const darkBackground = isBlack ? '#000000' : '#1e1e1e';
 
-  // Group terminals by category
-  const taskTerminals = terminals.filter((t) => t.group === 'task');
-  const globalTerminals = terminals.filter((t) => t.group === 'global');
-  const scriptTerminals = terminals.filter((t) => t.group === 'scripts');
+    return isDark
+      ? {
+          background: darkBackground,
+          foreground: '#d4d4d4',
+          cursor: '#aeafad',
+          cursorAccent: darkBackground,
+          selectionBackground: 'rgba(96, 165, 250, 0.35)',
+          selectionForeground: '#f9fafb',
+          black: '#000000',
+          red: '#cd3131',
+          green: '#0dbc79',
+          yellow: '#e5e510',
+          blue: '#2472c8',
+          magenta: '#bc3fbc',
+          cyan: '#11a8cd',
+          white: '#e5e5e5',
+          brightBlack: '#666666',
+          brightRed: '#f14c4c',
+          brightGreen: '#23d18b',
+          brightYellow: '#f5f543',
+          brightBlue: '#3b8eea',
+          brightMagenta: '#d670d6',
+          brightCyan: '#29b8db',
+          brightWhite: '#ffffff',
+        }
+      : {
+          background: '#ffffff',
+          foreground: '#1e1e1e',
+          cursor: '#1e1e1e',
+          cursorAccent: '#ffffff',
+          selectionBackground: 'rgba(59, 130, 246, 0.35)',
+          selectionForeground: '#0f172a',
+          black: '#000000',
+          red: '#cd3131',
+          green: '#0dbc79',
+          yellow: '#bf8803',
+          blue: '#0451a5',
+          magenta: '#bc05bc',
+          cyan: '#0598bc',
+          white: '#e5e5e5',
+          brightBlack: '#666666',
+          brightRed: '#cd3131',
+          brightGreen: '#14ce14',
+          brightYellow: '#b5ba00',
+          brightBlue: '#0451a5',
+          brightMagenta: '#bc05bc',
+          brightCyan: '#0598bc',
+          brightWhite: '#a5a5a5',
+        };
+  }, [effectiveTheme]);
+
+  // If children are provided (legacy usage), render them instead
+  if (children) {
+    return (
+      <div
+        className={cn(
+          'relative flex shrink-0 flex-col border-t border-border bg-background transition-all duration-200',
+          isCollapsed ? 'h-9' : 'h-64',
+          className
+        )}
+      >
+        <div
+          className="flex h-9 shrink-0 cursor-pointer items-center justify-between border-b border-border bg-muted/30 px-3"
+          onClick={(e) => {
+            const target = e.target as HTMLElement;
+            if (target.closest('button')) return;
+            toggleCollapsed();
+          }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              toggleCollapsed();
+            }
+          }}
+        >
+          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <Terminal className="h-4 w-4" />
+            <span>Terminal</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 text-muted-foreground hover:text-foreground"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleCollapsed();
+            }}
+            title={isCollapsed ? 'Expand terminal (Cmd+`)' : 'Collapse terminal (Cmd+`)'}
+          >
+            {isCollapsed ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </Button>
+        </div>
+        {!isCollapsed && <div className="flex-1 overflow-hidden">{children}</div>}
+      </div>
+    );
+  }
 
   return (
     <div
       className={cn(
         'relative flex shrink-0 flex-col border-t border-border bg-background transition-all duration-200',
-        isCollapsed ? 'h-8' : 'h-64',
+        isCollapsed ? 'h-9' : 'h-64',
         className
       )}
       onFocus={() => setHasFocus(true)}
       onBlur={(e) => {
-        // Only remove focus if focus moved outside this panel
         if (!e.currentTarget.contains(e.relatedTarget as Node)) {
           setHasFocus(false);
         }
       }}
     >
-      {/* Focus indicator border */}
+      {/* Focus indicator ring */}
       {hasFocus && !isCollapsed && (
         <div
-          className="pointer-events-none absolute inset-0 z-50 rounded-sm border-2 border-primary/50"
+          className="pointer-events-none absolute inset-0 z-50 ring-1 ring-inset ring-white/15"
           aria-hidden="true"
         />
       )}
-      {/* Header bar - always visible */}
-      <div className="flex h-8 shrink-0 items-center justify-between border-b border-border bg-muted px-3">
-        {/* Left side: Terminal label and selector */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-            <Terminal className="h-4 w-4 text-muted-foreground" />
-            <span>Terminal</span>
-          </div>
 
-          {!isCollapsed && (
-            <Select value={activeTerminal} onValueChange={handleTerminalChange}>
-              <SelectTrigger className="h-6 min-w-[120px] border-none bg-transparent px-2 text-xs shadow-none">
-                <SelectValue placeholder="Select terminal" />
-              </SelectTrigger>
-              <SelectContent>
-                {taskTerminals.length > 0 && (
-                  <SelectGroup>
-                    <div className="px-2 py-1.5">
-                      <span className="text-[10px] font-semibold text-muted-foreground">
-                        Task
-                      </span>
-                    </div>
-                    {taskTerminals.map((terminal) => (
-                      <SelectItem
-                        key={terminal.value}
-                        value={terminal.value}
-                        className="text-xs"
-                      >
-                        {terminal.label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                )}
+      {/* Tab bar - styled like main TabBar */}
+      <div
+        className="flex h-9 shrink-0 items-center justify-between border-b border-border bg-muted/30"
+        onClick={(e) => {
+          const target = e.target as HTMLElement;
+          if (target.closest('button') || target.closest('[role="button"]')) return;
+          toggleCollapsed();
+        }}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleCollapsed();
+          }
+        }}
+      >
+        {/* Tabs */}
+        <div className="flex items-center overflow-x-auto">
+          {terminals.map((terminal) => (
+            <TerminalTab
+              key={terminal.id}
+              title={terminal.title}
+              isActive={terminal.id === activeTerminalId}
+              canClose={terminals.length > 1}
+              onClick={() => setActiveTerminal(terminal.id)}
+              onClose={() => handleCloseTerminal(terminal.id)}
+            />
+          ))}
 
-                {globalTerminals.length > 0 && (
-                  <SelectGroup>
-                    <div className="px-2 py-1.5">
-                      <span className="text-[10px] font-semibold text-muted-foreground">
-                        Global
-                      </span>
-                    </div>
-                    {globalTerminals.map((terminal) => (
-                      <SelectItem
-                        key={terminal.value}
-                        value={terminal.value}
-                        className="text-xs"
-                      >
-                        {terminal.label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                )}
-
-                {scriptTerminals.length > 0 && (
-                  <SelectGroup>
-                    <div className="px-2 py-1.5">
-                      <span className="text-[10px] font-semibold text-muted-foreground">
-                        Scripts
-                      </span>
-                    </div>
-                    {scriptTerminals.map((terminal) => (
-                      <SelectItem
-                        key={terminal.value}
-                        value={terminal.value}
-                        className="text-xs"
-                      >
-                        <span className="flex items-center gap-2">
-                          <span className="h-2 w-2 animate-pulse rounded-full bg-amber-500" />
-                          {terminal.label}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                )}
-              </SelectContent>
-            </Select>
+          {/* Add new terminal button */}
+          {terminalCwd && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCreateTerminal();
+              }}
+              className="flex items-center px-3 py-2 text-muted-foreground transition-colors hover:text-foreground"
+              title="New terminal"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
           )}
         </div>
 
-        {/* Center: Status indicator (collapsed view) */}
-        {isCollapsed && (
-          <div className="flex flex-1 items-center justify-center">
-            <span className="mx-4 text-muted-foreground/30">---</span>
-            <StatusIndicator status={status} />
-          </div>
-        )}
-
         {/* Right side: Collapse toggle */}
-        <div className="flex items-center gap-1">
-          {!isCollapsed && <StatusIndicator status={status} />}
-
+        <div className="flex items-center px-2">
           <Button
             variant="ghost"
             size="icon"
             className="h-6 w-6 text-muted-foreground hover:text-foreground"
-            onClick={toggleCollapsed}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleCollapsed();
+            }}
             title={isCollapsed ? 'Expand terminal (Cmd+`)' : 'Collapse terminal (Cmd+`)'}
           >
-            {isCollapsed ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
+            {isCollapsed ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </Button>
         </div>
       </div>
 
       {/* Content area - only visible when expanded */}
       {!isCollapsed && (
-        <div className="flex-1 overflow-hidden">
-          {children ?? (
+        <div
+          className={cn(
+            'relative flex-1 overflow-hidden',
+            effectiveTheme === 'dark' || effectiveTheme === 'dark-black' ? 'bg-card' : 'bg-white'
+          )}
+        >
+          {terminals.length === 0 ? (
             <div className="flex h-full items-center justify-center bg-card text-muted-foreground">
               <div className="text-center">
                 <Terminal className="mx-auto mb-2 h-8 w-8 opacity-50" />
-                <p className="text-sm">Terminal content will appear here</p>
-                <p className="mt-1 text-xs opacity-70">
-                  Active: {activeTerminalLabel}
+                <p className="text-sm">
+                  {terminalCwd ? 'Starting terminal...' : 'Select a session to open terminal'}
                 </p>
               </div>
             </div>
+          ) : (
+            terminals.map((terminal) => {
+              const isActive = terminal.id === activeTerminalId;
+              return (
+                <div
+                  key={terminal.id}
+                  className={cn(
+                    'absolute inset-0 transition-opacity',
+                    isActive ? 'opacity-100' : 'pointer-events-none opacity-0'
+                  )}
+                >
+                  <TerminalPane
+                    id={terminal.id}
+                    cwd={terminal.cwd || terminalCwd}
+                    variant={
+                      effectiveTheme === 'dark' || effectiveTheme === 'dark-black' ? 'dark' : 'light'
+                    }
+                    themeOverride={themeOverride}
+                    className="h-full w-full"
+                    keepAlive
+                  />
+                </div>
+              );
+            })
           )}
         </div>
       )}
