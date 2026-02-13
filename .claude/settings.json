@@ -1,3 +1,61 @@
 {
-  "defaultMode": "bypassPermissions"
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(pnpm run lint)",
+      "Bash(pnpm run type-check)",
+      "Bash(pnpm run format)",
+      "Bash(pnpm run format:check)",
+      "Bash(pnpm exec vitest *)",
+      "Bash(pnpm run dev*)",
+      "Bash(pnpm run build*)",
+      "Bash(pnpm exec drizzle-kit generate)",
+      "Bash(pnpm exec drizzle-kit studio)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git branch*)",
+      "Bash(git checkout*)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git stash*)",
+      "Bash(ls *)",
+      "Read(src/**)",
+      "Read(drizzle/**)",
+      "Read(docs/**)",
+      "Read(*.md)",
+      "Read(*.json)",
+      "Read(*.ts)",
+      "Read(*.tsx)",
+      "Edit(src/**)",
+      "Write(src/**)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(git push --force*)",
+      "Bash(git reset --hard*)",
+      "Read(.env*)",
+      "Edit(.env*)",
+      "Write(.env*)",
+      "Edit(drizzle/meta/*)",
+      "Write(drizzle/meta/*)",
+      "Edit(drizzle/*.sql)",
+      "Write(drizzle/*.sql)",
+      "Edit(build/entitlements*)",
+      "Write(build/entitlements*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE_PATH=$(echo \"$TOOL_INPUT\" | jq -r '.file_path // .filePath // empty'); if [ -n \"$FILE_PATH\" ]; then case \"$FILE_PATH\" in drizzle/meta/*|drizzle/[0-9]*) echo \"BLOCKED: Cannot modify migration files in drizzle/. Use 'pnpm exec drizzle-kit generate' instead.\" >&2; exit 2;; build/entitlements*) echo \"BLOCKED: Cannot modify build entitlements without explicit review.\" >&2; exit 2;; .env*) echo \"BLOCKED: Cannot modify .env files.\" >&2; exit 2;; esac; fi; exit 0"
+          }
+        ]
+      }
+    ]
+  }
 }
