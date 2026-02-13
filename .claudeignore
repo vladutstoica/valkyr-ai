@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+release/
+
+# IDE/Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Large assets (images, fonts)
+src/assets/images/**/*.icns
+src/assets/images/**/*.ico
+
+# Generated files
+*.tgz
+*.dmg
+*.AppImage
+*.deb
+*.exe
+
+# Local worktrees (outside repo)
+worktrees/
+.checkouts/

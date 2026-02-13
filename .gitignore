@@ -56,7 +56,10 @@ Thumbs.db
 
 # AI assistant instructions
 .notes/
-.claude/
+
+# Claude Code local settings (not tracked)
+.claude/settings.local.json
+.claude/*.local.*
 
 # Local generated worktrees for perf experiments
 worktrees/
