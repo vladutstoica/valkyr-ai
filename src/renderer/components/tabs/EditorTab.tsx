@@ -247,7 +247,7 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
           defaultSize={20}
           minSize={15}
           maxSize={40}
-          className="flex flex-col border-r border-border"
+          className="flex flex-col"
         >
           {/* File Tree */}
           <FileTree

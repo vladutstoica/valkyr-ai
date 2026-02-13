@@ -179,13 +179,13 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
               borderLeft: collapsed
                 ? 'none'
                 : isDarkMode
-                  ? '2px solid rgb(63, 63, 70)'
-                  : '2px solid rgb(228, 228, 231)',
+                  ? '1px solid rgb(63, 63, 70)'
+                  : '1px solid rgb(228, 228, 231)',
               boxShadow: collapsed
                 ? 'none'
                 : isDarkMode
-                  ? '-2px 0 8px rgba(0,0,0,0.5)'
-                  : '-2px 0 8px rgba(0,0,0,0.1)',
+                  ? '-1px 0 4px rgba(0,0,0,0.3)'
+                  : '-1px 0 4px rgba(0,0,0,0.08)',
             }
           : undefined
       }

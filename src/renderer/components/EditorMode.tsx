@@ -477,7 +477,7 @@ export default function EditorMode({ taskPath, taskName, onClose }: EditorModePr
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        <div className="border-r border-border bg-muted/10" style={{ width: explorerWidth }}>
+        <div className="relative bg-muted/10" style={{ width: explorerWidth }}>
           <div className="flex h-10 items-center justify-end border-b border-border px-2">
             <div className="flex items-center gap-1">
               <Button
@@ -504,9 +504,9 @@ export default function EditorMode({ taskPath, taskName, onClose }: EditorModePr
             )}
           </div>
 
+          {/* Resize handle */}
           <div
-            className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500/50"
-            style={{ right: -2 }}
+            className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-border hover:bg-border/80"
             onMouseDown={handleMouseDown}
           />
         </div>

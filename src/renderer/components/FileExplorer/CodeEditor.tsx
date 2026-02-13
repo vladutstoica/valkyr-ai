@@ -281,7 +281,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({
   fileChanges,
 }) => (
   <div
-    className="relative flex flex-col border-r border-border bg-muted/5"
+    className="relative flex flex-col bg-muted/5"
     style={{ width: explorerWidth }}
   >
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -315,9 +315,9 @@ const ResizeHandle: React.FC<{
 }> = ({ isResizing, onMouseDown }) => (
   <div
     className={cn(
-      'absolute -right-1 top-0 h-full w-2 cursor-col-resize',
+      'absolute -right-0.5 top-0 h-full w-1 cursor-col-resize',
       'transition-colors hover:bg-border/80',
-      "after:absolute after:left-1/2 after:top-0 after:h-full after:w-0.5 after:-translate-x-1/2 after:content-['']",
+      "after:absolute after:left-1/2 after:top-0 after:h-full after:w-px after:-translate-x-1/2 after:content-['']",
       'after:bg-border',
       isResizing && 'bg-border/80'
     )}
