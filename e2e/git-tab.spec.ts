@@ -4,7 +4,7 @@
  * These tests verify the Git tab functionality including:
  * - File changes display
  * - Staging/unstaging files
- * - Diff view with PatchDiff (no fallback)
+ * - Diff view with Monaco DiffEditor (no fallback)
  * - Commit panel functionality
  * - PR creation
  *
@@ -230,8 +230,8 @@ test.describe('Git Tab', () => {
         await fileRow.click();
         await page.waitForTimeout(2000); // Wait for diff to load
 
-        // Look for diff content - PatchDiff renders with specific classes
-        const diffContent = page.locator('.diff-view, [class*="diff"]');
+        // Look for diff content - Monaco DiffEditor renders with .monaco-diff-editor class
+        const diffContent = page.locator('.monaco-diff-editor, [class*="monaco-editor"]');
 
         const hasDiff = await diffContent.count() > 0;
         console.log(`Diff content visible: ${hasDiff}`);
@@ -259,17 +259,17 @@ test.describe('Git Tab', () => {
       }
     });
 
-    test('should display PatchDiff component without fallback', async () => {
+    test('should display Monaco DiffEditor component without fallback', async () => {
       const fileRow = page.locator('div.border-b:has([title="Modified"], [title="Added"])').first();
 
       if (await fileRow.isVisible().catch(() => false)) {
         await fileRow.click();
-        await page.waitForTimeout(3000); // Wait for PatchDiff to load
+        await page.waitForTimeout(3000); // Wait for Monaco DiffEditor to load
 
-        // PatchDiff renders with .diff-view class or pierre-* theme classes
-        const patchDiff = page.locator('.diff-view, [class*="pierre"]');
-        const hasPatchDiff = await patchDiff.count() > 0;
-        console.log(`PatchDiff component rendered: ${hasPatchDiff}`);
+        // Monaco DiffEditor renders with .monaco-diff-editor class
+        const monacoEditor = page.locator('.monaco-diff-editor');
+        const hasMonacoEditor = await monacoEditor.count() > 0;
+        console.log(`Monaco DiffEditor component rendered: ${hasMonacoEditor}`);
 
         // Verify no SimpleDiffView fallback is shown
         // SimpleDiffView was using "overflow-x-auto p-2 font-mono" classes - now removed
@@ -280,9 +280,9 @@ test.describe('Git Tab', () => {
         // No fallback should be present
         expect(hasFallback).toBe(false);
 
-        await page.screenshot({ path: 'e2e/screenshots/git-patch-diff.png' });
+        await page.screenshot({ path: 'e2e/screenshots/git-monaco-diff-editor.png' });
       } else {
-        console.log('No file changes found to test PatchDiff');
+        console.log('No file changes found to test Monaco DiffEditor');
       }
     });
 
@@ -297,10 +297,10 @@ test.describe('Git Tab', () => {
 
         await page.screenshot({ path: 'e2e/screenshots/git-after-expand-all.png' });
 
-        // Verify PatchDiff components are rendered (not fallback)
-        const patchDiffs = page.locator('.diff-view');
-        const patchDiffCount = await patchDiffs.count();
-        console.log(`PatchDiff components rendered after Expand All: ${patchDiffCount}`);
+        // Verify Monaco DiffEditor components are rendered (not fallback)
+        const monacoEditors = page.locator('.monaco-diff-editor');
+        const monacoEditorCount = await monacoEditors.count();
+        console.log(`Monaco DiffEditor components rendered after Expand All: ${monacoEditorCount}`);
 
         // Verify no fallback views
         const fallbacks = page.locator('pre.overflow-x-auto.p-2.font-mono');

@@ -1,5 +1,5 @@
 /**
- * Focused test for Git tab expand all with PatchDiff
+ * Focused test for Git tab expand all with Monaco DiffEditor
  */
 import { test, expect, _electron as electron, ElectronApplication, Page } from '@playwright/test';
 import * as path from 'path';
@@ -41,7 +41,7 @@ test.afterAll(async () => {
   }
 });
 
-test('Git Tab - Expand All with PatchDiff', async () => {
+test('Git Tab - Expand All with Monaco DiffEditor', async () => {
   // Close any modals
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
@@ -111,9 +111,9 @@ test('Git Tab - Expand All with PatchDiff', async () => {
 
     await page.screenshot({ path: 'e2e/screenshots/expand-test-after-expand.png' });
 
-    // Check for PatchDiff elements
-    const diffViews = await page.locator('.diff-view').count();
-    console.log(`PatchDiff .diff-view elements: ${diffViews}`);
+    // Check for Monaco DiffEditor elements
+    const diffViews = await page.locator('.monaco-diff-editor').count();
+    console.log(`Monaco DiffEditor .monaco-diff-editor elements: ${diffViews}`);
 
     // Check for any fallback (SimpleDiffView used pre.overflow-x-auto.p-2.font-mono)
     const fallbackViews = await page.locator('pre.overflow-x-auto.p-2.font-mono').count();

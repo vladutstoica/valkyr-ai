@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Plus, FileDiff, RefreshCw } from 'lucide-react';
-import { preloadHighlighter } from '@pierre/diffs';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
@@ -200,32 +199,6 @@ export function GitTab({ taskId: _taskId, taskPath, className }: GitTabProps) {
     });
   }, [files, expandedFiles, toggleExpanded, fetchDiff]);
 
-  // Preload Shiki highlighter themes and languages to eliminate cold-start latency
-  useEffect(() => {
-    preloadHighlighter({
-      themes: ['pierre-dark', 'pierre-light'],
-      langs: [
-        'typescript',
-        'javascript',
-        'tsx',
-        'jsx',
-        'css',
-        'scss',
-        'json',
-        'html',
-        'python',
-        'rust',
-        'go',
-        'java',
-        'markdown',
-        'yaml',
-        'bash',
-        'shell',
-      ],
-    }).catch((err) => {
-      console.warn('[GitTab] Failed to preload highlighter:', err);
-    });
-  }, []);
 
   // Map status string to FileStatus type
   const mapStatus = (status: string): FileStatus => {

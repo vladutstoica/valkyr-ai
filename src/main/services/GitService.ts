@@ -225,7 +225,7 @@ export async function getFileDiff(
       { cwd: taskPath }
     );
 
-    // Store raw patch for PatchDiff component
+    // Store raw patch for diff viewer component
     const rawPatch = stdout;
 
     const linesRaw = stdout.split('\n');

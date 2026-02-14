@@ -1,4 +1,5 @@
 import { app, ipcMain, WebContents, BrowserWindow, Notification } from 'electron';
+import { broadcastToAllWindows } from '../lib/safeSend';
 import {
   startPty,
   writePty,
@@ -47,15 +48,11 @@ function safeSendToOwner(id: string, channel: string, payload: unknown): boolean
   const wc = owners.get(id);
   if (!wc) return false;
   try {
-    if (typeof wc.isDestroyed === 'function' && wc.isDestroyed()) return false;
+    if (wc.isDestroyed()) return false;
     wc.send(channel, payload);
     return true;
-  } catch (err) {
-    log.warn('ptyIpc:safeSendFailed', {
-      id,
-      channel,
-      error: String((err as Error)?.message || err),
-    });
+  } catch {
+    // Frame disposed during send - silently ignore
     return false;
   }
 }
@@ -74,6 +71,32 @@ function clearPtyData(id: string): void {
     ptyDataTimers.delete(id);
   }
   ptyDataBuffers.delete(id);
+}
+
+// Clear all PTY timers for a specific WebContents (called when window is closing)
+function clearTimersForWebContents(wc: WebContents): void {
+  for (const [ptyId, owner] of owners.entries()) {
+    if (owner === wc) {
+      clearPtyData(ptyId);
+    }
+  }
+}
+
+// Track windows that have close listeners to avoid duplicates
+const windowCloseListeners = new Set<number>();
+
+// Register cleanup for a window - clears PTY timers BEFORE frame is disposed
+function registerWindowCleanup(win: BrowserWindow): void {
+  if (windowCloseListeners.has(win.id)) return;
+  windowCloseListeners.add(win.id);
+
+  win.on('close', () => {
+    clearTimersForWebContents(win.webContents);
+  });
+
+  win.on('closed', () => {
+    windowCloseListeners.delete(win.id);
+  });
 }
 
 function bufferedSendPtyData(id: string, chunk: string): void {
@@ -216,6 +239,16 @@ function buildRemoteProviderInvocation(args: {
 }
 
 export function registerPtyIpc(): void {
+  // Register cleanup for existing windows and new windows
+  // This clears PTY timers BEFORE frame is disposed, preventing the
+  // "Render frame was disposed" error from being logged by Electron
+  for (const win of BrowserWindow.getAllWindows()) {
+    registerWindowCleanup(win);
+  }
+  app.on('browser-window-created', (_, win) => {
+    registerWindowCleanup(win);
+  });
+
   // When a direct-spawned CLI exits, spawn a shell so user can continue working
   setOnDirectCliExit(async (id: string, cwd: string) => {
     const wc = owners.get(id);
@@ -333,10 +366,7 @@ export function registerPtyIpc(): void {
             listeners.add(id);
           }
 
-          try {
-            const windows = BrowserWindow.getAllWindows();
-            windows.forEach((w: any) => w.webContents.send('pty:started', { id }));
-          } catch {}
+          broadcastToAllWindows('pty:started', { id });
 
           return { ok: true };
         }
@@ -492,16 +522,7 @@ export function registerPtyIpc(): void {
         maybeMarkProviderStart(id);
 
         // Signal that PTY is ready
-        try {
-          const windows = BrowserWindow.getAllWindows();
-          windows.forEach((w) => {
-            try {
-              if (!w.webContents.isDestroyed()) {
-                w.webContents.send('pty:started', { id });
-              }
-            } catch {}
-          });
-        } catch {}
+        broadcastToAllWindows('pty:started', { id });
 
         return { ok: true };
       } catch (err: any) {
@@ -694,10 +715,7 @@ export function registerPtyIpc(): void {
           }
 
           maybeMarkProviderStart(id);
-          try {
-            const windows = BrowserWindow.getAllWindows();
-            windows.forEach((w: any) => w.webContents.send('pty:started', { id }));
-          } catch {}
+          broadcastToAllWindows('pty:started', { id });
 
           return { ok: true };
         }
@@ -798,11 +816,7 @@ export function registerPtyIpc(): void {
         }
 
         maybeMarkProviderStart(id, providerId as ProviderId);
-
-        try {
-          const windows = BrowserWindow.getAllWindows();
-          windows.forEach((w: any) => w.webContents.send('pty:started', { id }));
-        } catch {}
+        broadcastToAllWindows('pty:started', { id });
 
         return { ok: true };
       } catch (err: any) {

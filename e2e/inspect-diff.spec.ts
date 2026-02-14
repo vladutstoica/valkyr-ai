@@ -67,9 +67,8 @@ test('Inspect diff DOM structure', async () => {
   // Look for specific diff elements
   const checks = await page.evaluate(() => {
     return {
-      diffView: document.querySelectorAll('.diff-view').length,
-      patchDiff: document.querySelectorAll('[class*="patch"]').length,
-      pierre: document.querySelectorAll('[class*="pierre"]').length,
+      monacoEditor: document.querySelectorAll('.monaco-diff-editor').length,
+      monacoEditorContainer: document.querySelectorAll('[class*="monaco-editor"]').length,
       pre: document.querySelectorAll('pre').length,
       table: document.querySelectorAll('table').length,
       maxH80: document.querySelectorAll('[class*="max-h-80"]').length,

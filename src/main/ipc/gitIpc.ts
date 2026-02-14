@@ -1,5 +1,6 @@
-import { BrowserWindow, ipcMain } from 'electron';
+import { app, ipcMain, BrowserWindow } from 'electron';
 import { log } from '../lib/logger';
+import { broadcastToAllWindows } from '../lib/safeSend';
 import { exec, execFile } from 'child_process';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
@@ -31,15 +32,35 @@ type GitStatusWatchEntry = {
 
 const gitStatusWatchers = new Map<string, GitStatusWatchEntry>();
 
-const broadcastGitStatusChange = (taskPath: string, error?: string) => {
-  const windows = BrowserWindow.getAllWindows();
-  windows.forEach((window) => {
-    try {
-      window.webContents.send('git:status-changed', { taskPath, error });
-    } catch (err) {
-      log.debug('[git:watch-status] failed to send status change', err);
+// Clear all debounce timers - called when windows are closing to prevent
+// "Render frame was disposed" errors from Electron
+function clearAllDebounceTimers(): void {
+  for (const [, entry] of gitStatusWatchers) {
+    if (entry.debounceTimer) {
+      clearTimeout(entry.debounceTimer);
+      entry.debounceTimer = undefined;
     }
+  }
+}
+
+// Track windows that have close listeners
+const windowCloseListeners = new Set<number>();
+
+function registerWindowCleanup(win: BrowserWindow): void {
+  if (windowCloseListeners.has(win.id)) return;
+  windowCloseListeners.add(win.id);
+
+  win.on('close', () => {
+    clearAllDebounceTimers();
   });
+
+  win.on('closed', () => {
+    windowCloseListeners.delete(win.id);
+  });
+}
+
+const broadcastGitStatusChange = (taskPath: string, error?: string) => {
+  broadcastToAllWindows('git:status-changed', { taskPath, error });
 };
 
 const ensureGitStatusWatcher = (taskPath: string) => {
@@ -99,6 +120,14 @@ const releaseGitStatusWatcher = (taskPath: string, watchId?: string) => {
 };
 
 export function registerGitIpc() {
+  // Register cleanup for all windows - clears debounce timers BEFORE frame is disposed
+  for (const win of BrowserWindow.getAllWindows()) {
+    registerWindowCleanup(win);
+  }
+  app.on('browser-window-created', (_, win) => {
+    registerWindowCleanup(win);
+  });
+
   function resolveGitBin(): string {
     // Allow override via env
     const fromEnv = (process.env.GIT_PATH || '').trim();
@@ -1237,4 +1266,17 @@ current branch '${currentBranch}' ahead of base '${baseRef}'.`,
       }
     }
   );
+
+  // Cleanup git status watchers on app quit to prevent race conditions
+  app.on('before-quit', () => {
+    for (const [, entry] of gitStatusWatchers) {
+      if (entry.debounceTimer) clearTimeout(entry.debounceTimer);
+      try {
+        entry.watcher.close();
+      } catch {
+        // Watcher may already be closed - ignore
+      }
+    }
+    gitStatusWatchers.clear();
+  });
 }

@@ -9,7 +9,9 @@ import {
   Check,
   AlertTriangle,
 } from 'lucide-react';
+import { DiffEditor } from '@monaco-editor/react';
 import { cn } from '@/lib/utils';
+import { getMonacoLanguageId } from '@/lib/diffUtils';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -48,21 +50,40 @@ const STATUS_COLORS: Record<FileStatus, string> = {
   R: 'bg-purple-500/20 text-purple-600 dark:text-purple-400',
 };
 
-// Lazy load PatchDiff to prevent blocking the main bundle
-const PatchDiff = React.lazy(() =>
-  import('@pierre/diffs/react').then((mod) => ({ default: mod.PatchDiff }))
-);
-
 /**
- * Loading spinner for diff view while PatchDiff is loading.
+ * Parse a unified diff patch string into original and modified file contents.
  */
-function DiffLoadingView() {
-  return (
-    <div className="flex items-center justify-center gap-2 px-4 py-6 text-xs text-muted-foreground">
-      <Spinner size="sm" />
-      <span>Loading diff viewer...</span>
-    </div>
-  );
+function parseUnifiedDiff(patch: string): { original: string; modified: string } {
+  const originalLines: string[] = [];
+  const modifiedLines: string[] = [];
+
+  for (const line of patch.split('\n')) {
+    // Skip diff headers
+    if (
+      line.startsWith('diff --git') ||
+      line.startsWith('index ') ||
+      line.startsWith('--- ') ||
+      line.startsWith('+++ ') ||
+      line.startsWith('@@')
+    ) {
+      continue;
+    }
+
+    if (line.startsWith('-')) {
+      originalLines.push(line.slice(1));
+    } else if (line.startsWith('+')) {
+      modifiedLines.push(line.slice(1));
+    } else if (line.startsWith(' ')) {
+      originalLines.push(line.slice(1));
+      modifiedLines.push(line.slice(1));
+    } else {
+      // No prefix — context line
+      originalLines.push(line);
+      modifiedLines.push(line);
+    }
+  }
+
+  return { original: originalLines.join('\n'), modified: modifiedLines.join('\n') };
 }
 
 /**
@@ -126,35 +147,13 @@ export const FileChangeItem = React.memo(function FileChangeItem({
   const fileName = path.split('/').pop() || path;
   const directory = path.includes('/') ? path.slice(0, path.lastIndexOf('/') + 1) : '';
 
-  const patchDiffOptions = useMemo(() => {
-    const isDarkTheme = theme === 'dark' || theme === 'dark-black';
-    const baseOptions = {
-      theme: (isDarkTheme ? 'pierre-dark' : 'pierre-light') as 'pierre-dark' | 'pierre-light',
-      diffStyle: 'unified' as const,
-      diffIndicators: 'bars' as const,
-      disableFileHeader: true,
-      overflow: 'wrap' as const,
-      disableLineNumbers: false,
-      lineDiffType: 'word' as const,
-      // Collapse unchanged/context lines by default - click to expand
-      expandUnchanged: false,
-      // Show 3 lines of context around changes
-      expansionLineCount: 3,
-    };
-
-    if (theme === 'dark-black') {
-      return {
-        ...baseOptions,
-        unsafeCSS: `
-          .diff-view { background-color: #000000 !important; }
-          .diff-line { background-color: #000000 !important; }
-          .diff-line-content { background-color: #000000 !important; }
-        `,
-      };
-    }
-
-    return baseOptions;
-  }, [theme]);
+  const diffData = useMemo(() => {
+    if (!diff) return null;
+    const { original, modified } = parseUnifiedDiff(diff);
+    const language = getMonacoLanguageId(path);
+    const monacoTheme = theme === 'light' ? 'vs' : 'vs-dark';
+    return { original, modified, language, monacoTheme };
+  }, [diff, path, theme]);
 
   const handleToggleExpanded = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -282,21 +281,48 @@ export const FileChangeItem = React.memo(function FileChangeItem({
       {/* Diff View */}
       {isExpanded && (
         <div className="border-t border-border/30 bg-muted/20">
-          <div className="max-h-80 overflow-auto">
+          <div className="h-80">
             {isLoadingDiff ? (
               <div className="flex items-center justify-center gap-2 px-4 py-6 text-xs text-muted-foreground">
                 <Spinner size="sm" />
                 <span>Loading diff...</span>
               </div>
-            ) : diff ? (
+            ) : diffData ? (
               <DiffErrorBoundary filePath={path}>
-                <React.Suspense fallback={<DiffLoadingView />}>
-                  <PatchDiff
-                    patch={diff}
-                    options={patchDiffOptions}
-                    className="text-xs"
-                  />
-                </React.Suspense>
+                <DiffEditor
+                  height="320px"
+                  language={diffData.language}
+                  original={diffData.original}
+                  modified={diffData.modified}
+                  theme={diffData.monacoTheme}
+                  options={{
+                    readOnly: true,
+                    originalEditable: false,
+                    renderSideBySide: false,
+                    fontSize: 12,
+                    lineHeight: 18,
+                    minimap: { enabled: false },
+                    scrollBeyondLastLine: false,
+                    wordWrap: 'on',
+                    lineNumbers: 'on',
+                    lineNumbersMinChars: 3,
+                    automaticLayout: true,
+                    renderOverviewRuler: false,
+                    overviewRulerBorder: false,
+                    scrollbar: {
+                      vertical: 'auto',
+                      horizontal: 'auto',
+                      useShadows: false,
+                      verticalScrollbarSize: 4,
+                      horizontalScrollbarSize: 4,
+                    },
+                    hideUnchangedRegions: { enabled: true },
+                    diffWordWrap: 'on',
+                    glyphMargin: false,
+                    folding: false,
+                    padding: { top: 4, bottom: 4 },
+                  }}
+                />
               </DiffErrorBoundary>
             ) : (
               <div className="px-4 py-3 text-center text-xs text-muted-foreground">

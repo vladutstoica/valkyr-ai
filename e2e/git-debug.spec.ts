@@ -132,7 +132,7 @@ test('Debug Git Expand All', async () => {
   await page.screenshot({ path: 'e2e/screenshots/debug-before-expand.png' });
   log('Screenshot: debug-before-expand.png');
 
-  // Try expanding ONE file first to test PatchDiff
+  // Try expanding ONE file first to test Monaco DiffEditor
   log('Testing single file expand...');
   const firstFileRow = page.locator('div.border-b:has([title="Modified"], [title="Added"])').first();
   if (await firstFileRow.isVisible()) {
@@ -140,11 +140,11 @@ test('Debug Git Expand All', async () => {
     await page.waitForTimeout(2000);
 
     // Check what rendered
-    const diffView = await page.locator('.diff-view').count();
+    const diffView = await page.locator('.monaco-diff-editor').count();
     const errorMsg = await page.locator('text=Failed to render').count();
     const loading = await page.locator('text=Loading').count();
 
-    log(`After single expand - diff-view: ${diffView}, errors: ${errorMsg}, loading: ${loading}`);
+    log(`After single expand - monaco-diff-editor: ${diffView}, errors: ${errorMsg}, loading: ${loading}`);
 
     await page.screenshot({ path: 'e2e/screenshots/debug-single-expand.png' });
 
@@ -171,7 +171,7 @@ test('Debug Git Expand All', async () => {
       await page.waitForTimeout(500);
 
       const expandedCount = await page.locator('svg.lucide-chevron-down').count();
-      const diffViews = await page.locator('.diff-view').count();
+      const diffViews = await page.locator('.monaco-diff-editor').count();
       const errors = await page.locator('text=Failed to render').count();
       const loading = await page.locator('text=Loading').count();
 
