@@ -154,7 +154,10 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [editProjectName, setEditProjectName] = useState('');
   const projectInputRef = useRef<HTMLInputElement>(null);
+  const isSubmittingRef = useRef(false);
+  const canBlurRef = useRef(false);
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
+  const [openMenuProjectId, setOpenMenuProjectId] = useState<string | null>(null);
 
   // Fetch archived tasks for all projects
   const fetchArchivedTasks = useCallback(async () => {
@@ -215,11 +218,9 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
   const handleStartProjectEdit = useCallback((project: Project) => {
     setEditProjectName(project.name);
+    isSubmittingRef.current = false;
+    canBlurRef.current = false;
     setEditingProjectId(project.id);
-    setTimeout(() => {
-      projectInputRef.current?.focus();
-      projectInputRef.current?.select();
-    }, 0);
   }, []);
 
   const handleCancelProjectEdit = useCallback(() => {
@@ -229,16 +230,32 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
   const handleConfirmProjectEdit = useCallback(
     async (project: Project) => {
+      // Prevent double calls from Enter + blur
+      if (isSubmittingRef.current) return;
+      isSubmittingRef.current = true;
+
       const trimmed = editProjectName.trim();
       if (!trimmed || trimmed === project.name) {
-        handleCancelProjectEdit();
+        setEditingProjectId(null);
         return;
       }
       setEditingProjectId(null);
       await onRenameProject?.(project, trimmed);
     },
-    [editProjectName, onRenameProject, handleCancelProjectEdit]
+    [editProjectName, onRenameProject]
   );
+
+  // Focus project input when editing starts
+  useEffect(() => {
+    if (editingProjectId && projectInputRef.current) {
+      // Delay to let dropdown fully close
+      const timer = setTimeout(() => {
+        projectInputRef.current?.focus();
+        projectInputRef.current?.select();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [editingProjectId]);
 
   useEffect(() => {
     onSidebarContextChange?.({ open, isMobile, setOpen });
@@ -346,7 +363,22 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                                             handleCancelProjectEdit();
                                           }
                                         }}
-                                        onBlur={() => handleConfirmProjectEdit(typedProject)}
+                                        onFocus={() => {
+                                          // Allow blur to trigger confirm only after focus is stable
+                                          setTimeout(() => {
+                                            canBlurRef.current = true;
+                                          }, 150);
+                                        }}
+                                        onBlur={() => {
+                                          if (canBlurRef.current) {
+                                            handleConfirmProjectEdit(typedProject);
+                                          } else {
+                                            // Refocus if blur happened during settling period (Radix stealing focus)
+                                            setTimeout(() => {
+                                              projectInputRef.current?.focus();
+                                            }, 0);
+                                          }
+                                        }}
                                         onClick={(e) => e.stopPropagation()}
                                         className="w-full border border-border bg-background px-2 py-1 text-sm font-semibold text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
                                       />
@@ -360,12 +392,17 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                                     )}
                                   </div>
                                   <div className="flex items-center gap-1">
-                                    <DropdownMenu>
+                                    <DropdownMenu
+                                      open={openMenuProjectId === typedProject.id}
+                                      onOpenChange={(open) => setOpenMenuProjectId(open ? typedProject.id : null)}
+                                    >
                                       <DropdownMenuTrigger asChild>
                                         <Button
                                           variant="ghost"
                                           size="icon"
-                                          className="h-7 w-7 cursor-pointer opacity-0 group-hover/collapsible:opacity-100"
+                                          className={`h-7 w-7 cursor-pointer ${
+                                            openMenuProjectId === typedProject.id ? '' : 'opacity-0 group-hover/collapsible:opacity-100'
+                                          }`}
                                           onClick={(e) => e.stopPropagation()}
                                           disabled={isDeletingProject}
                                         >
@@ -379,7 +416,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                                             onClick={() => handleStartProjectEdit(typedProject)}
                                           >
                                             <Pencil className="mr-2 h-4 w-4" />
-                                            Edit
+                                            Rename
                                           </DropdownMenuItem>
                                         )}
                                         <DropdownMenuItem className="cursor-pointer" disabled>
@@ -577,7 +614,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                               }}
                             >
                               <Pencil className="mr-2 h-3.5 w-3.5" />
-                              Edit
+                              Rename
                             </ContextMenuItem>
                           )}
                           <ContextMenuItem className="cursor-pointer" disabled>

@@ -71,3 +71,8 @@ worktrees/
 
 .env
 .cursor
+
+# Playwright
+e2e/screenshots/
+test-results/
+playwright-report/

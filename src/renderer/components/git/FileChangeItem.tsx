@@ -54,109 +54,29 @@ const PatchDiff = React.lazy(() =>
 );
 
 /**
- * Simple fallback diff view using plain text with syntax coloring.
- * Used when PatchDiff fails or while it's loading.
- * Collapses context lines to keep the view compact.
+ * Loading spinner for diff view while PatchDiff is loading.
  */
-function SimpleDiffView({ diff }: { diff: string }) {
-  const lines = diff.split('\n');
-  const renderedLines: React.ReactNode[] = [];
-  let contextBuffer: string[] = [];
-  const CONTEXT_PREVIEW = 2; // Show first/last N context lines
-
-  const flushContext = (index: number) => {
-    if (contextBuffer.length === 0) return;
-
-    if (contextBuffer.length <= CONTEXT_PREVIEW * 2 + 1) {
-      // Show all context if small enough
-      contextBuffer.forEach((line, i) => {
-        renderedLines.push(
-          <div key={`ctx-${index}-${i}`} className="px-2 text-muted-foreground">
-            {line || ' '}
-          </div>
-        );
-      });
-    } else {
-      // Show first N, collapsed indicator, last N
-      contextBuffer.slice(0, CONTEXT_PREVIEW).forEach((line, i) => {
-        renderedLines.push(
-          <div key={`ctx-start-${index}-${i}`} className="px-2 text-muted-foreground">
-            {line || ' '}
-          </div>
-        );
-      });
-      renderedLines.push(
-        <div key={`collapsed-${index}`} className="px-2 py-1 text-center text-xs text-muted-foreground/60 bg-muted/30">
-          ··· {contextBuffer.length - CONTEXT_PREVIEW * 2} unchanged lines ···
-        </div>
-      );
-      contextBuffer.slice(-CONTEXT_PREVIEW).forEach((line, i) => {
-        renderedLines.push(
-          <div key={`ctx-end-${index}-${i}`} className="px-2 text-muted-foreground">
-            {line || ' '}
-          </div>
-        );
-      });
-    }
-    contextBuffer = [];
-  };
-
-  lines.forEach((line, i) => {
-    // Skip header lines
-    if (line.startsWith('diff ') || line.startsWith('index ') ||
-        line.startsWith('---') || line.startsWith('+++')) {
-      return;
-    }
-
-    if (line.startsWith('@@')) {
-      flushContext(i);
-      renderedLines.push(
-        <div key={i} className="px-2 py-0.5 text-blue-600 dark:text-blue-400 bg-blue-500/5 text-[10px]">
-          {line}
-        </div>
-      );
-    } else if (line.startsWith('+')) {
-      flushContext(i);
-      renderedLines.push(
-        <div key={i} className="px-2 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10">
-          {line || ' '}
-        </div>
-      );
-    } else if (line.startsWith('-')) {
-      flushContext(i);
-      renderedLines.push(
-        <div key={i} className="px-2 text-rose-600 dark:text-rose-400 bg-rose-500/10">
-          {line || ' '}
-        </div>
-      );
-    } else {
-      // Context line - buffer it
-      contextBuffer.push(line);
-    }
-  });
-
-  // Flush remaining context
-  flushContext(lines.length);
-
+function DiffLoadingView() {
   return (
-    <pre className="overflow-x-auto p-2 font-mono text-xs leading-relaxed">
-      {renderedLines}
-    </pre>
+    <div className="flex items-center justify-center gap-2 px-4 py-6 text-xs text-muted-foreground">
+      <Spinner size="sm" />
+      <span>Loading diff viewer...</span>
+    </div>
   );
 }
 
 /**
  * Lightweight error boundary for PatchDiff component.
- * Falls back to SimpleDiffView when PatchDiff fails.
+ * Shows an error message when PatchDiff fails to render.
  */
 interface DiffErrorBoundaryProps {
   children: ReactNode;
   filePath: string;
-  diff?: string;
 }
 
 interface DiffErrorBoundaryState {
   hasError: boolean;
+  errorMessage?: string;
 }
 
 class DiffErrorBoundary extends Component<DiffErrorBoundaryProps, DiffErrorBoundaryState> {
@@ -165,8 +85,8 @@ class DiffErrorBoundary extends Component<DiffErrorBoundaryProps, DiffErrorBound
     this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError(): DiffErrorBoundaryState {
-    return { hasError: true };
+  static getDerivedStateFromError(error: Error): DiffErrorBoundaryState {
+    return { hasError: true, errorMessage: error.message };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
@@ -175,14 +95,10 @@ class DiffErrorBoundary extends Component<DiffErrorBoundaryProps, DiffErrorBound
 
   render() {
     if (this.state.hasError) {
-      // Fall back to simple diff view
-      if (this.props.diff) {
-        return <SimpleDiffView diff={this.props.diff} />;
-      }
       return (
         <div className="flex items-center gap-2 px-4 py-3 text-xs text-muted-foreground">
           <AlertTriangle className="h-4 w-4 text-amber-500" />
-          <span>Failed to render diff</span>
+          <span>Failed to render diff: {this.state.errorMessage || 'Unknown error'}</span>
         </div>
       );
     }
@@ -373,20 +289,15 @@ export const FileChangeItem = React.memo(function FileChangeItem({
                 <span>Loading diff...</span>
               </div>
             ) : diff ? (
-              // Use simple view for large diffs (>50KB) to prevent performance issues
-              diff.length > 50000 ? (
-                <SimpleDiffView diff={diff} />
-              ) : (
-                <DiffErrorBoundary filePath={path} diff={diff}>
-                  <React.Suspense fallback={<SimpleDiffView diff={diff} />}>
-                    <PatchDiff
-                      patch={diff}
-                      options={patchDiffOptions}
-                      className="text-xs"
-                    />
-                  </React.Suspense>
-                </DiffErrorBoundary>
-              )
+              <DiffErrorBoundary filePath={path}>
+                <React.Suspense fallback={<DiffLoadingView />}>
+                  <PatchDiff
+                    patch={diff}
+                    options={patchDiffOptions}
+                    className="text-xs"
+                  />
+                </React.Suspense>
+              </DiffErrorBoundary>
             ) : (
               <div className="px-4 py-3 text-center text-xs text-muted-foreground">
                 No diff available

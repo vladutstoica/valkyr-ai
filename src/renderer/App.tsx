@@ -351,6 +351,7 @@ const AppContent: React.FC = () => {
         onArchiveTask={taskMgmt.handleArchiveTask}
         onRestoreTask={taskMgmt.handleRestoreTask}
         onDeleteProject={projectMgmt.handleDeleteProject}
+        onRenameProject={projectMgmt.handleRenameProject}
         pinnedTaskIds={pinnedTaskIds}
         onPinTask={handlePinTask}
       />
@@ -375,6 +376,7 @@ const AppContent: React.FC = () => {
       taskMgmt.handleArchiveTask,
       taskMgmt.handleRestoreTask,
       projectMgmt.handleDeleteProject,
+      projectMgmt.handleRenameProject,
       pinnedTaskIds,
       handlePinTask,
     ]

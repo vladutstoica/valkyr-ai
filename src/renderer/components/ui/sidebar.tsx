@@ -58,6 +58,9 @@ export function SidebarProvider({ defaultOpen = true, children }: SidebarProvide
   React.useEffect(() => {
     if (isMobile) {
       setOpenState(false);
+    } else {
+      // Restore sidebar when transitioning back to desktop
+      setOpenState(true);
     }
   }, [isMobile]);
 

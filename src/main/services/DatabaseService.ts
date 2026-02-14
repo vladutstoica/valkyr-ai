@@ -294,6 +294,28 @@ export class DatabaseService {
     return this.getProjectById(projectId);
   }
 
+  async updateProjectName(projectId: string, newName: string): Promise<Project | null> {
+    if (this.disabled) return null;
+    if (!projectId) {
+      throw new Error('projectId is required');
+    }
+    const trimmed = typeof newName === 'string' ? newName.trim() : '';
+    if (!trimmed) {
+      throw new Error('name cannot be empty');
+    }
+
+    const { db } = await getDrizzleClient();
+    await db
+      .update(projectsTable)
+      .set({
+        name: trimmed,
+        updatedAt: sql`CURRENT_TIMESTAMP`,
+      })
+      .where(eq(projectsTable.id, projectId));
+
+    return this.getProjectById(projectId);
+  }
+
   async saveTask(task: Omit<Task, 'createdAt' | 'updatedAt'>): Promise<void> {
     if (this.disabled) return;
     const metadataValue =

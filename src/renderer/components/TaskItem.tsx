@@ -72,8 +72,10 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(task.name);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const isSubmittingRef = useRef(false);
+  const canBlurRef = useRef(false);
 
   const handleConfirmDelete = useCallback(async () => {
     if (!onDelete) return;
@@ -90,6 +92,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
     if (!onRename) return;
     setEditValue(task.name);
     isSubmittingRef.current = false;
+    canBlurRef.current = false;
     setIsEditing(true);
   }, [onRename, task.name]);
 
@@ -131,11 +134,12 @@ export const TaskItem: React.FC<TaskItemProps> = ({
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
-      // Small delay to ensure context menu has closed and input is ready
-      requestAnimationFrame(() => {
+      // Delay to let dropdown/context menu fully close before focusing
+      const timer = setTimeout(() => {
         inputRef.current?.focus();
         inputRef.current?.select();
-      });
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [isEditing]);
 
@@ -160,32 +164,47 @@ export const TaskItem: React.FC<TaskItemProps> = ({
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            onBlur={handleConfirmEdit}
+            onFocus={() => {
+              // Allow blur to trigger confirm only after focus is stable
+              setTimeout(() => {
+                canBlurRef.current = true;
+              }, 150);
+            }}
+            onBlur={() => {
+              if (canBlurRef.current) {
+                handleConfirmEdit();
+              } else {
+                // Refocus if blur happened during settling period (Radix stealing focus)
+                setTimeout(() => {
+                  inputRef.current?.focus();
+                }, 0);
+              }
+            }}
             maxLength={MAX_TASK_NAME_LENGTH}
-            className="min-w-0 flex-1 rounded border border-border bg-background px-1.5 py-0.5 text-xs font-medium text-foreground outline-hidden focus:border-ring focus:ring-1 focus:ring-ring"
+            className="min-w-0 flex-1 border border-border bg-background px-1.5 py-0.5 text-xs font-medium text-foreground outline-hidden focus:border-ring focus:ring-1 focus:ring-ring"
             onClick={stopPropagation}
           />
         ) : (
           <>
             {isPinned && <Pin className="h-3 w-3 flex-shrink-0 text-muted-foreground" />}
+            <span className="block truncate text-xs font-medium text-foreground">{task.name}</span>
             {task.useWorktree !== false && (
               <span title="Running in worktree">
                 <GitBranch className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
               </span>
             )}
-            <span className="block truncate text-xs font-medium text-foreground">{task.name}</span>
           </>
         )}
       </div>
       <div className="flex flex-shrink-0 items-center gap-1">
         {showDelete && (onDelete || onRename || onArchive || onPin) ? (
-          <DropdownMenu>
+          <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
                 className={`h-6 w-6 cursor-pointer text-muted-foreground ${
-                  isDeleting ? '' : 'opacity-0 group-hover/task:opacity-100'
+                  isDeleting || isMenuOpen ? '' : 'opacity-0 group-hover/task:opacity-100'
                 }`}
                 onClick={stopPropagation}
                 disabled={isDeleting}
@@ -212,7 +231,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
               {onRename && (
                 <DropdownMenuItem className="cursor-pointer" onClick={() => handleStartEdit()}>
                   <Pencil className="mr-2 h-3.5 w-3.5" />
-                  Edit
+                  Rename
                 </DropdownMenuItem>
               )}
               {onArchive && (
@@ -320,7 +339,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
                 }}
               >
                 <Pencil className="mr-2 h-3.5 w-3.5" />
-                Edit
+                Rename
               </ContextMenuItem>
             )}
             {onArchive && (

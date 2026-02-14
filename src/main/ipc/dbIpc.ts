@@ -63,6 +63,19 @@ export function registerDatabaseIpc() {
     }
   });
 
+  ipcMain.handle(
+    'db:renameProject',
+    async (_, { projectId, newName }: { projectId: string; newName: string }) => {
+      try {
+        const project = await databaseService.updateProjectName(projectId, newName);
+        return { success: true, project };
+      } catch (error) {
+        log.error('Failed to rename project:', error);
+        return { success: false, error: (error as Error).message };
+      }
+    }
+  );
+
   ipcMain.handle('db:saveConversation', async (_, conversation: any) => {
     try {
       await databaseService.saveConversation(conversation);

@@ -623,6 +623,48 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
     });
   };
 
+  const handleRenameProject = async (project: Project, newName: string) => {
+    try {
+      const trimmed = newName.trim();
+      if (!trimmed) {
+        toast({
+          title: 'Invalid name',
+          description: 'Project name cannot be empty.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const res = await window.electronAPI.renameProject({
+        projectId: project.id,
+        newName: trimmed,
+      });
+
+      if (!res?.success) throw new Error(res?.error || 'Failed to rename project');
+
+      // Update local state
+      setProjects((prev) =>
+        prev.map((p) => (p.id === project.id ? { ...p, name: trimmed } : p))
+      );
+
+      // Update selectedProject if it's the one being renamed
+      if (selectedProject?.id === project.id) {
+        setSelectedProject((prev) => (prev ? { ...prev, name: trimmed } : prev));
+      }
+
+      toast({ title: 'Project renamed', description: `Renamed to "${trimmed}".` });
+    } catch (err) {
+      const { log } = await import('../lib/logger');
+      log.error('Rename project failed:', err as any);
+      toast({
+        title: 'Error',
+        description:
+          err instanceof Error ? err.message : 'Could not rename project. See console for details.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleDeleteProject = async (project: Project) => {
     try {
       // Clean up reserve worktree before deleting project
@@ -724,5 +766,6 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
     handleReorderProjects,
     handleReorderProjectsFull,
     handleDeleteProject,
+    handleRenameProject,
   };
 };
