@@ -313,7 +313,7 @@ export async function startPty(options: {
   let useCwd = cwd;
   if (!useCwd || !fs.existsSync(useCwd)) {
     log.warn(`PTY ${id}: cwd ${cwd ? 'does not exist' : 'not provided'}, using fallback`);
-    useCwd = process.cwd() || os.homedir();
+    useCwd = os.homedir() || process.cwd();
   }
 
   // Build a clean environment instead of inheriting process.env wholesale.
