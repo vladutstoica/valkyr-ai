@@ -1,17 +1,6 @@
 import * as React from 'react';
-import { Component, useMemo, type ReactNode, type ErrorInfo } from 'react';
-import {
-  ChevronDown,
-  ChevronRight,
-  Plus,
-  Minus,
-  Undo2,
-  Check,
-  AlertTriangle,
-} from 'lucide-react';
-import { DiffEditor } from '@monaco-editor/react';
+import { Undo2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getMonacoLanguageId } from '@/lib/diffUtils';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -25,15 +14,14 @@ export interface FileChangeItemProps {
   additions: number;
   deletions: number;
   isStaged: boolean;
-  isExpanded: boolean;
-  diff?: string;
-  isLoadingDiff?: boolean;
+  isSelected: boolean;
   onToggleStaged: (path: string) => void;
-  onToggleExpanded: (path: string) => void;
+  onSelect: (path: string) => void;
   onDiscard: (path: string) => void;
   isStaging?: boolean;
   isDiscarding?: boolean;
-  theme?: 'light' | 'dark' | 'dark-black';
+  /** When true, show only filename (used inside directory tree view) */
+  filenameOnly?: boolean;
 }
 
 const STATUS_LABELS: Record<FileStatus, string> = {
@@ -43,90 +31,12 @@ const STATUS_LABELS: Record<FileStatus, string> = {
   R: 'Renamed',
 };
 
-const STATUS_COLORS: Record<FileStatus, string> = {
-  M: 'bg-amber-500/20 text-amber-600 dark:text-amber-400',
-  A: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
-  D: 'bg-rose-500/20 text-rose-600 dark:text-rose-400',
-  R: 'bg-purple-500/20 text-purple-600 dark:text-purple-400',
+const STATUS_FILENAME_COLORS: Record<FileStatus, string> = {
+  M: 'text-amber-600 dark:text-amber-400',
+  A: 'text-emerald-600 dark:text-emerald-400',
+  D: 'text-rose-600 dark:text-rose-400',
+  R: 'text-purple-600 dark:text-purple-400',
 };
-
-/**
- * Parse a unified diff patch string into original and modified file contents.
- */
-function parseUnifiedDiff(patch: string): { original: string; modified: string } {
-  const originalLines: string[] = [];
-  const modifiedLines: string[] = [];
-
-  for (const line of patch.split('\n')) {
-    // Skip diff headers
-    if (
-      line.startsWith('diff --git') ||
-      line.startsWith('index ') ||
-      line.startsWith('--- ') ||
-      line.startsWith('+++ ') ||
-      line.startsWith('@@')
-    ) {
-      continue;
-    }
-
-    if (line.startsWith('-')) {
-      originalLines.push(line.slice(1));
-    } else if (line.startsWith('+')) {
-      modifiedLines.push(line.slice(1));
-    } else if (line.startsWith(' ')) {
-      originalLines.push(line.slice(1));
-      modifiedLines.push(line.slice(1));
-    } else {
-      // No prefix — context line
-      originalLines.push(line);
-      modifiedLines.push(line);
-    }
-  }
-
-  return { original: originalLines.join('\n'), modified: modifiedLines.join('\n') };
-}
-
-/**
- * Lightweight error boundary for PatchDiff component.
- * Shows an error message when PatchDiff fails to render.
- */
-interface DiffErrorBoundaryProps {
-  children: ReactNode;
-  filePath: string;
-}
-
-interface DiffErrorBoundaryState {
-  hasError: boolean;
-  errorMessage?: string;
-}
-
-class DiffErrorBoundary extends Component<DiffErrorBoundaryProps, DiffErrorBoundaryState> {
-  constructor(props: DiffErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(error: Error): DiffErrorBoundaryState {
-    return { hasError: true, errorMessage: error.message };
-  }
-
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error(`[DiffErrorBoundary] Failed to render diff for ${this.props.filePath}:`, error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="flex items-center gap-2 px-4 py-3 text-xs text-muted-foreground">
-          <AlertTriangle className="h-4 w-4 text-amber-500" />
-          <span>Failed to render diff: {this.state.errorMessage || 'Unknown error'}</span>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
 
 export const FileChangeItem = React.memo(function FileChangeItem({
   path,
@@ -134,30 +44,23 @@ export const FileChangeItem = React.memo(function FileChangeItem({
   additions,
   deletions,
   isStaged,
-  isExpanded,
-  diff,
-  isLoadingDiff = false,
+  isSelected,
   onToggleStaged,
-  onToggleExpanded,
+  onSelect,
   onDiscard,
   isStaging = false,
   isDiscarding = false,
-  theme = 'dark',
+  filenameOnly = false,
 }: FileChangeItemProps) {
   const fileName = path.split('/').pop() || path;
   const directory = path.includes('/') ? path.slice(0, path.lastIndexOf('/') + 1) : '';
 
-  const diffData = useMemo(() => {
-    if (!diff) return null;
-    const { original, modified } = parseUnifiedDiff(diff);
-    const language = getMonacoLanguageId(path);
-    const monacoTheme = theme === 'light' ? 'vs' : 'vs-dark';
-    return { original, modified, language, monacoTheme };
-  }, [diff, path, theme]);
+  const handleClick = () => {
+    onSelect(path);
+  };
 
-  const handleToggleExpanded = (e: React.MouseEvent) => {
+  const handleCheckboxClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onToggleExpanded(path);
   };
 
   const handleDiscard = (e: React.MouseEvent) => {
@@ -166,172 +69,73 @@ export const FileChangeItem = React.memo(function FileChangeItem({
   };
 
   return (
-    <div className="border-b border-border/50 last:border-b-0">
-      {/* File Header */}
-      <div
-        className={cn(
-          'flex cursor-pointer items-center gap-2 px-3 py-2 transition-colors hover:bg-muted/50',
-          isStaged && 'bg-muted/30'
-        )}
-        onClick={handleToggleExpanded}
-      >
-        {/* Expand/Collapse Icon */}
-        <button
-          type="button"
-          className="flex-shrink-0 text-muted-foreground hover:text-foreground"
-          onClick={handleToggleExpanded}
-        >
-          {isExpanded ? (
-            <ChevronDown className="h-4 w-4" />
-          ) : (
-            <ChevronRight className="h-4 w-4" />
-          )}
-        </button>
-
-        {/* Staging Checkbox */}
-        <div onClick={(e) => e.stopPropagation()}>
-          <Checkbox
-            checked={isStaged}
-            onCheckedChange={() => onToggleStaged(path)}
-            disabled={isStaging}
-            className="h-4 w-4"
-          />
-        </div>
-
-        {/* Status Badge */}
-        <span
-          className={cn(
-            'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-[10px] font-bold',
-            STATUS_COLORS[status]
-          )}
-          title={STATUS_LABELS[status]}
-        >
-          {status}
-        </span>
-
-        {/* File Icon */}
-        <span className="flex-shrink-0 text-muted-foreground">
-          <FileIcon filename={path} isDirectory={false} size={16} />
-        </span>
-
-        {/* File Path */}
-        <div className="min-w-0 flex-1 truncate">
-          {directory && (
-            <span className="text-muted-foreground">{directory}</span>
-          )}
-          <span className="font-medium text-foreground">{fileName}</span>
-        </div>
-
-        {/* Change Stats */}
-        <div className="flex items-center gap-1.5">
-          {additions > 0 && (
-            <span className="flex items-center gap-0.5 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-              <Plus className="h-3 w-3" />
-              {additions}
-            </span>
-          )}
-          {deletions > 0 && (
-            <span className="flex items-center gap-0.5 rounded bg-rose-500/10 px-1.5 py-0.5 text-[11px] font-medium text-rose-600 dark:text-rose-400">
-              <Minus className="h-3 w-3" />
-              {deletions}
-            </span>
-          )}
-        </div>
-
-        {/* Stage Status Indicator */}
-        {isStaged ? (
-          <span className="flex items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-            <Check className="h-3 w-3" />
-            Staged
-          </span>
-        ) : (
-          <span className="text-[10px] text-muted-foreground">Not staged</span>
-        )}
-
-        {/* Actions */}
-        <div className="flex items-center gap-1">
-          <TooltipProvider delayDuration={100}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-muted-foreground hover:bg-accent hover:text-foreground"
-                  onClick={handleDiscard}
-                  disabled={isDiscarding}
-                >
-                  {isDiscarding ? (
-                    <Spinner size="sm" />
-                  ) : (
-                    <Undo2 className="h-4 w-4" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="left">
-                <p className="font-medium">Discard changes</p>
-                <p className="text-xs text-muted-foreground">
-                  Restore file to last committed version
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
+    <div
+      className={cn(
+        'group flex h-7 cursor-pointer items-center gap-1.5 px-2 py-1 transition-colors hover:bg-muted/50',
+        isStaged && 'bg-muted/30',
+        isSelected && 'border-l-2 border-l-primary bg-muted/60'
+      )}
+      onClick={handleClick}
+      title={path}
+    >
+      {/* Staging Checkbox */}
+      <div onClick={handleCheckboxClick} className="flex-shrink-0">
+        <Checkbox
+          checked={isStaged}
+          onCheckedChange={() => onToggleStaged(path)}
+          disabled={isStaging}
+          className="h-3.5 w-3.5 border-muted-foreground/50 data-[state=checked]:border-blue-500 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white"
+        />
       </div>
 
-      {/* Diff View */}
-      {isExpanded && (
-        <div className="border-t border-border/30 bg-muted/20">
-          <div className="h-80">
-            {isLoadingDiff ? (
-              <div className="flex items-center justify-center gap-2 px-4 py-6 text-xs text-muted-foreground">
-                <Spinner size="sm" />
-                <span>Loading diff...</span>
-              </div>
-            ) : diffData ? (
-              <DiffErrorBoundary filePath={path}>
-                <DiffEditor
-                  height="320px"
-                  language={diffData.language}
-                  original={diffData.original}
-                  modified={diffData.modified}
-                  theme={diffData.monacoTheme}
-                  options={{
-                    readOnly: true,
-                    originalEditable: false,
-                    renderSideBySide: false,
-                    fontSize: 12,
-                    lineHeight: 18,
-                    minimap: { enabled: false },
-                    scrollBeyondLastLine: false,
-                    wordWrap: 'on',
-                    lineNumbers: 'on',
-                    lineNumbersMinChars: 3,
-                    automaticLayout: true,
-                    renderOverviewRuler: false,
-                    overviewRulerBorder: false,
-                    scrollbar: {
-                      vertical: 'auto',
-                      horizontal: 'auto',
-                      useShadows: false,
-                      verticalScrollbarSize: 4,
-                      horizontalScrollbarSize: 4,
-                    },
-                    hideUnchangedRegions: { enabled: true },
-                    diffWordWrap: 'on',
-                    glyphMargin: false,
-                    folding: false,
-                    padding: { top: 4, bottom: 4 },
-                  }}
-                />
-              </DiffErrorBoundary>
-            ) : (
-              <div className="px-4 py-3 text-center text-xs text-muted-foreground">
-                No diff available
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* File Icon */}
+      <span className="flex-shrink-0 text-muted-foreground">
+        <FileIcon filename={path} isDirectory={false} size={14} />
+      </span>
+
+      {/* File Path — colored by status */}
+      <div className="min-w-0 flex-1 truncate text-xs" title={STATUS_LABELS[status]}>
+        {!filenameOnly && directory && (
+          <span className="text-muted-foreground">{directory}</span>
+        )}
+        <span className={STATUS_FILENAME_COLORS[status]}>{fileName}</span>
+      </div>
+
+      {/* Change Stats (hover-only) */}
+      <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        {additions > 0 && (
+          <span className="text-[10px] font-medium text-emerald-500">
+            +{additions}
+          </span>
+        )}
+        {deletions > 0 && (
+          <span className="text-[10px] font-medium text-rose-500">
+            -{deletions}
+          </span>
+        )}
+      </div>
+
+      {/* Discard Button (hover-only) */}
+      <div className="flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100">
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                onClick={handleDiscard}
+                disabled={isDiscarding}
+              >
+                {isDiscarding ? <Spinner size="sm" /> : <Undo2 className="h-3 w-3" />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">
+              <p className="text-xs font-medium">Discard changes</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
     </div>
   );
 });

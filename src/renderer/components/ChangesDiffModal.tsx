@@ -391,7 +391,7 @@ export const ChangesDiffModal: React.FC<ChangesDiffModalProps> = ({
             'diffEditor.insertedLineBackground': MONACO_DIFF_COLORS.dark.insertedLineBackground,
             'diffEditor.removedTextBackground': MONACO_DIFF_COLORS.dark.removedTextBackground,
             'diffEditor.removedLineBackground': MONACO_DIFF_COLORS.dark.removedLineBackground,
-            'diffEditor.unchangedRegionBackground': '#1a2332',
+            'diffEditor.unchangedRegionBackground': MONACO_DIFF_COLORS.dark.unchangedRegionBackground,
           },
         });
 
@@ -411,7 +411,7 @@ export const ChangesDiffModal: React.FC<ChangesDiffModalProps> = ({
               MONACO_DIFF_COLORS['dark-black'].removedTextBackground,
             'diffEditor.removedLineBackground':
               MONACO_DIFF_COLORS['dark-black'].removedLineBackground,
-            'diffEditor.unchangedRegionBackground': '#0a0a0a',
+            'diffEditor.unchangedRegionBackground': MONACO_DIFF_COLORS['dark-black'].unchangedRegionBackground,
           },
         });
 
@@ -424,7 +424,7 @@ export const ChangesDiffModal: React.FC<ChangesDiffModalProps> = ({
             'diffEditor.insertedLineBackground': MONACO_DIFF_COLORS.light.insertedLineBackground,
             'diffEditor.removedTextBackground': MONACO_DIFF_COLORS.light.removedTextBackground,
             'diffEditor.removedLineBackground': MONACO_DIFF_COLORS.light.removedLineBackground,
-            'diffEditor.unchangedRegionBackground': '#e2e8f0',
+            'diffEditor.unchangedRegionBackground': MONACO_DIFF_COLORS.light.unchangedRegionBackground,
           },
         });
 
@@ -504,7 +504,7 @@ export const ChangesDiffModal: React.FC<ChangesDiffModalProps> = ({
           'diffEditor.insertedLineBackground': MONACO_DIFF_COLORS.dark.insertedLineBackground,
           'diffEditor.removedTextBackground': MONACO_DIFF_COLORS.dark.removedTextBackground,
           'diffEditor.removedLineBackground': MONACO_DIFF_COLORS.dark.removedLineBackground,
-          'diffEditor.unchangedRegionBackground': '#1a2332',
+          'diffEditor.unchangedRegionBackground': MONACO_DIFF_COLORS.dark.unchangedRegionBackground,
         },
       });
 
@@ -524,7 +524,7 @@ export const ChangesDiffModal: React.FC<ChangesDiffModalProps> = ({
             MONACO_DIFF_COLORS['dark-black'].removedTextBackground,
           'diffEditor.removedLineBackground':
             MONACO_DIFF_COLORS['dark-black'].removedLineBackground,
-          'diffEditor.unchangedRegionBackground': '#0a0a0a',
+          'diffEditor.unchangedRegionBackground': MONACO_DIFF_COLORS['dark-black'].unchangedRegionBackground,
         },
       });
 
@@ -537,7 +537,7 @@ export const ChangesDiffModal: React.FC<ChangesDiffModalProps> = ({
           'diffEditor.insertedLineBackground': MONACO_DIFF_COLORS.light.insertedLineBackground,
           'diffEditor.removedTextBackground': MONACO_DIFF_COLORS.light.removedTextBackground,
           'diffEditor.removedLineBackground': MONACO_DIFF_COLORS.light.removedLineBackground,
-          'diffEditor.unchangedRegionBackground': '#e2e8f0',
+          'diffEditor.unchangedRegionBackground': MONACO_DIFF_COLORS.light.unchangedRegionBackground,
         },
       });
       const currentTheme =

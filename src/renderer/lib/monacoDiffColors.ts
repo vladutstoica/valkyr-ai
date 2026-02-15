@@ -1,35 +1,44 @@
 /**
  * Monaco Editor diff color constants
- * These colors match ChangesDiffModal.tsx for consistency across diff views
- * Colors are defined here for maintainability and consistency
+ * Aligned with the app's shadcn/Tailwind theme (oklch neutral palette)
+ * Uses emerald for additions and red for deletions (matching editor-diff.css)
  */
 
 export const MONACO_DIFF_COLORS = {
   dark: {
-    editorBackground: '#1e293b', // slate-800 dark grey/blue
-    // Emerald (green) for additions - matching ChangesDiffModal's emerald-900/30
-    insertedTextBackground: '#064e3b4D', // emerald-900 (#064e3b) with 30% opacity
-    insertedLineBackground: '#064e3b66', // emerald-900 with 40% opacity for lines
-    // Rose (red) for deletions - matching ChangesDiffModal's rose-900/30
-    removedTextBackground: '#8813374D', // rose-900 (#881337) with 30% opacity
-    removedLineBackground: '#88133766', // rose-900 with 40% opacity for lines
+    editorBackground: '#1c1c1c', // oklch(0.145 0 0) — app --background
+    gutterBackground: '#1c1c1c',
+    lineNumberForeground: '#6b6b6b', // between muted and muted-foreground
+    // Emerald for additions — emerald-500 (#10b981)
+    insertedTextBackground: '#10b98130',
+    insertedLineBackground: '#10b98115',
+    // Red for deletions — red-500 (#ef4444)
+    removedTextBackground: '#ef444430',
+    removedLineBackground: '#ef444415',
+    unchangedRegionBackground: '#2d2d2d', // oklch(0.205 0 0) — app --card
   },
   'dark-black': {
-    editorBackground: '#000000', // pure black
-    // Emerald (green) for additions with adjusted opacity for black background
-    insertedTextBackground: '#064e3b5C', // emerald-900 with slightly higher opacity for black bg
-    insertedLineBackground: '#064e3b73', // emerald-900 with 45% opacity for lines
-    // Rose (red) for deletions with adjusted opacity for black background
-    removedTextBackground: '#8813375C', // rose-900 with slightly higher opacity for black bg
-    removedLineBackground: '#88133773', // rose-900 with 45% opacity for lines
+    editorBackground: '#000000', // oklch(0 0 0) — app --background
+    gutterBackground: '#000000',
+    lineNumberForeground: '#555555', // muted-foreground for black theme
+    // Emerald for additions — slightly higher opacity on black
+    insertedTextBackground: '#10b98138',
+    insertedLineBackground: '#10b9811C',
+    // Red for deletions — slightly higher opacity on black
+    removedTextBackground: '#ef444438',
+    removedLineBackground: '#ef44441C',
+    unchangedRegionBackground: '#111111', // oklch(0.1 0 0) — app --card
   },
   light: {
-    editorBackground: '#f8fafc', // slate-50 - light grey/white background
-    // Emerald (green) for additions - matching ChangesDiffModal's emerald-50
-    insertedTextBackground: '#10b98140', // emerald-500 with 25% opacity for subtle text highlight
-    insertedLineBackground: '#ecfdf580', // emerald-50 (#ecfdf5) with 50% opacity for line background
-    // Rose (red) for deletions - matching ChangesDiffModal's rose-50
-    removedTextBackground: '#f43f5e40', // rose-500 with 25% opacity for subtle text highlight
-    removedLineBackground: '#fff1f280', // rose-50 (#fff1f2) with 50% opacity for line background
+    editorBackground: '#ffffff', // oklch(1 0 0) — app --background
+    gutterBackground: '#ffffff',
+    lineNumberForeground: '#7c7c7c', // oklch(0.556 0 0) — app --muted-foreground
+    // Emerald for additions
+    insertedTextBackground: '#10b98130',
+    insertedLineBackground: '#10b98110',
+    // Red for deletions
+    removedTextBackground: '#ef444430',
+    removedLineBackground: '#ef444410',
+    unchangedRegionBackground: '#f5f5f5', // oklch(0.97 0 0) — app --muted
   },
 } as const;

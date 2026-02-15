@@ -22,6 +22,11 @@ interface GitState {
   commitMessage: string;
   commitType: string;
 
+  // Diff viewer state
+  selectedFile: string | null;
+  diffViewMode: 'inline' | 'side-by-side';
+  fileGrouping: Set<'directory' | 'repository'>;
+
   // Loading states
   isLoading: boolean;
   isStagingAll: boolean;
@@ -40,6 +45,9 @@ interface GitState {
   collapseAll: () => void;
   setCommitMessage: (msg: string) => void;
   setCommitType: (type: string) => void;
+  setSelectedFile: (path: string | null) => void;
+  setDiffViewMode: (mode: 'inline' | 'side-by-side') => void;
+  toggleFileGrouping: (grouping: 'directory' | 'repository') => void;
   setLoading: (loading: boolean) => void;
   setStagingAll: (staging: boolean) => void;
   setCommitting: (committing: boolean) => void;
@@ -73,6 +81,9 @@ export const useGitState = create<GitState>()(
       expandedFiles: new Set(),
       commitMessage: '',
       commitType: 'feat',
+      selectedFile: null,
+      diffViewMode: 'inline',
+      fileGrouping: new Set(),
       isLoading: false,
       isStagingAll: false,
       isCommitting: false,
@@ -136,6 +147,17 @@ export const useGitState = create<GitState>()(
 
       setCommitType: (type) => set({ commitType: type }),
 
+      setSelectedFile: (path) => set({ selectedFile: path }),
+
+      setDiffViewMode: (mode) => set({ diffViewMode: mode }),
+      toggleFileGrouping: (grouping) => {
+        const { fileGrouping } = get();
+        const next = new Set(fileGrouping);
+        if (next.has(grouping)) next.delete(grouping);
+        else next.add(grouping);
+        set({ fileGrouping: next });
+      },
+
       setLoading: (loading) => set({ isLoading: loading }),
 
       setStagingAll: (staging) => set({ isStagingAll: staging }),
@@ -151,6 +173,9 @@ export const useGitState = create<GitState>()(
           expandedFiles: new Set(),
           commitMessage: '',
           commitType: 'feat',
+          selectedFile: null,
+          diffViewMode: 'inline',
+          fileGrouping: new Set(),
           isLoading: false,
           isStagingAll: false,
           isCommitting: false,
@@ -161,8 +186,24 @@ export const useGitState = create<GitState>()(
       name: 'git-state',
       partialize: (state) => ({
         commitType: state.commitType,
+        diffViewMode: state.diffViewMode,
+        fileGrouping: Array.from(state.fileGrouping),
         // Don't persist files or staged state - those should be fresh on load
       }),
+      storage: {
+        getItem: (name) => {
+          const str = localStorage.getItem(name);
+          if (!str) return null;
+          const parsed = JSON.parse(str);
+          // Restore fileGrouping from array to Set
+          if (parsed?.state?.fileGrouping && Array.isArray(parsed.state.fileGrouping)) {
+            parsed.state.fileGrouping = new Set(parsed.state.fileGrouping);
+          }
+          return parsed;
+        },
+        setItem: (name, value) => localStorage.setItem(name, JSON.stringify(value)),
+        removeItem: (name) => localStorage.removeItem(name),
+      },
     }
   )
 );
