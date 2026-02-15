@@ -17,6 +17,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from './ui/dropdown-menu';
 import {
   ContextMenu,
@@ -24,6 +27,9 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuTrigger,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
 } from './ui/context-menu';
 import { ScrollArea } from './ui/scroll-area';
 import { Separator } from './ui/separator';
@@ -41,6 +47,8 @@ import {
   Copy,
   Star,
   Trash2,
+  FolderClosed,
+  Layers,
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -57,12 +65,13 @@ import { TaskItem } from './TaskItem';
 import { TaskDeleteButton } from './TaskDeleteButton';
 import { RemoteProjectIndicator } from './ssh/RemoteProjectIndicator';
 import { useRemoteProject } from '../hooks/useRemoteProject';
-import type { Project } from '../types/app';
+import type { Project, ProjectGroup } from '../types/app';
 import type { Task } from '../types/chat';
 import type { ConnectionState } from './ssh';
 
 interface LeftSidebarProps {
   projects: Project[];
+  groups?: ProjectGroup[];
   archivedTasksVersion?: number;
   selectedProject: Project | null;
   onSelectProject: (project: Project) => void;
@@ -88,6 +97,13 @@ interface LeftSidebarProps {
   onRenameProject?: (project: Project, newName: string) => void | Promise<void>;
   pinnedTaskIds?: Set<string>;
   onPinTask?: (task: Task) => void;
+  // Group management
+  onCreateGroup?: (name: string) => void | Promise<void>;
+  onRenameGroup?: (groupId: string, name: string) => void | Promise<void>;
+  onDeleteGroup?: (groupId: string) => void | Promise<void>;
+  onReorderGroups?: (groupIds: string[]) => void | Promise<void>;
+  onMoveProjectToGroup?: (projectId: string, groupId: string | null) => void | Promise<void>;
+  onToggleGroupCollapsed?: (groupId: string, isCollapsed: boolean) => void | Promise<void>;
 }
 
 // Helper to determine if a project is remote
@@ -126,6 +142,7 @@ const ProjectHeader: React.FC<{
 
 const LeftSidebar: React.FC<LeftSidebarProps> = ({
   projects,
+  groups = [],
   archivedTasksVersion,
   selectedProject,
   onSelectProject,
@@ -147,6 +164,12 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   onRenameProject,
   pinnedTaskIds,
   onPinTask,
+  onCreateGroup,
+  onRenameGroup,
+  onDeleteGroup,
+  onReorderGroups,
+  onMoveProjectToGroup,
+  onToggleGroupCollapsed,
 }) => {
   const { open, isMobile, setOpen } = useSidebar();
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
@@ -158,6 +181,12 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   const canBlurRef = useRef(false);
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [openMenuProjectId, setOpenMenuProjectId] = useState<string | null>(null);
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [editGroupName, setEditGroupName] = useState('');
+  const groupInputRef = useRef<HTMLInputElement>(null);
+  const [showNewGroupInput, setShowNewGroupInput] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const newGroupInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch archived tasks for all projects
   const fetchArchivedTasks = useCallback(async () => {
@@ -257,6 +286,48 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
     }
   }, [editingProjectId]);
 
+  // Focus group input when editing starts
+  useEffect(() => {
+    if (editingGroupId && groupInputRef.current) {
+      const timer = setTimeout(() => {
+        groupInputRef.current?.focus();
+        groupInputRef.current?.select();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [editingGroupId]);
+
+  // Focus new group input
+  useEffect(() => {
+    if (showNewGroupInput && newGroupInputRef.current) {
+      const timer = setTimeout(() => {
+        newGroupInputRef.current?.focus();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [showNewGroupInput]);
+
+  const handleConfirmNewGroup = useCallback(() => {
+    const trimmed = newGroupName.trim();
+    if (trimmed && onCreateGroup) {
+      onCreateGroup(trimmed);
+    }
+    setShowNewGroupInput(false);
+    setNewGroupName('');
+  }, [newGroupName, onCreateGroup]);
+
+  const handleConfirmGroupRename = useCallback(
+    (groupId: string) => {
+      const trimmed = editGroupName.trim();
+      if (trimmed && onRenameGroup) {
+        onRenameGroup(groupId, trimmed);
+      }
+      setEditingGroupId(null);
+      setEditGroupName('');
+    },
+    [editGroupName, onRenameGroup]
+  );
+
   useEffect(() => {
     onSidebarContextChange?.({ open, isMobile, setOpen });
   }, [open, isMobile, setOpen, onSidebarContextChange]);
@@ -301,42 +372,79 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
             <SidebarGroup>
               <SidebarGroupContent>
-                <ReorderList
-                  as="div"
-                  axis="y"
-                  items={projects}
-                  onReorder={(newOrder) => {
-                    if (onReorderProjectsFull) {
-                      onReorderProjectsFull(newOrder as Project[]);
-                    } else if (onReorderProjects) {
-                      const oldIds = projects.map((p) => p.id);
-                      const newIds = (newOrder as Project[]).map((p) => p.id);
-                      for (let i = 0; i < newIds.length; i++) {
-                        if (newIds[i] !== oldIds[i]) {
-                          const sourceId = newIds.find((id) => id === oldIds[i]);
-                          const targetId = newIds[i];
-                          if (sourceId && targetId && sourceId !== targetId) {
-                            onReorderProjects(sourceId, targetId);
-                          }
-                          break;
-                        }
-                      }
-                    }
-                  }}
-                  className="flex w-full flex-col gap-0 overflow-hidden"
-                  itemClassName="list-none w-full overflow-hidden"
-                  getKey={(p) => (p as Project).id}
-                >
-                  {(project) => {
-                    const typedProject = project as Project;
+                {(() => {
+                  // Group projects by groupId
+                  const ungrouped = projects.filter((p) => !p.groupId);
+                  const sortedGroups = [...groups].sort((a, b) => a.displayOrder - b.displayOrder);
+
+                  const renderProjectCard = (typedProject: Project) => {
                     const isDeletingProject = deletingProjectId === typedProject.id;
                     const isProjectActive = selectedProject?.id === typedProject.id;
                     const taskCount = typedProject.tasks?.length || 0;
-
                     const isEditingThisProject = editingProjectId === typedProject.id;
 
+                    // "Move to Group" submenu items for dropdown
+                    const moveToGroupDropdownItems = onMoveProjectToGroup && groups.length > 0 ? (
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger className="cursor-pointer">
+                          <Layers className="mr-2 h-4 w-4" />
+                          Move to Group
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                          {typedProject.groupId && (
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => onMoveProjectToGroup(typedProject.id, null)}
+                            >
+                              No Group
+                            </DropdownMenuItem>
+                          )}
+                          {groups.map((g) => (
+                            <DropdownMenuItem
+                              key={g.id}
+                              className="cursor-pointer"
+                              disabled={typedProject.groupId === g.id}
+                              onClick={() => onMoveProjectToGroup(typedProject.id, g.id)}
+                            >
+                              {g.name}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                    ) : null;
+
+                    // "Move to Group" submenu items for context menu
+                    const moveToGroupContextItems = onMoveProjectToGroup && groups.length > 0 ? (
+                      <ContextMenuSub>
+                        <ContextMenuSubTrigger className="cursor-pointer">
+                          <Layers className="mr-2 h-3.5 w-3.5" />
+                          Move to Group
+                        </ContextMenuSubTrigger>
+                        <ContextMenuSubContent>
+                          {typedProject.groupId && (
+                            <ContextMenuItem
+                              className="cursor-pointer"
+                              onClick={() => onMoveProjectToGroup(typedProject.id, null)}
+                            >
+                              No Group
+                            </ContextMenuItem>
+                          )}
+                          {groups.map((g) => (
+                            <ContextMenuItem
+                              key={g.id}
+                              className="cursor-pointer"
+                              disabled={typedProject.groupId === g.id}
+                              onClick={() => onMoveProjectToGroup(typedProject.id, g.id)}
+                            >
+                              {g.name}
+                            </ContextMenuItem>
+                          ))}
+                        </ContextMenuSubContent>
+                      </ContextMenuSub>
+                    ) : null;
+
                     return (
-                      <ContextMenu>
+                      <ContextMenu key={typedProject.id}>
                         <ContextMenuTrigger asChild>
                           <Card
                             className={`w-full cursor-pointer transition-colors ${
@@ -364,7 +472,6 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                                           }
                                         }}
                                         onFocus={() => {
-                                          // Allow blur to trigger confirm only after focus is stable
                                           setTimeout(() => {
                                             canBlurRef.current = true;
                                           }, 150);
@@ -373,7 +480,6 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                                           if (canBlurRef.current) {
                                             handleConfirmProjectEdit(typedProject);
                                           } else {
-                                            // Refocus if blur happened during settling period (Radix stealing focus)
                                             setTimeout(() => {
                                               projectInputRef.current?.focus();
                                             }, 0);
@@ -419,6 +525,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                                             Rename
                                           </DropdownMenuItem>
                                         )}
+                                        {moveToGroupDropdownItems}
                                         <DropdownMenuItem className="cursor-pointer" disabled>
                                           <Copy className="mr-2 h-4 w-4" />
                                           Make a copy
@@ -617,6 +724,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                               Rename
                             </ContextMenuItem>
                           )}
+                          {moveToGroupContextItems}
                           <ContextMenuItem className="cursor-pointer" disabled>
                             <Copy className="mr-2 h-3.5 w-3.5" />
                             Make a copy
@@ -643,40 +751,182 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                         </ContextMenuContent>
                       </ContextMenu>
                     );
-                  }}
-                </ReorderList>
+                  };
 
-                {/* Add Project button */}
-                {projects.length > 0 && onOpenProject && (
-                  <div className="">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="w-full">
-                          <Plus className="mr-2 h-4 w-4" />
-                          Add Project
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-48">
-                        <DropdownMenuItem onClick={() => onOpenProject?.()}>
-                          <FolderOpen className="mr-2 h-4 w-4" />
-                          Open Folder
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onNewProject?.()}>
-                          <Plus className="mr-2 h-4 w-4" />
-                          Create New
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onCloneProject?.()}>
-                          <Github className="mr-2 h-4 w-4" />
-                          Clone from GitHub
-                        </DropdownMenuItem>
-                        {onAddRemoteProject && (
-                          <DropdownMenuItem onClick={() => onAddRemoteProject?.()}>
-                            <Server className="mr-2 h-4 w-4" />
-                            Add Remote Project
+                  return (
+                    <div className="flex w-full flex-col gap-0 overflow-hidden">
+                      {/* Ungrouped projects */}
+                      {ungrouped.map(renderProjectCard)}
+
+                      {/* Grouped projects */}
+                      {sortedGroups.map((group) => {
+                        const groupProjects = projects.filter((p) => p.groupId === group.id);
+                        const isEditingThisGroup = editingGroupId === group.id;
+
+                        return (
+                          <Collapsible
+                            key={group.id}
+                            open={!group.isCollapsed}
+                            onOpenChange={(open) => onToggleGroupCollapsed?.(group.id, !open)}
+                          >
+                            <div className="group/groupheader flex items-center gap-1 px-3 py-1.5">
+                              <CollapsibleTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-5 w-5 shrink-0 cursor-pointer"
+                                >
+                                  {group.isCollapsed ? (
+                                    <ChevronRight className="h-3 w-3" />
+                                  ) : (
+                                    <ChevronDown className="h-3 w-3" />
+                                  )}
+                                </Button>
+                              </CollapsibleTrigger>
+                              {isEditingThisGroup ? (
+                                <input
+                                  ref={groupInputRef}
+                                  type="text"
+                                  value={editGroupName}
+                                  onChange={(e) => setEditGroupName(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      handleConfirmGroupRename(group.id);
+                                    } else if (e.key === 'Escape') {
+                                      e.preventDefault();
+                                      setEditingGroupId(null);
+                                    }
+                                  }}
+                                  onBlur={() => handleConfirmGroupRename(group.id)}
+                                  className="min-w-0 flex-1 border border-border bg-background px-1 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                                />
+                              ) : (
+                                <span className="min-w-0 flex-1 truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                  {group.name}
+                                </span>
+                              )}
+                              <span className="text-[10px] text-muted-foreground/60">
+                                {groupProjects.length}
+                              </span>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-5 w-5 shrink-0 cursor-pointer opacity-0 group-hover/groupheader:opacity-100"
+                                  >
+                                    <MoreVertical className="h-3 w-3" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    className="cursor-pointer"
+                                    onClick={() => {
+                                      setEditGroupName(group.name);
+                                      setEditingGroupId(group.id);
+                                    }}
+                                  >
+                                    <Pencil className="mr-2 h-3.5 w-3.5" />
+                                    Rename
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    className="cursor-pointer text-destructive focus:text-destructive"
+                                    onClick={() => onDeleteGroup?.(group.id)}
+                                  >
+                                    <Trash2 className="mr-2 h-3.5 w-3.5" />
+                                    Delete Group
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                            <CollapsibleContent>
+                              {groupProjects.map(renderProjectCard)}
+                            </CollapsibleContent>
+                          </Collapsible>
+                        );
+                      })}
+
+                      {/* New Group input */}
+                      {showNewGroupInput && (
+                        <div className="flex items-center gap-1 px-3 py-1.5">
+                          <FolderClosed className="h-3 w-3 shrink-0 text-muted-foreground" />
+                          <input
+                            ref={newGroupInputRef}
+                            type="text"
+                            placeholder="Group name..."
+                            value={newGroupName}
+                            onChange={(e) => setNewGroupName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleConfirmNewGroup();
+                              } else if (e.key === 'Escape') {
+                                e.preventDefault();
+                                setShowNewGroupInput(false);
+                                setNewGroupName('');
+                              }
+                            }}
+                            onBlur={handleConfirmNewGroup}
+                            className="min-w-0 flex-1 border border-border bg-background px-1 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Add Project / Add Group buttons */}
+                {projects.length > 0 && (
+                  <div className="flex gap-1">
+                    {onOpenProject && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" className="flex-1">
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add Project
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-48">
+                          <DropdownMenuItem onClick={() => onOpenProject?.()}>
+                            <FolderOpen className="mr-2 h-4 w-4" />
+                            Open Folder
                           </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                          <DropdownMenuItem onClick={() => onNewProject?.()}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Create New
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onCloneProject?.()}>
+                            <Github className="mr-2 h-4 w-4" />
+                            Clone from GitHub
+                          </DropdownMenuItem>
+                          {onAddRemoteProject && (
+                            <DropdownMenuItem onClick={() => onAddRemoteProject?.()}>
+                              <Server className="mr-2 h-4 w-4" />
+                              Add Remote Project
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                    {onCreateGroup && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="shrink-0"
+                              onClick={() => setShowNewGroupInput(true)}
+                            >
+                              <Layers className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Add Group</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
                   </div>
                 )}
               </SidebarGroupContent>

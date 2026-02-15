@@ -7,7 +7,7 @@ import {
   normalizePathForComparison,
   withRepoKey,
 } from '../lib/projectUtils';
-import type { Project, Task } from '../types/app';
+import type { Project, ProjectGroup, Task } from '../types/app';
 
 interface UseProjectManagementOptions {
   platform: string;
@@ -41,6 +41,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
   } = options;
 
   const [projects, setProjects] = useState<Project[]>([]);
+  const [groups, setGroups] = useState<ProjectGroup[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const hasPendingRestore = storedActiveIds.projectId !== null;
   // Start with showHomeView=false if we have a pending restore to prevent flash
@@ -695,6 +696,79 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
     }
   };
 
+  // --- Project Group Handlers ---
+
+  const handleCreateGroup = async (name: string) => {
+    try {
+      const res = await window.electronAPI.createProjectGroup(name);
+      if (res.success && res.group) {
+        setGroups((prev) => [...prev, res.group!]);
+      }
+    } catch (err) {
+      console.error('Failed to create group:', err);
+    }
+  };
+
+  const handleRenameGroup = async (groupId: string, name: string) => {
+    try {
+      const res = await window.electronAPI.renameProjectGroup({ id: groupId, name });
+      if (res.success) {
+        setGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, name } : g)));
+      }
+    } catch (err) {
+      console.error('Failed to rename group:', err);
+    }
+  };
+
+  const handleDeleteGroup = async (groupId: string) => {
+    try {
+      const res = await window.electronAPI.deleteProjectGroup(groupId);
+      if (res.success) {
+        setGroups((prev) => prev.filter((g) => g.id !== groupId));
+        // Unset groupId on projects that were in this group
+        setProjects((prev) =>
+          prev.map((p) => (p.groupId === groupId ? { ...p, groupId: null } : p))
+        );
+      }
+    } catch (err) {
+      console.error('Failed to delete group:', err);
+    }
+  };
+
+  const handleReorderGroups = async (groupIds: string[]) => {
+    try {
+      // Optimistic update
+      setGroups((prev) => {
+        const byId = new Map(prev.map((g) => [g.id, g]));
+        return groupIds.map((id, i) => ({ ...byId.get(id)!, displayOrder: i }));
+      });
+      await window.electronAPI.updateProjectGroupOrder(groupIds);
+    } catch (err) {
+      console.error('Failed to reorder groups:', err);
+    }
+  };
+
+  const handleMoveProjectToGroup = async (projectId: string, groupId: string | null) => {
+    try {
+      const res = await window.electronAPI.setProjectGroup({ projectId, groupId });
+      if (res.success) {
+        setProjects((prev) => prev.map((p) => (p.id === projectId ? { ...p, groupId } : p)));
+      }
+    } catch (err) {
+      console.error('Failed to move project to group:', err);
+    }
+  };
+
+  const handleToggleGroupCollapsed = async (groupId: string, isCollapsed: boolean) => {
+    try {
+      // Optimistic update
+      setGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, isCollapsed } : g)));
+      await window.electronAPI.toggleProjectGroupCollapsed({ id: groupId, isCollapsed });
+    } catch (err) {
+      console.error('Failed to toggle group collapsed:', err);
+    }
+  };
+
   // Load branch options when project is selected
   useEffect(() => {
     if (!selectedProject) {
@@ -744,6 +818,8 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
   return {
     projects,
     setProjects,
+    groups,
+    setGroups,
     selectedProject,
     setSelectedProject,
     showHomeView,
@@ -767,5 +843,11 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
     handleReorderProjectsFull,
     handleDeleteProject,
     handleRenameProject,
+    handleCreateGroup,
+    handleRenameGroup,
+    handleDeleteGroup,
+    handleReorderGroups,
+    handleMoveProjectToGroup,
+    handleToggleGroupCollapsed,
   };
 };

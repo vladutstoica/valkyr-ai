@@ -424,6 +424,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getProjects: () => ipcRenderer.invoke('db:getProjects'),
   saveProject: (project: any) => ipcRenderer.invoke('db:saveProject', project),
   updateProjectOrder: (projectIds: string[]) => ipcRenderer.invoke('db:updateProjectOrder', projectIds),
+  // Project groups
+  getProjectGroups: () => ipcRenderer.invoke('db:getProjectGroups'),
+  createProjectGroup: (name: string) => ipcRenderer.invoke('db:createProjectGroup', name),
+  renameProjectGroup: (args: { id: string; name: string }) =>
+    ipcRenderer.invoke('db:renameProjectGroup', args),
+  deleteProjectGroup: (id: string) => ipcRenderer.invoke('db:deleteProjectGroup', id),
+  updateProjectGroupOrder: (groupIds: string[]) =>
+    ipcRenderer.invoke('db:updateProjectGroupOrder', groupIds),
+  setProjectGroup: (args: { projectId: string; groupId: string | null }) =>
+    ipcRenderer.invoke('db:setProjectGroup', args),
+  toggleProjectGroupCollapsed: (args: { id: string; isCollapsed: boolean }) =>
+    ipcRenderer.invoke('db:toggleProjectGroupCollapsed', args),
   getTasks: (projectId?: string) => ipcRenderer.invoke('db:getTasks', projectId),
   saveTask: (task: any) => ipcRenderer.invoke('db:saveTask', task),
   deleteProject: (projectId: string) => ipcRenderer.invoke('db:deleteProject', projectId),

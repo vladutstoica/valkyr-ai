@@ -3,6 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Loader2 } from 'lucide-react';
 import IntegrationRow from './IntegrationRow';
 import { Input } from './ui/input';
+import { Button } from './ui/button';
 import { useGithubAuth } from '../hooks/useGithubAuth';
 import { menuMotion } from './ui/motion';
 import linearLogo from '../../assets/images/linear-icon.png';
@@ -481,15 +482,15 @@ const IntegrationsCard: React.FC = () => {
         rightExtra={
           jiraStatus !== 'connected' ? (
             <div>
-              <button
-                type="button"
-                className="inline-flex h-8 items-center justify-center rounded-md border border-border/70 bg-background px-2.5 text-xs font-medium"
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => setJiraSetupOpen((v) => !v)}
                 aria-expanded={jiraSetupOpen}
                 aria-haspopup="dialog"
               >
                 Connect Jira
-              </button>
+              </Button>
               <AnimatePresence>
                 {jiraSetupOpen ? (
                   <motion.div

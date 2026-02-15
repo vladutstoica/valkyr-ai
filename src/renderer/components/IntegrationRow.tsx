@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Check, Copy, ExternalLink, Trash2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { Button } from './ui/button';
 
 type IntegrationStatus =
   | 'connected'
@@ -47,12 +48,6 @@ const STATUS_LABELS: Record<IntegrationStatus, string> = {
   missing: 'Not connected',
   needs_key: 'Not connected',
 };
-
-const BUTTON_BASE =
-  'inline-flex h-8 min-w-[2.5rem] items-center justify-center rounded-md border border-border/70 bg-background px-2.5 text-xs font-medium transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60';
-
-const ICON_BUTTON =
-  'rounded-md p-1.5 text-muted-foreground transition hover:bg-muted/40 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
 
 const ICON_WRAPPER =
   'flex h-6 w-6 items-center justify-center rounded-md bg-muted/40 text-muted-foreground';
@@ -135,16 +130,17 @@ const IntegrationRow: React.FC<IntegrationRowProps> = ({
       <div className="flex items-center gap-3">
         {avatar}
         {onNameClick ? (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={onNameClick}
-            className="group flex items-center gap-1 text-sm font-medium text-foreground transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="group gap-1 px-0 text-sm font-medium text-foreground"
           >
             <span>{name}</span>
             <span className="text-xs text-muted-foreground transition group-hover:text-foreground/80">
               ↗
             </span>
-          </button>
+          </Button>
         ) : (
           <span className="text-sm font-medium text-foreground">{name}</span>
         )}
@@ -155,16 +151,16 @@ const IntegrationRow: React.FC<IntegrationRowProps> = ({
           <TooltipProvider>
             <Tooltip delayDuration={150}>
               <TooltipTrigger asChild>
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
                   onClick={() => {
                     void handleCopyInstall();
                   }}
-                  className={ICON_BUTTON}
                   aria-label={copied ? 'Command copied' : `Copy install command for ${name}`}
                 >
                   <CopyIcon className="h-4 w-4" aria-hidden="true" />
-                </button>
+                </Button>
               </TooltipTrigger>
               <TooltipContent side="top">
                 <div className="max-w-[240px] space-y-1">
@@ -190,36 +186,36 @@ const IntegrationRow: React.FC<IntegrationRowProps> = ({
         {rightExtra}
 
         {showOpen ? (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={onOpen}
-            className={ICON_BUTTON}
             aria-label={`Open ${name} settings`}
           >
             <ExternalLink className="h-4 w-4" aria-hidden="true" />
-          </button>
+          </Button>
         ) : null}
 
         {showDisconnect ? (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={onDisconnect}
-            className={ICON_BUTTON}
             aria-label={`Disconnect ${name}`}
           >
             <Trash2 className="h-4 w-4" aria-hidden="true" />
-          </button>
+          </Button>
         ) : null}
 
         {showConnect ? (
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="sm"
             onClick={onConnect}
-            className={BUTTON_BASE}
             disabled={connectDisabled}
           >
             {connectContent ?? 'Connect'}
-          </button>
+          </Button>
         ) : null}
       </div>
     </div>

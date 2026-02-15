@@ -82,6 +82,7 @@ const AppContent: React.FC = () => {
   const appInit = useAppInitialization({
     checkGithubStatus: () => github.checkStatus(),
     onProjectsLoaded: (projects) => projectMgmt.setProjects(projects),
+    onGroupsLoaded: (groups) => projectMgmt.setGroups(groups),
     onProjectSelected: (project) => projectMgmt.setSelectedProject(project),
     onShowHomeView: (show) => projectMgmt.setShowHomeView(show),
     onTaskSelected: (task) => taskMgmt.setActiveTask(task),
@@ -354,6 +355,13 @@ const AppContent: React.FC = () => {
         onRenameProject={projectMgmt.handleRenameProject}
         pinnedTaskIds={pinnedTaskIds}
         onPinTask={handlePinTask}
+        groups={projectMgmt.groups}
+        onCreateGroup={projectMgmt.handleCreateGroup}
+        onRenameGroup={projectMgmt.handleRenameGroup}
+        onDeleteGroup={projectMgmt.handleDeleteGroup}
+        onReorderGroups={projectMgmt.handleReorderGroups}
+        onMoveProjectToGroup={projectMgmt.handleMoveProjectToGroup}
+        onToggleGroupCollapsed={projectMgmt.handleToggleGroupCollapsed}
       />
     ),
     [
@@ -379,6 +387,13 @@ const AppContent: React.FC = () => {
       projectMgmt.handleRenameProject,
       pinnedTaskIds,
       handlePinTask,
+      projectMgmt.groups,
+      projectMgmt.handleCreateGroup,
+      projectMgmt.handleRenameGroup,
+      projectMgmt.handleDeleteGroup,
+      projectMgmt.handleReorderGroups,
+      projectMgmt.handleMoveProjectToGroup,
+      projectMgmt.handleToggleGroupCollapsed,
     ]
   );
 

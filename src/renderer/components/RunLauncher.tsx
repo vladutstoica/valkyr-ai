@@ -5,6 +5,7 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Label } from './ui/label';
+import { Button } from './ui/button';
 
 interface RunLauncherProps {
   repo: Repo;
@@ -43,9 +44,9 @@ const RunLauncher: React.FC<RunLauncherProps> = ({ repo, onCreateRun, onCancel }
     <div className="w-full max-w-2xl rounded-lg border border-border bg-card p-6">
       <div className="mb-6 flex items-center justify-between">
         <h3 className="text-xl font-semibold text-white">Start New Run</h3>
-        <button className="text-xl text-muted-foreground hover:text-white" onClick={onCancel}>
+        <Button variant="ghost" size="icon-sm" onClick={onCancel}>
           ×
-        </button>
+        </Button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -121,19 +122,12 @@ const RunLauncher: React.FC<RunLauncherProps> = ({ repo, onCreateRun, onCancel }
         </div>
 
         <div className="flex gap-3 pt-4">
-          <button
-            type="submit"
-            className="flex-1 rounded bg-blue-600 px-4 py-3 font-medium text-white transition-colors hover:bg-blue-700"
-          >
+          <Button type="submit" className="flex-1">
             Start Run
-          </button>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="hover:bg-muted0 rounded bg-muted px-4 py-3 text-white transition-colors"
-          >
+          </Button>
+          <Button type="button" variant="secondary" onClick={onCancel}>
             Cancel
-          </button>
+          </Button>
         </div>
       </form>
     </div>

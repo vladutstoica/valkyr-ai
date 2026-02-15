@@ -17,6 +17,15 @@ export interface SubRepo {
   gitInfo: SubRepoGitInfo;
 }
 
+export interface ProjectGroup {
+  id: string;
+  name: string;
+  displayOrder: number;
+  isCollapsed: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -26,6 +35,7 @@ export interface Project {
   remotePath?: string | null;
   repoKey?: string;
   subRepos?: SubRepo[] | null;
+  groupId?: string | null;
   gitInfo: {
     isGitRepo: boolean;
     remote?: string;

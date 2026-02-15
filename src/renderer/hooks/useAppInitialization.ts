@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Agent } from '../types';
-import type { Project, Task } from '../types/app';
+import type { Project, ProjectGroup, Task } from '../types/app';
 import { getStoredActiveIds, saveActiveIds } from '../constants/layout';
 import { getAgentForTask } from '../lib/getAgentForTask';
 import { withRepoKey } from '../lib/projectUtils';
@@ -8,6 +8,7 @@ import { withRepoKey } from '../lib/projectUtils';
 interface UseAppInitializationOptions {
   checkGithubStatus: () => void;
   onProjectsLoaded: (projects: Project[]) => void;
+  onGroupsLoaded: (groups: ProjectGroup[]) => void;
   onProjectSelected: (project: Project) => void;
   onShowHomeView: (show: boolean) => void;
   onTaskSelected: (task: Task) => void;
@@ -63,6 +64,7 @@ export function useAppInitialization(
   const {
     checkGithubStatus,
     onProjectsLoaded,
+    onGroupsLoaded,
     onProjectSelected,
     onShowHomeView,
     onTaskSelected,
@@ -78,13 +80,20 @@ export function useAppInitialization(
   useEffect(() => {
     const loadAppData = async () => {
       try {
-        const [_appVersion, appPlatform, projects] = await Promise.all([
+        const [_appVersion, appPlatform, projects, groupsResult] = await Promise.all([
           window.electronAPI.getAppVersion(),
           window.electronAPI.getPlatform(),
           window.electronAPI.getProjects(),
+          window.electronAPI.getProjectGroups(),
         ]);
 
         setPlatform(appPlatform);
+
+        // Load groups
+        if (groupsResult?.success && groupsResult.groups) {
+          onGroupsLoaded(groupsResult.groups);
+        }
+
         // Projects come pre-sorted by displayOrder from the database
         // Migrate legacy localStorage order if present (one-time)
         const migratedProjects = await migrateLegacyOrder(projects);

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Input } from '../ui/input';
+import { Button } from '../ui/button';
 import { Info } from 'lucide-react';
 import jiraLogo from '../../../assets/images/jira.png';
 
@@ -64,21 +65,12 @@ const JiraSetupForm: React.FC<Props> = ({
         </p>
       ) : null}
       <div className="mt-3 flex justify-end gap-2">
-        <button
-          type="button"
-          className="inline-flex h-8 items-center justify-center rounded-md border border-border/70 bg-background px-2.5 text-xs font-medium"
-          onClick={onClose}
-        >
+        <Button variant="outline" size="sm" onClick={onClose}>
           Close
-        </button>
-        <button
-          type="button"
-          className="inline-flex h-8 items-center justify-center rounded-md border border-border/70 bg-background px-2.5 text-xs font-medium disabled:opacity-60"
-          onClick={() => void onSubmit()}
-          disabled={!canSubmit}
-        >
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => void onSubmit()} disabled={!canSubmit}>
           Connect
-        </button>
+        </Button>
       </div>
     </div>
   );

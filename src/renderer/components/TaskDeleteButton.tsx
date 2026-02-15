@@ -215,7 +215,7 @@ export const TaskDeleteButton: React.FC<Props> = ({
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            className="bg-destructive px-4 py-2 text-destructive-foreground hover:bg-destructive/90"
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             disabled={disableDelete}
             onClick={async (e) => {
               e.stopPropagation();

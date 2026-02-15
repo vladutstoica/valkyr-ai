@@ -25,6 +25,19 @@ export const sshConnections = sqliteTable(
   })
 );
 
+export const projectGroups = sqliteTable('project_groups', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  displayOrder: integer('display_order').notNull().default(0),
+  isCollapsed: integer('is_collapsed').notNull().default(0), // boolean, 0=false, 1=true
+  createdAt: text('created_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const projects = sqliteTable(
   'projects',
   {
@@ -43,6 +56,7 @@ export const projects = sqliteTable(
     remotePath: text('remote_path'), // path on remote server
     subRepos: text('sub_repos'), // JSON array of SubRepo for multi-repo projects
     displayOrder: integer('display_order').notNull().default(0), // Order in sidebar
+    groupId: text('group_id').references(() => projectGroups.id, { onDelete: 'set null' }),
     createdAt: text('created_at')
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
@@ -54,6 +68,7 @@ export const projects = sqliteTable(
     pathIdx: uniqueIndex('idx_projects_path').on(table.path),
     sshConnectionIdIdx: index('idx_projects_ssh_connection_id').on(table.sshConnectionId),
     isRemoteIdx: index('idx_projects_is_remote').on(table.isRemote),
+    groupIdIdx: index('idx_projects_group_id').on(table.groupId),
   })
 );
 
@@ -158,11 +173,19 @@ export const sshConnectionsRelations = relations(sshConnections, ({ many }) => (
   projects: many(projects),
 }));
 
+export const projectGroupsRelations = relations(projectGroups, ({ many }) => ({
+  projects: many(projects),
+}));
+
 export const projectsRelations = relations(projects, ({ one, many }) => ({
   tasks: many(tasks),
   sshConnection: one(sshConnections, {
     fields: [projects.sshConnectionId],
     references: [sshConnections.id],
+  }),
+  group: one(projectGroups, {
+    fields: [projects.groupId],
+    references: [projectGroups.id],
   }),
 }));
 
@@ -199,6 +222,7 @@ export const lineCommentsRelations = relations(lineComments, ({ one }) => ({
 
 export type SshConnectionRow = typeof sshConnections.$inferSelect;
 export type SshConnectionInsert = typeof sshConnections.$inferInsert;
+export type ProjectGroupRow = typeof projectGroups.$inferSelect;
 export type ProjectRow = typeof projects.$inferSelect;
 export type TaskRow = typeof tasks.$inferSelect;
 export type ConversationRow = typeof conversations.$inferSelect;

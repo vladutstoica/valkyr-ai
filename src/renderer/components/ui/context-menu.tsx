@@ -43,6 +43,46 @@ const ContextMenuItem = React.forwardRef<
 ));
 ContextMenuItem.displayName = ContextMenuPrimitive.Item.displayName;
 
+const ContextMenuSub = ContextMenuPrimitive.Sub;
+
+const ContextMenuSubTrigger = React.forwardRef<
+  React.ElementRef<typeof ContextMenuPrimitive.SubTrigger>,
+  React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.SubTrigger> & {
+    inset?: boolean;
+  }
+>(({ className, inset, children, ...props }, ref) => (
+  <ContextMenuPrimitive.SubTrigger
+    ref={ref}
+    className={cn(
+      'flex cursor-default select-none items-center rounded-none px-2 py-1 text-xs outline-hidden focus:bg-accent data-[state=open]:bg-accent',
+      inset && 'pl-6',
+      className
+    )}
+    {...props}
+  >
+    {children}
+  </ContextMenuPrimitive.SubTrigger>
+));
+ContextMenuSubTrigger.displayName = ContextMenuPrimitive.SubTrigger.displayName;
+
+const ContextMenuSubContent = React.forwardRef<
+  React.ElementRef<typeof ContextMenuPrimitive.SubContent>,
+  React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.SubContent>
+>(({ className, ...props }, ref) => (
+  <ContextMenuPrimitive.Portal>
+    <ContextMenuPrimitive.SubContent
+      ref={ref}
+      className={cn(
+        'z-[240] min-w-[6rem] overflow-hidden rounded-none border border-border bg-background p-0.5 text-foreground shadow-md',
+        'animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
+        className
+      )}
+      {...props}
+    />
+  </ContextMenuPrimitive.Portal>
+));
+ContextMenuSubContent.displayName = ContextMenuPrimitive.SubContent.displayName;
+
 const ContextMenuSeparator = React.forwardRef<
   React.ElementRef<typeof ContextMenuPrimitive.Separator>,
   React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.Separator>
@@ -60,5 +100,8 @@ export {
   ContextMenuTrigger,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSub,
+  ContextMenuSubTrigger,
+  ContextMenuSubContent,
   ContextMenuSeparator,
 };

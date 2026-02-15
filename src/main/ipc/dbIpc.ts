@@ -209,6 +209,86 @@ export function registerDatabaseIpc() {
     }
   });
 
+  // Project group handlers
+  ipcMain.handle('db:getProjectGroups', async () => {
+    try {
+      const groups = await databaseService.getProjectGroups();
+      return { success: true, groups };
+    } catch (error) {
+      log.error('Failed to get project groups:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle('db:createProjectGroup', async (_, name: string) => {
+    try {
+      const group = await databaseService.createProjectGroup(name);
+      return { success: true, group };
+    } catch (error) {
+      log.error('Failed to create project group:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle(
+    'db:renameProjectGroup',
+    async (_, { id, name }: { id: string; name: string }) => {
+      try {
+        await databaseService.renameProjectGroup(id, name);
+        return { success: true };
+      } catch (error) {
+        log.error('Failed to rename project group:', error);
+        return { success: false, error: (error as Error).message };
+      }
+    }
+  );
+
+  ipcMain.handle('db:deleteProjectGroup', async (_, id: string) => {
+    try {
+      await databaseService.deleteProjectGroup(id);
+      return { success: true };
+    } catch (error) {
+      log.error('Failed to delete project group:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle('db:updateProjectGroupOrder', async (_, groupIds: string[]) => {
+    try {
+      await databaseService.updateProjectGroupOrder(groupIds);
+      return { success: true };
+    } catch (error) {
+      log.error('Failed to update project group order:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle(
+    'db:setProjectGroup',
+    async (_, { projectId, groupId }: { projectId: string; groupId: string | null }) => {
+      try {
+        await databaseService.setProjectGroup(projectId, groupId);
+        return { success: true };
+      } catch (error) {
+        log.error('Failed to set project group:', error);
+        return { success: false, error: (error as Error).message };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'db:toggleProjectGroupCollapsed',
+    async (_, { id, isCollapsed }: { id: string; isCollapsed: boolean }) => {
+      try {
+        await databaseService.toggleProjectGroupCollapsed(id, isCollapsed);
+        return { success: true };
+      } catch (error) {
+        log.error('Failed to toggle project group collapsed:', error);
+        return { success: false, error: (error as Error).message };
+      }
+    }
+  );
+
   // Multi-chat support handlers
   ipcMain.handle(
     'db:createConversation',

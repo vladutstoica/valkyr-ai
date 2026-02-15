@@ -7,12 +7,14 @@ import { errorTracking } from '../errorTracking';
 import { log } from '../lib/logger';
 import {
   projects as projectsTable,
+  projectGroups as projectGroupsTable,
   tasks as tasksTable,
   conversations as conversationsTable,
   messages as messagesTable,
   lineComments as lineCommentsTable,
   sshConnections as sshConnectionsTable,
   type ProjectRow,
+  type ProjectGroupRow,
   type TaskRow,
   type ConversationRow,
   type MessageRow,
@@ -38,6 +40,15 @@ export interface SubRepo {
   gitInfo: SubRepoGitInfo;
 }
 
+export interface ProjectGroup {
+  id: string;
+  name: string;
+  displayOrder: number;
+  isCollapsed: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -48,6 +59,8 @@ export interface Project {
   remotePath?: string | null;
   // Multi-repo project fields (optional)
   subRepos?: SubRepo[] | null;
+  // Group assignment
+  groupId?: string | null;
   gitInfo: {
     isGitRepo: boolean;
     remote?: string;
@@ -795,6 +808,88 @@ export class DatabaseService {
     return rows;
   }
 
+  // Project group management methods
+  async getProjectGroups(): Promise<ProjectGroup[]> {
+    if (this.disabled) return [];
+    const { db } = await getDrizzleClient();
+    const rows = await db
+      .select()
+      .from(projectGroupsTable)
+      .orderBy(asc(projectGroupsTable.displayOrder));
+    return rows.map((row) => this.mapDrizzleProjectGroupRow(row));
+  }
+
+  async createProjectGroup(name: string): Promise<ProjectGroup> {
+    if (this.disabled) throw new Error('Database is disabled');
+    const { db } = await getDrizzleClient();
+
+    const existing = await db
+      .select()
+      .from(projectGroupsTable)
+      .orderBy(desc(projectGroupsTable.displayOrder))
+      .limit(1);
+    const maxOrder = existing.length > 0 ? existing[0].displayOrder : -1;
+
+    const id = `group_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    await db.insert(projectGroupsTable).values({
+      id,
+      name,
+      displayOrder: maxOrder + 1,
+    });
+
+    const [row] = await db
+      .select()
+      .from(projectGroupsTable)
+      .where(eq(projectGroupsTable.id, id))
+      .limit(1);
+    return this.mapDrizzleProjectGroupRow(row);
+  }
+
+  async renameProjectGroup(id: string, name: string): Promise<void> {
+    if (this.disabled) return;
+    const { db } = await getDrizzleClient();
+    await db
+      .update(projectGroupsTable)
+      .set({ name, updatedAt: sql`CURRENT_TIMESTAMP` })
+      .where(eq(projectGroupsTable.id, id));
+  }
+
+  async deleteProjectGroup(id: string): Promise<void> {
+    if (this.disabled) return;
+    const { db } = await getDrizzleClient();
+    // Projects inside become ungrouped (FK onDelete: 'set null' handles this)
+    await db.delete(projectGroupsTable).where(eq(projectGroupsTable.id, id));
+  }
+
+  async updateProjectGroupOrder(groupIds: string[]): Promise<void> {
+    if (this.disabled) return;
+    const { db } = await getDrizzleClient();
+    for (let i = 0; i < groupIds.length; i++) {
+      await db
+        .update(projectGroupsTable)
+        .set({ displayOrder: i, updatedAt: sql`CURRENT_TIMESTAMP` })
+        .where(eq(projectGroupsTable.id, groupIds[i]));
+    }
+  }
+
+  async setProjectGroup(projectId: string, groupId: string | null): Promise<void> {
+    if (this.disabled) return;
+    const { db } = await getDrizzleClient();
+    await db
+      .update(projectsTable)
+      .set({ groupId, updatedAt: sql`CURRENT_TIMESTAMP` })
+      .where(eq(projectsTable.id, projectId));
+  }
+
+  async toggleProjectGroupCollapsed(id: string, isCollapsed: boolean): Promise<void> {
+    if (this.disabled) return;
+    const { db } = await getDrizzleClient();
+    await db
+      .update(projectGroupsTable)
+      .set({ isCollapsed: isCollapsed ? 1 : 0, updatedAt: sql`CURRENT_TIMESTAMP` })
+      .where(eq(projectGroupsTable.id, id));
+  }
+
   // SSH connection management methods
   async saveSshConnection(
     connection: Omit<SshConnectionInsert, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }
@@ -918,6 +1013,17 @@ export class DatabaseService {
     return 'main';
   }
 
+  private mapDrizzleProjectGroupRow(row: ProjectGroupRow): ProjectGroup {
+    return {
+      id: row.id,
+      name: row.name,
+      displayOrder: row.displayOrder,
+      isCollapsed: row.isCollapsed === 1,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    };
+  }
+
   private mapDrizzleProjectRow(row: ProjectRow): Project {
     // Parse subRepos from JSON if present
     let subRepos: SubRepo[] | null = null;
@@ -937,6 +1043,7 @@ export class DatabaseService {
       sshConnectionId: row.sshConnectionId ?? null,
       remotePath: row.remotePath ?? null,
       subRepos,
+      groupId: row.groupId ?? null,
       gitInfo: {
         isGitRepo: !!(row.gitRemote || row.gitBranch),
         remote: row.gitRemote ?? undefined,

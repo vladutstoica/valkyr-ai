@@ -22,6 +22,8 @@ export interface FileChangeItemProps {
   isDiscarding?: boolean;
   /** When true, show only filename (used inside directory tree view) */
   filenameOnly?: boolean;
+  /** Nesting depth for indentation inside directory tree view */
+  depth?: number;
 }
 
 const STATUS_LABELS: Record<FileStatus, string> = {
@@ -51,6 +53,7 @@ export const FileChangeItem = React.memo(function FileChangeItem({
   isStaging = false,
   isDiscarding = false,
   filenameOnly = false,
+  depth = 0,
 }: FileChangeItemProps) {
   const fileName = path.split('/').pop() || path;
   const directory = path.includes('/') ? path.slice(0, path.lastIndexOf('/') + 1) : '';
@@ -75,6 +78,7 @@ export const FileChangeItem = React.memo(function FileChangeItem({
         isStaged && 'bg-muted/30',
         isSelected && 'border-l-2 border-l-primary bg-muted/60'
       )}
+      style={filenameOnly && depth > 0 ? { paddingLeft: `${8 + depth * 16}px` } : undefined}
       onClick={handleClick}
       title={path}
     >

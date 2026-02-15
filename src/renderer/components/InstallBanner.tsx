@@ -76,14 +76,15 @@ export const InstallBanner: React.FC<Props> = ({
         <div className="text-foreground" aria-label={`${baseLabel} status`}>
           <span className="font-normal">
             {helpUrl ? (
-              <button
-                type="button"
+              <Button
+                variant="link"
+                size="sm"
                 onClick={() => onOpenExternal(helpUrl)}
-                className="inline-flex items-center gap-1 text-foreground hover:text-foreground/80"
+                className="inline-flex h-auto items-center gap-1 p-0 text-foreground no-underline hover:text-foreground/80"
               >
                 {baseLabel}
                 <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
-              </button>
+              </Button>
             ) : (
               baseLabel
             )}{' '}

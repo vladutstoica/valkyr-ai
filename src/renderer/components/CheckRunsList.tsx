@@ -3,6 +3,7 @@ import githubIcon from '../../assets/images/github.png';
 import type { CheckRunsStatus, CheckRun, CheckRunBucket } from '../lib/checkRunStatus';
 import { formatCheckDuration } from '../lib/checkRunStatus';
 import { Badge } from './ui/badge';
+import { Button } from './ui/button';
 
 function BucketIcon({ bucket }: { bucket: CheckRunBucket }) {
   switch (bucket) {
@@ -36,14 +37,14 @@ function CheckRunItem({ check }: { check: CheckRun }) {
       <div className="flex shrink-0 items-center gap-2">
         {duration && <span className="text-xs text-muted-foreground">{duration}</span>}
         {check.link && (
-          <button
-            type="button"
-            className="text-muted-foreground transition-colors hover:text-foreground"
+          <Button
+            variant="ghost"
+            size="icon-sm"
             title="Open in GitHub"
             onClick={() => check.link && window.electronAPI?.openExternal?.(check.link)}
           >
             <ExternalLink className="h-3.5 w-3.5" />
-          </button>
+          </Button>
         )}
       </div>
     </div>

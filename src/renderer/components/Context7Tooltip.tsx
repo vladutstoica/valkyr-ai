@@ -2,6 +2,7 @@ import React from 'react';
 import type { Agent } from '../types';
 import { CONTEXT7_INTEGRATION } from '../mcp/context7';
 import { Badge } from './ui/badge';
+import { Button } from './ui/button';
 import context7Logo from '../../assets/images/context7.png';
 
 type Props = {
@@ -42,15 +43,16 @@ const Context7Tooltip: React.FC<Props> = ({ enabled }) => {
               {enabled ? 'Enabled' : 'Disabled'}
             </Badge>
           </div>
-          <button
-            type="button"
+          <Button
+            variant="link"
+            size="sm"
             onClick={() =>
               (window as any).electronAPI?.openExternal?.(CONTEXT7_INTEGRATION.docsUrl)
             }
-            className="text-tiny text-muted-foreground underline-offset-2 hover:underline"
+            className="h-auto p-0 text-tiny text-muted-foreground"
           >
             Open Context7 docs ↗
-          </button>
+          </Button>
         </div>
       </div>
     </div>

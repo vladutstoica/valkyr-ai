@@ -599,6 +599,7 @@ export function GitTab({ taskId: _taskId, taskPath, className }: GitTabProps) {
           isStaging={stagingFiles.has(file.path)}
           isDiscarding={discardingFiles.has(file.path)}
           filenameOnly
+          depth={depth + 1}
         />
       );
     }

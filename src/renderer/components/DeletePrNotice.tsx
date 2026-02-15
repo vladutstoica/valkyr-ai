@@ -2,6 +2,7 @@ import React from 'react';
 import { Folder, GitBranch } from 'lucide-react';
 import githubLogo from '../../assets/images/github.png';
 import PrPreviewTooltip from './PrPreviewTooltip';
+import { Button } from './ui/button';
 import type { PrInfo } from '../lib/prStatus';
 
 type Props = {
@@ -32,9 +33,10 @@ export const DeletePrNotice: React.FC<Props> = ({ tasks }) => {
           const hasValidPr = typeof ws.pr.number === 'number' && typeof ws.pr.url === 'string';
 
           const prBadge = (
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 rounded-none border bg-white/60 px-2 py-0.5 text-xs font-medium text-amber-900 underline-offset-2 hover:underline dark:bg-white/10 dark:text-amber-50"
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1 border bg-white/60 text-xs text-amber-900 underline-offset-2 hover:underline dark:bg-white/10 dark:text-amber-50"
               onClick={(e) => {
                 e.stopPropagation();
                 handleOpen(ws.pr.url);
@@ -44,7 +46,7 @@ export const DeletePrNotice: React.FC<Props> = ({ tasks }) => {
               {badge}
               {number}
               {state}
-            </button>
+            </Button>
           );
 
           return (

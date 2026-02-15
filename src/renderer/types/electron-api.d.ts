@@ -1152,6 +1152,47 @@ declare global {
       getProjects: () => Promise<any[]>;
       saveProject: (project: any) => Promise<{ success: boolean; error?: string }>;
       updateProjectOrder: (projectIds: string[]) => Promise<{ success: boolean; error?: string }>;
+      // Project groups
+      getProjectGroups: () => Promise<{
+        success: boolean;
+        groups?: Array<{
+          id: string;
+          name: string;
+          displayOrder: number;
+          isCollapsed: boolean;
+          createdAt: string;
+          updatedAt: string;
+        }>;
+        error?: string;
+      }>;
+      createProjectGroup: (name: string) => Promise<{
+        success: boolean;
+        group?: {
+          id: string;
+          name: string;
+          displayOrder: number;
+          isCollapsed: boolean;
+          createdAt: string;
+          updatedAt: string;
+        };
+        error?: string;
+      }>;
+      renameProjectGroup: (args: {
+        id: string;
+        name: string;
+      }) => Promise<{ success: boolean; error?: string }>;
+      deleteProjectGroup: (id: string) => Promise<{ success: boolean; error?: string }>;
+      updateProjectGroupOrder: (
+        groupIds: string[]
+      ) => Promise<{ success: boolean; error?: string }>;
+      setProjectGroup: (args: {
+        projectId: string;
+        groupId: string | null;
+      }) => Promise<{ success: boolean; error?: string }>;
+      toggleProjectGroupCollapsed: (args: {
+        id: string;
+        isCollapsed: boolean;
+      }) => Promise<{ success: boolean; error?: string }>;
       getTasks: (projectId?: string) => Promise<any[]>;
       saveTask: (task: any) => Promise<{ success: boolean; error?: string }>;
       deleteProject: (projectId: string) => Promise<{ success: boolean; error?: string }>;
@@ -1920,6 +1961,45 @@ export interface ElectronAPI {
   getProjects: () => Promise<any[]>;
   saveProject: (project: any) => Promise<{ success: boolean; error?: string }>;
   updateProjectOrder: (projectIds: string[]) => Promise<{ success: boolean; error?: string }>;
+  // Project groups
+  getProjectGroups: () => Promise<{
+    success: boolean;
+    groups?: Array<{
+      id: string;
+      name: string;
+      displayOrder: number;
+      isCollapsed: boolean;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+    error?: string;
+  }>;
+  createProjectGroup: (name: string) => Promise<{
+    success: boolean;
+    group?: {
+      id: string;
+      name: string;
+      displayOrder: number;
+      isCollapsed: boolean;
+      createdAt: string;
+      updatedAt: string;
+    };
+    error?: string;
+  }>;
+  renameProjectGroup: (args: {
+    id: string;
+    name: string;
+  }) => Promise<{ success: boolean; error?: string }>;
+  deleteProjectGroup: (id: string) => Promise<{ success: boolean; error?: string }>;
+  updateProjectGroupOrder: (groupIds: string[]) => Promise<{ success: boolean; error?: string }>;
+  setProjectGroup: (args: {
+    projectId: string;
+    groupId: string | null;
+  }) => Promise<{ success: boolean; error?: string }>;
+  toggleProjectGroupCollapsed: (args: {
+    id: string;
+    isCollapsed: boolean;
+  }) => Promise<{ success: boolean; error?: string }>;
   getTasks: (projectId?: string) => Promise<any[]>;
   saveTask: (task: any) => Promise<{ success: boolean; error?: string }>;
   deleteProject: (projectId: string) => Promise<{ success: boolean; error?: string }>;
