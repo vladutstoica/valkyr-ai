@@ -86,8 +86,8 @@ const ChatInterface: React.FC<Props> = ({
 
   // Claude needs consistent working directory to maintain session state
   const terminalCwd = useMemo(() => {
-    return task.path;
-  }, [task.path]);
+    return task.path || projectPath || undefined;
+  }, [task.path, projectPath]);
 
   const taskEnv = useMemo(() => {
     if (!projectPath) return undefined;

@@ -310,7 +310,11 @@ export async function startPty(options: {
 
   const defaultShell = getDefaultShell();
   let useShell = shell || defaultShell;
-  const useCwd = cwd || process.cwd() || os.homedir();
+  let useCwd = cwd;
+  if (!useCwd || !fs.existsSync(useCwd)) {
+    log.warn(`PTY ${id}: cwd ${cwd ? 'does not exist' : 'not provided'}, using fallback`);
+    useCwd = process.cwd() || os.homedir();
+  }
 
   // Build a clean environment instead of inheriting process.env wholesale.
   //

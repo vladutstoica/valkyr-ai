@@ -244,6 +244,13 @@ app.whenReady().then(async () => {
     console.warn('Failed to cleanup orphaned reserves:', error);
   });
 
+  // Remove stale Git lock files left by interrupted operations
+  import('./services/GitService').then(({ cleanupStaleLockFiles }) => {
+    cleanupStaleLockFiles().catch((error) => {
+      console.warn('Failed to cleanup stale Git lock files:', error);
+    });
+  });
+
   // Warm provider installation cache
   try {
     await connectionsService.initProviderStatusCache();

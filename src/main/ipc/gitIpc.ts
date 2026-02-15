@@ -15,6 +15,7 @@ import {
   unstageFile as gitUnstageFile,
   revertFile as gitRevertFile,
 } from '../services/GitService';
+import { gitQueue } from '../services/GitQueue';
 import { prGenerationService } from '../services/PrGenerationService';
 import { databaseService } from '../services/DatabaseService';
 
@@ -294,66 +295,73 @@ export function registerGitIpc() {
       try {
         const outputs: string[] = [];
 
-        // Stage and commit any pending changes
-        try {
-          const { stdout: statusOut } = await execAsync(
-            'git status --porcelain --untracked-files=all',
-            {
-              cwd: taskPath,
-            }
-          );
-          if (statusOut && statusOut.trim().length > 0) {
-            const { stdout: addOut, stderr: addErr } = await execAsync('git add -A', {
-              cwd: taskPath,
-            });
-            if (addOut?.trim()) outputs.push(addOut.trim());
-            if (addErr?.trim()) outputs.push(addErr.trim());
+        // Stage, commit, and push under the queue lock to prevent concurrent git operations
+        const pushResult = await gitQueue.run(taskPath, async () => {
+          // Stage and commit any pending changes
+          try {
+            const { stdout: statusOut } = await execAsync(
+              'git status --porcelain --untracked-files=all',
+              {
+                cwd: taskPath,
+              }
+            );
+            if (statusOut && statusOut.trim().length > 0) {
+              const { stdout: addOut, stderr: addErr } = await execAsync('git add -A', {
+                cwd: taskPath,
+              });
+              if (addOut?.trim()) outputs.push(addOut.trim());
+              if (addErr?.trim()) outputs.push(addErr.trim());
 
-            const commitMsg = 'stagehand: prepare pull request';
-            try {
-              const { stdout: commitOut, stderr: commitErr } = await execAsync(
-                `git commit -m ${JSON.stringify(commitMsg)}`,
-                { cwd: taskPath }
-              );
-              if (commitOut?.trim()) outputs.push(commitOut.trim());
-              if (commitErr?.trim()) outputs.push(commitErr.trim());
-            } catch (commitErr) {
-              const msg = commitErr as string;
-              if (msg && /nothing to commit/i.test(msg)) {
-                outputs.push('git commit: nothing to commit');
-              } else {
-                throw commitErr;
+              const commitMsg = 'stagehand: prepare pull request';
+              try {
+                const { stdout: commitOut, stderr: commitErr } = await execAsync(
+                  `git commit -m ${JSON.stringify(commitMsg)}`,
+                  { cwd: taskPath }
+                );
+                if (commitOut?.trim()) outputs.push(commitOut.trim());
+                if (commitErr?.trim()) outputs.push(commitErr.trim());
+              } catch (commitErr) {
+                const msg = commitErr as string;
+                if (msg && /nothing to commit/i.test(msg)) {
+                  outputs.push('git commit: nothing to commit');
+                } else {
+                  throw commitErr;
+                }
               }
             }
+          } catch (stageErr) {
+            log.warn('Failed to stage/commit changes before PR:', stageErr as string);
+            // Continue; PR may still be created for existing commits
           }
-        } catch (stageErr) {
-          log.warn('Failed to stage/commit changes before PR:', stageErr as string);
-          // Continue; PR may still be created for existing commits
-        }
 
-        // Ensure branch is pushed to origin so PR includes latest commit
-        try {
-          await execAsync('git push', { cwd: taskPath });
-          outputs.push('git push: success');
-        } catch (pushErr) {
+          // Ensure branch is pushed to origin so PR includes latest commit
           try {
-            const { stdout: branchOut } = await execAsync('git rev-parse --abbrev-ref HEAD', {
-              cwd: taskPath,
-            });
-            const branch = branchOut.trim();
-            await execAsync(`git push --set-upstream origin ${JSON.stringify(branch)}`, {
-              cwd: taskPath,
-            });
-            outputs.push(`git push --set-upstream origin ${branch}: success`);
-          } catch (pushErr2) {
-            log.error('Failed to push branch before PR:', pushErr2 as string);
-            return {
-              success: false,
-              error:
-                'Failed to push branch to origin. Please check your Git remotes and authentication.',
-            };
+            await execAsync('git push', { cwd: taskPath });
+            outputs.push('git push: success');
+          } catch (pushErr) {
+            try {
+              const { stdout: branchOut } = await execAsync('git rev-parse --abbrev-ref HEAD', {
+                cwd: taskPath,
+              });
+              const branch = branchOut.trim();
+              await execAsync(`git push --set-upstream origin ${JSON.stringify(branch)}`, {
+                cwd: taskPath,
+              });
+              outputs.push(`git push --set-upstream origin ${branch}: success`);
+            } catch (pushErr2) {
+              log.error('Failed to push branch before PR:', pushErr2 as string);
+              return {
+                success: false as const,
+                error:
+                  'Failed to push branch to origin. Please check your Git remotes and authentication.',
+              };
+            }
           }
-        }
+
+          return null;
+        });
+
+        if (pushResult) return pushResult;
 
         // Resolve repo owner/name (prefer gh, fallback to parsing origin url)
         let repoNameWithOwner = '';
@@ -825,81 +833,87 @@ current branch '${currentBranch}' ahead of base '${baseRef}'.`,
           } catch {}
         }
 
-        // Optionally create a new branch if on default
-        let activeBranch = currentBranch;
-        if (createBranchIfOnDefault && (!currentBranch || currentBranch === defaultBranch)) {
-          const short = Date.now().toString(36);
-          const name = `${branchPrefix}/${short}`;
-          await execAsync(`git checkout -b ${JSON.stringify(name)}`, { cwd: taskPath });
-          activeBranch = name;
-        }
-
-        // Stage (only if needed) and commit
-        try {
-          const { stdout: st } = await execAsync('git status --porcelain --untracked-files=all', {
-            cwd: taskPath,
-          });
-          const hasWorkingChanges = Boolean(st && st.trim().length > 0);
-
-          const readStagedFiles = async () => {
-            try {
-              const { stdout } = await execAsync('git diff --cached --name-only', {
-                cwd: taskPath,
-              });
-              return (stdout || '')
-                .split('\n')
-                .map((f) => f.trim())
-                .filter(Boolean);
-            } catch {
-              return [];
-            }
-          };
-
-          let stagedFiles = await readStagedFiles();
-
-          // Only auto-stage everything when nothing is staged yet (preserves manual staging choices)
-          if (hasWorkingChanges && stagedFiles.length === 0) {
-            await execAsync('git add -A', { cwd: taskPath });
+        // Wrap branch creation, staging, commit, and push in the queue lock
+        return await gitQueue.run(taskPath, async () => {
+          // Optionally create a new branch if on default
+          let activeBranch = currentBranch;
+          if (createBranchIfOnDefault && (!currentBranch || currentBranch === defaultBranch)) {
+            const short = Date.now().toString(36);
+            const name = `${branchPrefix}/${short}`;
+            await execAsync(`git checkout -b ${JSON.stringify(name)}`, { cwd: taskPath });
+            activeBranch = name;
           }
 
-          // Never commit plan mode artifacts
+          // Stage (only if needed) and commit
           try {
-            await execAsync('git reset -q .valkyr || true', { cwd: taskPath });
-          } catch {}
-          try {
-            await execAsync('git reset -q PLANNING.md || true', { cwd: taskPath });
-          } catch {}
-          try {
-            await execAsync('git reset -q planning.md || true', { cwd: taskPath });
-          } catch {}
-
-          stagedFiles = await readStagedFiles();
-
-          if (stagedFiles.length > 0) {
-            try {
-              await execAsync(`git commit -m ${JSON.stringify(commitMessage)}`, {
+            const { stdout: st } = await execAsync(
+              'git status --porcelain --untracked-files=all',
+              {
                 cwd: taskPath,
-              });
-            } catch (commitErr) {
-              const msg = commitErr as string;
-              if (!/nothing to commit/i.test(msg)) throw commitErr;
+              }
+            );
+            const hasWorkingChanges = Boolean(st && st.trim().length > 0);
+
+            const readStagedFiles = async () => {
+              try {
+                const { stdout } = await execAsync('git diff --cached --name-only', {
+                  cwd: taskPath,
+                });
+                return (stdout || '')
+                  .split('\n')
+                  .map((f) => f.trim())
+                  .filter(Boolean);
+              } catch {
+                return [];
+              }
+            };
+
+            let stagedFiles = await readStagedFiles();
+
+            // Only auto-stage everything when nothing is staged yet (preserves manual staging choices)
+            if (hasWorkingChanges && stagedFiles.length === 0) {
+              await execAsync('git add -A', { cwd: taskPath });
             }
+
+            // Never commit plan mode artifacts
+            try {
+              await execAsync('git reset -q .valkyr || true', { cwd: taskPath });
+            } catch {}
+            try {
+              await execAsync('git reset -q PLANNING.md || true', { cwd: taskPath });
+            } catch {}
+            try {
+              await execAsync('git reset -q planning.md || true', { cwd: taskPath });
+            } catch {}
+
+            stagedFiles = await readStagedFiles();
+
+            if (stagedFiles.length > 0) {
+              try {
+                await execAsync(`git commit -m ${JSON.stringify(commitMessage)}`, {
+                  cwd: taskPath,
+                });
+              } catch (commitErr) {
+                const msg = commitErr as string;
+                if (!/nothing to commit/i.test(msg)) throw commitErr;
+              }
+            }
+          } catch (e) {
+            log.warn('Stage/commit step issue:', e as string);
           }
-        } catch (e) {
-          log.warn('Stage/commit step issue:', e as string);
-        }
 
-        // Push current branch (set upstream if needed)
-        try {
-          await execAsync('git push', { cwd: taskPath });
-        } catch (pushErr) {
-          await execAsync(`git push --set-upstream origin ${JSON.stringify(activeBranch)}`, {
-            cwd: taskPath,
-          });
-        }
+          // Push current branch (set upstream if needed)
+          try {
+            await execAsync('git push', { cwd: taskPath });
+          } catch (pushErr) {
+            await execAsync(`git push --set-upstream origin ${JSON.stringify(activeBranch)}`, {
+              cwd: taskPath,
+            });
+          }
 
-        const { stdout: out } = await execAsync('git status -sb', { cwd: taskPath });
-        return { success: true, branch: activeBranch, output: (out || '').trim() };
+          const { stdout: out } = await execAsync('git status -sb', { cwd: taskPath });
+          return { success: true, branch: activeBranch, output: (out || '').trim() };
+        });
       } catch (error) {
         log.error('Failed to commit and push:', error);
         return { success: false, error: error as string };

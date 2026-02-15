@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useEffect, useCallback, Component, type ErrorInfo, type ReactNode } from 'react';
-import { DiffEditor, loader } from '@monaco-editor/react';
+import { DiffEditor } from '@monaco-editor/react';
 import type * as monaco from 'monaco-editor';
 import { MONACO_DIFF_COLORS } from '@/lib/monacoDiffColors';
 import { getMonacoLanguageId } from '@/lib/diffUtils';
@@ -52,12 +52,16 @@ function parseUnifiedDiff(patch: string): { original: string; modified: string }
 }
 
 /**
- * Initialize Monaco themes based on MONACO_DIFF_COLORS
+ * Initialize Monaco themes based on MONACO_DIFF_COLORS.
+ *
+ * IMPORTANT: This must be synchronous. The `beforeMount` callback from
+ * @monaco-editor/react is NOT awaited — if this were async, themes would be
+ * defined after the editor renders, causing a white flash on first mount.
+ * We use the `monaco` instance passed by beforeMount instead of `loader.init()`.
  */
 let themesInitialized = false;
-async function initializeMonacoThemes() {
+function initializeMonacoThemes(m: Parameters<Exclude<React.ComponentProps<typeof DiffEditor>['beforeMount'], undefined>>[0]) {
   if (themesInitialized) return;
-  const m = await loader.init();
 
   m.editor.defineTheme('emdash-diff-dark', {
     base: 'vs-dark',

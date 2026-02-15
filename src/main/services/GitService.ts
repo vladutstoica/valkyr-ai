@@ -2,6 +2,7 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
+import { gitQueue } from './GitQueue';
 
 const execFileAsync = promisify(execFile);
 const MAX_UNTRACKED_LINECOUNT_BYTES = 512 * 1024;
@@ -151,64 +152,72 @@ export async function getStatus(taskPath: string): Promise<GitChange[]> {
 }
 
 export async function stageFile(taskPath: string, filePath: string): Promise<void> {
-  await execFileAsync('git', ['add', '--', filePath], { cwd: taskPath });
+  return gitQueue.run(taskPath, async () => {
+    await execFileAsync('git', ['add', '--', filePath], { cwd: taskPath });
+  });
 }
 
 export async function stageAllFiles(taskPath: string): Promise<void> {
-  await execFileAsync('git', ['add', '-A'], { cwd: taskPath });
+  return gitQueue.run(taskPath, async () => {
+    await execFileAsync('git', ['add', '-A'], { cwd: taskPath });
+  });
 }
 
 export async function unstageFile(taskPath: string, filePath: string): Promise<void> {
-  await execFileAsync('git', ['reset', 'HEAD', '--', filePath], { cwd: taskPath });
+  return gitQueue.run(taskPath, async () => {
+    await execFileAsync('git', ['reset', 'HEAD', '--', filePath], { cwd: taskPath });
+  });
 }
 
 export async function revertFile(
   taskPath: string,
   filePath: string
 ): Promise<{ action: 'unstaged' | 'reverted' }> {
-  // Check if file is staged
-  try {
-    const { stdout: stagedStatus } = await execFileAsync(
-      'git',
-      ['diff', '--cached', '--name-only', '--', filePath],
-      {
-        cwd: taskPath,
-      }
-    );
-
-    if (stagedStatus.trim()) {
-      // File is staged, unstage it (but keep working directory changes)
-      await execFileAsync('git', ['reset', 'HEAD', '--', filePath], { cwd: taskPath });
-      return { action: 'unstaged' };
-    }
-  } catch {}
-
-  // Check if file is tracked in git (exists in HEAD)
-  let fileExistsInHead = false;
-  try {
-    await execFileAsync('git', ['cat-file', '-e', `HEAD:${filePath}`], { cwd: taskPath });
-    fileExistsInHead = true;
-  } catch {
-    // File doesn't exist in HEAD (it's a new/untracked file), delete it
-    const absPath = path.join(taskPath, filePath);
-    if (fs.existsSync(absPath)) {
-      fs.unlinkSync(absPath);
-    }
-    return { action: 'reverted' };
-  }
-
-  // File exists in HEAD, revert it
-  if (fileExistsInHead) {
+  return gitQueue.run(taskPath, async () => {
+    // Check if file is staged
     try {
-      await execFileAsync('git', ['checkout', 'HEAD', '--', filePath], { cwd: taskPath });
-    } catch (error) {
-      // If checkout fails, don't delete the file - throw the error instead
-      throw new Error(
-        `Failed to revert file: ${error instanceof Error ? error.message : String(error)}`
+      const { stdout: stagedStatus } = await execFileAsync(
+        'git',
+        ['diff', '--cached', '--name-only', '--', filePath],
+        {
+          cwd: taskPath,
+        }
       );
+
+      if (stagedStatus.trim()) {
+        // File is staged, unstage it (but keep working directory changes)
+        await execFileAsync('git', ['reset', 'HEAD', '--', filePath], { cwd: taskPath });
+        return { action: 'unstaged' as const };
+      }
+    } catch {}
+
+    // Check if file is tracked in git (exists in HEAD)
+    let fileExistsInHead = false;
+    try {
+      await execFileAsync('git', ['cat-file', '-e', `HEAD:${filePath}`], { cwd: taskPath });
+      fileExistsInHead = true;
+    } catch {
+      // File doesn't exist in HEAD (it's a new/untracked file), delete it
+      const absPath = path.join(taskPath, filePath);
+      if (fs.existsSync(absPath)) {
+        fs.unlinkSync(absPath);
+      }
+      return { action: 'reverted' as const };
     }
-  }
-  return { action: 'reverted' };
+
+    // File exists in HEAD, revert it
+    if (fileExistsInHead) {
+      try {
+        await execFileAsync('git', ['checkout', 'HEAD', '--', filePath], { cwd: taskPath });
+      } catch (error) {
+        // If checkout fails, don't delete the file - throw the error instead
+        throw new Error(
+          `Failed to revert file: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+    return { action: 'reverted' as const };
+  });
 }
 
 export async function getFileDiff(
@@ -338,6 +347,55 @@ export async function getFileDiff(
       return { lines: result, rawPatch };
     } catch {
       return { lines: [] };
+    }
+  }
+}
+
+/**
+ * Remove stale Git lock files left by interrupted operations.
+ * Only removes locks older than 10 seconds to avoid interfering with active operations.
+ */
+export async function cleanupStaleLockFiles(): Promise<void> {
+  const { databaseService } = await import('./DatabaseService');
+  const STALE_THRESHOLD_MS = 10_000;
+
+  let projects: Array<{ path: string | null }>;
+  try {
+    projects = await databaseService.getProjects();
+  } catch {
+    return;
+  }
+
+  for (const project of projects) {
+    if (!project.path) continue;
+
+    const lockPaths = [
+      path.join(project.path, '.git', 'index.lock'),
+      path.join(project.path, '.git', 'HEAD.lock'),
+    ];
+
+    // Also check worktree locks
+    const worktreesDir = path.join(project.path, '.git', 'worktrees');
+    try {
+      const entries = await fs.promises.readdir(worktreesDir);
+      for (const entry of entries) {
+        lockPaths.push(path.join(worktreesDir, entry, 'index.lock'));
+      }
+    } catch {
+      // No worktrees directory — expected
+    }
+
+    for (const lockPath of lockPaths) {
+      try {
+        const stat = await fs.promises.stat(lockPath);
+        const age = Date.now() - stat.mtimeMs;
+        if (age > STALE_THRESHOLD_MS) {
+          await fs.promises.unlink(lockPath);
+          console.warn(`Removed stale Git lock file: ${lockPath} (age: ${Math.round(age / 1000)}s)`);
+        }
+      } catch {
+        // Lock doesn't exist or can't be removed — skip
+      }
     }
   }
 }
