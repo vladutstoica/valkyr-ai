@@ -192,6 +192,38 @@ All optional:
 - **Main process changes**: Require Electron restart (Ctrl+C → `pnpm run dev`)
 - **Native modules**: Require `pnpm run rebuild`
 
+## Debugging the Running App
+
+Use the **playwright-electron MCP** tools to interact with the running Electron app directly from Claude Code. This is the preferred method for debugging UI issues, verifying state, and inspecting the renderer process.
+
+### Setup
+
+1. Start the dev server with remote debugging enabled:
+   ```bash
+   ELECTRON_EXTRA_LAUNCH_ARGS="--remote-debugging-port=9222" pnpm run dev
+   ```
+2. The playwright-electron MCP is already configured. Use `mcp__playwright-electron__*` tools to interact with the app.
+
+### Workflow
+
+1. **Connect**: Call `mcp__playwright-electron__browser_navigate` or `mcp__playwright-electron__browser_snapshot` to connect to the running Electron window.
+2. **Inspect UI state**: Use `mcp__playwright-electron__browser_snapshot` to get a DOM accessibility snapshot — shows all visible elements, text, and interactive controls.
+3. **Execute JS in renderer**: Use `mcp__playwright-electron__browser_evaluate` to run JavaScript in the renderer context. Useful for:
+   - Reading React component state or props
+   - Calling `window.electronAPI.*` methods directly
+   - Adding temporary `console.log` debug statements
+   - Inspecting Zustand/context store values
+4. **Click/interact**: Use `mcp__playwright-electron__browser_click` to simulate user interactions (clicking projects, tabs, buttons).
+5. **Read console output**: Use `mcp__playwright-electron__browser_console_messages` to read `console.log` output from the renderer.
+6. **Take screenshots**: Use `mcp__playwright-electron__browser_take_screenshot` for visual verification.
+
+### Tips
+
+- After adding debug `console.log` statements to source files, Vite HMR will hot-reload the renderer — no restart needed.
+- Always clean up debug logs after investigation.
+- The app runs on `http://localhost:3000` (Vite dev server) inside Electron.
+- To debug main process issues, add `console.log` in main process code and check the terminal where `pnpm run dev` is running (main process requires restart).
+
 ## Common Pitfalls
 
 1. **PTY resize after exit**: PTYs must be cleaned up on exit. Use `removePty()` in exit handlers.
