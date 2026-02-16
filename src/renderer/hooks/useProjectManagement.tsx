@@ -77,6 +77,68 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
           // Silently ignore - reserves are optional optimization
         });
     }
+
+    // Re-scan for nested git repos (catches added/removed repos)
+    // Runs for all projects — git-root gets a "(root)" entry, non-git-root uses sub-repos as-is
+
+    window.electronAPI
+      .detectSubRepos(project.path)
+      .then(async (result) => {
+
+        if (!result.success) return;
+        const isGitRoot = project.gitInfo?.isGitRepo;
+        let newSubRepos: Project['subRepos'];
+
+        if (result.subRepos.length > 0) {
+          if (isGitRoot) {
+            const projectName =
+              project.path.split(/[/\\]/).filter(Boolean).pop() || project.name;
+            newSubRepos = [
+              {
+                path: project.path,
+                name: projectName + ' (root)',
+                relativePath: '.',
+                gitInfo: {
+                  isGitRepo: true,
+                  remote: project.gitInfo?.remote,
+                  branch: project.gitInfo?.branch,
+                  baseRef: project.gitInfo?.baseRef,
+                },
+              },
+              ...result.subRepos,
+            ];
+          } else {
+            newSubRepos = result.subRepos;
+          }
+        } else {
+          newSubRepos = undefined;
+        }
+
+        // Use functional updater to avoid overwriting concurrent state changes
+
+        setSelectedProject((prev) => {
+          if (!prev || prev.id !== project.id) return prev;
+          const oldPaths = (prev.subRepos || []).map((r) => r.relativePath).sort().join(',');
+          const newPaths = (newSubRepos || []).map((r) => r.relativePath).sort().join(',');
+          if (oldPaths === newPaths) return prev;
+          return { ...prev, subRepos: newSubRepos };
+        });
+        setProjects((prev) => {
+          const target = prev.find((p) => p.id === project.id);
+          if (!target) return prev;
+          const oldPaths = (target.subRepos || []).map((r) => r.relativePath).sort().join(',');
+          const newPaths = (newSubRepos || []).map((r) => r.relativePath).sort().join(',');
+          if (oldPaths === newPaths) return prev;
+          return prev.map((p) =>
+            p.id === project.id ? { ...p, subRepos: newSubRepos } : p
+          );
+        });
+        // Persist to DB
+        await window.electronAPI.saveProject({ ...project, subRepos: newSubRepos });
+      })
+      .catch(() => {
+        // Non-fatal: proceed without nested repo detection
+      });
   }, []);
 
   const handleGoHome = () => {
@@ -190,6 +252,29 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
             },
             tasks: [],
           };
+
+          // Check for nested git repos inside this git-root project
+          try {
+            const subReposResult = await window.electronAPI.detectSubRepos(selectedPath);
+            if (subReposResult.success && subReposResult.subRepos.length > 0) {
+              baseProject.subRepos = [
+                {
+                  path: selectedPath,
+                  name: projectName + ' (root)',
+                  relativePath: '.',
+                  gitInfo: {
+                    isGitRepo: true,
+                    remote: gitInfo.remote || undefined,
+                    branch: gitInfo.branch || undefined,
+                    baseRef: computeBaseRef(gitInfo.baseRef, gitInfo.remote, gitInfo.branch),
+                  },
+                },
+                ...subReposResult.subRepos,
+              ];
+            }
+          } catch {
+            // Non-fatal: proceed without nested repo detection
+          }
 
           if (isAuthenticated && isGithubRemote) {
             const githubInfo = await window.electronAPI.connectToGitHub(selectedPath);

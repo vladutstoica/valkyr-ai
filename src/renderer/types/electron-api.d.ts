@@ -673,7 +673,9 @@ declare global {
         error?: string;
       }>;
 
-      getGitStatus: (taskPath: string) => Promise<{
+      getGitStatus: (
+        arg: string | { taskPath: string; repoMappings?: Array<{ relativePath: string; targetPath: string }> }
+      ) => Promise<{
         success: boolean;
         changes?: Array<{
           path: string;
@@ -682,6 +684,8 @@ declare global {
           deletions: number;
           isStaged: boolean;
           diff?: string;
+          repoName?: string;
+          repoCwd?: string;
         }>;
         error?: string;
       }>;
@@ -700,7 +704,7 @@ declare global {
       onGitStatusChanged: (
         listener: (data: { taskPath: string; error?: string }) => void
       ) => () => void;
-      getFileDiff: (args: { taskPath: string; filePath: string }) => Promise<{
+      getFileDiff: (args: { taskPath: string; filePath: string; repoCwd?: string }) => Promise<{
         success: boolean;
         diff?: {
           lines: Array<{
@@ -712,19 +716,19 @@ declare global {
         };
         error?: string;
       }>;
-      stageFile: (args: { taskPath: string; filePath: string }) => Promise<{
+      stageFile: (args: { taskPath: string; filePath: string; repoCwd?: string }) => Promise<{
         success: boolean;
         error?: string;
       }>;
-      stageAllFiles: (args: { taskPath: string }) => Promise<{
+      stageAllFiles: (args: { taskPath: string; repoCwds?: string[] }) => Promise<{
         success: boolean;
         error?: string;
       }>;
-      unstageFile: (args: { taskPath: string; filePath: string }) => Promise<{
+      unstageFile: (args: { taskPath: string; filePath: string; repoCwd?: string }) => Promise<{
         success: boolean;
         error?: string;
       }>;
-      revertFile: (args: { taskPath: string; filePath: string }) => Promise<{
+      revertFile: (args: { taskPath: string; filePath: string; repoCwd?: string }) => Promise<{
         success: boolean;
         action?: 'unstaged' | 'reverted';
         error?: string;

@@ -336,8 +336,58 @@ export async function createTask(params: CreateTaskParams, callbacks: CreateTask
       let branch: string;
       let path: string;
       let taskId: string;
+      let multiRepoMeta: TaskMetadata['multiRepo'] = undefined;
 
-      if (useWorktree) {
+      // Check if this is a multi-repo project with selected sub-repos
+      const isMultiRepoTask =
+        selectedSubRepos &&
+        selectedSubRepos.length > 0 &&
+        selectedProject.subRepos &&
+        selectedProject.subRepos.length > 0;
+
+      if (useWorktree && isMultiRepoTask) {
+        // Multi-repo: create composite worktree with sub-repo worktrees
+        const multiRepoResult = await window.electronAPI.worktreeCreateMultiRepo({
+          projectPath: selectedProject.path,
+          projectId: selectedProject.id,
+          taskName,
+          subRepos: selectedProject.subRepos!,
+          selectedRepos: selectedSubRepos!,
+          baseRef,
+        });
+
+        if (!multiRepoResult.success || !multiRepoResult.compositeWorktreePath) {
+          throw new Error(multiRepoResult.error || 'Failed to create multi-repo worktree');
+        }
+
+        path = multiRepoResult.compositeWorktreePath;
+        // Use the first worktree branch as the task branch, or fallback
+        const firstWorktreeMapping = multiRepoResult.repoMappings?.find(
+          (m: { isWorktree: boolean }) => m.isWorktree
+        );
+        branch = firstWorktreeMapping?.branch || selectedProject.gitInfo.branch || 'main';
+        taskId = `multi-${taskName}-${Date.now()}`;
+
+        multiRepoMeta = {
+          enabled: true,
+          compositeWorktreePath: path,
+          repoMappings: (multiRepoResult.repoMappings || []).map(
+            (m: {
+              relativePath: string;
+              originalPath: string;
+              targetPath: string;
+              isWorktree: boolean;
+              branch?: string;
+            }) => ({
+              relativePath: m.relativePath,
+              originalPath: m.originalPath,
+              targetPath: m.targetPath,
+              isWorktree: m.isWorktree,
+              branch: m.branch,
+            })
+          ),
+        };
+      } else if (useWorktree) {
         // Try to claim a pre-created reserve worktree (instant)
         const claimResult = await window.electronAPI.worktreeClaimReserve({
           projectId: selectedProject.id,
@@ -382,7 +432,27 @@ export async function createTask(params: CreateTaskParams, callbacks: CreateTask
         branch = selectedProject.gitInfo.branch || 'main';
         path = selectedProject.path;
         taskId = `direct-${taskName}-${Date.now()}`;
+
+        // For multi-repo projects in direct mode, set multiRepo metadata
+        // pointing at the original sub-repo paths (no composite worktree needed)
+        if (isMultiRepoTask) {
+          multiRepoMeta = {
+            enabled: true,
+            compositeWorktreePath: selectedProject.path,
+            repoMappings: selectedProject.subRepos!.map((sub) => ({
+              relativePath: sub.relativePath,
+              originalPath: sub.path,
+              targetPath: sub.path,
+              isWorktree: false,
+            })),
+          };
+        }
       }
+
+      // Merge multiRepo metadata into task metadata
+      const finalMetadata: TaskMetadata | null = multiRepoMeta
+        ? { ...(taskMetadata || {}), multiRepo: multiRepoMeta }
+        : taskMetadata;
 
       newTask = {
         id: taskId,
@@ -392,7 +462,7 @@ export async function createTask(params: CreateTaskParams, callbacks: CreateTask
         path,
         status: 'idle',
         agentId: primaryAgent,
-        metadata: taskMetadata,
+        metadata: finalMetadata,
         useWorktree,
       };
 
@@ -430,7 +500,7 @@ export async function createTask(params: CreateTaskParams, callbacks: CreateTask
         .saveTask({
           ...newTask,
           agentId: primaryAgent,
-          metadata: taskMetadata,
+          metadata: finalMetadata,
           useWorktree,
         })
         .then((saveResult) => {

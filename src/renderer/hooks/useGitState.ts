@@ -10,6 +10,8 @@ export interface FileChange {
   deletions: number;
   diff?: string;
   isStaged: boolean;
+  repoName?: string;
+  repoCwd?: string;
 }
 
 interface GitState {

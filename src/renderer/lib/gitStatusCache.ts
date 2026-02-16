@@ -5,6 +5,8 @@ export type GitStatusChange = {
   deletions: number;
   isStaged: boolean;
   diff?: string;
+  repoName?: string;
+  repoCwd?: string;
 };
 
 export type GitStatusResult = {
@@ -20,9 +22,11 @@ const inFlight = new Map<string, { id: number; promise: Promise<GitStatusResult>
 const latestRequestId = new Map<string, number>();
 let requestCounter = 0;
 
+export type RepoMappingArg = { relativePath: string; targetPath: string };
+
 export async function getCachedGitStatus(
   taskPath: string,
-  options?: { force?: boolean }
+  options?: { force?: boolean; repoMappings?: RepoMappingArg[] }
 ): Promise<GitStatusResult> {
   if (!taskPath) return { success: false, error: 'workspace-unavailable' };
   const force = options?.force ?? false;
@@ -42,7 +46,11 @@ export async function getCachedGitStatus(
   latestRequestId.set(taskPath, requestId);
   const promise = (async () => {
     try {
-      const res = await window.electronAPI.getGitStatus(taskPath);
+      const res = await window.electronAPI.getGitStatus(
+        options?.repoMappings?.length
+          ? { taskPath, repoMappings: options.repoMappings }
+          : taskPath
+      );
       const result = res ?? {
         success: false,
         error: 'Failed to load git status',
