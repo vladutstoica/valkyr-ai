@@ -83,8 +83,24 @@ export function AppLayout({
   const taskPath = activeTask?.path ?? undefined;
   const taskId = activeTask?.id ?? undefined;
 
-  // Get file changes for git badge
-  const { fileChanges } = useFileChanges(taskPath);
+  // Get file changes for git badge — derive repoMappings from task metadata or project subRepos
+  const badgeRepoMappings = useMemo(() => {
+    const taskMultiRepo = activeTask?.metadata?.multiRepo;
+    if (taskMultiRepo?.repoMappings?.length) {
+      return taskMultiRepo.repoMappings.map((m: { relativePath: string; targetPath: string }) => ({
+        relativePath: m.relativePath,
+        targetPath: m.targetPath,
+      }));
+    }
+    if (selectedProject?.subRepos?.length) {
+      return selectedProject.subRepos.map((r) => ({
+        relativePath: r.relativePath,
+        targetPath: r.path,
+      }));
+    }
+    return undefined;
+  }, [activeTask?.metadata?.multiRepo, selectedProject?.subRepos]);
+  const { fileChanges } = useFileChanges(taskPath, { repoMappings: badgeRepoMappings });
 
   // Derive status bar data from current state
   const statusBarData = useMemo(() => {
@@ -133,8 +149,8 @@ export function AppLayout({
 
   // Render Git tab content
   const gitContent = useMemo(() => {
-    return <GitTab taskId={taskId} taskPath={taskPath} />;
-  }, [taskId, taskPath]);
+    return <GitTab taskId={taskId} taskPath={taskPath} activeTask={activeTask} selectedProject={selectedProject} />;
+  }, [taskId, taskPath, activeTask, selectedProject]);
 
   // Render Preview tab content
   const previewContent = useMemo(() => {

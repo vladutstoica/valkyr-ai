@@ -9,12 +9,14 @@ import os from 'node:os';
 import { promisify } from 'util';
 import {
   getStatus as gitGetStatus,
+  getMultiRepoStatus as gitGetMultiRepoStatus,
   getFileDiff as gitGetFileDiff,
   stageFile as gitStageFile,
   stageAllFiles as gitStageAllFiles,
   unstageFile as gitUnstageFile,
   revertFile as gitRevertFile,
 } from '../services/GitService';
+import type { RepoMapping } from '../services/GitService';
 import { gitQueue } from '../services/GitQueue';
 import { prGenerationService } from '../services/PrGenerationService';
 import { databaseService } from '../services/DatabaseService';
@@ -157,76 +159,109 @@ export function registerGitIpc() {
   });
 
   // Git: Status (moved from Codex IPC)
-  ipcMain.handle('git:get-status', async (_, taskPath: string) => {
-    try {
-      const changes = await gitGetStatus(taskPath);
-      return { success: true, changes };
-    } catch (error) {
-      return { success: false, error: error as string };
+  ipcMain.handle(
+    'git:get-status',
+    async (
+      _,
+      arg: string | { taskPath: string; repoMappings?: RepoMapping[] }
+    ) => {
+      try {
+        const taskPath = typeof arg === 'string' ? arg : arg.taskPath;
+        const repoMappings = typeof arg === 'object' ? arg.repoMappings : undefined;
+
+        const changes = repoMappings?.length
+          ? await gitGetMultiRepoStatus(repoMappings)
+          : await gitGetStatus(taskPath);
+        return { success: true, changes };
+      } catch (error) {
+        return { success: false, error: error as string };
+      }
     }
-  });
+  );
 
   // Git: Per-file diff (moved from Codex IPC)
-  ipcMain.handle('git:get-file-diff', async (_, args: { taskPath: string; filePath: string }) => {
-    try {
-      const diff = await gitGetFileDiff(args.taskPath, args.filePath);
-      return { success: true, diff };
-    } catch (error) {
-      return { success: false, error: error as string };
+  ipcMain.handle(
+    'git:get-file-diff',
+    async (_, args: { taskPath: string; filePath: string; repoCwd?: string }) => {
+      try {
+        const cwd = args.repoCwd || args.taskPath;
+        const diff = await gitGetFileDiff(cwd, args.filePath);
+        return { success: true, diff };
+      } catch (error) {
+        return { success: false, error: error as string };
+      }
     }
-  });
+  );
 
   // Git: Stage file
-  ipcMain.handle('git:stage-file', async (_, args: { taskPath: string; filePath: string }) => {
-    try {
-      log.info('Staging file:', { taskPath: args.taskPath, filePath: args.filePath });
-      await gitStageFile(args.taskPath, args.filePath);
-      log.info('File staged successfully:', args.filePath);
-      return { success: true };
-    } catch (error) {
-      log.error('Failed to stage file:', { filePath: args.filePath, error });
-      return { success: false, error: error instanceof Error ? error.message : String(error) };
+  ipcMain.handle(
+    'git:stage-file',
+    async (_, args: { taskPath: string; filePath: string; repoCwd?: string }) => {
+      try {
+        const cwd = args.repoCwd || args.taskPath;
+        log.info('Staging file:', { cwd, filePath: args.filePath });
+        await gitStageFile(cwd, args.filePath);
+        log.info('File staged successfully:', args.filePath);
+        return { success: true };
+      } catch (error) {
+        log.error('Failed to stage file:', { filePath: args.filePath, error });
+        return { success: false, error: error instanceof Error ? error.message : String(error) };
+      }
     }
-  });
+  );
 
   // Git: Stage all files
-  ipcMain.handle('git:stage-all-files', async (_, args: { taskPath: string }) => {
-    try {
-      log.info('Staging all files:', { taskPath: args.taskPath });
-      await gitStageAllFiles(args.taskPath);
-      log.info('All files staged successfully');
-      return { success: true };
-    } catch (error) {
-      log.error('Failed to stage all files:', { taskPath: args.taskPath, error });
-      return { success: false, error: error instanceof Error ? error.message : String(error) };
+  ipcMain.handle(
+    'git:stage-all-files',
+    async (_, args: { taskPath: string; repoCwds?: string[] }) => {
+      try {
+        const cwds = args.repoCwds?.length ? args.repoCwds : [args.taskPath];
+        log.info('Staging all files:', { cwds });
+        for (const cwd of cwds) {
+          await gitStageAllFiles(cwd);
+        }
+        log.info('All files staged successfully');
+        return { success: true };
+      } catch (error) {
+        log.error('Failed to stage all files:', { taskPath: args.taskPath, error });
+        return { success: false, error: error instanceof Error ? error.message : String(error) };
+      }
     }
-  });
+  );
 
   // Git: Unstage file
-  ipcMain.handle('git:unstage-file', async (_, args: { taskPath: string; filePath: string }) => {
-    try {
-      log.info('Unstaging file:', { taskPath: args.taskPath, filePath: args.filePath });
-      await gitUnstageFile(args.taskPath, args.filePath);
-      log.info('File unstaged successfully:', args.filePath);
-      return { success: true };
-    } catch (error) {
-      log.error('Failed to unstage file:', { filePath: args.filePath, error });
-      return { success: false, error: error instanceof Error ? error.message : String(error) };
+  ipcMain.handle(
+    'git:unstage-file',
+    async (_, args: { taskPath: string; filePath: string; repoCwd?: string }) => {
+      try {
+        const cwd = args.repoCwd || args.taskPath;
+        log.info('Unstaging file:', { cwd, filePath: args.filePath });
+        await gitUnstageFile(cwd, args.filePath);
+        log.info('File unstaged successfully:', args.filePath);
+        return { success: true };
+      } catch (error) {
+        log.error('Failed to unstage file:', { filePath: args.filePath, error });
+        return { success: false, error: error instanceof Error ? error.message : String(error) };
+      }
     }
-  });
+  );
 
   // Git: Revert file
-  ipcMain.handle('git:revert-file', async (_, args: { taskPath: string; filePath: string }) => {
-    try {
-      log.info('Reverting file:', { taskPath: args.taskPath, filePath: args.filePath });
-      const result = await gitRevertFile(args.taskPath, args.filePath);
-      log.info('File operation completed:', { filePath: args.filePath, action: result.action });
-      return { success: true, action: result.action };
-    } catch (error) {
-      log.error('Failed to revert file:', { filePath: args.filePath, error });
-      return { success: false, error: error instanceof Error ? error.message : String(error) };
+  ipcMain.handle(
+    'git:revert-file',
+    async (_, args: { taskPath: string; filePath: string; repoCwd?: string }) => {
+      try {
+        const cwd = args.repoCwd || args.taskPath;
+        log.info('Reverting file:', { cwd, filePath: args.filePath });
+        const result = await gitRevertFile(cwd, args.filePath);
+        log.info('File operation completed:', { filePath: args.filePath, action: result.action });
+        return { success: true, action: result.action };
+      } catch (error) {
+        log.error('Failed to revert file:', { filePath: args.filePath, error });
+        return { success: false, error: error instanceof Error ? error.message : String(error) };
+      }
     }
-  });
+  );
   // Git: Generate PR title and description
   ipcMain.handle(
     'git:generate-pr-content',

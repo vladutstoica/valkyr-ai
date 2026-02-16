@@ -261,7 +261,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   switchRepoBranch: (args: { repoPath: string; branch: string; stashIfDirty?: boolean }) =>
     ipcRenderer.invoke('project:switchBranch', args),
 
-  getGitStatus: (taskPath: string) => ipcRenderer.invoke('git:get-status', taskPath),
+  getGitStatus: (
+    arg: string | { taskPath: string; repoMappings?: Array<{ relativePath: string; targetPath: string }> }
+  ) => ipcRenderer.invoke('git:get-status', arg),
   watchGitStatus: (taskPath: string) => ipcRenderer.invoke('git:watch-status', taskPath),
   unwatchGitStatus: (taskPath: string, watchId?: string) =>
     ipcRenderer.invoke('git:unwatch-status', taskPath, watchId),
@@ -272,14 +274,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
       gitStatusChangedListeners.delete(listener);
     };
   },
-  getFileDiff: (args: { taskPath: string; filePath: string }) =>
+  getFileDiff: (args: { taskPath: string; filePath: string; repoCwd?: string }) =>
     ipcRenderer.invoke('git:get-file-diff', args),
-  stageFile: (args: { taskPath: string; filePath: string }) =>
+  stageFile: (args: { taskPath: string; filePath: string; repoCwd?: string }) =>
     ipcRenderer.invoke('git:stage-file', args),
-  stageAllFiles: (args: { taskPath: string }) => ipcRenderer.invoke('git:stage-all-files', args),
-  unstageFile: (args: { taskPath: string; filePath: string }) =>
+  stageAllFiles: (args: { taskPath: string; repoCwds?: string[] }) =>
+    ipcRenderer.invoke('git:stage-all-files', args),
+  unstageFile: (args: { taskPath: string; filePath: string; repoCwd?: string }) =>
     ipcRenderer.invoke('git:unstage-file', args),
-  revertFile: (args: { taskPath: string; filePath: string }) =>
+  revertFile: (args: { taskPath: string; filePath: string; repoCwd?: string }) =>
     ipcRenderer.invoke('git:revert-file', args),
   gitCommitAndPush: (args: {
     taskPath: string;
@@ -838,7 +841,9 @@ export interface ElectronAPI {
     rootPath?: string;
     error?: string;
   }>;
-  getGitStatus: (taskPath: string) => Promise<{
+  getGitStatus: (
+    arg: string | { taskPath: string; repoMappings?: Array<{ relativePath: string; targetPath: string }> }
+  ) => Promise<{
     success: boolean;
     changes?: Array<{
       path: string;
@@ -846,6 +851,8 @@ export interface ElectronAPI {
       additions: number;
       deletions: number;
       diff?: string;
+      repoName?: string;
+      repoCwd?: string;
     }>;
     error?: string;
   }>;
@@ -864,7 +871,7 @@ export interface ElectronAPI {
   onGitStatusChanged: (
     listener: (data: { taskPath: string; error?: string }) => void
   ) => () => void;
-  getFileDiff: (args: { taskPath: string; filePath: string }) => Promise<{
+  getFileDiff: (args: { taskPath: string; filePath: string; repoCwd?: string }) => Promise<{
     success: boolean;
     diff?: { lines: Array<{ left?: string; right?: string; type: 'context' | 'add' | 'del' }> };
     error?: string;

@@ -59,7 +59,34 @@ export type GitChange = {
   additions: number;
   deletions: number;
   isStaged: boolean;
+  repoName?: string;
+  repoCwd?: string;
 };
+
+export type RepoMapping = {
+  relativePath: string;
+  targetPath: string;
+};
+
+export async function getMultiRepoStatus(repoMappings: RepoMapping[]): Promise<GitChange[]> {
+  const allChanges: GitChange[] = [];
+
+  for (const mapping of repoMappings) {
+    const repoName = mapping.relativePath || path.basename(mapping.targetPath);
+    const changes = await getStatus(mapping.targetPath);
+
+    for (const change of changes) {
+      allChanges.push({
+        ...change,
+        path: repoName ? `${repoName}/${change.path}` : change.path,
+        repoName,
+        repoCwd: mapping.targetPath,
+      });
+    }
+  }
+
+  return allChanges;
+}
 
 export async function getStatus(taskPath: string): Promise<GitChange[]> {
   try {

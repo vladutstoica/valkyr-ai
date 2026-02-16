@@ -17,6 +17,7 @@ import { CommitPanel } from '@/components/git/CommitPanel';
 import { DiffViewer } from '@/components/git/DiffViewer';
 
 import type { FileChange } from '@/hooks/useGitState';
+import type { Task } from '@/types/app';
 
 /** Directory node in the file tree */
 interface DirNode {
@@ -84,15 +85,60 @@ function buildDirectoryTree(fileList: FileChange[]): DirNode {
 interface GitTabProps {
   taskId?: string;
   taskPath?: string;
+  activeTask?: Task | null;
+  selectedProject?: import('@/types/app').Project | null;
   className?: string;
 }
 
-export function GitTab({ taskId: _taskId, taskPath, className }: GitTabProps) {
+/** Strip the repo prefix from a file path to get the path relative to the sub-repo */
+function stripRepoPrefix(filePath: string, repoName?: string): string {
+  if (!repoName) return filePath;
+  const prefix = repoName + '/';
+  return filePath.startsWith(prefix) ? filePath.slice(prefix.length) : filePath;
+}
+
+/** Group files by their repoName */
+function buildRepoGroups(fileList: FileChange[]): Map<string, FileChange[]> {
+  const groups = new Map<string, FileChange[]>();
+  for (const file of fileList) {
+    const repo = file.repoName || '(root)';
+    const existing = groups.get(repo);
+    if (existing) {
+      existing.push(file);
+    } else {
+      groups.set(repo, [file]);
+    }
+  }
+  return groups;
+}
+
+export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject, className }: GitTabProps) {
   const { toast } = useToast();
   const { effectiveTheme } = useTheme();
 
+  // Derive multi-repo state from task metadata, falling back to project subRepos
+  const multiRepo = activeTask?.metadata?.multiRepo;
+  const projectSubRepos = selectedProject?.subRepos;
+  const repoMappings = useMemo(() => {
+    if (multiRepo?.repoMappings?.length) {
+      return multiRepo.repoMappings.map((m: { relativePath: string; targetPath: string }) => ({
+        relativePath: m.relativePath,
+        targetPath: m.targetPath,
+      }));
+    }
+    // Fallback: derive from project subRepos for tasks without multiRepo metadata
+    if (projectSubRepos?.length) {
+      return projectSubRepos.map((r) => ({
+        relativePath: r.relativePath,
+        targetPath: r.path,
+      }));
+    }
+    return undefined;
+  }, [multiRepo?.repoMappings, projectSubRepos]);
+  const isMultiRepo = Boolean(repoMappings?.length);
+
   // File changes from existing hook
-  const { fileChanges, refreshChanges, isLoading: isLoadingChanges } = useFileChanges(taskPath);
+  const { fileChanges, refreshChanges, isLoading: isLoadingChanges } = useFileChanges(taskPath, { repoMappings });
 
   // Local git state
   const {
@@ -123,6 +169,16 @@ export function GitTab({ taskId: _taskId, taskPath, className }: GitTabProps) {
   const [stagedCollapsed, setStagedCollapsed] = useState(false);
   const [unstagedCollapsed, setUnstagedCollapsed] = useState(false);
   const [collapsedDirs, setCollapsedDirs] = useState<Set<string>>(new Set());
+  const [collapsedRepos, setCollapsedRepos] = useState<Set<string>>(new Set());
+
+  const toggleRepo = useCallback((repoName: string) => {
+    setCollapsedRepos((prev) => {
+      const next = new Set(prev);
+      if (next.has(repoName)) next.delete(repoName);
+      else next.add(repoName);
+      return next;
+    });
+  }, []);
 
   const toggleDir = useCallback((dirPath: string) => {
     setCollapsedDirs((prev) => {
@@ -171,6 +227,8 @@ export function GitTab({ taskId: _taskId, taskPath, className }: GitTabProps) {
         deletions: change.deletions,
         diff: change.diff,
         isStaged: change.isStaged,
+        repoName: change.repoName,
+        repoCwd: change.repoCwd,
       }));
       setFiles(mappedFiles);
       setGitChangesCount(mappedFiles.length);
@@ -225,7 +283,11 @@ export function GitTab({ taskId: _taskId, taskPath, className }: GitTabProps) {
       setLoadingDiffs(new Set(loadingDiffsRef.current));
 
       try {
-        const result = await window.electronAPI.getFileDiff({ taskPath, filePath });
+        // For multi-repo, look up the file's repoCwd and strip the repo prefix
+        const file = files.find((f) => f.path === filePath);
+        const repoCwd = file?.repoCwd;
+        const effectivePath = repoCwd ? stripRepoPrefix(filePath, file?.repoName) : filePath;
+        const result = await window.electronAPI.getFileDiff({ taskPath, filePath: effectivePath, repoCwd });
         if (result?.success && result.diff) {
           let patch: string;
           if (result.diff.rawPatch) {
@@ -254,7 +316,7 @@ export function GitTab({ taskId: _taskId, taskPath, className }: GitTabProps) {
         setLoadingDiffs(new Set(loadingDiffsRef.current));
       }
     },
-    [taskPath]
+    [taskPath, files]
   );
 
   // Fetch diff when selectedFile changes
@@ -297,11 +359,16 @@ export function GitTab({ taskId: _taskId, taskPath, className }: GitTabProps) {
       setStagingFiles((prev) => new Set(prev).add(path));
 
       try {
+        // For multi-repo, resolve the correct cwd and stripped path
+        const file = files.find((f) => f.path === path);
+        const repoCwd = file?.repoCwd;
+        const effectivePath = repoCwd ? stripRepoPrefix(path, file?.repoName) : path;
+
         let result;
         if (isCurrentlyStaged) {
-          result = await window.electronAPI.unstageFile({ taskPath, filePath: path });
+          result = await window.electronAPI.unstageFile({ taskPath, filePath: effectivePath, repoCwd });
         } else {
-          result = await window.electronAPI.stageFile({ taskPath, filePath: path });
+          result = await window.electronAPI.stageFile({ taskPath, filePath: effectivePath, repoCwd });
         }
 
         if (result.success) {
@@ -328,7 +395,7 @@ export function GitTab({ taskId: _taskId, taskPath, className }: GitTabProps) {
         });
       }
     },
-    [taskPath, stagedFiles, toggleStaged, refreshChanges, toast]
+    [taskPath, stagedFiles, toggleStaged, refreshChanges, toast, files]
   );
 
   // Handle staging all files
@@ -337,7 +404,11 @@ export function GitTab({ taskId: _taskId, taskPath, className }: GitTabProps) {
 
     setStagingAll(true);
     try {
-      const result = await window.electronAPI.stageAllFiles({ taskPath });
+      // For multi-repo, collect unique repoCwds and pass them
+      const repoCwds = isMultiRepo
+        ? [...new Set(files.map((f) => f.repoCwd).filter(Boolean))] as string[]
+        : undefined;
+      const result = await window.electronAPI.stageAllFiles({ taskPath, repoCwds });
       if (result.success) {
         stageAll();
         await refreshChanges();
@@ -357,7 +428,7 @@ export function GitTab({ taskId: _taskId, taskPath, className }: GitTabProps) {
     } finally {
       setStagingAll(false);
     }
-  }, [taskPath, stageAll, refreshChanges, toast, setStagingAll]);
+  }, [taskPath, stageAll, refreshChanges, toast, setStagingAll, isMultiRepo, files]);
 
   // Handle unstaging all files
   const handleUnstageAll = useCallback(async () => {
@@ -366,8 +437,11 @@ export function GitTab({ taskId: _taskId, taskPath, className }: GitTabProps) {
     setStagingAll(true);
     try {
       const stagedPaths = Array.from(stagedFiles);
-      for (const path of stagedPaths) {
-        await window.electronAPI.unstageFile({ taskPath, filePath: path });
+      for (const filePath of stagedPaths) {
+        const file = files.find((f) => f.path === filePath);
+        const repoCwd = file?.repoCwd;
+        const effectivePath = repoCwd ? stripRepoPrefix(filePath, file?.repoName) : filePath;
+        await window.electronAPI.unstageFile({ taskPath, filePath: effectivePath, repoCwd });
       }
       unstageAll();
       await refreshChanges();
@@ -380,7 +454,7 @@ export function GitTab({ taskId: _taskId, taskPath, className }: GitTabProps) {
     } finally {
       setStagingAll(false);
     }
-  }, [taskPath, stagedFiles, unstageAll, refreshChanges, toast, setStagingAll]);
+  }, [taskPath, stagedFiles, unstageAll, refreshChanges, toast, setStagingAll, files]);
 
   // Handle discarding changes
   const handleDiscard = useCallback(
@@ -390,7 +464,10 @@ export function GitTab({ taskId: _taskId, taskPath, className }: GitTabProps) {
       setDiscardingFiles((prev) => new Set(prev).add(path));
 
       try {
-        const result = await window.electronAPI.revertFile({ taskPath, filePath: path });
+        const file = files.find((f) => f.path === path);
+        const repoCwd = file?.repoCwd;
+        const effectivePath = repoCwd ? stripRepoPrefix(path, file?.repoName) : path;
+        const result = await window.electronAPI.revertFile({ taskPath, filePath: effectivePath, repoCwd });
         if (result.success) {
           if (result.action !== 'unstaged') {
             toast({
@@ -420,7 +497,7 @@ export function GitTab({ taskId: _taskId, taskPath, className }: GitTabProps) {
         });
       }
     },
-    [taskPath, refreshChanges, toast]
+    [taskPath, refreshChanges, toast, files]
   );
 
   // Handle commit
@@ -605,6 +682,61 @@ export function GitTab({ taskId: _taskId, taskPath, className }: GitTabProps) {
     }
 
     return items;
+  };
+
+  /** Render files grouped by repository, then optionally by directory within each repo */
+  const renderRepoGrouped = (fileList: FileChange[], isStaged: boolean) => {
+    const repoGroups = buildRepoGroups(fileList);
+    const sortedRepos = [...repoGroups.keys()].sort();
+
+    return sortedRepos.map((repoName) => {
+      const repoKey = `${isStaged ? 's' : 'u'}:repo:${repoName}`;
+      const repoFiles = repoGroups.get(repoName) || [];
+      const isCollapsed = collapsedRepos.has(repoKey);
+
+      return (
+        <div key={repoKey}>
+          <button
+            type="button"
+            className="flex w-full items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted/40 bg-muted/20"
+            onClick={() => toggleRepo(repoKey)}
+          >
+            {isCollapsed ? (
+              <ChevronRight className="h-3 w-3 flex-shrink-0" />
+            ) : (
+              <ChevronDown className="h-3 w-3 flex-shrink-0" />
+            )}
+            <span className="truncate">{repoName}</span>
+            <span className="ml-auto rounded-full bg-muted px-1.5 text-[10px] font-medium text-muted-foreground/70">
+              {repoFiles.length}
+            </span>
+          </button>
+          {!isCollapsed && (
+            <div>
+              {fileGrouping.has('directory')
+                ? renderDirNode(buildDirectoryTree(repoFiles), 1, isStaged)
+                : repoFiles.map((file) => (
+                    <FileChangeItem
+                      key={file.path}
+                      path={file.path}
+                      status={file.status}
+                      additions={file.additions}
+                      deletions={file.deletions}
+                      isStaged={isStaged}
+                      isSelected={selectedFile === file.path}
+                      onToggleStaged={handleToggleStaged}
+                      onSelect={handleSelectFile}
+                      onDiscard={handleDiscard}
+                      isStaging={stagingFiles.has(file.path)}
+                      isDiscarding={discardingFiles.has(file.path)}
+                      depth={1}
+                    />
+                  ))}
+            </div>
+          )}
+        </div>
+      );
+    });
   };
 
   if (!taskPath) {
@@ -792,24 +924,26 @@ export function GitTab({ taskId: _taskId, taskPath, className }: GitTabProps) {
                   </div>
                   {!stagedCollapsed && (
                     <div>
-                      {fileGrouping.has('directory')
-                        ? renderDirNode(stagedTree, 0, true)
-                        : stagedFilesList.map((file) => (
-                            <FileChangeItem
-                              key={file.path}
-                              path={file.path}
-                              status={file.status}
-                              additions={file.additions}
-                              deletions={file.deletions}
-                              isStaged={true}
-                              isSelected={selectedFile === file.path}
-                              onToggleStaged={handleToggleStaged}
-                              onSelect={handleSelectFile}
-                              onDiscard={handleDiscard}
-                              isStaging={stagingFiles.has(file.path)}
-                              isDiscarding={discardingFiles.has(file.path)}
-                            />
-                          ))}
+                      {fileGrouping.has('repository') && isMultiRepo
+                        ? renderRepoGrouped(stagedFilesList, true)
+                        : fileGrouping.has('directory')
+                          ? renderDirNode(stagedTree, 0, true)
+                          : stagedFilesList.map((file) => (
+                              <FileChangeItem
+                                key={file.path}
+                                path={file.path}
+                                status={file.status}
+                                additions={file.additions}
+                                deletions={file.deletions}
+                                isStaged={true}
+                                isSelected={selectedFile === file.path}
+                                onToggleStaged={handleToggleStaged}
+                                onSelect={handleSelectFile}
+                                onDiscard={handleDiscard}
+                                isStaging={stagingFiles.has(file.path)}
+                                isDiscarding={discardingFiles.has(file.path)}
+                              />
+                            ))}
                     </div>
                   )}
                 </div>
@@ -858,24 +992,26 @@ export function GitTab({ taskId: _taskId, taskPath, className }: GitTabProps) {
                   </div>
                   {!unstagedCollapsed && (
                     <div>
-                      {fileGrouping.has('directory')
-                        ? renderDirNode(unstagedTree, 0, false)
-                        : unstagedFilesList.map((file) => (
-                            <FileChangeItem
-                              key={file.path}
-                              path={file.path}
-                              status={file.status}
-                              additions={file.additions}
-                              deletions={file.deletions}
-                              isStaged={false}
-                              isSelected={selectedFile === file.path}
-                              onToggleStaged={handleToggleStaged}
-                              onSelect={handleSelectFile}
-                              onDiscard={handleDiscard}
-                              isStaging={stagingFiles.has(file.path)}
-                              isDiscarding={discardingFiles.has(file.path)}
-                            />
-                      ))}
+                      {fileGrouping.has('repository') && isMultiRepo
+                        ? renderRepoGrouped(unstagedFilesList, false)
+                        : fileGrouping.has('directory')
+                          ? renderDirNode(unstagedTree, 0, false)
+                          : unstagedFilesList.map((file) => (
+                              <FileChangeItem
+                                key={file.path}
+                                path={file.path}
+                                status={file.status}
+                                additions={file.additions}
+                                deletions={file.deletions}
+                                isStaged={false}
+                                isSelected={selectedFile === file.path}
+                                onToggleStaged={handleToggleStaged}
+                                onSelect={handleSelectFile}
+                                onDiscard={handleDiscard}
+                                isStaging={stagingFiles.has(file.path)}
+                                isDiscarding={discardingFiles.has(file.path)}
+                              />
+                        ))}
                     </div>
                   )}
                 </div>

@@ -280,14 +280,15 @@ export const TaskAdvancedSettings: React.FC<TaskAdvancedSettingsProps> = ({
                 </div>
               </div>
 
-              {/* Multi-repo selection - only show when project has sub-repos and worktree is enabled */}
-              {subRepos && subRepos.length > 0 && useWorktree && (
+              {/* Multi-repo selection - show when project has sub-repos */}
+              {subRepos && subRepos.length > 0 && (
                 <div className="flex items-start gap-4">
                   <Label className="w-32 shrink-0 pt-1">Repositories</Label>
                   <div className="min-w-0 flex-1 space-y-2">
                     <p className="text-xs text-muted-foreground">
-                      Select which repositories to create worktrees for. Unselected repos will be
-                      symlinked (read-only changes).
+                      {useWorktree
+                        ? 'Select which repositories to create worktrees for. Unselected repos will be symlinked (read-only changes).'
+                        : 'Select which repositories to track changes for.'}
                     </p>
                     <div className="space-y-1">
                       {subRepos.map((repo) => (

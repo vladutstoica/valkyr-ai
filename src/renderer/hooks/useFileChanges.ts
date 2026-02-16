@@ -9,11 +9,14 @@ export interface FileChange {
   deletions: number;
   isStaged: boolean;
   diff?: string;
+  repoName?: string;
+  repoCwd?: string;
 }
 
 interface UseFileChangesOptions {
   isActive?: boolean;
   idleIntervalMs?: number;
+  repoMappings?: Array<{ relativePath: string; targetPath: string }>;
 }
 
 export function useFileChanges(taskPath?: string, options: UseFileChangesOptions = {}) {
@@ -29,8 +32,9 @@ export function useFileChanges(taskPath?: string, options: UseFileChangesOptions
     return document.hasFocus();
   });
 
-  const { isActive = true, idleIntervalMs = 60000 } = options;
+  const { isActive = true, idleIntervalMs = 60000, repoMappings } = options;
   const taskPathRef = useRef(taskPath);
+  const repoMappingsRef = useRef(repoMappings);
   const inFlightRef = useRef(false);
   const hasLoadedRef = useRef(false);
   const shouldPollRef = useRef(false);
@@ -49,8 +53,9 @@ export function useFileChanges(taskPath?: string, options: UseFileChangesOptions
 
   useEffect(() => {
     taskPathRef.current = taskPath;
+    repoMappingsRef.current = repoMappings;
     hasLoadedRef.current = false;
-  }, [taskPath]);
+  }, [taskPath, repoMappings]);
 
   useEffect(() => {
     if (typeof document === 'undefined' || typeof window === 'undefined') return;
@@ -104,7 +109,10 @@ export function useFileChanges(taskPath?: string, options: UseFileChangesOptions
       const requestPath = currentPath;
 
       try {
-        const result = await getCachedGitStatus(requestPath, { force: options?.force });
+        const result = await getCachedGitStatus(requestPath, {
+          force: options?.force,
+          repoMappings: repoMappingsRef.current,
+        });
 
         if (!mountedRef.current) return;
 
@@ -122,6 +130,8 @@ export function useFileChanges(taskPath?: string, options: UseFileChangesOptions
               deletions: change.deletions || 0,
               isStaged: change.isStaged || false,
               diff: change.diff,
+              repoName: change.repoName,
+              repoCwd: change.repoCwd,
             }))
             .filter((c) => !c.path.startsWith('.valkyr/') && c.path !== 'PLANNING.md');
           setFileChanges(changes);
