@@ -221,6 +221,13 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
   const fileDiffsRef = useRef<Map<string, string>>(new Map());
   const loadingDiffsRef = useRef<Set<string>>(new Set());
 
+  // Wrapper to clear diff cache before refreshing changes
+  const refreshChangesAndClearCache = useCallback(async () => {
+    fileDiffsRef.current.clear();
+    setFileDiffs(new Map());
+    await refreshChanges();
+  }, [refreshChanges]);
+
   // Sync file changes to local state
   useEffect(() => {
     if (fileChanges.length > 0) {
@@ -251,7 +258,7 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
 
   // Clear selected file if it no longer exists in the files array
   useEffect(() => {
-    if (selectedFile && files.length > 0 && !files.some((f) => f.path === selectedFile)) {
+    if (selectedFile && (files.length === 0 || !files.some((f) => f.path === selectedFile))) {
       setSelectedFile(null);
     }
   }, [files, selectedFile, setSelectedFile]);
@@ -377,7 +384,7 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
 
         if (result.success) {
           toggleStaged(path);
-          await refreshChanges();
+          await refreshChangesAndClearCache();
         } else {
           toast({
             title: isCurrentlyStaged ? 'Unstage Failed' : 'Stage Failed',
@@ -399,7 +406,7 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
         });
       }
     },
-    [taskPath, stagedFiles, toggleStaged, refreshChanges, toast, files]
+    [taskPath, stagedFiles, toggleStaged, refreshChangesAndClearCache, toast, files]
   );
 
   // Handle staging all files
@@ -415,7 +422,7 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
       const result = await window.electronAPI.stageAllFiles({ taskPath, repoCwds });
       if (result.success) {
         stageAll();
-        await refreshChanges();
+        await refreshChangesAndClearCache();
       } else {
         toast({
           title: 'Stage All Failed',
@@ -432,7 +439,7 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
     } finally {
       setStagingAll(false);
     }
-  }, [taskPath, stageAll, refreshChanges, toast, setStagingAll, isMultiRepo, files]);
+  }, [taskPath, stageAll, refreshChangesAndClearCache, toast, setStagingAll, isMultiRepo, files]);
 
   // Handle unstaging all files
   const handleUnstageAll = useCallback(async () => {
@@ -448,7 +455,7 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
         await window.electronAPI.unstageFile({ taskPath, filePath: effectivePath, repoCwd });
       }
       unstageAll();
-      await refreshChanges();
+      await refreshChangesAndClearCache();
     } catch {
       toast({
         title: 'Error',
@@ -458,7 +465,7 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
     } finally {
       setStagingAll(false);
     }
-  }, [taskPath, stagedFiles, unstageAll, refreshChanges, toast, setStagingAll, files]);
+  }, [taskPath, stagedFiles, unstageAll, refreshChangesAndClearCache, toast, setStagingAll, files]);
 
   // Handle discarding changes
   const handleDiscard = useCallback(
@@ -479,7 +486,7 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
               description: `${path} changes have been reverted.`,
             });
           }
-          await refreshChanges();
+          await refreshChangesAndClearCache();
         } else {
           toast({
             title: 'Revert Failed',
@@ -501,7 +508,7 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
         });
       }
     },
-    [taskPath, refreshChanges, toast, files]
+    [taskPath, refreshChangesAndClearCache, toast, files]
   );
 
   // Handle commit
@@ -520,7 +527,7 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
       if (result.success) {
         toast({ title: 'Committed', description: commitMessage.trim() });
         setCommitMessage('');
-        await refreshChanges();
+        await refreshChangesAndClearCache();
       } else {
         toast({ title: 'Commit Failed', description: result.error || 'Failed to commit.', variant: 'destructive' });
       }
@@ -529,7 +536,7 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
     } finally {
       setCommitting(false);
     }
-  }, [taskPath, commitMessage, setCommitting, setCommitMessage, refreshChanges, toast]);
+  }, [taskPath, commitMessage, setCommitting, setCommitMessage, refreshChangesAndClearCache, toast]);
 
   // Handle commit and push
   const handleCommitAndPush = useCallback(async () => {
@@ -547,7 +554,7 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
       if (result.success) {
         toast({ title: 'Committed and Pushed', description: commitMessage.trim() });
         setCommitMessage('');
-        await refreshChanges();
+        await refreshChangesAndClearCache();
       } else {
         toast({ title: 'Commit Failed', description: result.error || 'Failed to commit and push.', variant: 'destructive' });
       }
@@ -556,7 +563,7 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
     } finally {
       setCommitting(false);
     }
-  }, [taskPath, commitMessage, setCommitting, setCommitMessage, refreshChanges, toast]);
+  }, [taskPath, commitMessage, setCommitting, setCommitMessage, refreshChangesAndClearCache, toast]);
 
   // Handle PR creation
   const handleCreatePR = useCallback(
@@ -572,7 +579,7 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
               title: 'Merged to Main',
               description: 'Changes have been merged to main.',
             });
-            await refreshChanges();
+            await refreshChangesAndClearCache();
           } else {
             toast({
               title: 'Merge Failed',
@@ -594,7 +601,7 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
             if (result.url) {
               setPrUrl(result.url);
             }
-            await refreshChanges();
+            await refreshChangesAndClearCache();
           } else {
             toast({
               title: 'PR Creation Failed',
@@ -613,7 +620,7 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
         setIsCreatingPR(false);
       }
     },
-    [taskPath, refreshChanges, toast]
+    [taskPath, refreshChangesAndClearCache, toast]
   );
 
   // Calculate stats
@@ -858,7 +865,7 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
               variant="ghost"
               size="icon"
               className="h-6 w-6"
-              onClick={() => refreshChanges()}
+              onClick={() => refreshChangesAndClearCache()}
               disabled={isLoadingChanges}
             >
               {isLoadingChanges ? (
