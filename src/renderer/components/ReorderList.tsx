@@ -37,6 +37,7 @@ export function ReorderList<T>({
     >
       {items.map((item, index) => (
         <Reorder.Item
+          as="div"
           key={(getKey ? getKey(item, index) : (index as any)) as React.Key}
           value={item as any}
           className={itemClassName}

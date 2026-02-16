@@ -48,6 +48,7 @@ import {
   Star,
   Trash2,
   FolderClosed,
+  GripVertical,
   Layers,
 } from 'lucide-react';
 import {
@@ -447,9 +448,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                       <ContextMenu key={typedProject.id}>
                         <ContextMenuTrigger asChild>
                           <Card
-                            className={`w-full cursor-pointer transition-colors ${
-                              isProjectActive ? 'ring-2 ring-ring' : ''
-                            }`}
+                            className="w-full cursor-pointer transition-colors"
                             onClick={() => onSelectProject(typedProject)}
                           >
                             <Collapsible defaultOpen className="group/collapsible w-full">
@@ -756,97 +755,132 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                   return (
                     <div className="flex w-full flex-col gap-0 overflow-hidden">
                       {/* Ungrouped projects */}
-                      {ungrouped.map(renderProjectCard)}
+                      <ReorderList
+                        items={ungrouped}
+                        onReorder={(newOrder) => {
+                          const grouped = projects.filter((p) => p.groupId);
+                          onReorderProjectsFull?.([...newOrder, ...grouped]);
+                        }}
+                        getKey={(p) => p.id}
+                      >
+                        {(project) => renderProjectCard(project)}
+                      </ReorderList>
 
                       {/* Grouped projects */}
-                      {sortedGroups.map((group) => {
-                        const groupProjects = projects.filter((p) => p.groupId === group.id);
-                        const isEditingThisGroup = editingGroupId === group.id;
+                      <ReorderList
+                        items={sortedGroups}
+                        onReorder={(newOrder) => {
+                          onReorderGroups?.(newOrder.map((g) => g.id));
+                        }}
+                        getKey={(g) => g.id}
+                      >
+                        {(group) => {
+                          const groupProjects = projects.filter(
+                            (p) => p.groupId === group.id,
+                          );
+                          const isEditingThisGroup = editingGroupId === group.id;
 
-                        return (
-                          <Collapsible
-                            key={group.id}
-                            open={!group.isCollapsed}
-                            onOpenChange={(open) => onToggleGroupCollapsed?.(group.id, !open)}
-                          >
-                            <div className="group/groupheader flex items-center gap-1 px-3 py-1.5">
-                              <CollapsibleTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-5 w-5 shrink-0 cursor-pointer"
-                                >
-                                  {group.isCollapsed ? (
-                                    <ChevronRight className="h-3 w-3" />
-                                  ) : (
-                                    <ChevronDown className="h-3 w-3" />
-                                  )}
-                                </Button>
-                              </CollapsibleTrigger>
-                              {isEditingThisGroup ? (
-                                <input
-                                  ref={groupInputRef}
-                                  type="text"
-                                  value={editGroupName}
-                                  onChange={(e) => setEditGroupName(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      e.preventDefault();
-                                      handleConfirmGroupRename(group.id);
-                                    } else if (e.key === 'Escape') {
-                                      e.preventDefault();
-                                      setEditingGroupId(null);
-                                    }
-                                  }}
-                                  onBlur={() => handleConfirmGroupRename(group.id)}
-                                  className="min-w-0 flex-1 border border-border bg-background px-1 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
-                                />
-                              ) : (
-                                <span className="min-w-0 flex-1 truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                  {group.name}
-                                </span>
-                              )}
-                              <span className="text-[10px] text-muted-foreground/60">
-                                {groupProjects.length}
-                              </span>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
+                          return (
+                            <Collapsible
+                              open={!group.isCollapsed}
+                              onOpenChange={(open) =>
+                                onToggleGroupCollapsed?.(group.id, !open)
+                              }
+                            >
+                              <div className="group/groupheader flex items-center gap-1 px-3 py-1.5">
+                                <GripVertical className="h-3 w-3 shrink-0 cursor-grab text-muted-foreground/0 group-hover/groupheader:text-muted-foreground/50" />
+                                <CollapsibleTrigger asChild>
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-5 w-5 shrink-0 cursor-pointer opacity-0 group-hover/groupheader:opacity-100"
+                                    className="h-5 w-5 shrink-0 cursor-pointer"
                                   >
-                                    <MoreVertical className="h-3 w-3" />
+                                    {group.isCollapsed ? (
+                                      <ChevronRight className="h-3 w-3" />
+                                    ) : (
+                                      <ChevronDown className="h-3 w-3" />
+                                    )}
                                   </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem
-                                    className="cursor-pointer"
-                                    onClick={() => {
-                                      setEditGroupName(group.name);
-                                      setEditingGroupId(group.id);
+                                </CollapsibleTrigger>
+                                {isEditingThisGroup ? (
+                                  <input
+                                    ref={groupInputRef}
+                                    type="text"
+                                    value={editGroupName}
+                                    onChange={(e) => setEditGroupName(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        handleConfirmGroupRename(group.id);
+                                      } else if (e.key === 'Escape') {
+                                        e.preventDefault();
+                                        setEditingGroupId(null);
+                                      }
                                     }}
-                                  >
-                                    <Pencil className="mr-2 h-3.5 w-3.5" />
-                                    Rename
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    className="cursor-pointer text-destructive focus:text-destructive"
-                                    onClick={() => onDeleteGroup?.(group.id)}
-                                  >
-                                    <Trash2 className="mr-2 h-3.5 w-3.5" />
-                                    Delete Group
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                            <CollapsibleContent>
-                              {groupProjects.map(renderProjectCard)}
-                            </CollapsibleContent>
-                          </Collapsible>
-                        );
-                      })}
+                                    onBlur={() => handleConfirmGroupRename(group.id)}
+                                    className="min-w-0 flex-1 border border-border bg-background px-1 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                                  />
+                                ) : (
+                                  <span className="min-w-0 flex-1 truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                    {group.name}
+                                  </span>
+                                )}
+                                <span className="text-[10px] text-muted-foreground/60">
+                                  {groupProjects.length}
+                                </span>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-5 w-5 shrink-0 cursor-pointer opacity-0 group-hover/groupheader:opacity-100"
+                                    >
+                                      <MoreVertical className="h-3 w-3" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem
+                                      className="cursor-pointer"
+                                      onClick={() => {
+                                        setEditGroupName(group.name);
+                                        setEditingGroupId(group.id);
+                                      }}
+                                    >
+                                      <Pencil className="mr-2 h-3.5 w-3.5" />
+                                      Rename
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      className="cursor-pointer text-destructive focus:text-destructive"
+                                      onClick={() => onDeleteGroup?.(group.id)}
+                                    >
+                                      <Trash2 className="mr-2 h-3.5 w-3.5" />
+                                      Delete Group
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                              <CollapsibleContent>
+                                <ReorderList
+                                  items={groupProjects}
+                                  onReorder={(newOrder) => {
+                                    const otherProjects = projects.filter(
+                                      (p) => p.groupId !== group.id,
+                                    );
+                                    onReorderProjectsFull?.([
+                                      ...otherProjects,
+                                      ...newOrder,
+                                    ]);
+                                  }}
+                                  getKey={(p) => p.id}
+                                >
+                                  {(project) => renderProjectCard(project)}
+                                </ReorderList>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          );
+                        }}
+                      </ReorderList>
 
                       {/* New Group input */}
                       {showNewGroupInput && (

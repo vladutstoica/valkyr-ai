@@ -77,7 +77,11 @@ function buildDirectoryTree(fileList: FileChange[]): DirNode {
       collapseSingleChild(child);
     }
   }
-  collapseSingleChild(root);
+  // Only collapse children — never the root itself, so renderDirNode
+  // always has children to render as directory headers.
+  for (const child of root.children) {
+    collapseSingleChild(child);
+  }
 
   return root;
 }
