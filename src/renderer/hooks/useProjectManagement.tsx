@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { pickDefaultBranch } from '../components/BranchSelect';
 import { saveActiveIds } from '../constants/layout';
 import {
@@ -7,7 +7,7 @@ import {
   normalizePathForComparison,
   withRepoKey,
 } from '../lib/projectUtils';
-import type { Project, ProjectGroup, Task } from '../types/app';
+import type { Project, ProjectGroup, Task, Workspace } from '../types/app';
 
 interface UseProjectManagementOptions {
   platform: string;
@@ -42,6 +42,10 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [groups, setGroups] = useState<ProjectGroup[]>([]);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(() => {
+    return localStorage.getItem('emdash:activeWorkspaceId') || null;
+  });
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const hasPendingRestore = storedActiveIds.projectId !== null;
   // Start with showHomeView=false if we have a pending restore to prevent flash
@@ -52,6 +56,30 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
   >([]);
   const [projectDefaultBranch, setProjectDefaultBranch] = useState<string>('main');
   const [isLoadingBranches, setIsLoadingBranches] = useState(false);
+
+  // Persist activeWorkspaceId to localStorage
+  useEffect(() => {
+    if (activeWorkspaceId) {
+      localStorage.setItem('emdash:activeWorkspaceId', activeWorkspaceId);
+    } else {
+      localStorage.removeItem('emdash:activeWorkspaceId');
+    }
+  }, [activeWorkspaceId]);
+
+  // Filter projects by active workspace
+  const filteredProjects = useMemo(() => {
+    if (!activeWorkspaceId) return projects;
+    // Find the default workspace
+    const defaultWs = workspaces.find((ws) => ws.isDefault);
+    const isActiveDefault = defaultWs?.id === activeWorkspaceId;
+
+    return projects.filter((p) => {
+      if (p.workspaceId === activeWorkspaceId) return true;
+      // Projects with no workspace assigned go into the default workspace
+      if (isActiveDefault && !p.workspaceId) return true;
+      return false;
+    });
+  }, [projects, activeWorkspaceId, workspaces]);
 
   const activateProjectView = useCallback((project: Project) => {
     void (async () => {
@@ -854,6 +882,111 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
     }
   };
 
+  // --- Workspace Handlers ---
+
+  const handleCreateWorkspace = async (name: string, color: string = 'blue') => {
+    try {
+      const res = await window.electronAPI.createWorkspace({ name, color });
+      if (res.success && res.workspace) {
+        setWorkspaces((prev) => [...prev, res.workspace!]);
+      }
+    } catch (err) {
+      console.error('Failed to create workspace:', err);
+    }
+  };
+
+  const handleRenameWorkspace = async (workspaceId: string, name: string) => {
+    try {
+      const res = await window.electronAPI.renameWorkspace({ id: workspaceId, name });
+      if (res.success) {
+        setWorkspaces((prev) =>
+          prev.map((ws) => (ws.id === workspaceId ? { ...ws, name } : ws))
+        );
+      }
+    } catch (err) {
+      console.error('Failed to rename workspace:', err);
+    }
+  };
+
+  const handleDeleteWorkspace = async (workspaceId: string) => {
+    try {
+      const res = await window.electronAPI.deleteWorkspace(workspaceId);
+      if (res.success) {
+        setWorkspaces((prev) => prev.filter((ws) => ws.id !== workspaceId));
+        // Move orphaned projects to default workspace in local state
+        const defaultWs = workspaces.find((ws) => ws.isDefault);
+        if (defaultWs) {
+          setProjects((prev) =>
+            prev.map((p) =>
+              p.workspaceId === workspaceId ? { ...p, workspaceId: defaultWs.id } : p
+            )
+          );
+          // Switch to default if we're deleting the active workspace
+          if (activeWorkspaceId === workspaceId) {
+            setActiveWorkspaceId(defaultWs.id);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to delete workspace:', err);
+    }
+  };
+
+  const handleUpdateWorkspaceColor = async (workspaceId: string, color: string) => {
+    try {
+      const res = await window.electronAPI.updateWorkspaceColor({ id: workspaceId, color });
+      if (res.success) {
+        setWorkspaces((prev) =>
+          prev.map((ws) => (ws.id === workspaceId ? { ...ws, color } : ws))
+        );
+      }
+    } catch (err) {
+      console.error('Failed to update workspace color:', err);
+    }
+  };
+
+  const handleUpdateWorkspaceEmoji = async (workspaceId: string, emoji: string | null) => {
+    try {
+      const res = await window.electronAPI.updateWorkspaceEmoji({ id: workspaceId, emoji });
+      if (res.success) {
+        setWorkspaces((prev) =>
+          prev.map((ws) => (ws.id === workspaceId ? { ...ws, emoji } : ws))
+        );
+      }
+    } catch (err) {
+      console.error('Failed to update workspace emoji:', err);
+    }
+  };
+
+  const handleReorderWorkspaces = async (workspaceIds: string[]) => {
+    try {
+      setWorkspaces((prev) => {
+        const byId = new Map(prev.map((ws) => [ws.id, ws]));
+        return workspaceIds.map((id, i) => ({ ...byId.get(id)!, displayOrder: i }));
+      });
+      await window.electronAPI.updateWorkspaceOrder(workspaceIds);
+    } catch (err) {
+      console.error('Failed to reorder workspaces:', err);
+    }
+  };
+
+  const handleMoveProjectToWorkspace = async (projectId: string, workspaceId: string | null) => {
+    try {
+      const res = await window.electronAPI.setProjectWorkspace({ projectId, workspaceId });
+      if (res.success) {
+        setProjects((prev) =>
+          prev.map((p) => (p.id === projectId ? { ...p, workspaceId } : p))
+        );
+      }
+    } catch (err) {
+      console.error('Failed to move project to workspace:', err);
+    }
+  };
+
+  const handleSwitchWorkspace = (workspaceId: string) => {
+    setActiveWorkspaceId(workspaceId);
+  };
+
   // Load branch options when project is selected
   useEffect(() => {
     if (!selectedProject) {
@@ -934,5 +1067,19 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
     handleReorderGroups,
     handleMoveProjectToGroup,
     handleToggleGroupCollapsed,
+    // Workspace management
+    workspaces,
+    setWorkspaces,
+    activeWorkspaceId,
+    setActiveWorkspaceId,
+    filteredProjects,
+    handleCreateWorkspace,
+    handleRenameWorkspace,
+    handleDeleteWorkspace,
+    handleUpdateWorkspaceColor,
+    handleUpdateWorkspaceEmoji,
+    handleReorderWorkspaces,
+    handleMoveProjectToWorkspace,
+    handleSwitchWorkspace,
   };
 };

@@ -17,6 +17,17 @@ export interface SubRepo {
   gitInfo: SubRepoGitInfo;
 }
 
+export interface Workspace {
+  id: string;
+  name: string;
+  color: string;
+  emoji: string | null;
+  displayOrder: number;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ProjectGroup {
   id: string;
   name: string;
@@ -36,6 +47,7 @@ export interface Project {
   repoKey?: string;
   subRepos?: SubRepo[] | null;
   groupId?: string | null;
+  workspaceId?: string | null;
   gitInfo: {
     isGitRepo: boolean;
     remote?: string;

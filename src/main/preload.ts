@@ -439,6 +439,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('db:setProjectGroup', args),
   toggleProjectGroupCollapsed: (args: { id: string; isCollapsed: boolean }) =>
     ipcRenderer.invoke('db:toggleProjectGroupCollapsed', args),
+  // Workspaces
+  getWorkspaces: () => ipcRenderer.invoke('db:getWorkspaces'),
+  createWorkspace: (args: { name: string; color?: string }) =>
+    ipcRenderer.invoke('db:createWorkspace', args),
+  renameWorkspace: (args: { id: string; name: string }) =>
+    ipcRenderer.invoke('db:renameWorkspace', args),
+  deleteWorkspace: (id: string) => ipcRenderer.invoke('db:deleteWorkspace', id),
+  updateWorkspaceOrder: (workspaceIds: string[]) =>
+    ipcRenderer.invoke('db:updateWorkspaceOrder', workspaceIds),
+  updateWorkspaceColor: (args: { id: string; color: string }) =>
+    ipcRenderer.invoke('db:updateWorkspaceColor', args),
+  updateWorkspaceEmoji: (args: { id: string; emoji: string | null }) =>
+    ipcRenderer.invoke('db:updateWorkspaceEmoji', args),
+  setProjectWorkspace: (args: { projectId: string; workspaceId: string | null }) =>
+    ipcRenderer.invoke('db:setProjectWorkspace', args),
   getTasks: (projectId?: string) => ipcRenderer.invoke('db:getTasks', projectId),
   saveTask: (task: any) => ipcRenderer.invoke('db:saveTask', task),
   deleteProject: (projectId: string) => ipcRenderer.invoke('db:deleteProject', projectId),
