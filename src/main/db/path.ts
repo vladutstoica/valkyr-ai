@@ -2,7 +2,8 @@ import { existsSync, renameSync } from 'fs';
 import { dirname, join } from 'path';
 import { app } from 'electron';
 
-const CURRENT_DB_FILENAME = 'valkyr.db';
+const IS_DEV = process.env.NODE_ENV === 'development' || process.argv.includes('--dev');
+const CURRENT_DB_FILENAME = IS_DEV ? 'valkyr-dev.db' : 'valkyr.db';
 const LEGACY_DB_FILENAMES = ['emdash.db', 'database.sqlite', 'orcbench.db'];
 
 export interface ResolveDatabasePathOptions {

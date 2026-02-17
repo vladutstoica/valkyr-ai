@@ -289,6 +289,102 @@ export function registerDatabaseIpc() {
     }
   );
 
+  // Workspace handlers
+  ipcMain.handle('db:getWorkspaces', async () => {
+    try {
+      const workspaces = await databaseService.getWorkspaces();
+      return { success: true, workspaces };
+    } catch (error) {
+      log.error('Failed to get workspaces:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle(
+    'db:createWorkspace',
+    async (_, { name, color }: { name: string; color?: string }) => {
+      try {
+        const workspace = await databaseService.createWorkspace(name, color);
+        return { success: true, workspace };
+      } catch (error) {
+        log.error('Failed to create workspace:', error);
+        return { success: false, error: (error as Error).message };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'db:renameWorkspace',
+    async (_, { id, name }: { id: string; name: string }) => {
+      try {
+        await databaseService.renameWorkspace(id, name);
+        return { success: true };
+      } catch (error) {
+        log.error('Failed to rename workspace:', error);
+        return { success: false, error: (error as Error).message };
+      }
+    }
+  );
+
+  ipcMain.handle('db:deleteWorkspace', async (_, id: string) => {
+    try {
+      await databaseService.deleteWorkspace(id);
+      return { success: true };
+    } catch (error) {
+      log.error('Failed to delete workspace:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle('db:updateWorkspaceOrder', async (_, workspaceIds: string[]) => {
+    try {
+      await databaseService.updateWorkspaceOrder(workspaceIds);
+      return { success: true };
+    } catch (error) {
+      log.error('Failed to update workspace order:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle(
+    'db:updateWorkspaceColor',
+    async (_, { id, color }: { id: string; color: string }) => {
+      try {
+        await databaseService.updateWorkspaceColor(id, color);
+        return { success: true };
+      } catch (error) {
+        log.error('Failed to update workspace color:', error);
+        return { success: false, error: (error as Error).message };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'db:updateWorkspaceEmoji',
+    async (_, { id, emoji }: { id: string; emoji: string | null }) => {
+      try {
+        await databaseService.updateWorkspaceEmoji(id, emoji);
+        return { success: true };
+      } catch (error) {
+        log.error('Failed to update workspace emoji:', error);
+        return { success: false, error: (error as Error).message };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'db:setProjectWorkspace',
+    async (_, { projectId, workspaceId }: { projectId: string; workspaceId: string | null }) => {
+      try {
+        await databaseService.setProjectWorkspace(projectId, workspaceId);
+        return { success: true };
+      } catch (error) {
+        log.error('Failed to set project workspace:', error);
+        return { success: false, error: (error as Error).message };
+      }
+    }
+  );
+
   // Multi-chat support handlers
   ipcMain.handle(
     'db:createConversation',

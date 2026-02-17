@@ -83,6 +83,7 @@ const AppContent: React.FC = () => {
     checkGithubStatus: () => github.checkStatus(),
     onProjectsLoaded: (projects) => projectMgmt.setProjects(projects),
     onGroupsLoaded: (groups) => projectMgmt.setGroups(groups),
+    onWorkspacesLoaded: (workspaces) => projectMgmt.setWorkspaces(workspaces),
     onProjectSelected: (project) => projectMgmt.setSelectedProject(project),
     onShowHomeView: (show) => projectMgmt.setShowHomeView(show),
     onTaskSelected: (task) => taskMgmt.setActiveTask(task),
@@ -333,7 +334,7 @@ const AppContent: React.FC = () => {
   const leftSidebar = useMemo(
     () => (
       <LeftSidebar
-        projects={projectMgmt.projects}
+        projects={projectMgmt.filteredProjects}
         archivedTasksVersion={taskMgmt.archivedTasksVersion}
         selectedProject={selectedProject}
         onSelectProject={projectMgmt.handleSelectProject}
@@ -362,10 +363,19 @@ const AppContent: React.FC = () => {
         onReorderGroups={projectMgmt.handleReorderGroups}
         onMoveProjectToGroup={projectMgmt.handleMoveProjectToGroup}
         onToggleGroupCollapsed={projectMgmt.handleToggleGroupCollapsed}
+        workspaces={projectMgmt.workspaces}
+        activeWorkspaceId={projectMgmt.activeWorkspaceId}
+        onSwitchWorkspace={projectMgmt.handleSwitchWorkspace}
+        onCreateWorkspace={projectMgmt.handleCreateWorkspace}
+        onRenameWorkspace={projectMgmt.handleRenameWorkspace}
+        onDeleteWorkspace={projectMgmt.handleDeleteWorkspace}
+        onUpdateWorkspaceColor={projectMgmt.handleUpdateWorkspaceColor}
+        onReorderWorkspaces={projectMgmt.handleReorderWorkspaces}
+        onMoveProjectToWorkspace={projectMgmt.handleMoveProjectToWorkspace}
       />
     ),
     [
-      projectMgmt.projects,
+      projectMgmt.filteredProjects,
       taskMgmt.archivedTasksVersion,
       selectedProject,
       projectMgmt.handleSelectProject,
@@ -394,6 +404,15 @@ const AppContent: React.FC = () => {
       projectMgmt.handleReorderGroups,
       projectMgmt.handleMoveProjectToGroup,
       projectMgmt.handleToggleGroupCollapsed,
+      projectMgmt.workspaces,
+      projectMgmt.activeWorkspaceId,
+      projectMgmt.handleSwitchWorkspace,
+      projectMgmt.handleCreateWorkspace,
+      projectMgmt.handleRenameWorkspace,
+      projectMgmt.handleDeleteWorkspace,
+      projectMgmt.handleUpdateWorkspaceColor,
+      projectMgmt.handleReorderWorkspaces,
+      projectMgmt.handleMoveProjectToWorkspace,
     ]
   );
 

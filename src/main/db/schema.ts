@@ -25,6 +25,21 @@ export const sshConnections = sqliteTable(
   })
 );
 
+export const workspaces = sqliteTable('workspaces', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  color: text('color').notNull().default('blue'),
+  emoji: text('emoji'),
+  displayOrder: integer('display_order').notNull().default(0),
+  isDefault: integer('is_default').notNull().default(0), // boolean, 0=false, 1=true
+  createdAt: text('created_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const projectGroups = sqliteTable('project_groups', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
@@ -57,6 +72,7 @@ export const projects = sqliteTable(
     subRepos: text('sub_repos'), // JSON array of SubRepo for multi-repo projects
     displayOrder: integer('display_order').notNull().default(0), // Order in sidebar
     groupId: text('group_id').references(() => projectGroups.id, { onDelete: 'set null' }),
+    workspaceId: text('workspace_id').references(() => workspaces.id, { onDelete: 'set null' }),
     createdAt: text('created_at')
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
@@ -69,6 +85,7 @@ export const projects = sqliteTable(
     sshConnectionIdIdx: index('idx_projects_ssh_connection_id').on(table.sshConnectionId),
     isRemoteIdx: index('idx_projects_is_remote').on(table.isRemote),
     groupIdIdx: index('idx_projects_group_id').on(table.groupId),
+    workspaceIdIdx: index('idx_projects_workspace_id').on(table.workspaceId),
   })
 );
 
@@ -173,6 +190,10 @@ export const sshConnectionsRelations = relations(sshConnections, ({ many }) => (
   projects: many(projects),
 }));
 
+export const workspacesRelations = relations(workspaces, ({ many }) => ({
+  projects: many(projects),
+}));
+
 export const projectGroupsRelations = relations(projectGroups, ({ many }) => ({
   projects: many(projects),
 }));
@@ -186,6 +207,10 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   group: one(projectGroups, {
     fields: [projects.groupId],
     references: [projectGroups.id],
+  }),
+  workspace: one(workspaces, {
+    fields: [projects.workspaceId],
+    references: [workspaces.id],
   }),
 }));
 
@@ -220,6 +245,7 @@ export const lineCommentsRelations = relations(lineComments, ({ one }) => ({
   }),
 }));
 
+export type WorkspaceRow = typeof workspaces.$inferSelect;
 export type SshConnectionRow = typeof sshConnections.$inferSelect;
 export type SshConnectionInsert = typeof sshConnections.$inferInsert;
 export type ProjectGroupRow = typeof projectGroups.$inferSelect;

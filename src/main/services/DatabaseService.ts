@@ -8,6 +8,7 @@ import { log } from '../lib/logger';
 import {
   projects as projectsTable,
   projectGroups as projectGroupsTable,
+  workspaces as workspacesTable,
   tasks as tasksTable,
   conversations as conversationsTable,
   messages as messagesTable,
@@ -15,6 +16,7 @@ import {
   sshConnections as sshConnectionsTable,
   type ProjectRow,
   type ProjectGroupRow,
+  type WorkspaceRow,
   type TaskRow,
   type ConversationRow,
   type MessageRow,
@@ -49,6 +51,17 @@ export interface ProjectGroup {
   updatedAt: string;
 }
 
+export interface Workspace {
+  id: string;
+  name: string;
+  color: string;
+  emoji: string | null;
+  displayOrder: number;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -61,6 +74,8 @@ export interface Project {
   subRepos?: SubRepo[] | null;
   // Group assignment
   groupId?: string | null;
+  // Workspace assignment
+  workspaceId?: string | null;
   gitInfo: {
     isGitRepo: boolean;
     remote?: string;
@@ -159,6 +174,7 @@ export class DatabaseService {
         }
 
         this.ensureMigrations()
+          .then(() => this.ensureDefaultWorkspace())
           .then(() => resolve())
           .catch(async (migrationError) => {
             // Track critical migration error
@@ -890,6 +906,156 @@ export class DatabaseService {
       .where(eq(projectGroupsTable.id, id));
   }
 
+  // Workspace management methods
+
+  private mapDrizzleWorkspaceRow(row: WorkspaceRow): Workspace {
+    return {
+      id: row.id,
+      name: row.name,
+      color: row.color,
+      emoji: row.emoji,
+      displayOrder: row.displayOrder,
+      isDefault: row.isDefault === 1,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    };
+  }
+
+  async ensureDefaultWorkspace(): Promise<void> {
+    if (this.disabled) return;
+    const { db } = await getDrizzleClient();
+    const existing = await db
+      .select()
+      .from(workspacesTable)
+      .where(eq(workspacesTable.isDefault, 1))
+      .limit(1);
+    if (existing.length > 0) return;
+
+    const id = `ws_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    await db.insert(workspacesTable).values({
+      id,
+      name: 'Default',
+      color: 'blue',
+      displayOrder: 0,
+      isDefault: 1,
+    });
+  }
+
+  async getWorkspaces(): Promise<Workspace[]> {
+    if (this.disabled) return [];
+    const { db } = await getDrizzleClient();
+    const rows = await db
+      .select()
+      .from(workspacesTable)
+      .orderBy(asc(workspacesTable.displayOrder));
+    return rows.map((row) => this.mapDrizzleWorkspaceRow(row));
+  }
+
+  async createWorkspace(name: string, color: string = 'blue'): Promise<Workspace> {
+    if (this.disabled) throw new Error('Database is disabled');
+    const { db } = await getDrizzleClient();
+
+    const existing = await db
+      .select()
+      .from(workspacesTable)
+      .orderBy(desc(workspacesTable.displayOrder))
+      .limit(1);
+    const maxOrder = existing.length > 0 ? existing[0].displayOrder : -1;
+
+    const id = `ws_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    await db.insert(workspacesTable).values({
+      id,
+      name,
+      color,
+      displayOrder: maxOrder + 1,
+    });
+
+    const [row] = await db
+      .select()
+      .from(workspacesTable)
+      .where(eq(workspacesTable.id, id))
+      .limit(1);
+    return this.mapDrizzleWorkspaceRow(row);
+  }
+
+  async renameWorkspace(id: string, name: string): Promise<void> {
+    if (this.disabled) return;
+    const { db } = await getDrizzleClient();
+    await db
+      .update(workspacesTable)
+      .set({ name, updatedAt: sql`CURRENT_TIMESTAMP` })
+      .where(eq(workspacesTable.id, id));
+  }
+
+  async updateWorkspaceColor(id: string, color: string): Promise<void> {
+    if (this.disabled) return;
+    const { db } = await getDrizzleClient();
+    await db
+      .update(workspacesTable)
+      .set({ color, updatedAt: sql`CURRENT_TIMESTAMP` })
+      .where(eq(workspacesTable.id, id));
+  }
+
+  async updateWorkspaceEmoji(id: string, emoji: string | null): Promise<void> {
+    if (this.disabled) return;
+    const { db } = await getDrizzleClient();
+    await db
+      .update(workspacesTable)
+      .set({ emoji, updatedAt: sql`CURRENT_TIMESTAMP` })
+      .where(eq(workspacesTable.id, id));
+  }
+
+  async deleteWorkspace(id: string): Promise<void> {
+    if (this.disabled) return;
+    const { db } = await getDrizzleClient();
+
+    // Refuse to delete default workspace
+    const [ws] = await db
+      .select()
+      .from(workspacesTable)
+      .where(eq(workspacesTable.id, id))
+      .limit(1);
+    if (!ws) return;
+    if (ws.isDefault === 1) throw new Error('Cannot delete the default workspace');
+
+    // Find the default workspace to reassign orphaned projects
+    const [defaultWs] = await db
+      .select()
+      .from(workspacesTable)
+      .where(eq(workspacesTable.isDefault, 1))
+      .limit(1);
+
+    // Move orphaned projects to default workspace
+    if (defaultWs) {
+      await db
+        .update(projectsTable)
+        .set({ workspaceId: defaultWs.id, updatedAt: sql`CURRENT_TIMESTAMP` })
+        .where(eq(projectsTable.workspaceId, id));
+    }
+
+    await db.delete(workspacesTable).where(eq(workspacesTable.id, id));
+  }
+
+  async updateWorkspaceOrder(workspaceIds: string[]): Promise<void> {
+    if (this.disabled) return;
+    const { db } = await getDrizzleClient();
+    for (let i = 0; i < workspaceIds.length; i++) {
+      await db
+        .update(workspacesTable)
+        .set({ displayOrder: i, updatedAt: sql`CURRENT_TIMESTAMP` })
+        .where(eq(workspacesTable.id, workspaceIds[i]));
+    }
+  }
+
+  async setProjectWorkspace(projectId: string, workspaceId: string | null): Promise<void> {
+    if (this.disabled) return;
+    const { db } = await getDrizzleClient();
+    await db
+      .update(projectsTable)
+      .set({ workspaceId, updatedAt: sql`CURRENT_TIMESTAMP` })
+      .where(eq(projectsTable.id, projectId));
+  }
+
   // SSH connection management methods
   async saveSshConnection(
     connection: Omit<SshConnectionInsert, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }
@@ -1044,6 +1210,7 @@ export class DatabaseService {
       remotePath: row.remotePath ?? null,
       subRepos,
       groupId: row.groupId ?? null,
+      workspaceId: row.workspaceId ?? null,
       gitInfo: {
         isGitRepo: !!(row.gitRemote || row.gitBranch),
         remote: row.gitRemote ?? undefined,

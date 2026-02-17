@@ -1197,6 +1197,58 @@ declare global {
         id: string;
         isCollapsed: boolean;
       }) => Promise<{ success: boolean; error?: string }>;
+      // Workspaces
+      getWorkspaces: () => Promise<{
+        success: boolean;
+        workspaces?: Array<{
+          id: string;
+          name: string;
+          color: string;
+          emoji: string | null;
+          displayOrder: number;
+          isDefault: boolean;
+          createdAt: string;
+          updatedAt: string;
+        }>;
+        error?: string;
+      }>;
+      createWorkspace: (args: {
+        name: string;
+        color?: string;
+      }) => Promise<{
+        success: boolean;
+        workspace?: {
+          id: string;
+          name: string;
+          color: string;
+          emoji: string | null;
+          displayOrder: number;
+          isDefault: boolean;
+          createdAt: string;
+          updatedAt: string;
+        };
+        error?: string;
+      }>;
+      renameWorkspace: (args: {
+        id: string;
+        name: string;
+      }) => Promise<{ success: boolean; error?: string }>;
+      deleteWorkspace: (id: string) => Promise<{ success: boolean; error?: string }>;
+      updateWorkspaceOrder: (
+        workspaceIds: string[]
+      ) => Promise<{ success: boolean; error?: string }>;
+      updateWorkspaceColor: (args: {
+        id: string;
+        color: string;
+      }) => Promise<{ success: boolean; error?: string }>;
+      updateWorkspaceEmoji: (args: {
+        id: string;
+        emoji: string | null;
+      }) => Promise<{ success: boolean; error?: string }>;
+      setProjectWorkspace: (args: {
+        projectId: string;
+        workspaceId: string | null;
+      }) => Promise<{ success: boolean; error?: string }>;
       getTasks: (projectId?: string) => Promise<any[]>;
       saveTask: (task: any) => Promise<{ success: boolean; error?: string }>;
       deleteProject: (projectId: string) => Promise<{ success: boolean; error?: string }>;
@@ -2003,6 +2055,56 @@ export interface ElectronAPI {
   toggleProjectGroupCollapsed: (args: {
     id: string;
     isCollapsed: boolean;
+  }) => Promise<{ success: boolean; error?: string }>;
+  // Workspaces
+  getWorkspaces: () => Promise<{
+    success: boolean;
+    workspaces?: Array<{
+      id: string;
+      name: string;
+      color: string;
+      emoji: string | null;
+      displayOrder: number;
+      isDefault: boolean;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+    error?: string;
+  }>;
+  createWorkspace: (args: {
+    name: string;
+    color?: string;
+  }) => Promise<{
+    success: boolean;
+    workspace?: {
+      id: string;
+      name: string;
+      color: string;
+      emoji: string | null;
+      displayOrder: number;
+      isDefault: boolean;
+      createdAt: string;
+      updatedAt: string;
+    };
+    error?: string;
+  }>;
+  renameWorkspace: (args: {
+    id: string;
+    name: string;
+  }) => Promise<{ success: boolean; error?: string }>;
+  deleteWorkspace: (id: string) => Promise<{ success: boolean; error?: string }>;
+  updateWorkspaceOrder: (workspaceIds: string[]) => Promise<{ success: boolean; error?: string }>;
+  updateWorkspaceColor: (args: {
+    id: string;
+    color: string;
+  }) => Promise<{ success: boolean; error?: string }>;
+  updateWorkspaceEmoji: (args: {
+    id: string;
+    emoji: string | null;
+  }) => Promise<{ success: boolean; error?: string }>;
+  setProjectWorkspace: (args: {
+    projectId: string;
+    workspaceId: string | null;
   }) => Promise<{ success: boolean; error?: string }>;
   getTasks: (projectId?: string) => Promise<any[]>;
   saveTask: (task: any) => Promise<{ success: boolean; error?: string }>;

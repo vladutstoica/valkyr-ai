@@ -66,7 +66,8 @@ import { TaskItem } from './TaskItem';
 import { TaskDeleteButton } from './TaskDeleteButton';
 import { RemoteProjectIndicator } from './ssh/RemoteProjectIndicator';
 import { useRemoteProject } from '../hooks/useRemoteProject';
-import type { Project, ProjectGroup } from '../types/app';
+import type { Project, ProjectGroup, Workspace } from '../types/app';
+import WorkspaceBar from './WorkspaceBar';
 import type { Task } from '../types/chat';
 import type { ConnectionState } from './ssh';
 
@@ -105,6 +106,16 @@ interface LeftSidebarProps {
   onReorderGroups?: (groupIds: string[]) => void | Promise<void>;
   onMoveProjectToGroup?: (projectId: string, groupId: string | null) => void | Promise<void>;
   onToggleGroupCollapsed?: (groupId: string, isCollapsed: boolean) => void | Promise<void>;
+  // Workspace management
+  workspaces?: Workspace[];
+  activeWorkspaceId?: string | null;
+  onSwitchWorkspace?: (workspaceId: string) => void;
+  onCreateWorkspace?: (name: string, color: string) => void;
+  onRenameWorkspace?: (workspaceId: string, name: string) => void;
+  onDeleteWorkspace?: (workspaceId: string) => void;
+  onUpdateWorkspaceColor?: (workspaceId: string, color: string) => void;
+  onReorderWorkspaces?: (workspaceIds: string[]) => void;
+  onMoveProjectToWorkspace?: (projectId: string, workspaceId: string | null) => void | Promise<void>;
 }
 
 // Helper to determine if a project is remote
@@ -171,6 +182,15 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   onReorderGroups,
   onMoveProjectToGroup,
   onToggleGroupCollapsed,
+  workspaces = [],
+  activeWorkspaceId,
+  onSwitchWorkspace,
+  onCreateWorkspace,
+  onRenameWorkspace,
+  onDeleteWorkspace,
+  onUpdateWorkspaceColor,
+  onReorderWorkspaces,
+  onMoveProjectToWorkspace,
 }) => {
   const { open, isMobile, setOpen } = useSidebar();
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
@@ -357,8 +377,8 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
       </AlertDialog>
 
       <Sidebar className="h-full w-full !border-r-0">
-        <SidebarContent className="h-full w-full">
-          <ScrollArea className="h-full w-full">
+        <SidebarContent className="h-full w-full flex flex-col overflow-hidden">
+          <ScrollArea className="flex-1 min-h-0 w-full">
           <div className="w-full">
             {projects.length === 0 && (
               <SidebarEmptyState
@@ -438,6 +458,52 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                               onClick={() => onMoveProjectToGroup(typedProject.id, g.id)}
                             >
                               {g.name}
+                            </ContextMenuItem>
+                          ))}
+                        </ContextMenuSubContent>
+                      </ContextMenuSub>
+                    ) : null;
+
+                    // "Move to Workspace" submenu items for dropdown
+                    const moveToWorkspaceDropdownItems = onMoveProjectToWorkspace && workspaces.length > 1 ? (
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger className="cursor-pointer">
+                          <Layers className="mr-2 h-4 w-4" />
+                          Move to Workspace
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                          {workspaces.map((ws) => (
+                            <DropdownMenuItem
+                              key={ws.id}
+                              className="cursor-pointer"
+                              disabled={typedProject.workspaceId === ws.id || (!typedProject.workspaceId && ws.isDefault)}
+                              onClick={() => onMoveProjectToWorkspace(typedProject.id, ws.id)}
+                            >
+                              <span className={`inline-block w-2 h-2 rounded-full mr-2 bg-${ws.color}-500`} />
+                              {ws.name}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                    ) : null;
+
+                    // "Move to Workspace" submenu items for context menu
+                    const moveToWorkspaceContextItems = onMoveProjectToWorkspace && workspaces.length > 1 ? (
+                      <ContextMenuSub>
+                        <ContextMenuSubTrigger className="cursor-pointer">
+                          <Layers className="mr-2 h-3.5 w-3.5" />
+                          Move to Workspace
+                        </ContextMenuSubTrigger>
+                        <ContextMenuSubContent>
+                          {workspaces.map((ws) => (
+                            <ContextMenuItem
+                              key={ws.id}
+                              className="cursor-pointer"
+                              disabled={typedProject.workspaceId === ws.id || (!typedProject.workspaceId && ws.isDefault)}
+                              onClick={() => onMoveProjectToWorkspace(typedProject.id, ws.id)}
+                            >
+                              <span className={`inline-block w-2 h-2 rounded-full mr-2 bg-${ws.color}-500`} />
+                              {ws.name}
                             </ContextMenuItem>
                           ))}
                         </ContextMenuSubContent>
@@ -525,6 +591,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                                           </DropdownMenuItem>
                                         )}
                                         {moveToGroupDropdownItems}
+                                        {moveToWorkspaceDropdownItems}
                                         <DropdownMenuItem className="cursor-pointer" disabled>
                                           <Copy className="mr-2 h-4 w-4" />
                                           Make a copy
@@ -724,6 +791,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                             </ContextMenuItem>
                           )}
                           {moveToGroupContextItems}
+                          {moveToWorkspaceContextItems}
                           <ContextMenuItem className="cursor-pointer" disabled>
                             <Copy className="mr-2 h-3.5 w-3.5" />
                             Make a copy
@@ -967,6 +1035,18 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
             </SidebarGroup>
           </div>
         </ScrollArea>
+        {onSwitchWorkspace && onCreateWorkspace && onRenameWorkspace && onDeleteWorkspace && onUpdateWorkspaceColor && (
+          <WorkspaceBar
+            workspaces={workspaces}
+            activeWorkspaceId={activeWorkspaceId ?? null}
+            onSwitchWorkspace={onSwitchWorkspace}
+            onCreateWorkspace={onCreateWorkspace}
+            onRenameWorkspace={onRenameWorkspace}
+            onDeleteWorkspace={onDeleteWorkspace}
+            onUpdateWorkspaceColor={onUpdateWorkspaceColor}
+            onReorderWorkspaces={onReorderWorkspaces}
+          />
+        )}
         </SidebarContent>
       </Sidebar>
     </>
