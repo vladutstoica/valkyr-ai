@@ -338,7 +338,7 @@ export function TerminalPanel({
             effectiveTheme === 'dark' || effectiveTheme === 'dark-black' ? 'bg-card' : 'bg-white'
           )}
         >
-          {terminals.length === 0 ? (
+          {terminals.length === 0 || !terminalCwd ? (
             <div className="flex h-full items-center justify-center bg-card text-muted-foreground">
               <div className="text-center">
                 <Terminal className="mx-auto mb-2 h-8 w-8 opacity-50" />
