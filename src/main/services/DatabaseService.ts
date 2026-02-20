@@ -1358,6 +1358,7 @@ export class DatabaseService {
     if ('activeWorkspaceId' in partial) set.activeWorkspaceId = partial.activeWorkspaceId ?? null;
     if ('prMode' in partial) set.prMode = partial.prMode ?? null;
     if ('prDraft' in partial) set.prDraft = partial.prDraft ? 1 : 0;
+    if (Object.keys(set).length === 0) return;
     // Upsert: insert if not exists, update if exists
     await db.insert(appStateTable).values({ id: 1, ...set }).onConflictDoUpdate({
       target: appStateTable.id,
