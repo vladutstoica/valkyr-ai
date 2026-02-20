@@ -127,24 +127,33 @@ const ChatInterface: React.FC<Props> = ({
 
         // Set active conversation
         const active = result.conversations.find((c: Conversation) => c.isActive);
-        if (active) {
-          setActiveConversationId(active.id);
-          // Update agent to match the active conversation
-          if (active.provider) {
-            setAgent(active.provider as Agent);
-          }
-        } else {
-          // Fallback to first conversation
-          const firstConv = result.conversations[0];
-          setActiveConversationId(firstConv.id);
-          // Update agent to match the first conversation
-          if (firstConv.provider) {
-            setAgent(firstConv.provider as Agent);
-          }
+        const chosen = active || result.conversations[0];
+        if (!active) {
           await window.electronAPI.setActiveConversation({
             taskId: task.id,
-            conversationId: firstConv.id,
+            conversationId: chosen.id,
           });
+        }
+        setActiveConversationId(chosen.id);
+
+        // Update agent: prefer conversation provider, then localStorage, then defaults
+        if (chosen.provider) {
+          setAgent(chosen.provider as Agent);
+        } else {
+          // Fallback to localStorage
+          try {
+            const lastKey = `agent:last:${task.id}`;
+            const last = window.localStorage.getItem(lastKey) as Agent | null;
+            if (initialAgent) {
+              setAgent(initialAgent);
+            } else if (last) {
+              setAgent(last);
+            } else {
+              setAgent('codex');
+            }
+          } catch {
+            setAgent(initialAgent || 'codex');
+          }
         }
         setConversationsLoaded(true);
       } else {
@@ -175,7 +184,7 @@ const ChatInterface: React.FC<Props> = ({
     };
 
     loadConversations();
-  }, [task.id, task.agentId]); // provider is intentionally not included as a dependency
+  }, [task.id, task.agentId, initialAgent]); // provider is intentionally not included as a dependency
 
   // Ref to control terminal focus imperatively if needed
   const terminalRef = useRef<{ focus: () => void }>(null);
@@ -283,48 +292,6 @@ const ChatInterface: React.FC<Props> = ({
     [activeTerminalId]
   );
 
-  // On task change, restore last-selected agent (including Droid).
-  // If a locked agent exists (including Droid), prefer locked.
-  useEffect(() => {
-    try {
-      const lastKey = `agent:last:${task.id}`;
-      const last = window.localStorage.getItem(lastKey) as Agent | null;
-
-      if (initialAgent) {
-        setAgent(initialAgent);
-      } else {
-        const validAgents: Agent[] = [
-          'codex',
-          'claude',
-          'qwen',
-          'droid',
-          'gemini',
-          'cursor',
-          'copilot',
-          'amp',
-          'opencode',
-          'charm',
-          'auggie',
-          'goose',
-          'kimi',
-          'kilocode',
-          'kiro',
-          'rovo',
-          'cline',
-          'continue',
-          'codebuff',
-          'mistral',
-        ];
-        if (last && (validAgents as string[]).includes(last)) {
-          setAgent(last as Agent);
-        } else {
-          setAgent('codex');
-        }
-      }
-    } catch {
-      setAgent(initialAgent || 'codex');
-    }
-  }, [task.id, initialAgent]);
 
   // Chat management handlers
   const handleCreateChat = useCallback(
@@ -386,13 +353,14 @@ const ChatInterface: React.FC<Props> = ({
       });
       setActiveConversationId(conversationId);
 
-      // Update provider based on conversation
-      const conv = conversations.find((c) => c.id === conversationId);
-      if (conv?.provider) {
-        setAgent(conv.provider as Agent);
-      }
+      // Use functional updater to read latest conversations state
+      setConversations(prev => {
+        const conv = prev.find(c => c.id === conversationId);
+        if (conv?.provider) setAgent(conv.provider as Agent);
+        return prev; // Don't modify, just read
+      });
     },
-    [task.id, conversations]
+    [task.id]
   );
 
   const handleCloseChat = useCallback(
@@ -555,14 +523,6 @@ const ChatInterface: React.FC<Props> = ({
       cancelled = true;
       off?.();
     };
-  }, [agent, task.id]);
-
-  // When switching agents, ensure other streams are stopped
-  useEffect(() => {
-    (async () => {
-      try {
-      } catch {}
-    })();
   }, [agent, task.id]);
 
   // Switch active chat/agent via global shortcuts (Cmd+Shift+J/K)
@@ -765,7 +725,7 @@ const ChatInterface: React.FC<Props> = ({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  {conversations
+                  {[...conversations]
                     .sort((a, b) => {
                       // Sort by display order or creation time to maintain consistent order
                       if (a.displayOrder !== undefined && b.displayOrder !== undefined) {

@@ -181,6 +181,16 @@ export function DiffViewer({ filePath, diff, isLoading, theme, sideBySide }: Dif
     }
   }, [theme]);
 
+  // Dispose editor on unmount to prevent stale TextModel references
+  useEffect(() => {
+    return () => {
+      if (editorRef.current) {
+        editorRef.current.dispose();
+        editorRef.current = null;
+      }
+    };
+  }, []);
+
   // Imperatively update renderSideBySide when it changes
   useEffect(() => {
     if (editorRef.current) {
@@ -199,10 +209,8 @@ export function DiffViewer({ filePath, diff, isLoading, theme, sideBySide }: Dif
       configureDiffEditorDiagnostics(editor, monacoInstance, {
         disableAllValidation: true,
       });
-      // Ensure renderSideBySide is set correctly on mount
-      editor.updateOptions({ renderSideBySide: sideBySide });
     },
-    [sideBySide]
+    []
   );
 
   // Loading state

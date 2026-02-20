@@ -248,6 +248,7 @@ const AppContent: React.FC = () => {
           name: remoteProject.name,
           path: remoteProject.path,
           repoKey: `${remoteProject.host}:${remoteProject.path}`,
+          workspaceId: projectMgmt.activeWorkspaceId,
           gitInfo: {
             isGitRepo: true,
           },

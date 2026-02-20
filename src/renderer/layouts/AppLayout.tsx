@@ -8,7 +8,6 @@ import { StatusBar } from '@/components/navigation/StatusBar';
 import { TerminalPanel } from '@/components/terminal/TerminalPanel';
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 import { useTabState } from '@/hooks/useTabState';
-import { useFileChanges } from '@/hooks/useFileChanges';
 import type { Project, Task } from '@/types/app';
 import type { Agent } from '@/types';
 
@@ -37,8 +36,8 @@ interface AppLayoutProps {
   onChangesClick?: () => void;
   /** Callback when agent status clicked */
   onAgentClick?: () => void;
-  /** Callback when branch clicked */
-  onBranchClick?: () => void;
+  /** Callback after branch change */
+  onBranchChange?: () => void;
 }
 
 /**
@@ -71,7 +70,7 @@ export function AppLayout({
   showTitlebar = true,
   onChangesClick,
   onAgentClick,
-  onBranchClick,
+  onBranchChange,
 }: AppLayoutProps) {
   // Register keyboard navigation for tabs (Cmd+1/2/3/4)
   useKeyboardNavigation();
@@ -83,24 +82,8 @@ export function AppLayout({
   const taskPath = activeTask?.path ?? undefined;
   const taskId = activeTask?.id ?? undefined;
 
-  // Get file changes for git badge — derive repoMappings from task metadata or project subRepos
-  const badgeRepoMappings = useMemo(() => {
-    const taskMultiRepo = activeTask?.metadata?.multiRepo;
-    if (taskMultiRepo?.repoMappings?.length) {
-      return taskMultiRepo.repoMappings.map((m: { relativePath: string; targetPath: string }) => ({
-        relativePath: m.relativePath,
-        targetPath: m.targetPath,
-      }));
-    }
-    if (selectedProject?.subRepos?.length) {
-      return selectedProject.subRepos.map((r) => ({
-        relativePath: r.relativePath,
-        targetPath: r.path,
-      }));
-    }
-    return undefined;
-  }, [activeTask?.metadata?.multiRepo, selectedProject?.subRepos]);
-  const { fileChanges } = useFileChanges(taskPath, { repoMappings: badgeRepoMappings });
+  // Read git changes count from the store (set by GitTab via useFileChanges)
+  const gitChangesCount = useTabState((state) => state.gitChangesCount);
 
   // Derive status bar data from current state
   const statusBarData = useMemo(() => {
@@ -123,11 +106,11 @@ export function AppLayout({
       currentBranch,
       commitsBehind: 0, // TODO: Calculate from git state
       commitsAhead: 0, // TODO: Calculate from git state
-      changesCount: fileChanges.length,
+      changesCount: gitChangesCount,
       worktreeId,
       worktreePath,
     };
-  }, [activeTask, activeTaskAgent, selectedProject, projectDefaultBranch, fileChanges.length]);
+  }, [activeTask, activeTaskAgent, selectedProject, projectDefaultBranch, gitChangesCount]);
 
   // Handle status bar clicks
   const handleChangesClick = () => {
@@ -213,8 +196,11 @@ export function AppLayout({
         changesCount={statusBarData.changesCount}
         worktreeId={statusBarData.worktreeId}
         worktreePath={statusBarData.worktreePath}
+        taskPath={taskPath}
+        projectId={selectedProject?.id}
+        subRepos={selectedProject?.subRepos}
         onAgentClick={onAgentClick}
-        onBranchClick={onBranchClick}
+        onBranchChange={onBranchChange}
         onChangesClick={handleChangesClick}
       />
     </div>

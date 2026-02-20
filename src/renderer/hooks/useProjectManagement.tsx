@@ -226,6 +226,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
                 name: projectName,
                 path: selectedPath,
                 repoKey,
+                workspaceId: activeWorkspaceId,
                 subRepos: subReposResult.subRepos,
                 gitInfo: {
                   isGitRepo: false, // Root folder is not a git repo
@@ -272,6 +273,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
             name: projectName,
             path: selectedPath,
             repoKey,
+            workspaceId: activeWorkspaceId,
             gitInfo: {
               isGitRepo: true,
               remote: gitInfo.remote || undefined,
@@ -471,6 +473,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
           name: projectName,
           path: selectedPath,
           repoKey,
+          workspaceId: activeWorkspaceId,
           gitInfo: {
             isGitRepo: true,
             remote: gitInfo.remote || undefined,
@@ -559,7 +562,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
         });
       }
     },
-    [projects, isAuthenticated, activateProjectView, platform, toast]
+    [projects, isAuthenticated, activateProjectView, platform, toast, activeWorkspaceId]
   );
 
   const handleNewProjectSuccess = useCallback(
@@ -589,6 +592,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
           name: projectName,
           path: selectedPath,
           repoKey,
+          workspaceId: activeWorkspaceId,
           gitInfo: {
             isGitRepo: true,
             remote: gitInfo.remote || undefined,
@@ -713,6 +717,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
       toast,
       saveProjectOrder,
       setShowTaskModal,
+      activeWorkspaceId,
     ]
   );
 
@@ -730,8 +735,11 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
   };
 
   const handleReorderProjectsFull = (newOrder: Project[]) => {
-    setProjects(() => {
-      const list = [...newOrder];
+    setProjects((prev) => {
+      // Replace only the reordered projects, keep projects from other workspaces intact
+      const reorderedIds = new Set(newOrder.map((p) => p.id));
+      const untouched = prev.filter((p) => !reorderedIds.has(p.id));
+      const list = [...newOrder, ...untouched];
       saveProjectOrder(list);
       return list;
     });
@@ -985,6 +993,22 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
 
   const handleSwitchWorkspace = (workspaceId: string) => {
     setActiveWorkspaceId(workspaceId);
+
+    // If the currently selected project doesn't belong to the new workspace, go home
+    if (selectedProject) {
+      const defaultWs = workspaces.find((ws) => ws.isDefault);
+      const isNewDefault = defaultWs?.id === workspaceId;
+      const projectBelongs =
+        selectedProject.workspaceId === workspaceId ||
+        (isNewDefault && !selectedProject.workspaceId);
+      if (!projectBelongs) {
+        setSelectedProject(null);
+        setShowHomeView(true);
+        setShowSkillsView(false);
+        setActiveTask(null);
+        saveActiveIds(null, null);
+      }
+    }
   };
 
   // Load branch options when project is selected

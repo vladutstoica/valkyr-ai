@@ -94,6 +94,21 @@ interface GitTabProps {
   className?: string;
 }
 
+/** Map status string to FileStatus type */
+function mapStatus(status: string): FileStatus {
+  switch (status) {
+    case 'added':
+      return 'A';
+    case 'deleted':
+      return 'D';
+    case 'renamed':
+      return 'R';
+    case 'modified':
+    default:
+      return 'M';
+  }
+}
+
 /** Strip the repo prefix from a file path to get the path relative to the sub-repo */
 function stripRepoPrefix(filePath: string, repoName?: string): string {
   if (!repoName) return filePath;
@@ -221,12 +236,23 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
   const fileDiffsRef = useRef<Map<string, string>>(new Map());
   const loadingDiffsRef = useRef<Set<string>>(new Set());
 
+  // Clear diff cache when task path changes (prevents stale diffs across tasks)
+  useEffect(() => {
+    fileDiffsRef.current.clear();
+    loadingDiffsRef.current.clear();
+    setFileDiffs(new Map());
+    setLoadingDiffs(new Set());
+  }, [taskPath]);
+
   // Wrapper to clear diff cache before refreshing changes
+  // Clear selectedFile first so DiffViewer unmounts before data changes,
+  // preventing Monaco "TextModel disposed" race condition
   const refreshChangesAndClearCache = useCallback(async () => {
+    setSelectedFile(null);
     fileDiffsRef.current.clear();
     setFileDiffs(new Map());
     await refreshChanges();
-  }, [refreshChanges]);
+  }, [refreshChanges, setSelectedFile]);
 
   // Sync file changes to local state
   useEffect(() => {
@@ -336,21 +362,6 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
       fetchDiff(selectedFile);
     }
   }, [selectedFile, fetchDiff]);
-
-  // Map status string to FileStatus type
-  const mapStatus = (status: string): FileStatus => {
-    switch (status) {
-      case 'added':
-        return 'A';
-      case 'deleted':
-        return 'D';
-      case 'renamed':
-        return 'R';
-      case 'modified':
-      default:
-        return 'M';
-    }
-  };
 
   // Handle selecting a file
   const handleSelectFile = useCallback(
@@ -1088,6 +1099,7 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
               </div>
             ) : (
               <DiffViewer
+                key={selectedFile}
                 diff={fileDiffs.get(selectedFile) || ''}
                 filePath={selectedFile}
                 sideBySide={diffViewMode === 'side-by-side'}
