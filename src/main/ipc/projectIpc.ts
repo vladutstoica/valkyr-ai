@@ -156,7 +156,7 @@ const detectDefaultBranch = async (projectPath: string, remote?: string | null) 
   }
   // Try to get remote's default branch
   try {
-    const { stdout } = await execAsync(`git remote show ${remoteName}`, {
+    const { stdout } = await execFileAsync(GIT, ['remote', 'show', remoteName], {
       cwd: projectPath,
     });
     const match = stdout.match(/HEAD branch:\s*(\S+)/);
@@ -169,7 +169,9 @@ const detectDefaultBranch = async (projectPath: string, remote?: string | null) 
 export function registerProjectIpc() {
   ipcMain.handle('project:open', async () => {
     try {
-      const result = await dialog.showOpenDialog(getMainWindow()!, {
+      const win = getMainWindow();
+      if (!win) return { success: false, error: 'No active window' };
+      const result = await dialog.showOpenDialog(win, {
         title: 'Open Project',
         properties: ['openDirectory'],
         message: 'Select a project directory to open',
@@ -514,6 +516,16 @@ export function registerProjectIpc() {
             try {
               await execFileAsync(GIT, ['pull', '--ff-only'], { cwd: repoPath });
               result.success = true;
+
+              // Pop stash after successful pull
+              if (result.stashed) {
+                try {
+                  await execFileAsync(GIT, ['stash', 'pop'], { cwd: repoPath });
+                } catch (popErr) {
+                  log.warn(`Stash pop had conflicts after pull for ${repoPath}:`, popErr);
+                  result.error = 'Pull succeeded but stash pop had conflicts. Resolve manually.';
+                }
+              }
             } catch (pullError: unknown) {
               const err = pullError as { stderr?: string; message?: string };
               const errMsg = err?.stderr || err?.message || String(pullError);
@@ -721,8 +733,15 @@ export function registerProjectIpc() {
           if (isRemoteBranch) {
             // e.g., "origin/feature-x" -> checkout as "feature-x"
             const localName = branch.split('/').slice(1).join('/');
+            // Validate branch name to prevent flag injection
+            if (localName.startsWith('-')) {
+              throw new Error(`Invalid branch name: ${localName}`);
+            }
             await execFileAsync(GIT, ['checkout', '-b', localName, branch], { cwd: repoPath });
           } else {
+            if (branch.startsWith('-')) {
+              throw new Error(`Invalid branch name: ${branch}`);
+            }
             await execFileAsync(GIT, ['checkout', branch], { cwd: repoPath });
           }
         } catch (checkoutError: unknown) {

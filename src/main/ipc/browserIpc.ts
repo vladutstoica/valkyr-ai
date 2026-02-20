@@ -5,45 +5,86 @@ export function registerBrowserIpc() {
   ipcMain.handle(
     'browser:view:show',
     (_e, args: { x: number; y: number; width: number; height: number; url?: string }) => {
-      const { x, y, width, height, url } = args || ({} as any);
-      browserViewService.show({ x, y, width, height }, url);
-      return { ok: true };
+      try {
+        const { x, y, width, height, url } = args || ({} as any);
+        browserViewService.show({ x, y, width, height }, url);
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      }
     }
   );
   ipcMain.handle('browser:view:hide', () => {
-    browserViewService.hide();
-    return { ok: true };
+    try {
+      browserViewService.hide();
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
   });
   ipcMain.handle(
     'browser:view:setBounds',
     (_e, args: { x: number; y: number; width: number; height: number }) => {
-      const { x, y, width, height } = args || ({} as any);
-      browserViewService.setBounds({ x, y, width, height });
-      return { ok: true };
+      try {
+        const { x, y, width, height } = args || ({} as any);
+        browserViewService.setBounds({ x, y, width, height });
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      }
     }
   );
   ipcMain.handle('browser:view:loadURL', (_e, url: string, forceReload?: boolean) => {
-    browserViewService.loadURL(url, forceReload);
-    return { ok: true };
+    try {
+      // Validate URL scheme to prevent loading file:// or javascript: URLs
+      const parsed = new URL(url);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        return { success: false, error: 'Only http/https URLs are allowed' };
+      }
+      browserViewService.loadURL(url, forceReload);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
   });
   ipcMain.handle('browser:view:goBack', () => {
-    browserViewService.goBack();
-    return { ok: true };
+    try {
+      browserViewService.goBack();
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
   });
   ipcMain.handle('browser:view:goForward', () => {
-    browserViewService.goForward();
-    return { ok: true };
+    try {
+      browserViewService.goForward();
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
   });
   ipcMain.handle('browser:view:reload', () => {
-    browserViewService.reload();
-    return { ok: true };
+    try {
+      browserViewService.reload();
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
   });
   ipcMain.handle('browser:view:openDevTools', () => {
-    browserViewService.openDevTools();
-    return { ok: true };
+    try {
+      browserViewService.openDevTools();
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
   });
   ipcMain.handle('browser:view:clear', () => {
-    browserViewService.clear();
-    return { ok: true };
+    try {
+      browserViewService.clear();
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
   });
 }

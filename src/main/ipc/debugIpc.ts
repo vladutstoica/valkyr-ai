@@ -1,5 +1,5 @@
-import { ipcMain } from 'electron';
-import { dirname } from 'path';
+import { app, ipcMain } from 'electron';
+import { dirname, resolve, normalize, sep } from 'path';
 import * as fs from 'fs';
 
 export function registerDebugIpc() {
@@ -9,11 +9,18 @@ export function registerDebugIpc() {
       try {
         if (!filePath) throw new Error('filePath is required');
 
-        const dir = dirname(filePath);
+        // Restrict writes to the app's userData directory to prevent arbitrary filesystem writes
+        const allowedRoot = normalize(app.getPath('userData'));
+        const resolvedPath = normalize(resolve(filePath));
+        if (!resolvedPath.startsWith(allowedRoot + sep) && resolvedPath !== allowedRoot) {
+          throw new Error('Debug log path must be within the application data directory');
+        }
+
+        const dir = dirname(resolvedPath);
         await fs.promises.mkdir(dir, { recursive: true });
 
         const flag = options.reset ? 'w' : 'a';
-        await fs.promises.writeFile(filePath, content, { flag, encoding: 'utf8' });
+        await fs.promises.writeFile(resolvedPath, content, { flag, encoding: 'utf8' });
         return { success: true };
       } catch (error) {
         console.error('Failed to append debug log:', error);

@@ -140,7 +140,24 @@ export function registerDatabaseIpc() {
     'db:cleanupSessionDirectory',
     async (_, args: { taskPath: string; conversationId: string }) => {
       try {
+        // Validate conversationId to prevent path traversal
+        if (
+          !args.conversationId ||
+          args.conversationId.includes('/') ||
+          args.conversationId.includes('\\') ||
+          args.conversationId.includes('..')
+        ) {
+          return { success: false, error: 'Invalid conversationId' };
+        }
+
         const sessionDir = path.join(args.taskPath, '.valkyr-sessions', args.conversationId);
+
+        // Verify the resolved path is within the expected parent directory
+        const expectedParent = path.resolve(path.join(args.taskPath, '.valkyr-sessions'));
+        const resolvedDir = path.resolve(sessionDir);
+        if (!resolvedDir.startsWith(expectedParent + path.sep)) {
+          return { success: false, error: 'Invalid session directory path' };
+        }
 
         // Check if directory exists before trying to remove it
         if (fs.existsSync(sessionDir)) {
