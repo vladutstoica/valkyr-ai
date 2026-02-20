@@ -122,6 +122,18 @@ function saveToStorage(taskId: string, state: TaskTerminalsState) {
   } catch {
     // ignore storage errors
   }
+  // Persist to DB (fire-and-forget)
+  try {
+    const sessions = state.terminals.map((t, i) => ({
+      id: t.id,
+      terminalId: t.id,
+      title: t.title,
+      cwd: t.cwd,
+      isActive: t.id === state.activeId,
+      displayOrder: i,
+    }));
+    window.electronAPI?.saveTerminalSessions?.({ taskKey: taskId, sessions });
+  } catch {}
 }
 
 function makeTerminalId(taskId: string): string {
@@ -328,6 +340,7 @@ export function disposeTaskTerminals(taskKey: string): void {
       // ignore storage errors
     }
   }
+  try { window.electronAPI?.deleteTerminalSessions?.(taskKey); } catch {}
 }
 
 export function useTaskTerminals(

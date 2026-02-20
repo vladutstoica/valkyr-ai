@@ -477,4 +477,118 @@ export function registerDatabaseIpc() {
       }
     }
   );
+
+  // App state handlers
+  ipcMain.handle('db:appState:get', async () => {
+    try {
+      const state = await databaseService.getAppState();
+      return { success: true, data: state };
+    } catch (error) {
+      log.error('Failed to get app state:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle('db:appState:update', async (_, partial: any) => {
+    try {
+      await databaseService.updateAppState(partial);
+      return { success: true };
+    } catch (error) {
+      log.error('Failed to update app state:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  // Task pinned/agent handlers
+  ipcMain.handle('db:task:setPinned', async (_, { taskId, pinned }: { taskId: string; pinned: boolean }) => {
+    try {
+      await databaseService.setTaskPinned(taskId, pinned);
+      return { success: true };
+    } catch (error) {
+      log.error('Failed to set task pinned:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle('db:task:getPinnedIds', async () => {
+    try {
+      const ids = await databaseService.getPinnedTaskIds();
+      return { success: true, data: ids };
+    } catch (error) {
+      log.error('Failed to get pinned task ids:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle('db:task:setAgent', async (_, { taskId, lastAgent, lockedAgent }: { taskId: string; lastAgent?: string | null; lockedAgent?: string | null }) => {
+    try {
+      await databaseService.setTaskAgent(taskId, { lastAgent, lockedAgent });
+      return { success: true };
+    } catch (error) {
+      log.error('Failed to set task agent:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle('db:task:setInitialPromptSent', async (_, { taskId, sent }: { taskId: string; sent: boolean }) => {
+    try {
+      await databaseService.setTaskInitialPromptSent(taskId, sent);
+      return { success: true };
+    } catch (error) {
+      log.error('Failed to set initial prompt sent:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  // Terminal sessions handlers
+  ipcMain.handle('db:terminalSessions:get', async (_, taskKey: string) => {
+    try {
+      const sessions = await databaseService.getTerminalSessions(taskKey);
+      return { success: true, data: sessions };
+    } catch (error) {
+      log.error('Failed to get terminal sessions:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle('db:terminalSessions:save', async (_, { taskKey, sessions }: { taskKey: string; sessions: any[] }) => {
+    try {
+      await databaseService.saveTerminalSessions(taskKey, sessions);
+      return { success: true };
+    } catch (error) {
+      log.error('Failed to save terminal sessions:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle('db:terminalSessions:delete', async (_, taskKey: string) => {
+    try {
+      await databaseService.deleteTerminalSessions(taskKey);
+      return { success: true };
+    } catch (error) {
+      log.error('Failed to delete terminal sessions:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  // Kanban handlers
+  ipcMain.handle('db:kanban:getStatuses', async () => {
+    try {
+      const statuses = await databaseService.getKanbanStatuses();
+      return { success: true, data: statuses };
+    } catch (error) {
+      log.error('Failed to get kanban statuses:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle('db:kanban:setStatus', async (_, { taskId, status }: { taskId: string; status: string }) => {
+    try {
+      await databaseService.setKanbanStatus(taskId, status);
+      return { success: true };
+    } catch (error) {
+      log.error('Failed to set kanban status:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  });
 }

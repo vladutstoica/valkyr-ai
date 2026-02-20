@@ -1,5 +1,5 @@
-import React, { useCallback, useState, useEffect, useMemo } from 'react';
-import { ChevronDown, ChevronUp, Plus, Terminal, X } from 'lucide-react';
+import React, { useCallback, useState, useEffect, useMemo, useRef } from 'react';
+import { ChevronDown, ChevronUp, Loader2, Plus, Terminal, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/button';
 import { useTerminalPanel } from '../../hooks/useTerminalPanel';
@@ -27,12 +27,14 @@ interface TerminalPanelProps {
 function TerminalTab({
   title,
   isActive,
+  isRunning,
   canClose,
   onClick,
   onClose,
 }: {
   title: string;
   isActive: boolean;
+  isRunning?: boolean;
   canClose: boolean;
   onClick: () => void;
   onClose: () => void;
@@ -49,7 +51,11 @@ function TerminalTab({
           : 'text-muted-foreground hover:text-foreground'
       )}
     >
-      <Terminal className="h-4 w-4" />
+      {isRunning ? (
+        <Loader2 className="h-4 w-4 animate-spin text-amber-500" />
+      ) : (
+        <Terminal className="h-4 w-4" />
+      )}
       <span className="max-w-[120px] truncate">{title}</span>
       {canClose && (
         <span
@@ -139,6 +145,45 @@ export function TerminalPanel({
     },
     [terminals.length, closeTerminal]
   );
+
+  // Track which terminals are actively running (receiving PTY data)
+  const [runningTerminals, setRunningTerminals] = useState<Set<string>>(new Set());
+  const idleTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  useEffect(() => {
+    const cleanups: (() => void)[] = [];
+    for (const terminal of terminals) {
+      const offData = window.electronAPI?.onPtyData?.(terminal.id, () => {
+        setRunningTerminals((prev) => {
+          if (prev.has(terminal.id)) return prev;
+          const next = new Set(prev);
+          next.add(terminal.id);
+          return next;
+        });
+        // Reset the idle timer
+        const existing = idleTimers.current.get(terminal.id);
+        if (existing) clearTimeout(existing);
+        idleTimers.current.set(
+          terminal.id,
+          setTimeout(() => {
+            setRunningTerminals((prev) => {
+              if (!prev.has(terminal.id)) return prev;
+              const next = new Set(prev);
+              next.delete(terminal.id);
+              return next;
+            });
+            idleTimers.current.delete(terminal.id);
+          }, 3000)
+        );
+      });
+      if (offData) cleanups.push(offData);
+    }
+    return () => {
+      cleanups.forEach((fn) => fn());
+      for (const timer of idleTimers.current.values()) clearTimeout(timer);
+      idleTimers.current.clear();
+    };
+  }, [terminals]);
 
   // Get theme configuration
   const themeOverride = useMemo(() => {
@@ -291,8 +336,12 @@ export function TerminalPanel({
               key={terminal.id}
               title={terminal.title}
               isActive={terminal.id === activeTerminalId}
+              isRunning={runningTerminals.has(terminal.id)}
               canClose={terminals.length > 1}
-              onClick={() => setActiveTerminal(terminal.id)}
+              onClick={() => {
+                setActiveTerminal(terminal.id);
+                if (isCollapsed) toggleCollapsed();
+              }}
               onClose={() => handleCloseTerminal(terminal.id)}
             />
           ))}

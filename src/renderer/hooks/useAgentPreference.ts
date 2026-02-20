@@ -40,6 +40,7 @@ export function useAgentPreference(
       localStorage.setItem(`conversationAgent:${conversationId}`, agent);
       localStorage.setItem(`taskAgent:${taskId}`, agent);
     } catch {}
+    try { window.electronAPI?.setTaskAgent?.({ taskId, lastAgent: agent }); } catch {}
   }, [agent, conversationId, taskId]);
 
   return { agent, setAgent };

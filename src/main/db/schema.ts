@@ -1,6 +1,15 @@
 import { relations, sql } from 'drizzle-orm';
 import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
+export const appState = sqliteTable('app_state', {
+  id: integer('id').primaryKey().default(1),
+  activeProjectId: text('active_project_id'),
+  activeTaskId: text('active_task_id'),
+  activeWorkspaceId: text('active_workspace_id'),
+  prMode: text('pr_mode'),
+  prDraft: integer('pr_draft').default(0),
+});
+
 export const sshConnections = sqliteTable(
   'ssh_connections',
   {
@@ -104,6 +113,10 @@ export const tasks = sqliteTable(
     metadata: text('metadata'),
     useWorktree: integer('use_worktree').notNull().default(1),
     archivedAt: text('archived_at'), // null = active, timestamp = archived
+    isPinned: integer('is_pinned').default(0),
+    lastAgent: text('last_agent'),
+    lockedAgent: text('locked_agent'),
+    initialPromptSent: integer('initial_prompt_sent').default(0),
     createdAt: text('created_at')
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
@@ -187,6 +200,29 @@ export const lineComments = sqliteTable(
   })
 );
 
+export const terminalSessions = sqliteTable(
+  'terminal_sessions',
+  {
+    id: text('id').primaryKey(),
+    taskKey: text('task_key').notNull(),
+    terminalId: text('terminal_id').notNull(),
+    title: text('title').notNull(),
+    cwd: text('cwd'),
+    isActive: integer('is_active').default(0),
+    displayOrder: integer('display_order').default(0),
+    createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => ({
+    taskKeyIdx: index('idx_terminal_sessions_task_key').on(table.taskKey),
+  })
+);
+
+export const kanbanColumns = sqliteTable('kanban_columns', {
+  id: text('id').primaryKey(),
+  taskId: text('task_id').notNull(),
+  status: text('status').notNull().default('todo'),
+});
+
 export const sshConnectionsRelations = relations(sshConnections, ({ many }) => ({
   projects: many(projects),
 }));
@@ -256,3 +292,6 @@ export type ConversationRow = typeof conversations.$inferSelect;
 export type MessageRow = typeof messages.$inferSelect;
 export type LineCommentRow = typeof lineComments.$inferSelect;
 export type LineCommentInsert = typeof lineComments.$inferInsert;
+export type AppStateRow = typeof appState.$inferSelect;
+export type TerminalSessionRow = typeof terminalSessions.$inferSelect;
+export type KanbanColumnRow = typeof kanbanColumns.$inferSelect;

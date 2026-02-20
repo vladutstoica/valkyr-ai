@@ -1302,6 +1302,22 @@ declare global {
         title: string;
       }) => Promise<{ success: boolean; error?: string }>;
 
+      // App state
+      getAppState(): Promise<{ success: boolean; data?: { activeProjectId: string | null; activeTaskId: string | null; activeWorkspaceId: string | null; prMode: string | null; prDraft: boolean }; error?: string }>;
+      updateAppState(partial: { activeProjectId?: string | null; activeTaskId?: string | null; activeWorkspaceId?: string | null; prMode?: string | null; prDraft?: boolean }): Promise<{ success: boolean; error?: string }>;
+      // Task pinned/agent
+      setTaskPinned(args: { taskId: string; pinned: boolean }): Promise<{ success: boolean; error?: string }>;
+      getPinnedTaskIds(): Promise<{ success: boolean; data?: string[]; error?: string }>;
+      setTaskAgent(args: { taskId: string; lastAgent?: string | null; lockedAgent?: string | null }): Promise<{ success: boolean; error?: string }>;
+      setTaskInitialPromptSent(args: { taskId: string; sent: boolean }): Promise<{ success: boolean; error?: string }>;
+      // Terminal sessions
+      getTerminalSessions(taskKey: string): Promise<{ success: boolean; data?: Array<{ id: string; taskKey: string; terminalId: string; title: string; cwd: string | null; isActive: boolean; displayOrder: number; createdAt: string }>; error?: string }>;
+      saveTerminalSessions(args: { taskKey: string; sessions: Array<{ id: string; terminalId: string; title: string; cwd?: string | null; isActive: boolean; displayOrder: number }> }): Promise<{ success: boolean; error?: string }>;
+      deleteTerminalSessions(taskKey: string): Promise<{ success: boolean; error?: string }>;
+      // Kanban
+      getKanbanStatuses(): Promise<{ success: boolean; data?: Array<{ taskId: string; status: string }>; error?: string }>;
+      setKanbanStatus(args: { taskId: string; status: string }): Promise<{ success: boolean; error?: string }>;
+
       // Debug helpers
       debugAppendLog: (
         filePath: string,
@@ -2173,6 +2189,22 @@ export interface ElectronAPI {
     comments?: LineComment[];
     error?: string;
   }>;
+
+  // App state
+  getAppState(): Promise<{ success: boolean; data?: { activeProjectId: string | null; activeTaskId: string | null; activeWorkspaceId: string | null; prMode: string | null; prDraft: boolean }; error?: string }>;
+  updateAppState(partial: { activeProjectId?: string | null; activeTaskId?: string | null; activeWorkspaceId?: string | null; prMode?: string | null; prDraft?: boolean }): Promise<{ success: boolean; error?: string }>;
+  // Task pinned/agent
+  setTaskPinned(args: { taskId: string; pinned: boolean }): Promise<{ success: boolean; error?: string }>;
+  getPinnedTaskIds(): Promise<{ success: boolean; data?: string[]; error?: string }>;
+  setTaskAgent(args: { taskId: string; lastAgent?: string | null; lockedAgent?: string | null }): Promise<{ success: boolean; error?: string }>;
+  setTaskInitialPromptSent(args: { taskId: string; sent: boolean }): Promise<{ success: boolean; error?: string }>;
+  // Terminal sessions
+  getTerminalSessions(taskKey: string): Promise<{ success: boolean; data?: Array<{ id: string; taskKey: string; terminalId: string; title: string; cwd: string | null; isActive: boolean; displayOrder: number; createdAt: string }>; error?: string }>;
+  saveTerminalSessions(args: { taskKey: string; sessions: Array<{ id: string; terminalId: string; title: string; cwd?: string | null; isActive: boolean; displayOrder: number }> }): Promise<{ success: boolean; error?: string }>;
+  deleteTerminalSessions(taskKey: string): Promise<{ success: boolean; error?: string }>;
+  // Kanban
+  getKanbanStatuses(): Promise<{ success: boolean; data?: Array<{ taskId: string; status: string }>; error?: string }>;
+  setKanbanStatus(args: { taskId: string; status: string }): Promise<{ success: boolean; error?: string }>;
 
   // Skills management
   skillsGetCatalog: () => Promise<{

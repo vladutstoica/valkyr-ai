@@ -423,9 +423,8 @@ const ChatInterface: React.FC<Props> = ({
 
   // Persist last-selected agent per task (including Droid)
   useEffect(() => {
-    try {
-      window.localStorage.setItem(`agent:last:${task.id}`, agent);
-    } catch {}
+    try { window.localStorage.setItem(`agent:last:${task.id}`, agent); } catch {}
+    try { window.electronAPI?.setTaskAgent?.({ taskId: task.id, lastAgent: agent }); } catch {}
   }, [agent, task.id]);
 
   // Track agent switching
@@ -886,9 +885,8 @@ const ChatInterface: React.FC<Props> = ({
                   mapShiftEnterToCtrlJ
                   disableSnapshots={false}
                   onActivity={() => {
-                    try {
-                      window.localStorage.setItem(`agent:locked:${task.id}`, agent);
-                    } catch {}
+                    try { window.localStorage.setItem(`agent:locked:${task.id}`, agent); } catch {}
+                    try { window.electronAPI?.setTaskAgent?.({ taskId: task.id, lockedAgent: agent }); } catch {}
                   }}
                   onStartError={() => {
                     setCliStartFailed(true);

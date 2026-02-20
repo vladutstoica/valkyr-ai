@@ -57,13 +57,16 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
   const [projectDefaultBranch, setProjectDefaultBranch] = useState<string>('main');
   const [isLoadingBranches, setIsLoadingBranches] = useState(false);
 
-  // Persist activeWorkspaceId to localStorage
+  // Persist activeWorkspaceId to localStorage + DB
   useEffect(() => {
     if (activeWorkspaceId) {
       localStorage.setItem('valkyr:activeWorkspaceId', activeWorkspaceId);
     } else {
       localStorage.removeItem('valkyr:activeWorkspaceId');
     }
+    try {
+      window.electronAPI?.updateAppState({ activeWorkspaceId });
+    } catch {}
   }, [activeWorkspaceId]);
 
   // Filter projects by active workspace
@@ -994,7 +997,8 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
   const handleSwitchWorkspace = (workspaceId: string) => {
     setActiveWorkspaceId(workspaceId);
 
-    // If the currently selected project doesn't belong to the new workspace, go home
+    // If the currently selected project doesn't belong to the new workspace,
+    // auto-select the first project from the new workspace
     if (selectedProject) {
       const defaultWs = workspaces.find((ws) => ws.isDefault);
       const isNewDefault = defaultWs?.id === workspaceId;
@@ -1002,11 +1006,20 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
         selectedProject.workspaceId === workspaceId ||
         (isNewDefault && !selectedProject.workspaceId);
       if (!projectBelongs) {
-        setSelectedProject(null);
-        setShowHomeView(true);
-        setShowSkillsView(false);
-        setActiveTask(null);
-        saveActiveIds(null, null);
+        const wsProjects = projects.filter(
+          (p) =>
+            p.workspaceId === workspaceId || (isNewDefault && !p.workspaceId)
+        );
+        const firstProject = wsProjects[0];
+        if (firstProject) {
+          activateProjectView(firstProject);
+        } else {
+          setSelectedProject(null);
+          setShowHomeView(true);
+          setShowSkillsView(false);
+          setActiveTask(null);
+          saveActiveIds(null, null);
+        }
       }
     }
   };

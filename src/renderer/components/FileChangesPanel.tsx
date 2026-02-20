@@ -148,7 +148,6 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
       if (localStorage.getItem('valkyr:createPrAsDraft') === 'true') return 'draft';
       return 'create';
     } catch {
-      // localStorage not available in some environments
       return 'create';
     }
   });
@@ -156,11 +155,8 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
 
   const selectPrMode = (mode: PrMode) => {
     setPrMode(mode);
-    try {
-      localStorage.setItem('valkyr:prMode', mode);
-    } catch {
-      // localStorage not available
-    }
+    try { localStorage.setItem('valkyr:prMode', mode); } catch {}
+    try { window.electronAPI?.updateAppState?.({ prMode: mode, prDraft: mode === 'draft' }); } catch {}
   };
 
   const { fileChanges, refreshChanges } = useFileChanges(safeTaskPath);

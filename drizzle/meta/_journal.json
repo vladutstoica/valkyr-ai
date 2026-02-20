@@ -99,6 +99,20 @@
       "when": 1739577600000,
       "tag": "0013_add_workspaces",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1771593276438,
+      "tag": "0014_goofy_salo",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1771593622941,
+      "tag": "0015_square_prowler",
+      "breakpoints": true
     }
   ]
 }

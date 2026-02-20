@@ -14,6 +14,9 @@ import {
   messages as messagesTable,
   lineComments as lineCommentsTable,
   sshConnections as sshConnectionsTable,
+  appState as appStateTable,
+  terminalSessions as terminalSessionsTable,
+  kanbanColumns as kanbanColumnsTable,
   type ProjectRow,
   type ProjectGroupRow,
   type WorkspaceRow,
@@ -24,6 +27,9 @@ import {
   type LineCommentInsert,
   type SshConnectionRow,
   type SshConnectionInsert,
+  type AppStateRow,
+  type TerminalSessionRow,
+  type KanbanColumnRow,
 } from '../db/schema';
 
 /** Git information for a sub-repository in a multi-repo project */
@@ -101,6 +107,10 @@ export interface Task {
   metadata?: any;
   useWorktree?: boolean;
   archivedAt?: string | null;
+  isPinned?: boolean;
+  lastAgent?: string | null;
+  lockedAgent?: string | null;
+  initialPromptSent?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -131,6 +141,25 @@ export interface MigrationSummary {
   appliedCount: number;
   totalMigrations: number;
   recovered: boolean;
+}
+
+export interface AppState {
+  activeProjectId: string | null;
+  activeTaskId: string | null;
+  activeWorkspaceId: string | null;
+  prMode: string | null;
+  prDraft: boolean;
+}
+
+export interface TerminalSession {
+  id: string;
+  taskKey: string;
+  terminalId: string;
+  title: string;
+  cwd: string | null;
+  isActive: boolean;
+  displayOrder: number;
+  createdAt: string;
 }
 
 export class DatabaseService {
@@ -1255,6 +1284,10 @@ export class DatabaseService {
           : null,
       useWorktree: row.useWorktree === 1,
       archivedAt: row.archivedAt ?? null,
+      isPinned: row.isPinned === 1,
+      lastAgent: row.lastAgent ?? null,
+      lockedAgent: row.lockedAgent ?? null,
+      initialPromptSent: row.initialPromptSent === 1,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };
@@ -1294,6 +1327,132 @@ export class DatabaseService {
       console.warn(`Failed to parse task metadata for ${taskId}`, error);
       return null;
     }
+  }
+
+  // App state methods
+  async getAppState(): Promise<AppState> {
+    if (this.disabled) return { activeProjectId: null, activeTaskId: null, activeWorkspaceId: null, prMode: null, prDraft: false };
+    const { db } = await getDrizzleClient();
+    const rows = await db.select().from(appStateTable).where(eq(appStateTable.id, 1)).limit(1);
+    if (rows.length === 0) {
+      // Initialize default row
+      await db.insert(appStateTable).values({ id: 1 }).onConflictDoNothing();
+      return { activeProjectId: null, activeTaskId: null, activeWorkspaceId: null, prMode: null, prDraft: false };
+    }
+    const row = rows[0];
+    return {
+      activeProjectId: row.activeProjectId ?? null,
+      activeTaskId: row.activeTaskId ?? null,
+      activeWorkspaceId: row.activeWorkspaceId ?? null,
+      prMode: row.prMode ?? null,
+      prDraft: row.prDraft === 1,
+    };
+  }
+
+  async updateAppState(partial: Partial<AppState>): Promise<void> {
+    if (this.disabled) return;
+    const { db } = await getDrizzleClient();
+    const set: any = {};
+    if ('activeProjectId' in partial) set.activeProjectId = partial.activeProjectId ?? null;
+    if ('activeTaskId' in partial) set.activeTaskId = partial.activeTaskId ?? null;
+    if ('activeWorkspaceId' in partial) set.activeWorkspaceId = partial.activeWorkspaceId ?? null;
+    if ('prMode' in partial) set.prMode = partial.prMode ?? null;
+    if ('prDraft' in partial) set.prDraft = partial.prDraft ? 1 : 0;
+    // Upsert: insert if not exists, update if exists
+    await db.insert(appStateTable).values({ id: 1, ...set }).onConflictDoUpdate({
+      target: appStateTable.id,
+      set,
+    });
+  }
+
+  // Task pinned/agent methods
+  async setTaskPinned(taskId: string, pinned: boolean): Promise<void> {
+    if (this.disabled) return;
+    const { db } = await getDrizzleClient();
+    await db.update(tasksTable).set({ isPinned: pinned ? 1 : 0, updatedAt: new Date().toISOString() }).where(eq(tasksTable.id, taskId));
+  }
+
+  async getPinnedTaskIds(): Promise<string[]> {
+    if (this.disabled) return [];
+    const { db } = await getDrizzleClient();
+    const rows = await db.select({ id: tasksTable.id }).from(tasksTable).where(eq(tasksTable.isPinned, 1));
+    return rows.map(r => r.id);
+  }
+
+  async setTaskAgent(taskId: string, update: { lastAgent?: string | null; lockedAgent?: string | null }): Promise<void> {
+    if (this.disabled) return;
+    const { db } = await getDrizzleClient();
+    const set: any = { updatedAt: new Date().toISOString() };
+    if ('lastAgent' in update) set.lastAgent = update.lastAgent ?? null;
+    if ('lockedAgent' in update) set.lockedAgent = update.lockedAgent ?? null;
+    await db.update(tasksTable).set(set).where(eq(tasksTable.id, taskId));
+  }
+
+  async setTaskInitialPromptSent(taskId: string, sent: boolean): Promise<void> {
+    if (this.disabled) return;
+    const { db } = await getDrizzleClient();
+    await db.update(tasksTable).set({ initialPromptSent: sent ? 1 : 0, updatedAt: new Date().toISOString() }).where(eq(tasksTable.id, taskId));
+  }
+
+  // Terminal sessions methods
+  async getTerminalSessions(taskKey: string): Promise<TerminalSession[]> {
+    if (this.disabled) return [];
+    const { db } = await getDrizzleClient();
+    const rows = await db.select().from(terminalSessionsTable).where(eq(terminalSessionsTable.taskKey, taskKey)).orderBy(asc(terminalSessionsTable.displayOrder));
+    return rows.map(row => ({
+      id: row.id,
+      taskKey: row.taskKey,
+      terminalId: row.terminalId,
+      title: row.title,
+      cwd: row.cwd ?? null,
+      isActive: row.isActive === 1,
+      displayOrder: row.displayOrder ?? 0,
+      createdAt: row.createdAt ?? new Date().toISOString(),
+    }));
+  }
+
+  async saveTerminalSessions(taskKey: string, sessions: TerminalSession[]): Promise<void> {
+    if (this.disabled) return;
+    const { db } = await getDrizzleClient();
+    await db.transaction(async (tx) => {
+      // Delete existing sessions for this task key
+      await tx.delete(terminalSessionsTable).where(eq(terminalSessionsTable.taskKey, taskKey));
+      // Insert new sessions
+      for (const session of sessions) {
+        await tx.insert(terminalSessionsTable).values({
+          id: session.id,
+          taskKey,
+          terminalId: session.terminalId,
+          title: session.title,
+          cwd: session.cwd ?? null,
+          isActive: session.isActive ? 1 : 0,
+          displayOrder: session.displayOrder,
+        });
+      }
+    });
+  }
+
+  async deleteTerminalSessions(taskKey: string): Promise<void> {
+    if (this.disabled) return;
+    const { db } = await getDrizzleClient();
+    await db.delete(terminalSessionsTable).where(eq(terminalSessionsTable.taskKey, taskKey));
+  }
+
+  // Kanban methods
+  async getKanbanStatuses(): Promise<Array<{ taskId: string; status: string }>> {
+    if (this.disabled) return [];
+    const { db } = await getDrizzleClient();
+    const rows = await db.select().from(kanbanColumnsTable);
+    return rows.map(row => ({ taskId: row.taskId, status: row.status }));
+  }
+
+  async setKanbanStatus(taskId: string, status: string): Promise<void> {
+    if (this.disabled) return;
+    const { db } = await getDrizzleClient();
+    await db.insert(kanbanColumnsTable).values({ id: taskId, taskId, status }).onConflictDoUpdate({
+      target: kanbanColumnsTable.id,
+      set: { status },
+    });
   }
 
   async close(): Promise<void> {

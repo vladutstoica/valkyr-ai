@@ -32,6 +32,10 @@ export const saveActiveIds = (projectId: string | null, taskId: string | null): 
       localStorage.removeItem(ACTIVE_TASK_KEY);
     }
   } catch {}
+  // Persist to DB (fire-and-forget)
+  try {
+    window.electronAPI?.updateAppState({ activeProjectId: projectId, activeTaskId: taskId });
+  } catch {}
 };
 
 export const clampRightSidebarSize = (value: number) =>

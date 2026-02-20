@@ -25,6 +25,56 @@ interface UseAppInitializationReturn {
 }
 
 const LEGACY_ORDER_KEY = 'sidebarProjectOrder';
+const LS_TO_DB_MIGRATED_KEY = 'valkyr:ls-to-db-migrated:v1';
+
+/** One-time migration: copy localStorage state → SQLite DB. */
+const migrateLocalStorageToDB = async (): Promise<void> => {
+  try {
+    if (localStorage.getItem(LS_TO_DB_MIGRATED_KEY) === '1') return;
+
+    // App-level state
+    const activeProjectId = localStorage.getItem('valkyr:activeProjectId');
+    const activeTaskId = localStorage.getItem('valkyr:activeTaskId');
+    const activeWorkspaceId = localStorage.getItem('valkyr:activeWorkspaceId');
+    const prMode = localStorage.getItem('valkyr:prMode');
+    const prDraftRaw = localStorage.getItem('valkyr:createPrAsDraft');
+    const prDraft = prDraftRaw === 'true' ? true : undefined;
+
+    await window.electronAPI.updateAppState({
+      ...(activeProjectId != null && { activeProjectId }),
+      ...(activeTaskId != null && { activeTaskId }),
+      ...(activeWorkspaceId != null && { activeWorkspaceId }),
+      ...(prMode != null && { prMode }),
+      ...(prDraft != null && { prDraft }),
+    });
+
+    // Pinned tasks
+    try {
+      const pinnedRaw = localStorage.getItem('valkyr-pinned-tasks');
+      if (pinnedRaw) {
+        const ids: string[] = JSON.parse(pinnedRaw);
+        await Promise.all(ids.map((id) => window.electronAPI.setTaskPinned({ taskId: id, pinned: true })));
+      }
+    } catch {}
+
+    // Kanban statuses
+    try {
+      const kanbanRaw = localStorage.getItem('valkyr:kanban:statusByTask');
+      if (kanbanRaw) {
+        const map: Record<string, string> = JSON.parse(kanbanRaw);
+        await Promise.all(
+          Object.entries(map).map(([taskId, status]) =>
+            window.electronAPI.setKanbanStatus({ taskId, status })
+          )
+        );
+      }
+    } catch {}
+
+    localStorage.setItem(LS_TO_DB_MIGRATED_KEY, '1');
+  } catch {
+    // Non-critical — localStorage stays as fallback
+  }
+};
 
 // Save project order to database
 const saveProjectOrder = (list: Project[]) => {
@@ -106,6 +156,9 @@ export function useAppInitialization(
         // Projects come pre-sorted by displayOrder from the database
         // Migrate legacy localStorage order if present (one-time)
         const migratedProjects = await migrateLegacyOrder(projects);
+
+        // Migrate localStorage state to DB (one-time)
+        await migrateLocalStorageToDB();
         const initialProjects = migratedProjects.map((p) => withRepoKey(p, appPlatform));
         onProjectsLoaded(initialProjects);
 

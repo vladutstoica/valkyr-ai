@@ -37,6 +37,7 @@ export function getStatus(taskId: string): KanbanStatus {
 export function setStatus(taskId: string, status: KanbanStatus): void {
   const map = { ...read(), [taskId]: status };
   write(map);
+  try { window.electronAPI?.setKanbanStatus?.({ taskId, status }); } catch {}
 }
 
 export function getAll(): MapShape {

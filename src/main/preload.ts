@@ -487,6 +487,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateConversationTitle: (params: { conversationId: string; title: string }) =>
     ipcRenderer.invoke('db:updateConversationTitle', params),
 
+  // App state
+  getAppState: () => ipcRenderer.invoke('db:appState:get'),
+  updateAppState: (partial: any) => ipcRenderer.invoke('db:appState:update', partial),
+  // Task pinned/agent
+  setTaskPinned: (args: { taskId: string; pinned: boolean }) => ipcRenderer.invoke('db:task:setPinned', args),
+  getPinnedTaskIds: () => ipcRenderer.invoke('db:task:getPinnedIds'),
+  setTaskAgent: (args: { taskId: string; lastAgent?: string | null; lockedAgent?: string | null }) => ipcRenderer.invoke('db:task:setAgent', args),
+  setTaskInitialPromptSent: (args: { taskId: string; sent: boolean }) => ipcRenderer.invoke('db:task:setInitialPromptSent', args),
+  // Terminal sessions
+  getTerminalSessions: (taskKey: string) => ipcRenderer.invoke('db:terminalSessions:get', taskKey),
+  saveTerminalSessions: (args: { taskKey: string; sessions: any[] }) => ipcRenderer.invoke('db:terminalSessions:save', args),
+  deleteTerminalSessions: (taskKey: string) => ipcRenderer.invoke('db:terminalSessions:delete', taskKey),
+  // Kanban
+  getKanbanStatuses: () => ipcRenderer.invoke('db:kanban:getStatuses'),
+  setKanbanStatus: (args: { taskId: string; status: string }) => ipcRenderer.invoke('db:kanban:setStatus', args),
+
   // Line comments management
   lineCommentsCreate: (input: any) => ipcRenderer.invoke('lineComments:create', input),
   lineCommentsGet: (args: { taskId: string; filePath?: string }) =>

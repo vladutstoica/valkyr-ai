@@ -140,7 +140,7 @@ const AppContent: React.FC = () => {
   // Auto-refresh PR status
   useAutoPrRefresh(taskMgmt.activeTask?.path);
 
-  // --- Pinned tasks (localStorage) ---
+  // --- Pinned tasks (localStorage + DB) ---
   const [pinnedTaskIds, setPinnedTaskIds] = useState<Set<string>>(() => {
     try {
       const stored = localStorage.getItem(PINNED_TASKS_KEY);
@@ -153,12 +153,14 @@ const AppContent: React.FC = () => {
   const handlePinTask = useCallback((task: { id: string }) => {
     setPinnedTaskIds((prev) => {
       const next = new Set(prev);
-      if (next.has(task.id)) {
-        next.delete(task.id);
-      } else {
+      const pinned = !next.has(task.id);
+      if (pinned) {
         next.add(task.id);
+      } else {
+        next.delete(task.id);
       }
       localStorage.setItem(PINNED_TASKS_KEY, JSON.stringify([...next]));
+      try { window.electronAPI?.setTaskPinned?.({ taskId: task.id, pinned }); } catch {}
       return next;
     });
   }, []);
