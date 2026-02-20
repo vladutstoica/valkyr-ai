@@ -3,13 +3,14 @@ import { log } from '../lib/logger';
 import { GitHubService } from '../services/GitHubService';
 import { worktreeService } from '../services/WorktreeService';
 import { githubCLIInstaller } from '../services/GitHubCLIInstaller';
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 import * as path from 'path';
 import * as fs from 'fs';
 import { homedir } from 'os';
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 const githubService = new GitHubService();
 
 const slugify = (name: string) =>
@@ -115,7 +116,7 @@ export function registerGithubIpc() {
 
   ipcMain.handle('github:getUser', async () => {
     try {
-      const token = await (githubService as any)['getStoredToken']();
+      const token = await githubService.getStoredToken();
       if (!token) return null;
       return await githubService.getUserInfo(token);
     } catch (error) {
@@ -126,7 +127,7 @@ export function registerGithubIpc() {
 
   ipcMain.handle('github:getRepositories', async () => {
     try {
-      const token = await (githubService as any)['getStoredToken']();
+      const token = await githubService.getStoredToken();
       if (!token) throw new Error('Not authenticated');
       return await githubService.getRepositories(token);
     } catch (error) {
@@ -136,11 +137,19 @@ export function registerGithubIpc() {
   });
 
   ipcMain.handle('github:cloneRepository', async (_, repoUrl: string, localPath: string) => {
-    const q = (s: string) => JSON.stringify(s);
+    // Validate repoUrl to prevent command injection and restrict to safe protocols
+    if (
+      !repoUrl ||
+      typeof repoUrl !== 'string' ||
+      (!repoUrl.startsWith('https://') && !repoUrl.startsWith('git@'))
+    ) {
+      return { success: false, error: 'Invalid repository URL: must use https:// or git@ protocol' };
+    }
+
     try {
       // Opt-out flag for safety or debugging
       if (process.env.VALKYR_DISABLE_CLONE_CACHE === '1') {
-        await execAsync(`git clone ${q(repoUrl)} ${q(localPath)}`);
+        await execFileAsync('git', ['clone', repoUrl, localPath]);
         return { success: true };
       }
 
@@ -161,22 +170,27 @@ export function registerGithubIpc() {
       const mirrorPath = path.join(cacheRoot, `${cacheKey}.mirror`);
 
       if (!fs.existsSync(mirrorPath)) {
-        await execAsync(`git clone --mirror --filter=blob:none ${q(repoUrl)} ${q(mirrorPath)}`);
+        await execFileAsync('git', ['clone', '--mirror', '--filter=blob:none', repoUrl, mirrorPath]);
       } else {
         try {
-          await execAsync(`git -C ${q(mirrorPath)} remote set-url origin ${q(repoUrl)}`);
+          await execFileAsync('git', ['-C', mirrorPath, 'remote', 'set-url', 'origin', repoUrl]);
         } catch {}
-        await execAsync(`git -C ${q(mirrorPath)} remote update --prune`);
+        await execFileAsync('git', ['-C', mirrorPath, 'remote', 'update', '--prune']);
       }
 
-      await execAsync(
-        `git clone --reference-if-able ${q(mirrorPath)} --dissociate ${q(repoUrl)} ${q(localPath)}`
-      );
+      await execFileAsync('git', [
+        'clone',
+        '--reference-if-able',
+        mirrorPath,
+        '--dissociate',
+        repoUrl,
+        localPath,
+      ]);
       return { success: true };
     } catch (error) {
       log.error('Failed to clone repository via cache:', error);
       try {
-        await execAsync(`git clone ${q(repoUrl)} ${q(localPath)}`);
+        await execFileAsync('git', ['clone', repoUrl, localPath]);
         return { success: true };
       } catch (e2) {
         return { success: false, error: e2 instanceof Error ? e2.message : 'Clone failed' };

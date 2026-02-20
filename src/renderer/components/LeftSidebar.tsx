@@ -193,6 +193,9 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   onMoveProjectToWorkspace,
 }) => {
   const { open, isMobile, setOpen } = useSidebar();
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const swipeDeltaRef = useRef(0);
+  const swipeCooldownRef = useRef(false);
   const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
   const [archivedTasksByProject, setArchivedTasksByProject] = useState<Record<string, Task[]>>({});
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
@@ -353,6 +356,56 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
     onSidebarContextChange?.({ open, isMobile, setOpen });
   }, [open, isMobile, setOpen, onSidebarContextChange]);
 
+  // Two-finger horizontal swipe to switch workspaces
+  useEffect(() => {
+    const el = sidebarRef.current;
+    if (!el || !onSwitchWorkspace || workspaces.length < 2) return;
+
+    const sortedWorkspaces = [...workspaces].sort((a, b) => a.displayOrder - b.displayOrder);
+
+    const handleWheel = (e: WheelEvent) => {
+      // Only handle horizontal-dominant gestures
+      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+
+      e.preventDefault();
+
+      if (swipeCooldownRef.current) return;
+
+      swipeDeltaRef.current += e.deltaX;
+
+      const threshold = 50;
+      if (Math.abs(swipeDeltaRef.current) < threshold) return;
+
+      const currentIndex = sortedWorkspaces.findIndex((ws) => ws.id === activeWorkspaceId);
+      if (currentIndex === -1) {
+        swipeDeltaRef.current = 0;
+        return;
+      }
+
+      let nextIndex: number;
+      if (swipeDeltaRef.current > 0) {
+        // Swipe left → next workspace
+        nextIndex = currentIndex + 1;
+      } else {
+        // Swipe right → previous workspace
+        nextIndex = currentIndex - 1;
+      }
+
+      swipeDeltaRef.current = 0;
+
+      if (nextIndex < 0 || nextIndex >= sortedWorkspaces.length) return;
+
+      swipeCooldownRef.current = true;
+      onSwitchWorkspace(sortedWorkspaces[nextIndex].id);
+      setTimeout(() => {
+        swipeCooldownRef.current = false;
+      }, 300);
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, [workspaces, activeWorkspaceId, onSwitchWorkspace]);
+
   return (
     <>
       <AlertDialog open={!!projectToDelete} onOpenChange={(open) => !open && setProjectToDelete(null)}>
@@ -376,6 +429,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
         </AlertDialogContent>
       </AlertDialog>
 
+      <div ref={sidebarRef} className="h-full w-full">
       <Sidebar className="h-full w-full !border-r-0">
         <SidebarContent className="h-full w-full flex flex-col overflow-hidden">
           <ScrollArea className="flex-1 min-h-0 w-full">
@@ -1049,6 +1103,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
         )}
         </SidebarContent>
       </Sidebar>
+    </div>
     </>
   );
 };
