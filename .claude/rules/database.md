@@ -27,11 +27,11 @@ pnpm exec drizzle-kit studio
 ## Database Locations
 | Platform | Path |
 |----------|------|
-| macOS | `~/Library/Application Support/emdash/emdash.db` |
-| Linux | `~/.config/emdash/emdash.db` |
-| Windows | `%APPDATA%\emdash\emdash.db` |
+| macOS | `~/Library/Application Support/valkyr/valkyr.db` |
+| Linux | `~/.config/valkyr/valkyr.db` |
+| Windows | `%APPDATA%\valkyr\valkyr.db` |
 
-Override with `EMDASH_DB_FILE` environment variable.
+Override with `VALKYR_DB_FILE` environment variable.
 
 ## Risk Assessment
 - Schema mismatches can corrupt user data

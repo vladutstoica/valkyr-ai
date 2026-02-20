@@ -13,7 +13,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 }
 
 export const metadata = {
-  title: 'Emdash - Docs',
+  title: 'Valkyr - Docs',
   description: 'Open source Agentic Development Environment',
   icons: {
     icon: '/brand/favicon.ico',

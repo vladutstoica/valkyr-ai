@@ -23,12 +23,12 @@ function parseArgs(argv: string[]): ParsedArgs {
   const command = (commandRaw ?? 'help') as ParsedArgs['command'];
 
   if (command !== 'start') {
-    return { command: 'help', options: { workspaceId: '', configPath: '.emdash/config.json' } };
+    return { command: 'help', options: { workspaceId: '', configPath: '.valkyr/config.json' } };
   }
 
   const options: StartCommandOptions = {
     workspaceId: '',
-    configPath: '.emdash/config.json',
+    configPath: '.valkyr/config.json',
   };
 
   for (let i = 0; i < rest.length; i += 1) {
@@ -62,7 +62,7 @@ function parseArgs(argv: string[]): ParsedArgs {
 }
 
 function printUsage(): void {
-  process.stderr.write(`Usage: emdash-run start --workspace <id> [--config path]\n`);
+  process.stderr.write(`Usage: valkyr-run start --workspace <id> [--config path]\n`);
 }
 
 function loadConfig(configPath: string) {

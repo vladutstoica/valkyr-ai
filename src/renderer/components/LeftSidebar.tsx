@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useTerminalPanel } from '../hooks/useTerminalPanel';
 import ReorderList from './ReorderList';
 import { Button } from './ui/button';
 import {
@@ -193,6 +194,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   onMoveProjectToWorkspace,
 }) => {
   const { open, isMobile, setOpen } = useSidebar();
+  const { isCollapsed: isTerminalCollapsed } = useTerminalPanel();
   const sidebarRef = useRef<HTMLDivElement>(null);
   const swipeDeltaRef = useRef(0);
   const swipeCooldownRef = useRef(false);
@@ -1090,6 +1092,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
           </div>
         </ScrollArea>
         {onSwitchWorkspace && onCreateWorkspace && onRenameWorkspace && onDeleteWorkspace && onUpdateWorkspaceColor && (
+          <>
           <WorkspaceBar
             workspaces={workspaces}
             activeWorkspaceId={activeWorkspaceId ?? null}
@@ -1100,6 +1103,9 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
             onUpdateWorkspaceColor={onUpdateWorkspaceColor}
             onReorderWorkspaces={onReorderWorkspaces}
           />
+          {/* Spacer to align workspace separator with terminal panel top border */}
+          <div className={`shrink-0 transition-all duration-200 ${isTerminalCollapsed ? 'h-9' : 'h-64'}`} />
+          </>
         )}
         </SidebarContent>
       </Sidebar>

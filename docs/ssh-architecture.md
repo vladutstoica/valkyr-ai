@@ -1,6 +1,6 @@
 # SSH Architecture Documentation
 
-Technical documentation for Emdash's SSH remote development feature.
+Technical documentation for Valkyr's SSH remote development feature.
 
 ## Architecture Overview
 
@@ -120,7 +120,7 @@ The SSH feature enables remote development by connecting to servers via SSH and 
 │                     AUTHENTICATION FLOW                          │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  User Input          Emdash Processing         Storage          │
+│  User Input          Valkyr Processing         Storage          │
 │  ──────────          ────────────────         ────────          │
 │                                                                  │
 │  Password ─────────► CredentialService ─────► OS Keychain       │

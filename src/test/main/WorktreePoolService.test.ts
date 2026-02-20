@@ -8,7 +8,7 @@ import { WorktreePoolService } from '../../main/services/WorktreePoolService';
 vi.mock('electron', () => ({
   app: {
     getPath: vi.fn().mockReturnValue(os.tmpdir()),
-    getName: vi.fn().mockReturnValue('emdash-test'),
+    getName: vi.fn().mockReturnValue('valkyr-test'),
     getVersion: vi.fn().mockReturnValue('0.0.0-test'),
   },
 }));
@@ -41,7 +41,7 @@ vi.mock('../../main/lib/logger', () => ({
 vi.mock('../../main/settings', () => ({
   getAppSettings: vi.fn().mockReturnValue({
     repository: {
-      branchPrefix: 'emdash',
+      branchPrefix: 'valkyr',
       pushOnCreate: false,
     },
   }),

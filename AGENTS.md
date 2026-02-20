@@ -14,8 +14,8 @@ ports:
 required_env: []
 optional_env:
   - TELEMETRY_ENABLED
-  - EMDASH_DB_FILE
-  - EMDASH_DISABLE_NATIVE_DB
+  - VALKYR_DB_FILE
+  - VALKYR_DISABLE_NATIVE_DB
   - CODEX_SANDBOX_MODE
   - CODEX_APPROVAL_POLICY
 ---
@@ -52,37 +52,37 @@ optional_env:
 
 **Skills System**
 
-Emdash implements the open [Agent Skills](https://agentskills.io) standard — a cross-agent specification for reusable skill packages. The standard defines skills as directories containing a `SKILL.md` file with YAML frontmatter, adopted by Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Roo Code, Mistral Vibe, and others. Emdash builds on this standard to provide a unified management layer across all compatible agents.
+Valkyr implements the open [Agent Skills](https://agentskills.io) standard — a cross-agent specification for reusable skill packages. The standard defines skills as directories containing a `SKILL.md` file with YAML frontmatter, adopted by Claude Code, Codex, Cursor, Gemini CLI, OpenCode, Roo Code, Mistral Vibe, and others. Valkyr builds on this standard to provide a unified management layer across all compatible agents.
 
 *The Problem:* Every agent stores skills in its own directory — Claude Code uses `~/.claude/commands/`, Codex uses `~/.codex/skills/`, Cursor uses `~/.cursor/skills/`, etc. Two separate catalogs exist (OpenAI `openai/skills` repo, Anthropic `anthropics/skills` repo). Without a unified layer, you'd manually install the same skill into each agent's config directory.
 
 *How it works:*
 - **Agent Skills standard:** Every skill is a `SKILL.md` file with YAML frontmatter (name, description) + markdown instructions, per the open spec. This is the format all compatible agents understand.
-- **Central storage:** All skills live in `~/.agentskills/{skill-name}/`. Emdash metadata in `~/.agentskills/.emdash/`.
-- **Agent sync via symlinks:** On install, Emdash symlinks from central storage into each detected agent's native directory (`~/.claude/commands/{skill}/`, `~/.codex/skills/{skill}/`, etc.). Each agent sees the skill in its own native format.
-- **Aggregated catalog:** Emdash fetches skills from OpenAI's repo (with icons from `openai.yaml`), Anthropic's repo (descriptions from `SKILL.md` frontmatter), and local user-created skills — deduplicates by ID and merges into one browsable catalog.
+- **Central storage:** All skills live in `~/.agentskills/{skill-name}/`. Valkyr metadata in `~/.agentskills/.valkyr/`.
+- **Agent sync via symlinks:** On install, Valkyr symlinks from central storage into each detected agent's native directory (`~/.claude/commands/{skill}/`, `~/.codex/skills/{skill}/`, etc.). Each agent sees the skill in its own native format.
+- **Aggregated catalog:** Valkyr fetches skills from OpenAI's repo (with icons from `openai.yaml`), Anthropic's repo (descriptions from `SKILL.md` frontmatter), and local user-created skills — deduplicates by ID and merges into one browsable catalog.
 - **One-click install/uninstall:** Downloads `SKILL.md` from GitHub, saves to `~/.agentskills/`, creates symlinks to all agents. Uninstall removes directory + symlinks.
 
 *Key files:* `src/shared/skills/` (types, validation, agent targets), `src/main/services/SkillsService.ts` (core logic), `src/main/ipc/skillsIpc.ts` (IPC handlers), `src/renderer/components/skills/` (UI), `src/main/services/skills/bundled-catalog.json` (offline fallback).
 
-*Usage:* Install a skill in the Emdash Skills view, then invoke it in the agent — e.g. `/skill-name` in Claude Code.
+*Usage:* Install a skill in the Valkyr Skills view, then invoke it in the agent — e.g. `/skill-name` in Claude Code.
 
-*Value:* Emdash is the first tool to implement the Agent Skills standard as a cross-agent management layer:
-1. **One install, every agent.** Install a skill once from the Emdash catalog → it's immediately available in Claude Code, Codex, Cursor, Gemini, OpenCode, Roo Code, and Mistral Vibe via symlinks into each agent's native directory.
+*Value:* Valkyr is the first tool to implement the Agent Skills standard as a cross-agent management layer:
+1. **One install, every agent.** Install a skill once from the Valkyr catalog → it's immediately available in Claude Code, Codex, Cursor, Gemini, OpenCode, Roo Code, and Mistral Vibe via symlinks into each agent's native directory.
 2. **Aggregated discovery.** Browse skills from both the OpenAI and Anthropic catalogs in one place, with icons, descriptions, and example prompts. No switching between GitHub repos.
-3. **Full-machine awareness.** Emdash scans all 10+ known skill directories on your machine — if you installed a skill directly into Cursor or through another tool, Emdash discovers it and shows it in your inventory.
+3. **Full-machine awareness.** Valkyr scans all 10+ known skill directories on your machine — if you installed a skill directly into Cursor or through another tool, Valkyr discovers it and shows it in your inventory.
 4. **Open standard, no lock-in.** Everything is based on the [Agent Skills](https://agentskills.io) open spec — a SKILL.md file with YAML frontmatter in a named directory. No proprietary format. Skills are portable plain text that any compatible agent can read.
 
 **SSH Remote Projects**
 
-Emdash can orchestrate AI coding agents on remote machines over SSH — useful when code can't live on your laptop (compliance, large repos, GPU requirements).
+Valkyr can orchestrate AI coding agents on remote machines over SSH — useful when code can't live on your laptop (compliance, large repos, GPU requirements).
 
-*The Problem:* If your code is on a remote server, you'd normally SSH in manually, run agents in separate terminal sessions, and lose all of Emdash's orchestration (parallel agents, worktree isolation, unified UI).
+*The Problem:* If your code is on a remote server, you'd normally SSH in manually, run agents in separate terminal sessions, and lose all of Valkyr's orchestration (parallel agents, worktree isolation, unified UI).
 
 *How it works:*
 - **Connection management:** Users add SSH connections (password, key, or agent auth) via the UI. Credentials are stored securely in the OS keychain via `keytar`. Connections are monitored for health with automatic reconnection on timeout.
-- **Remote worktrees:** When a task is created on a remote project, Emdash SSHes into the server and runs `git worktree add` to create an isolated worktree at `<project>/.emdash/worktrees/<task-slug>/`. Each agent works in its own worktree, same as local.
-- **Remote PTY:** Agent shells (Claude Code, Codex, etc.) are launched over SSH via `ssh2`'s shell API. The terminal output streams back to Emdash's UI in real-time, same as a local terminal pane.
+- **Remote worktrees:** When a task is created on a remote project, Valkyr SSHes into the server and runs `git worktree add` to create an isolated worktree at `<project>/.valkyr/worktrees/<task-slug>/`. Each agent works in its own worktree, same as local.
+- **Remote PTY:** Agent shells (Claude Code, Codex, etc.) are launched over SSH via `ssh2`'s shell API. The terminal output streams back to Valkyr's UI in real-time, same as a local terminal pane.
 - **Remote file browsing:** Files on the remote server can be browsed and read via SFTP.
 
 *What works remotely:*
@@ -98,7 +98,7 @@ Emdash can orchestrate AI coding agents on remote machines over SSH — useful w
 - Worktree pooling (instant task start)
 - All GitHub/PR features (create PR, PR status, check runs, merge)
 
-The remote workflow is more terminal-centric — agents handle git operations (staging, pushing, PRs) through the shell rather than through Emdash's UI controls.
+The remote workflow is more terminal-centric — agents handle git operations (staging, pushing, PRs) through the shell rather than through Valkyr's UI controls.
 
 *Key files:* `src/main/services/ssh/` (SshService, SshCredentialService, SshHostKeyService, SshConnectionMonitor), `src/main/services/RemotePtyService.ts` (remote terminal sessions), `src/main/services/RemoteGitService.ts` (remote git operations), `src/main/ipc/sshIpc.ts` (IPC handlers), `src/main/utils/shellEscape.ts` (shared POSIX shell escaping), `src/renderer/components/ssh/` (UI components).
 

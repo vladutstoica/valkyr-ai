@@ -139,7 +139,7 @@ const WorkspaceBar: React.FC<WorkspaceBarProps> = ({
   if (workspaces.length === 0) return null;
 
   return (
-    <div className="flex items-center justify-center px-3 py-2 border-t border-border/50 shrink-0">
+    <div className="flex items-center justify-center px-3 py-1.5 border-t border-border/50 shrink-0">
       <div className="flex items-center justify-center gap-0.5">
         <TooltipProvider delayDuration={300}>
           {workspaces.map((ws, index) => {
@@ -160,13 +160,13 @@ const WorkspaceBar: React.FC<WorkspaceBarProps> = ({
                         onDrop={(e) => handleDrop(e, ws.id)}
                         onDragEnd={handleDragEnd}
                         onClick={() => onSwitchWorkspace(ws.id)}
-                        className={`h-7 w-7 cursor-pointer ${
+                        className={`h-6 w-6 cursor-pointer ${
                           isActive
                             ? 'bg-muted-foreground/20'
                             : 'opacity-50 hover:opacity-80'
                         } ${dragOverId === ws.id ? 'ring-1 ring-muted-foreground/40' : ''}`}
                       >
-                        <div className="w-3 h-3 rounded-sm bg-muted-foreground/60" />
+                        <div className="w-2.5 h-2.5 rounded-sm bg-muted-foreground/60" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="top" className="text-xs">

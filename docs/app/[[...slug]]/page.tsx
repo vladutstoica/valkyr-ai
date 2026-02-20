@@ -15,7 +15,7 @@ async function getLastModifiedFromGitHub(filePath: string): Promise<Date | null>
   try {
     const time = await getGithubLastEdit({
       owner: 'generalaction',
-      repo: 'emdash',
+      repo: 'valkyr-ai',
       path: `docs/content/docs/${filePath}.mdx`,
       token: process.env.GIT_TOKEN ? `Bearer ${process.env.GIT_TOKEN}` : undefined,
     });

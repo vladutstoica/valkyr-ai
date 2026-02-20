@@ -1,10 +1,10 @@
 # SSH Remote Projects Setup Guide
 
-This guide covers how to use Emdash's SSH feature to work with remote projects on remote servers via SSH/SFTP.
+This guide covers how to use Valkyr's SSH feature to work with remote projects on remote servers via SSH/SFTP.
 
 ## Overview
 
-Emdash supports remote development by connecting to servers via SSH. This allows you to:
+Valkyr supports remote development by connecting to servers via SSH. This allows you to:
 
 - Run coding agents on remote machines
 - Access and edit files on remote servers through SFTP
@@ -14,7 +14,7 @@ Emdash supports remote development by connecting to servers via SSH. This allows
 ### How It Works
 
 When you add a remote project:
-1. Emdash establishes an SSH connection to your server
+1. Valkyr establishes an SSH connection to your server
 2. Files are accessed via SFTP for browsing and editing
 3. Git operations run over SSH commands
 4. Coding agents execute in remote worktrees
@@ -55,7 +55,7 @@ Connection:     My Server
 Project Path:   /home/user/projects/my-app
 ```
 
-5. Emdash will validate the path and detect Git configuration
+5. Valkyr will validate the path and detect Git configuration
 
 ## Connection Configuration Options
 
@@ -70,7 +70,7 @@ Project Path:   /home/user/projects/my-app
 
 ### Connection Timeouts
 
-Emdash uses sensible defaults for connection reliability:
+Valkyr uses sensible defaults for connection reliability:
 
 - **Ready Timeout**: 20 seconds (connection establishment)
 - **Keepalive Interval**: 60 seconds (connection health check)
@@ -80,11 +80,11 @@ These settings ensure stable long-running agent sessions.
 
 ## Authentication Methods
 
-Emdash supports three authentication methods, listed from most to least secure:
+Valkyr supports three authentication methods, listed from most to least secure:
 
 ### 1. SSH Agent (Recommended)
 
-Uses your system's SSH agent for key-based authentication without storing private keys in Emdash.
+Uses your system's SSH agent for key-based authentication without storing private keys in Valkyr.
 
 **Requirements:**
 - SSH agent running (`ssh-agent`)
@@ -107,7 +107,7 @@ ssh-add -l
 
 ### 2. Private Key
 
-Specify a private key file directly. Emdash reads the key file but stores passphrases securely in your system keychain.
+Specify a private key file directly. Valkyr reads the key file but stores passphrases securely in your system keychain.
 
 **Supported Key Formats:**
 - OpenSSH format (`id_rsa`, `id_ed25519`, `id_ecdsa`)
@@ -121,7 +121,7 @@ Private Key Path: /Users/you/.ssh/id_ed25519
 Passphrase:       [if key is encrypted]
 ```
 
-**Security:** Passphrases are stored in your OS keychain (macOS Keychain, Linux Secret Service), not in Emdash's database.
+**Security:** Passphrases are stored in your OS keychain (macOS Keychain, Linux Secret Service), not in Valkyr's database.
 
 ### 3. Password
 
@@ -136,7 +136,7 @@ Direct password authentication. Stored securely in your system keychain.
 
 ## Host Key Verification
 
-Emdash verifies server identity using SSH host keys to prevent man-in-the-middle attacks.
+Valkyr verifies server identity using SSH host keys to prevent man-in-the-middle attacks.
 
 ### First Connection
 
@@ -155,10 +155,10 @@ Verify the fingerprint matches your server's actual key before trusting.
 
 ### Managing Known Hosts
 
-Emdash uses your system's `~/.ssh/known_hosts` file for host key storage. This means:
+Valkyr uses your system's `~/.ssh/known_hosts` file for host key storage. This means:
 
-- Host keys trusted in Emdash are also trusted by your CLI SSH
-- Host keys verified via CLI SSH are trusted in Emdash
+- Host keys trusted in Valkyr are also trusted by your CLI SSH
+- Host keys verified via CLI SSH are trusted in Valkyr
 - No separate host key management needed
 
 ### Host Key Changed Warning
@@ -258,7 +258,7 @@ Host server
 Keys are more secure and convenient:
 ```bash
 # Generate Ed25519 key (recommended)
-ssh-keygen -t ed25519 -C "emdash@workstation"
+ssh-keygen -t ed25519 -C "valkyr@workstation"
 
 # Copy to server
 ssh-copy-id user@server
@@ -311,7 +311,7 @@ Host trusted-server
 Rotate SSH keys periodically:
 - Generate new keys every 6-12 months
 - Remove old keys from `authorized_keys`
-- Update Emdash connections with new key paths
+- Update Valkyr connections with new key paths
 
 ### 7. Audit Connections
 
@@ -353,12 +353,12 @@ ssh-keygen -R hostname
 ssh-keyscan -t ed25519 hostname
 ```
 
-### Emdash SSH Storage Locations
+### Valkyr SSH Storage Locations
 
 - **Connection configs:** Local SQLite database
 - **Passwords/Passphrases:** System keychain (via keytar)
 - **Host keys:** `~/.ssh/known_hosts` (shared with system SSH)
-- **Private keys:** Never stored by Emdash (only paths are stored)
+- **Private keys:** Never stored by Valkyr (only paths are stored)
 
 ---
 

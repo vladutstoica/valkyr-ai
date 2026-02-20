@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Emdash** is a cross-platform Electron application that orchestrates multiple CLI coding agents (Claude Code, Codex, Qwen Code, Amp, etc.) in parallel. Each agent runs in its own Git worktree to keep changes isolated, allowing simultaneous work on multiple features.
+**Valkyr** is a cross-platform Electron application that orchestrates multiple CLI coding agents (Claude Code, Codex, Qwen Code, Amp, etc.) in parallel. Each agent runs in its own Git worktree to keep changes isolated, allowing simultaneous work on multiple features.
 
 ### Architecture
 
@@ -100,8 +100,8 @@ Note: Some IPC handler files are colocated in `services/` (e.g., `worktreeIpc.ts
 
 **Database** (`src/main/db/`):
 - Schema: `schema.ts` — Migrations: `drizzle/` (auto-generated)
-- Locations: macOS `~/Library/Application Support/emdash/emdash.db`, Linux `~/.config/emdash/emdash.db`, Windows `%APPDATA%\emdash\emdash.db`
-- Override with `EMDASH_DB_FILE` env var
+- Locations: macOS `~/Library/Application Support/valkyr/valkyr.db`, Linux `~/.config/valkyr/valkyr.db`, Windows `%APPDATA%\valkyr\valkyr.db`
+- Override with `VALKYR_DB_FILE` env var
 
 ### Renderer Process (`src/renderer/`)
 
@@ -182,10 +182,10 @@ export const exampleService = new ExampleService();
 ## Environment Variables
 
 All optional:
-- `EMDASH_DB_FILE` — Override database file path
-- `EMDASH_DISABLE_NATIVE_DB` — Disable native SQLite driver
-- `EMDASH_DISABLE_CLONE_CACHE` — Disable clone caching
-- `EMDASH_DISABLE_PTY` — Disable PTY support
+- `VALKYR_DB_FILE` — Override database file path
+- `VALKYR_DISABLE_NATIVE_DB` — Disable native SQLite driver
+- `VALKYR_DISABLE_CLONE_CACHE` — Disable clone caching
+- `VALKYR_DISABLE_PTY` — Disable PTY support
 - `TELEMETRY_ENABLED` — Toggle anonymous telemetry (PostHog)
 - `CODEX_SANDBOX_MODE` / `CODEX_APPROVAL_POLICY` — Codex agent configuration
 
@@ -259,7 +259,7 @@ Use the **playwright-electron MCP** tools to interact with the running Electron 
 ## Key Configuration Files
 
 - `vite.config.ts` — Renderer build + Vitest test config
-- `drizzle.config.ts` — Database migration config (supports `EMDASH_DB_FILE` override)
+- `drizzle.config.ts` — Database migration config (supports `VALKYR_DB_FILE` override)
 - `tsconfig.json` — Renderer/shared TypeScript config
 - `tsconfig.main.json` — Main process TypeScript config (CommonJS output)
 - `tailwind.config.js` — Tailwind configuration

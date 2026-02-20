@@ -146,41 +146,64 @@ export function TerminalPanel({
     [terminals.length, closeTerminal]
   );
 
-  // Track which terminals are actively running (receiving PTY data)
+  // Track which terminals are actively running a command.
+  // Only shows spinner after 3s of continuous PTY output to avoid false
+  // positives from shell prompts and short command responses.
   const [runningTerminals, setRunningTerminals] = useState<Set<string>>(new Set());
+  const activationTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const idleTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   useEffect(() => {
     const cleanups: (() => void)[] = [];
     for (const terminal of terminals) {
       const offData = window.electronAPI?.onPtyData?.(terminal.id, () => {
-        setRunningTerminals((prev) => {
-          if (prev.has(terminal.id)) return prev;
-          const next = new Set(prev);
-          next.add(terminal.id);
-          return next;
-        });
-        // Reset the idle timer
-        const existing = idleTimers.current.get(terminal.id);
-        if (existing) clearTimeout(existing);
+        const tid = terminal.id;
+
+        // Start activation timer on first data after silence (3s threshold)
+        if (!activationTimers.current.has(tid)) {
+          activationTimers.current.set(
+            tid,
+            setTimeout(() => {
+              setRunningTerminals((prev) => {
+                if (prev.has(tid)) return prev;
+                const next = new Set(prev);
+                next.add(tid);
+                return next;
+              });
+              activationTimers.current.delete(tid);
+            }, 3000)
+          );
+        }
+
+        // Reset idle timer — clears running state after 2s of silence
+        const existingIdle = idleTimers.current.get(tid);
+        if (existingIdle) clearTimeout(existingIdle);
         idleTimers.current.set(
-          terminal.id,
+          tid,
           setTimeout(() => {
+            // Cancel pending activation if command finished quickly
+            const pending = activationTimers.current.get(tid);
+            if (pending) {
+              clearTimeout(pending);
+              activationTimers.current.delete(tid);
+            }
             setRunningTerminals((prev) => {
-              if (!prev.has(terminal.id)) return prev;
+              if (!prev.has(tid)) return prev;
               const next = new Set(prev);
-              next.delete(terminal.id);
+              next.delete(tid);
               return next;
             });
-            idleTimers.current.delete(terminal.id);
-          }, 3000)
+            idleTimers.current.delete(tid);
+          }, 2000)
         );
       });
       if (offData) cleanups.push(offData);
     }
     return () => {
       cleanups.forEach((fn) => fn());
+      for (const timer of activationTimers.current.values()) clearTimeout(timer);
       for (const timer of idleTimers.current.values()) clearTimeout(timer);
+      activationTimers.current.clear();
       idleTimers.current.clear();
     };
   }, [terminals]);

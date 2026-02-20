@@ -1,5 +1,5 @@
 {
-  description = "Nix dev shell for the Emdash Electron workspace";
+  description = "Nix dev shell for the Valkyr Electron workspace";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -53,10 +53,10 @@
             pkgs.patchelf
           ];
         cleanSrc = lib.cleanSource ./.;
-        emdashPackage =
+        valkyrPackage =
           if pkgs.stdenv.isLinux then
             pkgs.stdenv.mkDerivation rec {
-              pname = "emdash";
+              pname = "valkyr";
               version = "0.3.34";
               src = cleanSrc;
               pnpmDeps = pnpm.fetchDeps {
@@ -79,7 +79,7 @@
                 pkgs.libutempter
               ];
               env = {
-                HOME = "$TMPDIR/emdash-home";
+                HOME = "$TMPDIR/valkyr-home";
                 npm_config_build_from_source = "true";
                 # Skip Electron binary download during pnpm install
                 ELECTRON_SKIP_BINARY_DOWNLOAD = "1";
@@ -88,7 +88,7 @@
               buildPhase = ''
                 runHook preBuild
 
-                mkdir -p "$TMPDIR/emdash-home"
+                mkdir -p "$TMPDIR/valkyr-home"
 
                 # Build the app (renderer + main)
                 pnpm run build
@@ -114,38 +114,38 @@
                   exit 1
                 fi
 
-                install -d $out/share/emdash
-                cp -R "$unpackedDir" $out/share/emdash/
+                install -d $out/share/valkyr
+                cp -R "$unpackedDir" $out/share/valkyr/
 
                 if ls "$distDir"/*.AppImage >/dev/null 2>&1; then
                   for image in "$distDir"/*.AppImage; do
-                    install -Dm755 "$image" "$out/share/emdash/$(basename "$image")"
+                    install -Dm755 "$image" "$out/share/valkyr/$(basename "$image")"
                   done
                 fi
 
                 install -d $out/bin
-                cat <<EOF > $out/bin/emdash
+                cat <<EOF > $out/bin/valkyr
 #!${pkgs.bash}/bin/bash
 set -euo pipefail
 
-APP_ROOT="$out/share/emdash/linux-unpacked"
-exec "\$APP_ROOT/emdash" "\$@"
+APP_ROOT="$out/share/valkyr/linux-unpacked"
+exec "\$APP_ROOT/valkyr" "\$@"
 EOF
-                chmod +x $out/bin/emdash
+                chmod +x $out/bin/valkyr
 
                 runHook postInstall
               '';
 
               meta = {
-                description = "Emdash – multi-agent orchestration desktop app";
-                homepage = "https://emdash.sh";
+                description = "Valkyr – multi-agent orchestration desktop app";
+                homepage = "https://valkyr.ai";
                 license = lib.licenses.mit;
                 platforms = [ "x86_64-linux" ];
               };
             }
           else
-            pkgs.writeShellScriptBin "emdash" ''
-              echo "The packaged Emdash app is currently only available for Linux when using Nix." >&2
+            pkgs.writeShellScriptBin "valkyr" ''
+              echo "The packaged Valkyr app is currently only available for Linux when using Nix." >&2
               exit 1
             '';
       in {
@@ -153,18 +153,18 @@ EOF
           packages = sharedEnv;
 
           shellHook = ''
-            echo "Emdash dev shell ready"
+            echo "Valkyr dev shell ready"
             echo "Node: $(node --version)"
             echo "Run 'pnpm run d' for the full dev loop."
           '';
         };
 
-        packages.emdash = emdashPackage;
-        packages.default = emdashPackage;
+        packages.valkyr = valkyrPackage;
+        packages.default = valkyrPackage;
 
         apps.default = {
           type = "app";
-          program = "${emdashPackage}/bin/emdash";
+          program = "${valkyrPackage}/bin/valkyr";
         };
       });
 }

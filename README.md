@@ -1,4 +1,4 @@
-<img alt="Emdash banner" src="https://github.com/user-attachments/assets/a2ecaf3c-9d84-40ca-9a8e-d4f612cc1c6f" />
+<img alt="Valkyr banner" src="https://github.com/user-attachments/assets/a2ecaf3c-9d84-40ca-9a8e-d4f612cc1c6f" />
 
 
 <div align="center" style="margin:24px 0;">
@@ -6,18 +6,18 @@
 <br />
 
 [![MIT License](https://img.shields.io/badge/License-MIT-555555.svg?labelColor=333333&color=666666)](LICENSE)
-[![Downloads](https://img.shields.io/github/downloads/generalaction/emdash/total?labelColor=333333&color=666666)](https://github.com/generalaction/emdash/releases)
-[![GitHub Stars](https://img.shields.io/github/stars/generalaction/emdash?labelColor=333333&color=666666)](https://github.com/generalaction/emdash)
-[![Last Commit](https://img.shields.io/github/last-commit/generalaction/emdash?labelColor=333333&color=666666)](https://github.com/generalaction/emdash/commits/main)
-[![Commit Activity](https://img.shields.io/github/commit-activity/m/generalaction/emdash?labelColor=333333&color=666666)](https://github.com/generalaction/emdash/graphs/commit-activity)
+[![Downloads](https://img.shields.io/github/downloads/generalaction/valkyr-ai/total?labelColor=333333&color=666666)](https://github.com/generalaction/valkyr-ai/releases)
+[![GitHub Stars](https://img.shields.io/github/stars/generalaction/valkyr-ai?labelColor=333333&color=666666)](https://github.com/generalaction/valkyr-ai)
+[![Last Commit](https://img.shields.io/github/last-commit/generalaction/valkyr-ai?labelColor=333333&color=666666)](https://github.com/generalaction/valkyr-ai/commits/main)
+[![Commit Activity](https://img.shields.io/github/commit-activity/m/generalaction/valkyr-ai?labelColor=333333&color=666666)](https://github.com/generalaction/valkyr-ai/graphs/commit-activity)
 <br>
 [![Discord](https://img.shields.io/badge/Discord-join-%235462eb?labelColor=%235462eb&logo=discord&logoColor=%23f5f5f5)](https://discord.gg/f2fv7YxuR2)
 <a href="https://www.ycombinator.com"><img src="https://img.shields.io/badge/Y%20Combinator-W26-orange" alt="Y Combinator W26"></a>
-[![Follow @emdashsh on X](https://img.shields.io/twitter/follow/emdashsh?logo=X&color=%23f5f5f5)](https://twitter.com/intent/follow?screen_name=emdashsh)
+[![Follow @valkyr_ai on X](https://img.shields.io/twitter/follow/valkyr_ai?logo=X&color=%23f5f5f5)](https://twitter.com/intent/follow?screen_name=valkyr_ai)
 
 <br />
 
-  <a href="https://github.com/generalaction/emdash/releases" style="display:inline-block; margin-right:24px; text-decoration:none; outline:none; border:none;">
+  <a href="https://github.com/generalaction/valkyr-ai/releases" style="display:inline-block; margin-right:24px; text-decoration:none; outline:none; border:none;">
     <img src="./docs/public/media/downloadformacos.png" alt="Download app for macOS" height="40">
   </a>
 
@@ -27,11 +27,11 @@
 
 **Run multiple coding agents in parallel**
 
-Emdash lets you develop and test multiple features with multiple agents in parallel. It’s provider-agnostic (supports 15+ CLI agents, such as Claude Code, Qwen Code, Amp, and Codex) and runs each agent in its own Git worktree to keep changes clean; Hand off Linear, GitHub, or Jira tickets to an agent and review diffs side-by-side.
+Valkyr lets you develop and test multiple features with multiple agents in parallel. It’s provider-agnostic (supports 15+ CLI agents, such as Claude Code, Qwen Code, Amp, and Codex) and runs each agent in its own Git worktree to keep changes clean; Hand off Linear, GitHub, or Jira tickets to an agent and review diffs side-by-side.
 
 **Develop on remote servers via SSH**
 
-Connect to remote machines via SSH/SFTP to work with remote codebases. Emdash supports SSH agent and key authentication, with secure credential storage in your OS keychain. Run agents on remote projects using the same parallel workflow as local development.
+Connect to remote machines via SSH/SFTP to work with remote codebases. Valkyr supports SSH agent and key authentication, with secure credential storage in your OS keychain. Run agents on remote projects using the same parallel workflow as local development.
 
 <div align="center" style="margin:24px 0;">
 
@@ -42,20 +42,20 @@ Connect to remote machines via SSH/SFTP to work with remote codebases. Emdash su
 # Installation
 
 ### macOS
-- Apple Silicon: https://github.com/generalaction/emdash/releases/latest/download/emdash-arm64.dmg  
-- Intel x64: https://github.com/generalaction/emdash/releases/latest/download/emdash-x64.dmg
+- Apple Silicon: https://github.com/generalaction/valkyr-ai/releases/latest/download/valkyr-arm64.dmg  
+- Intel x64: https://github.com/generalaction/valkyr-ai/releases/latest/download/valkyr-x64.dmg
 
-[![Homebrew](https://img.shields.io/badge/-Homebrew-000000?style=for-the-badge&logo=homebrew&logoColor=FBB040)](https://formulae.brew.sh/cask/emdash)
-> macOS users can also: `brew install --cask emdash`
+[![Homebrew](https://img.shields.io/badge/-Homebrew-000000?style=for-the-badge&logo=homebrew&logoColor=FBB040)](https://formulae.brew.sh/cask/valkyr)
+> macOS users can also: `brew install --cask valkyr`
 
 ### Linux
-- AppImage (x64): https://github.com/generalaction/emdash/releases/latest/download/emdash-x64.AppImage  
-- Debian package (x64): https://github.com/generalaction/emdash/releases/latest/download/emdash-x64.deb
+- AppImage (x64): https://github.com/generalaction/valkyr-ai/releases/latest/download/valkyr-x64.AppImage  
+- Debian package (x64): https://github.com/generalaction/valkyr-ai/releases/latest/download/valkyr-x64.deb
 </details>
 
 ### Release Overview
 
-**[Latest Releases (macOS • Linux)](https://github.com/generalaction/emdash/releases/latest)**
+**[Latest Releases (macOS • Linux)](https://github.com/generalaction/valkyr-ai/releases/latest)**
 
 # Providers
 
@@ -63,7 +63,7 @@ Connect to remote machines via SSH/SFTP to work with remote codebases. Emdash su
 
 ### Supported CLI Providers
 
-Emdash currently supports twenty CLI providers and we are adding new providers regularly. If you miss one, let us know or create a PR.
+Valkyr currently supports twenty CLI providers and we are adding new providers regularly. If you miss one, let us know or create a PR.
 
 | CLI Provider | Status | Install |
 | ----------- | ------ | ----------- |
@@ -90,7 +90,7 @@ Emdash currently supports twenty CLI providers and we are adding new providers r
 
 ### Issues
 
-Emdash allows you to pass tickets straight from Linear, GitHub, or Jira to your coding agent. 
+Valkyr allows you to pass tickets straight from Linear, GitHub, or Jira to your coding agent. 
 
 | Tool | Status | Authentication |
 | ----------- | ------ | ----------- |
@@ -128,11 +128,11 @@ Contributions welcome! See the [Contributing Guide](CONTRIBUTING.md) to get star
 > **App data is local‑first**. We store app state in a local **SQLite** database:
 >
 > ```
-> macOS:  ~/Library/Application Support/emdash/emdash.db
-> Linux:  ~/.config/emdash/emdash.db
+> macOS:  ~/Library/Application Support/valkyr/valkyr.db
+> Linux:  ~/.config/valkyr/valkyr.db
 > ```
 >
-> **Privacy Note:** While Emdash itself stores data locally, **when you use any coding agent (Claude Code, Codex, Qwen, etc.), your code and prompts are sent to that provider's cloud API servers** for processing. Each provider has their own data handling and retention policies.
+> **Privacy Note:** While Valkyr itself stores data locally, **when you use any coding agent (Claude Code, Codex, Qwen, etc.), your code and prompts are sent to that provider's cloud API servers** for processing. Each provider has their own data handling and retention policies.
 >
 > You can reset the local DB by deleting it (quit the app first). The file is recreated on next launch.
 </details>
@@ -140,7 +140,7 @@ Contributions welcome! See the [Contributing Guide](CONTRIBUTING.md) to get star
 <details>
 <summary><b>Do I need GitHub CLI?</b></summary>
 
-> **Only if you want GitHub features** (open PRs from Emdash, fetch repo info, GitHub Issues integration).  
+> **Only if you want GitHub features** (open PRs from Valkyr, fetch repo info, GitHub Issues integration).  
 > Install & sign in:
 >
 > ```bash
@@ -153,7 +153,7 @@ Contributions welcome! See the [Contributing Guide](CONTRIBUTING.md) to get star
 <details>
 <summary><b>How do I add a new provider?</b></summary>
 
-> Emdash is **provider‑agnostic** and built to add CLIs quickly.
+> Valkyr is **provider‑agnostic** and built to add CLIs quickly.
 >
 > - Open a PR following the **Contributing Guide** (`CONTRIBUTING.md`).
 > - Include: provider name, how it’s invoked (CLI command), auth notes, and minimal setup steps.
@@ -183,20 +183,20 @@ Contributions welcome! See the [Contributing Guide](CONTRIBUTING.md) to get star
 </details>
 
 <details>
-<summary><b>What permissions does Emdash need?</b></summary>
+<summary><b>What permissions does Valkyr need?</b></summary>
 
 > - **Filesystem/Git:** to read/write your repo and create **Git worktrees** for isolation.  
 > - **Network:** only for provider CLIs you choose to use (e.g., Codex, Claude) and optional GitHub actions.  
 > - **Local DB:** to store your app state in SQLite on your machine.
 >
-> Emdash itself does **not** send your code or chats to any servers. Third‑party CLIs may transmit data per their policies.
+> Valkyr itself does **not** send your code or chats to any servers. Third‑party CLIs may transmit data per their policies.
 </details>
 
 
 <details>
 <summary><b>Can I work with remote projects over SSH?</b></summary>
 
-> **Yes!** Emdash supports remote development via SSH.
+> **Yes!** Valkyr supports remote development via SSH.
 >
 > **Setup:**
 > 1. Go to **Settings → SSH Connections** and add your server details

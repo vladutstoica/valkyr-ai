@@ -1,6 +1,6 @@
 ---
 title: Contributing
-description: Help improve Emdash - contribution guidelines and development setup
+description: Help improve Valkyr - contribution guidelines and development setup
 ---
 
 Thanks for your interest in contributing! We favor small, focused PRs and clear intent over big bangs. This guide explains how to get set up, the workflow we use, and a few project‑specific conventions.
@@ -18,8 +18,8 @@ Thanks for your interest in contributing! We favor small, focused PRs and clear 
 
 ```bash
 # Fork this repo, then clone your fork
-git clone https://github.com/<you>/emdash.git
-cd emdash
+git clone https://github.com/<you>/valkyr-ai.git
+cd valkyr-ai
 
 # Use the correct Node.js version (if using nvm)
 nvm use
@@ -126,9 +126,9 @@ When writing or updating docs, keep the tone clear and conversational. Use compl
 
 **Location** (Electron `app.getPath('userData')`):
 
-- macOS: `~/Library/Application Support/emdash/emdash.db`
-- Linux: `~/.config/emdash/emdash.db`
-- Windows: `%APPDATA%\emdash\emdash.db`
+- macOS: `~/Library/Application Support/valkyr/valkyr.db`
+- Linux: `~/.config/valkyr/valkyr.db`
+- Windows: `%APPDATA%\valkyr\valkyr.db`
 
 **Reset:** quit the app, delete the file, relaunch (the schema is recreated).
 

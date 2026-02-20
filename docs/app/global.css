@@ -2,7 +2,7 @@
 @import 'fumadocs-ui/css/neutral.css';
 @import 'fumadocs-ui/css/preset.css';
 
-/* Custom colors from Emdash palette */
+/* Custom colors from Valkyr palette */
 :root {
   --color-fd-primary: #c26157;
   --color-fd-primary-foreground: #f7fbfc;

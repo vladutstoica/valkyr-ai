@@ -1,15 +1,15 @@
 ---
 title: Project Configuration
-description: Customize Emdash behavior per project
+description: Customize Valkyr behavior per project
 ---
 
-Emdash can be configured on a per-project basis using a `.emdash.json` file in your project root. This lets you tailor how worktrees are set up and which files get copied to them.
+Valkyr can be configured on a per-project basis using a `.valkyr.json` file in your project root. This lets you tailor how worktrees are set up and which files get copied to them.
 
 ## Copying files to worktrees
 
-When you create a new task, Emdash sets up a Git worktree so the agent can work in isolation. By default, worktrees start fresh from your repository, which means gitignored files like `.env` won't be there.
+When you create a new task, Valkyr sets up a Git worktree so the agent can work in isolation. By default, worktrees start fresh from your repository, which means gitignored files like `.env` won't be there.
 
-To solve this, Emdash automatically copies certain gitignored files from your main project into each new worktree. This happens once when the worktree is created, and only for files that don't already exist in the destination.
+To solve this, Valkyr automatically copies certain gitignored files from your main project into each new worktree. This happens once when the worktree is created, and only for files that don't already exist in the destination.
 
 The default patterns cover common environment files:
 
@@ -26,7 +26,7 @@ These defaults work well for most projects, but you can customize them if needed
 
 ## Custom preserve patterns
 
-To specify your own list of files to copy, create a `.emdash.json` file in your project root:
+To specify your own list of files to copy, create a `.valkyr.json` file in your project root:
 
 ```json
 {
@@ -40,7 +40,7 @@ Patterns support basic glob syntax, so `secrets/*.json` will match all JSON file
 
 ## How it works
 
-Emdash looks for gitignored files in your main project that match your preserve patterns. For each match, it copies the file to the same relative path in the new worktree. If a file already exists in the worktree, it's left untouched, so your worktree-specific changes won't be overwritten.
+Valkyr looks for gitignored files in your main project that match your preserve patterns. For each match, it copies the file to the same relative path in the new worktree. If a file already exists in the worktree, it's left untouched, so your worktree-specific changes won't be overwritten.
 
 This means you can safely modify environment files in a worktree without worrying about them being reset when you create new tasks.
 
@@ -60,23 +60,23 @@ The setup script runs in the task's terminal as soon as the worktree is ready. I
 
 ## Task env vars
 
-When a task terminal starts, Emdash injects convenience environment variables you can use inside setup scripts and other terminal commands.
+When a task terminal starts, Valkyr injects convenience environment variables you can use inside setup scripts and other terminal commands.
 
 | Variable                | Purpose                          |
 | ----------------------- | -------------------------------- |
-| `EMDASH_TASK_ID`        | Stable unique task id            |
-| `EMDASH_TASK_NAME`      | Shell-safe task name slug        |
-| `EMDASH_TASK_PATH`      | Absolute task (worktree) path    |
-| `EMDASH_ROOT_PATH`      | Absolute project root path       |
-| `EMDASH_DEFAULT_BRANCH` | Default branch name (e.g., main) |
-| `EMDASH_PORT`           | Base port for a 10-port range    |
+| `VALKYR_TASK_ID`        | Stable unique task id            |
+| `VALKYR_TASK_NAME`      | Shell-safe task name slug        |
+| `VALKYR_TASK_PATH`      | Absolute task (worktree) path    |
+| `VALKYR_ROOT_PATH`      | Absolute project root path       |
+| `VALKYR_DEFAULT_BRANCH` | Default branch name (e.g., main) |
+| `VALKYR_PORT`           | Base port for a 10-port range    |
 
 ### Example: Port-aware setup script
 
 ```json
 {
   "scripts": {
-    "setup": "export PORT=$EMDASH_PORT && export DB_PORT=$((EMDASH_PORT + 1)) && export COMPOSE_PROJECT_NAME=$EMDASH_TASK_NAME && docker-compose up -d && pnpm run dev"
+    "setup": "export PORT=$VALKYR_PORT && export DB_PORT=$((VALKYR_PORT + 1)) && export COMPOSE_PROJECT_NAME=$VALKYR_TASK_NAME && docker-compose up -d && pnpm run dev"
   }
 }
 ```
@@ -87,18 +87,18 @@ When a task terminal starts, Emdash injects convenience environment variables yo
 services:
   db:
     ports:
-      - '${EMDASH_PORT:-5432}:5432'
+      - '${VALKYR_PORT:-5432}:5432'
   app:
     environment:
-      - DATABASE_PORT=${EMDASH_PORT:-5432}
+      - DATABASE_PORT=${VALKYR_PORT:-5432}
 ```
 
 ### Example: Port offsets (app + db + redis)
 
 ```
-APP_PORT=$EMDASH_PORT
-DB_PORT=$((EMDASH_PORT + 1))
-REDIS_PORT=$((EMDASH_PORT + 2))
+APP_PORT=$VALKYR_PORT
+DB_PORT=$((VALKYR_PORT + 1))
+REDIS_PORT=$((VALKYR_PORT + 2))
 ```
 
 ### Examples
@@ -135,6 +135,6 @@ Python project with virtual environment:
 
 ## Editing the config
 
-You can edit your project's `.emdash.json` directly from the app. On the project page, click "Edit config" to open the configuration file in the built-in editor.
+You can edit your project's `.valkyr.json` directly from the app. On the project page, click "Edit config" to open the configuration file in the built-in editor.
 
 ![Edit config button on the project page](/media/edit-config.png)
