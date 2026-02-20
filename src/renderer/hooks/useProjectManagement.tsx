@@ -44,7 +44,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
   const [groups, setGroups] = useState<ProjectGroup[]>([]);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(() => {
-    return localStorage.getItem('emdash:activeWorkspaceId') || null;
+    return localStorage.getItem('valkyr:activeWorkspaceId') || null;
   });
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const hasPendingRestore = storedActiveIds.projectId !== null;
@@ -60,9 +60,9 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
   // Persist activeWorkspaceId to localStorage
   useEffect(() => {
     if (activeWorkspaceId) {
-      localStorage.setItem('emdash:activeWorkspaceId', activeWorkspaceId);
+      localStorage.setItem('valkyr:activeWorkspaceId', activeWorkspaceId);
     } else {
-      localStorage.removeItem('emdash:activeWorkspaceId');
+      localStorage.removeItem('valkyr:activeWorkspaceId');
     }
   }, [activeWorkspaceId]);
 

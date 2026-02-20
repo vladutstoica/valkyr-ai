@@ -63,7 +63,7 @@ let themesInitialized = false;
 function initializeMonacoThemes(m: Parameters<Exclude<React.ComponentProps<typeof DiffEditor>['beforeMount'], undefined>>[0]) {
   if (themesInitialized) return;
 
-  m.editor.defineTheme('emdash-diff-dark', {
+  m.editor.defineTheme('valkyr-diff-dark', {
     base: 'vs-dark',
     inherit: true,
     rules: [],
@@ -79,7 +79,7 @@ function initializeMonacoThemes(m: Parameters<Exclude<React.ComponentProps<typeo
     },
   });
 
-  m.editor.defineTheme('emdash-diff-black', {
+  m.editor.defineTheme('valkyr-diff-black', {
     base: 'vs-dark',
     inherit: true,
     rules: [],
@@ -100,7 +100,7 @@ function initializeMonacoThemes(m: Parameters<Exclude<React.ComponentProps<typeo
     },
   });
 
-  m.editor.defineTheme('emdash-diff-light', {
+  m.editor.defineTheme('valkyr-diff-light', {
     base: 'vs',
     inherit: true,
     rules: [],
@@ -172,12 +172,12 @@ export function DiffViewer({ filePath, diff, isLoading, theme, sideBySide }: Dif
   const monacoTheme = useMemo(() => {
     switch (theme) {
       case 'light':
-        return 'emdash-diff-light';
+        return 'valkyr-diff-light';
       case 'dark-black':
-        return 'emdash-diff-black';
+        return 'valkyr-diff-black';
       case 'dark':
       default:
-        return 'emdash-diff-dark';
+        return 'valkyr-diff-dark';
     }
   }, [theme]);
 

@@ -91,7 +91,7 @@ class TerminalPanelStore {
   constructor() {
     const stored = loadFromStorage();
     this.state = {
-      isCollapsed: stored?.isCollapsed ?? false,
+      isCollapsed: stored?.isCollapsed ?? true,
       height: stored?.height ?? DEFAULT_HEIGHT,
       activeTerminal: stored?.activeTerminal ?? 'session',
       status: 'idle', // Status is not persisted
