@@ -113,6 +113,7 @@ export const tasks = sqliteTable(
   },
   (table) => ({
     projectIdIdx: index('idx_tasks_project_id').on(table.projectId),
+    pathIdx: index('idx_tasks_path').on(table.path),
   })
 );
 

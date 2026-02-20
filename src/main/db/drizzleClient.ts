@@ -135,8 +135,22 @@ function createCallbacks(db: sqlite3Type.Database) {
 
   const batch: AsyncBatchRemoteCallback = async (operations) => {
     const results: any[] = [];
-    for (const op of operations) {
-      results.push(await remote(op.sql, op.params, op.method));
+    // Wrap batch in a transaction for atomicity
+    await new Promise<void>((resolve, reject) => {
+      db.run('BEGIN', (err) => (err ? reject(err) : resolve()));
+    });
+    try {
+      for (const op of operations) {
+        results.push(await remote(op.sql, op.params, op.method));
+      }
+      await new Promise<void>((resolve, reject) => {
+        db.run('COMMIT', (err) => (err ? reject(err) : resolve()));
+      });
+    } catch (err) {
+      await new Promise<void>((resolve) => {
+        db.run('ROLLBACK', () => resolve());
+      });
+      throw err;
     }
     return results;
   };
@@ -162,6 +176,18 @@ async function openDatabase(
   if (typeof db.configure === 'function') {
     db.configure('busyTimeout', busyTimeoutMs);
   }
+
+  // Enable WAL mode for better concurrent read/write performance
+  await new Promise<void>((resolve, reject) => {
+    db.run('PRAGMA journal_mode=WAL;', (err) => (err ? reject(err) : resolve()));
+  });
+  await new Promise<void>((resolve, reject) => {
+    db.run('PRAGMA synchronous=NORMAL;', (err) => (err ? reject(err) : resolve()));
+  });
+  // Enable foreign key enforcement (SQLite defaults to OFF per-connection)
+  await new Promise<void>((resolve, reject) => {
+    db.run('PRAGMA foreign_keys=ON;', (err) => (err ? reject(err) : resolve()));
+  });
 
   return db;
 }

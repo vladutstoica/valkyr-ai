@@ -2,7 +2,7 @@ import type sqlite3Type from 'sqlite3';
 import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { readMigrationFiles } from 'drizzle-orm/migrator';
 import { resolveDatabasePath, resolveMigrationsPath } from '../db/path';
-import { getDrizzleClient } from '../db/drizzleClient';
+import { getDrizzleClient, resetDrizzleClient } from '../db/drizzleClient';
 import { errorTracking } from '../errorTracking';
 import { log } from '../lib/logger';
 import {
@@ -177,6 +177,13 @@ export class DatabaseService {
           .then(() => this.ensureDefaultWorkspace())
           .then(() => resolve())
           .catch(async (migrationError) => {
+            // Close the database connection on migration failure to prevent leaks
+            if (this.db) {
+              try {
+                this.db.close(() => {});
+              } catch {}
+              this.db = null;
+            }
             // Track critical migration error
             await errorTracking.captureDatabaseError(migrationError, 'initialize_migrations');
             reject(migrationError);
@@ -219,7 +226,8 @@ export class DatabaseService {
         isRemote: project.isRemote ? 1 : 0,
         remotePath: project.remotePath ?? null,
         subRepos: subReposJson,
-        updatedAt: sql`CURRENT_TIMESTAMP`,
+        workspaceId: project.workspaceId ?? null,
+        updatedAt: new Date().toISOString(),
       })
       .onConflictDoUpdate({
         target: projectsTable.path,
@@ -234,7 +242,8 @@ export class DatabaseService {
           isRemote: project.isRemote ? 1 : 0,
           remotePath: project.remotePath ?? null,
           subRepos: subReposJson,
-          updatedAt: sql`CURRENT_TIMESTAMP`,
+          workspaceId: project.workspaceId ?? null,
+          updatedAt: new Date().toISOString(),
         },
       });
   }
@@ -253,16 +262,17 @@ export class DatabaseService {
     if (this.disabled) return;
     const { db } = await getDrizzleClient();
 
-    // Update each project's displayOrder based on its position in the array
-    for (let i = 0; i < projectIds.length; i++) {
-      await db
-        .update(projectsTable)
-        .set({
-          displayOrder: i,
-          updatedAt: sql`CURRENT_TIMESTAMP`,
-        })
-        .where(eq(projectsTable.id, projectIds[i]));
-    }
+    await db.transaction(async (tx) => {
+      for (let i = 0; i < projectIds.length; i++) {
+        await tx
+          .update(projectsTable)
+          .set({
+            displayOrder: i,
+            updatedAt: new Date().toISOString(),
+          })
+          .where(eq(projectsTable.id, projectIds[i]));
+      }
+    });
   }
 
   async getProjectById(projectId: string): Promise<Project | null> {
@@ -316,7 +326,7 @@ export class DatabaseService {
       .update(projectsTable)
       .set({
         baseRef: normalized,
-        updatedAt: sql`CURRENT_TIMESTAMP`,
+        updatedAt: new Date().toISOString(),
       })
       .where(eq(projectsTable.id, projectId));
 
@@ -338,7 +348,7 @@ export class DatabaseService {
       .update(projectsTable)
       .set({
         name: trimmed,
-        updatedAt: sql`CURRENT_TIMESTAMP`,
+        updatedAt: new Date().toISOString(),
       })
       .where(eq(projectsTable.id, projectId));
 
@@ -366,7 +376,7 @@ export class DatabaseService {
         agentId: task.agentId ?? null,
         metadata: metadataValue,
         useWorktree: task.useWorktree !== false ? 1 : 0,
-        updatedAt: sql`CURRENT_TIMESTAMP`,
+        updatedAt: new Date().toISOString(),
       })
       .onConflictDoUpdate({
         target: tasksTable.id,
@@ -379,7 +389,7 @@ export class DatabaseService {
           agentId: task.agentId ?? null,
           metadata: metadataValue,
           useWorktree: task.useWorktree !== false ? 1 : 0,
-          updatedAt: sql`CURRENT_TIMESTAMP`,
+          updatedAt: new Date().toISOString(),
         },
       });
   }
@@ -431,7 +441,7 @@ export class DatabaseService {
       .set({
         archivedAt: new Date().toISOString(),
         status: 'idle', // Reset status since PTY processes are killed on archive
-        updatedAt: sql`CURRENT_TIMESTAMP`,
+        updatedAt: new Date().toISOString(),
       })
       .where(eq(tasksTable.id, taskId));
   }
@@ -443,7 +453,7 @@ export class DatabaseService {
       .update(tasksTable)
       .set({
         archivedAt: null,
-        updatedAt: sql`CURRENT_TIMESTAMP`,
+        updatedAt: new Date().toISOString(),
       })
       .where(eq(tasksTable.id, taskId));
   }
@@ -474,6 +484,7 @@ export class DatabaseService {
   async saveConversation(
     conversation: Omit<Conversation, 'createdAt' | 'updatedAt'>
   ): Promise<void> {
+    if (this.disabled) return;
     const { db } = await getDrizzleClient();
     await db
       .insert(conversationsTable)
@@ -486,7 +497,7 @@ export class DatabaseService {
         isMain: conversation.isMain ? 1 : 0,
         displayOrder: conversation.displayOrder ?? 0,
         metadata: conversation.metadata ?? null,
-        updatedAt: sql`CURRENT_TIMESTAMP`,
+        updatedAt: new Date().toISOString(),
       })
       .onConflictDoUpdate({
         target: conversationsTable.id,
@@ -497,7 +508,7 @@ export class DatabaseService {
           isMain: conversation.isMain ? 1 : 0,
           displayOrder: conversation.displayOrder ?? 0,
           metadata: conversation.metadata ?? null,
-          updatedAt: sql`CURRENT_TIMESTAMP`,
+          updatedAt: new Date().toISOString(),
         },
       });
   }
@@ -583,14 +594,14 @@ export class DatabaseService {
           content: message.content,
           sender: message.sender,
           metadata: metadataValue,
-          timestamp: sql`CURRENT_TIMESTAMP`,
+          timestamp: new Date().toISOString(),
         })
         .onConflictDoNothing()
         .run();
 
       await tx
         .update(conversationsTable)
-        .set({ updatedAt: sql`CURRENT_TIMESTAMP` })
+        .set({ updatedAt: new Date().toISOString() })
         .where(eq(conversationsTable.id, message.conversationId))
         .run();
     });
@@ -636,46 +647,47 @@ export class DatabaseService {
     }
 
     const { db } = await getDrizzleClient();
-
-    // Get the next display order
-    const existingConversations = await db
-      .select()
-      .from(conversationsTable)
-      .where(eq(conversationsTable.taskId, taskId));
-
-    const maxOrder = Math.max(...existingConversations.map((c) => c.displayOrder || 0), -1);
-
-    // Check if this should be the main conversation
-    // If explicitly set as main, check if one already exists
-    if (isMain === true) {
-      const hasMain = existingConversations.some((c) => c.isMain === 1);
-      if (hasMain) {
-        isMain = false; // Don't allow multiple main conversations
-      }
-    } else if (isMain === undefined) {
-      // If not specified, make it main only if it's the first conversation
-      isMain = existingConversations.length === 0;
-    }
-
-    // Deactivate other conversations
-    await db
-      .update(conversationsTable)
-      .set({ isActive: 0 })
-      .where(eq(conversationsTable.taskId, taskId));
-
-    // Create the new conversation
     const conversationId = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const newConversation = {
-      id: conversationId,
-      taskId,
-      title,
-      provider: provider ?? null,
-      isActive: true,
-      isMain: isMain ?? false,
-      displayOrder: maxOrder + 1,
-    };
 
-    await this.saveConversation(newConversation);
+    await db.transaction(async (tx) => {
+      // Get the next display order
+      const existingConversations = await tx
+        .select()
+        .from(conversationsTable)
+        .where(eq(conversationsTable.taskId, taskId));
+
+      const maxOrder = Math.max(...existingConversations.map((c) => c.displayOrder || 0), -1);
+
+      // Check if this should be the main conversation
+      let shouldBeMain = isMain;
+      // If explicitly set as main, check if one already exists
+      if (shouldBeMain === true) {
+        const hasMain = existingConversations.some((c) => c.isMain === 1);
+        if (hasMain) {
+          shouldBeMain = false; // Don't allow multiple main conversations
+        }
+      } else if (shouldBeMain === undefined) {
+        // If not specified, make it main only if it's the first conversation
+        shouldBeMain = existingConversations.length === 0;
+      }
+
+      // Deactivate other conversations
+      await tx
+        .update(conversationsTable)
+        .set({ isActive: 0 })
+        .where(eq(conversationsTable.taskId, taskId));
+
+      // Create the new conversation
+      await tx.insert(conversationsTable).values({
+        id: conversationId,
+        taskId,
+        title,
+        provider: provider ?? null,
+        isActive: 1,
+        isMain: (shouldBeMain ?? false) ? 1 : 0,
+        displayOrder: maxOrder + 1,
+      });
+    });
 
     // Fetch the created conversation
     const [createdRow] = await db
@@ -701,7 +713,7 @@ export class DatabaseService {
       // Activate the selected one
       await tx
         .update(conversationsTable)
-        .set({ isActive: 1, updatedAt: sql`CURRENT_TIMESTAMP` })
+        .set({ isActive: 1, updatedAt: new Date().toISOString() })
         .where(eq(conversationsTable.id, conversationId));
     });
   }
@@ -739,7 +751,7 @@ export class DatabaseService {
 
     await db
       .update(conversationsTable)
-      .set({ title, updatedAt: sql`CURRENT_TIMESTAMP` })
+      .set({ title, updatedAt: new Date().toISOString() })
       .where(eq(conversationsTable.id, conversationId));
   }
 
@@ -757,7 +769,7 @@ export class DatabaseService {
       lineNumber: input.lineNumber,
       lineContent: input.lineContent ?? null,
       content: input.content,
-      updatedAt: sql`CURRENT_TIMESTAMP`,
+      updatedAt: new Date().toISOString(),
     });
     return id;
   }
@@ -792,7 +804,7 @@ export class DatabaseService {
       .update(lineCommentsTable)
       .set({
         content,
-        updatedAt: sql`CURRENT_TIMESTAMP`,
+        updatedAt: new Date().toISOString(),
       })
       .where(eq(lineCommentsTable.id, id));
   }
@@ -866,7 +878,7 @@ export class DatabaseService {
     const { db } = await getDrizzleClient();
     await db
       .update(projectGroupsTable)
-      .set({ name, updatedAt: sql`CURRENT_TIMESTAMP` })
+      .set({ name, updatedAt: new Date().toISOString() })
       .where(eq(projectGroupsTable.id, id));
   }
 
@@ -880,12 +892,14 @@ export class DatabaseService {
   async updateProjectGroupOrder(groupIds: string[]): Promise<void> {
     if (this.disabled) return;
     const { db } = await getDrizzleClient();
-    for (let i = 0; i < groupIds.length; i++) {
-      await db
-        .update(projectGroupsTable)
-        .set({ displayOrder: i, updatedAt: sql`CURRENT_TIMESTAMP` })
-        .where(eq(projectGroupsTable.id, groupIds[i]));
-    }
+    await db.transaction(async (tx) => {
+      for (let i = 0; i < groupIds.length; i++) {
+        await tx
+          .update(projectGroupsTable)
+          .set({ displayOrder: i, updatedAt: new Date().toISOString() })
+          .where(eq(projectGroupsTable.id, groupIds[i]));
+      }
+    });
   }
 
   async setProjectGroup(projectId: string, groupId: string | null): Promise<void> {
@@ -893,7 +907,7 @@ export class DatabaseService {
     const { db } = await getDrizzleClient();
     await db
       .update(projectsTable)
-      .set({ groupId, updatedAt: sql`CURRENT_TIMESTAMP` })
+      .set({ groupId, updatedAt: new Date().toISOString() })
       .where(eq(projectsTable.id, projectId));
   }
 
@@ -902,7 +916,7 @@ export class DatabaseService {
     const { db } = await getDrizzleClient();
     await db
       .update(projectGroupsTable)
-      .set({ isCollapsed: isCollapsed ? 1 : 0, updatedAt: sql`CURRENT_TIMESTAMP` })
+      .set({ isCollapsed: isCollapsed ? 1 : 0, updatedAt: new Date().toISOString() })
       .where(eq(projectGroupsTable.id, id));
   }
 
@@ -983,7 +997,7 @@ export class DatabaseService {
     const { db } = await getDrizzleClient();
     await db
       .update(workspacesTable)
-      .set({ name, updatedAt: sql`CURRENT_TIMESTAMP` })
+      .set({ name, updatedAt: new Date().toISOString() })
       .where(eq(workspacesTable.id, id));
   }
 
@@ -992,7 +1006,7 @@ export class DatabaseService {
     const { db } = await getDrizzleClient();
     await db
       .update(workspacesTable)
-      .set({ color, updatedAt: sql`CURRENT_TIMESTAMP` })
+      .set({ color, updatedAt: new Date().toISOString() })
       .where(eq(workspacesTable.id, id));
   }
 
@@ -1001,7 +1015,7 @@ export class DatabaseService {
     const { db } = await getDrizzleClient();
     await db
       .update(workspacesTable)
-      .set({ emoji, updatedAt: sql`CURRENT_TIMESTAMP` })
+      .set({ emoji, updatedAt: new Date().toISOString() })
       .where(eq(workspacesTable.id, id));
   }
 
@@ -1009,42 +1023,46 @@ export class DatabaseService {
     if (this.disabled) return;
     const { db } = await getDrizzleClient();
 
-    // Refuse to delete default workspace
-    const [ws] = await db
-      .select()
-      .from(workspacesTable)
-      .where(eq(workspacesTable.id, id))
-      .limit(1);
-    if (!ws) return;
-    if (ws.isDefault === 1) throw new Error('Cannot delete the default workspace');
+    await db.transaction(async (tx) => {
+      // Refuse to delete default workspace
+      const [ws] = await tx
+        .select()
+        .from(workspacesTable)
+        .where(eq(workspacesTable.id, id))
+        .limit(1);
+      if (!ws) return;
+      if (ws.isDefault === 1) throw new Error('Cannot delete the default workspace');
 
-    // Find the default workspace to reassign orphaned projects
-    const [defaultWs] = await db
-      .select()
-      .from(workspacesTable)
-      .where(eq(workspacesTable.isDefault, 1))
-      .limit(1);
+      // Find the default workspace to reassign orphaned projects
+      const [defaultWs] = await tx
+        .select()
+        .from(workspacesTable)
+        .where(eq(workspacesTable.isDefault, 1))
+        .limit(1);
 
-    // Move orphaned projects to default workspace
-    if (defaultWs) {
-      await db
-        .update(projectsTable)
-        .set({ workspaceId: defaultWs.id, updatedAt: sql`CURRENT_TIMESTAMP` })
-        .where(eq(projectsTable.workspaceId, id));
-    }
+      // Move orphaned projects to default workspace
+      if (defaultWs) {
+        await tx
+          .update(projectsTable)
+          .set({ workspaceId: defaultWs.id, updatedAt: new Date().toISOString() })
+          .where(eq(projectsTable.workspaceId, id));
+      }
 
-    await db.delete(workspacesTable).where(eq(workspacesTable.id, id));
+      await tx.delete(workspacesTable).where(eq(workspacesTable.id, id));
+    });
   }
 
   async updateWorkspaceOrder(workspaceIds: string[]): Promise<void> {
     if (this.disabled) return;
     const { db } = await getDrizzleClient();
-    for (let i = 0; i < workspaceIds.length; i++) {
-      await db
-        .update(workspacesTable)
-        .set({ displayOrder: i, updatedAt: sql`CURRENT_TIMESTAMP` })
-        .where(eq(workspacesTable.id, workspaceIds[i]));
-    }
+    await db.transaction(async (tx) => {
+      for (let i = 0; i < workspaceIds.length; i++) {
+        await tx
+          .update(workspacesTable)
+          .set({ displayOrder: i, updatedAt: new Date().toISOString() })
+          .where(eq(workspacesTable.id, workspaceIds[i]));
+      }
+    });
   }
 
   async setProjectWorkspace(projectId: string, workspaceId: string | null): Promise<void> {
@@ -1052,7 +1070,7 @@ export class DatabaseService {
     const { db } = await getDrizzleClient();
     await db
       .update(projectsTable)
-      .set({ workspaceId, updatedAt: sql`CURRENT_TIMESTAMP` })
+      .set({ workspaceId, updatedAt: new Date().toISOString() })
       .where(eq(projectsTable.id, projectId));
   }
 
@@ -1115,13 +1133,7 @@ export class DatabaseService {
     if (this.disabled) return;
     const { db } = await getDrizzleClient();
 
-    // First update any projects using this connection
-    await db
-      .update(projectsTable)
-      .set({ sshConnectionId: null, isRemote: 0 })
-      .where(eq(projectsTable.sshConnectionId, id));
-
-    // Then delete the connection
+    // FK onDelete: 'set null' on projects.sshConnectionId handles clearing project references
     await db.delete(sshConnectionsTable).where(eq(sshConnectionsTable.id, id));
   }
 
@@ -1287,7 +1299,7 @@ export class DatabaseService {
   async close(): Promise<void> {
     if (this.disabled || !this.db) return;
 
-    return new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       this.db!.close((err) => {
         if (err) {
           reject(err);
@@ -1296,6 +1308,9 @@ export class DatabaseService {
         }
       });
     });
+
+    this.db = null;
+    await resetDrizzleClient();
   }
 
   private async ensureMigrations(): Promise<void> {
@@ -1395,8 +1410,9 @@ export class DatabaseService {
           (await this.tableExists('conversations')) &&
           (await this.tableHasColumn('conversations', 'task_id'))
         ) {
-          await this.execSql(
-            `INSERT INTO "__drizzle_migrations" ("hash", "created_at") VALUES('${migration.hash}', '${migration.folderMillis}')`
+          await this.runSql(
+            `INSERT INTO "__drizzle_migrations" ("hash", "created_at") VALUES(?, ?)`,
+            [migration.hash, migration.folderMillis]
           );
           applied.add(migration.hash);
           continue;
@@ -1411,8 +1427,9 @@ export class DatabaseService {
         }
 
         // Record as applied (same schema as Drizzle uses)
-        await this.execSql(
-          `INSERT INTO "__drizzle_migrations" ("hash", "created_at") VALUES('${migration.hash}', '${migration.folderMillis}')`
+        await this.runSql(
+          `INSERT INTO "__drizzle_migrations" ("hash", "created_at") VALUES(?, ?)`,
+          [migration.hash, migration.folderMillis]
         );
 
         applied.add(migration.hash);
@@ -1493,8 +1510,9 @@ export class DatabaseService {
 
     if (applied.has(hash)) return;
     const createdAt = typeof entry.when === 'number' ? entry.when : Date.now();
-    await this.execSql(
-      `INSERT INTO "__drizzle_migrations" ("hash", "created_at") VALUES('${hash}', '${createdAt}')`
+    await this.runSql(
+      `INSERT INTO "__drizzle_migrations" ("hash", "created_at") VALUES(?, ?)`,
+      [hash, createdAt]
     );
     applied.add(hash);
   }
@@ -1525,6 +1543,22 @@ export class DatabaseService {
           reject(err);
         } else {
           resolve((rows ?? []) as T[]);
+        }
+      });
+    });
+  }
+
+  private async runSql(statement: string, params: unknown[]): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+    const trimmed = statement.trim();
+    if (!trimmed) return;
+
+    await new Promise<void>((resolve, reject) => {
+      this.db!.run(trimmed, params, (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
         }
       });
     });
