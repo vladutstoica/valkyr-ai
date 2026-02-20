@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useTerminalPanel } from '../hooks/useTerminalPanel';
 import ReorderList from './ReorderList';
 import { Button } from './ui/button';
 import {
@@ -194,7 +193,6 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   onMoveProjectToWorkspace,
 }) => {
   const { open, isMobile, setOpen } = useSidebar();
-  const { isCollapsed: isTerminalCollapsed } = useTerminalPanel();
   const sidebarRef = useRef<HTMLDivElement>(null);
   const swipeDeltaRef = useRef(0);
   const swipeCooldownRef = useRef(false);
@@ -433,7 +431,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
       <div ref={sidebarRef} className="h-full w-full">
       <Sidebar className="h-full w-full !border-r-0">
-        <SidebarContent className="h-full w-full flex flex-col overflow-hidden">
+        <SidebarContent className="h-full w-full flex flex-col overflow-hidden !pb-0">
           <ScrollArea className="flex-1 min-h-0 w-full">
           <div className="w-full">
             {projects.length === 0 && (
@@ -1092,20 +1090,18 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
           </div>
         </ScrollArea>
         {onSwitchWorkspace && onCreateWorkspace && onRenameWorkspace && onDeleteWorkspace && onUpdateWorkspaceColor && (
-          <>
-          <WorkspaceBar
-            workspaces={workspaces}
-            activeWorkspaceId={activeWorkspaceId ?? null}
-            onSwitchWorkspace={onSwitchWorkspace}
-            onCreateWorkspace={onCreateWorkspace}
-            onRenameWorkspace={onRenameWorkspace}
-            onDeleteWorkspace={onDeleteWorkspace}
-            onUpdateWorkspaceColor={onUpdateWorkspaceColor}
-            onReorderWorkspaces={onReorderWorkspaces}
-          />
-          {/* Spacer to align workspace separator with terminal panel top border */}
-          <div className={`shrink-0 transition-all duration-200 ${isTerminalCollapsed ? 'h-9' : 'h-64'}`} />
-          </>
+          <div className="mt-auto shrink-0">
+            <WorkspaceBar
+              workspaces={workspaces}
+              activeWorkspaceId={activeWorkspaceId ?? null}
+              onSwitchWorkspace={onSwitchWorkspace}
+              onCreateWorkspace={onCreateWorkspace}
+              onRenameWorkspace={onRenameWorkspace}
+              onDeleteWorkspace={onDeleteWorkspace}
+              onUpdateWorkspaceColor={onUpdateWorkspaceColor}
+              onReorderWorkspaces={onReorderWorkspaces}
+            />
+          </div>
         )}
         </SidebarContent>
       </Sidebar>

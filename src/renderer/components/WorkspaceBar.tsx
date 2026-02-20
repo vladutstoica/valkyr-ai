@@ -139,7 +139,7 @@ const WorkspaceBar: React.FC<WorkspaceBarProps> = ({
   if (workspaces.length === 0) return null;
 
   return (
-    <div className="flex items-center justify-center px-3 py-1.5 border-t border-border/50 shrink-0">
+    <div className="flex h-9 items-center justify-center px-3 border-t border-border/50 shrink-0">
       <div className="flex items-center justify-center gap-0.5">
         <TooltipProvider delayDuration={300}>
           {workspaces.map((ws, index) => {

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Button } from './ui/button';
 import { Spinner } from './ui/spinner';
-import { X, Settings2, Cable, RefreshCw, GitBranch, Puzzle, PanelLeft } from 'lucide-react';
+import { X, Settings2, Cable, RefreshCw, GitBranch, Puzzle, Palette, Info } from 'lucide-react';
 import { UpdateCard } from './UpdateCard';
 import IntegrationsCard from './IntegrationsCard';
 import CliAgentsList, { BASE_CLI_AGENTS } from './CliAgentsList';
@@ -11,7 +11,6 @@ import TelemetryCard from './TelemetryCard';
 import ThemeCard from './ThemeCard';
 import BrowserPreviewSettingsCard from './BrowserPreviewSettingsCard';
 import NotificationSettingsCard from './NotificationSettingsCard';
-import RightSidebarSettingsCard from './RightSidebarSettingsCard';
 import RepositorySettingsCard from './RepositorySettingsCard';
 import TerminalSettingsCard from './TerminalSettingsCard';
 import ProjectPrepSettingsCard from './ProjectPrepSettingsCard';
@@ -20,6 +19,7 @@ import DefaultAgentSettingsCard from './DefaultAgentSettingsCard';
 import DefaultOpenInSettingsCard from './DefaultOpenInSettingsCard';
 import TaskSettingsCard from './TaskSettingsCard';
 import KeyboardSettingsCard from './KeyboardSettingsCard';
+import { SshSettingsCard } from './ssh/SshSettingsCard';
 import { CliAgentStatus } from '../types/connections';
 import { Separator } from './ui/separator';
 
@@ -80,7 +80,7 @@ interface SettingsModalProps {
   initialTab?: SettingsTab;
 }
 
-export type SettingsTab = 'general' | 'interface' | 'repository' | 'connections' | 'mcp';
+export type SettingsTab = 'general' | 'appearance' | 'agents' | 'connections' | 'repository' | 'about';
 
 interface SettingsSection {
   title: string;
@@ -89,7 +89,7 @@ interface SettingsSection {
   render?: () => React.ReactNode;
 }
 
-const ORDERED_TABS: SettingsTab[] = ['general', 'interface', 'repository', 'mcp', 'connections'];
+const ORDERED_TABS: SettingsTab[] = ['general', 'appearance', 'agents', 'connections', 'repository', 'about'];
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialTab }) => {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
@@ -187,62 +187,31 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
         title: 'General',
         description: '',
         sections: [
-          { title: 'Privacy & Telemetry', render: () => <TelemetryCard /> },
-          { title: 'Default agent', render: () => <DefaultAgentSettingsCard /> },
           { title: 'Tasks', render: () => <TaskSettingsCard /> },
-          { title: 'Project prep', render: () => <ProjectPrepSettingsCard /> },
-          { title: 'Updates', render: () => <UpdateCard /> },
-          {
-            title: 'How to use Valkyr',
-            render: () => (
-              <div className="flex items-center">
-                <Button
-                  type="button"
-                  variant="link"
-                  size="sm"
-                  className="h-auto px-0 text-xs"
-                  onClick={() =>
-                    window.electronAPI.openExternal(
-                      'https://x.com/rabanspiegel/status/1991220598538924097?s=20'
-                    )
-                  }
-                >
-                  Watch the demo ↗
-                </Button>
-              </div>
-            ),
-          },
+          { title: 'Notifications', render: () => <NotificationSettingsCard /> },
+          { title: 'Project preparation', render: () => <ProjectPrepSettingsCard /> },
+          { title: 'Keyboard shortcuts', render: () => <KeyboardSettingsCard /> },
         ],
       },
-      interface: {
-        icon: PanelLeft,
-        label: 'Interface',
-        title: 'Interface',
+      appearance: {
+        icon: Palette,
+        label: 'Appearance',
+        title: 'Appearance',
         description: '',
         sections: [
           { title: 'Theme', render: () => <ThemeCard /> },
           { title: 'Default open in app', render: () => <DefaultOpenInSettingsCard /> },
-          { title: 'Keyboard shortcuts', render: () => <KeyboardSettingsCard /> },
-          { title: 'Notifications', render: () => <NotificationSettingsCard /> },
-          { title: 'Right sidebar', render: () => <RightSidebarSettingsCard /> },
-          { title: 'In‑app Browser Preview', render: () => <BrowserPreviewSettingsCard /> },
           { title: 'Terminal font', render: () => <TerminalSettingsCard /> },
+          { title: 'In‑app Browser Preview', render: () => <BrowserPreviewSettingsCard /> },
         ],
       },
-      repository: {
-        icon: GitBranch,
-        label: 'Repository',
-        title: 'Repository',
-        description: '',
-        sections: [{ title: 'Branch creation', render: () => <RepositorySettingsCard /> }],
-      },
-      connections: {
-        icon: Cable,
-        label: 'Connections',
-        title: 'Connections',
+      agents: {
+        icon: Puzzle,
+        label: 'Agents & Tools',
+        title: 'Agents & Tools',
         description: '',
         sections: [
-          { title: 'Integrations', render: () => <IntegrationsCard /> },
+          { title: 'Default agent', render: () => <DefaultAgentSettingsCard /> },
           {
             title: 'CLI agents',
             action: (
@@ -263,13 +232,66 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
               <CliAgentsList agents={cliAgents} isLoading={cliLoading} error={cliError} />
             ),
           },
+          { title: 'MCP Tools', render: () => <Context7SettingsCard /> },
+          { title: 'SSH', render: () => <SshSettingsCard /> },
         ],
       },
-      mcp: {
-        icon: Puzzle,
-        label: 'MCP',
-        title: 'Model Context Protocol (MCP)',
-        sections: [{ title: 'MCP Tools', render: () => <Context7SettingsCard /> }],
+      connections: {
+        icon: Cable,
+        label: 'Connections',
+        title: 'Connections',
+        description: '',
+        sections: [
+          { title: 'Integrations', render: () => <IntegrationsCard /> },
+        ],
+      },
+      repository: {
+        icon: GitBranch,
+        label: 'Repository',
+        title: 'Repository',
+        description: '',
+        sections: [{ title: 'Branch settings', render: () => <RepositorySettingsCard /> }],
+      },
+      about: {
+        icon: Info,
+        label: 'About',
+        title: 'About',
+        description: '',
+        sections: [
+          { title: 'Updates', render: () => <UpdateCard /> },
+          { title: 'Privacy & Telemetry', render: () => <TelemetryCard /> },
+          {
+            title: 'Resources',
+            render: () => (
+              <div className="flex flex-col gap-2">
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="h-auto justify-start px-0 text-xs"
+                  onClick={() =>
+                    window.electronAPI.openExternal(
+                      'https://x.com/rabanspiegel/status/1991220598538924097?s=20'
+                    )
+                  }
+                >
+                  Watch the demo ↗
+                </Button>
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="h-auto justify-start px-0 text-xs"
+                  onClick={() =>
+                    window.electronAPI.openExternal('https://docs.emdash.sh')
+                  }
+                >
+                  Documentation ↗
+                </Button>
+              </div>
+            ),
+          },
+        ],
       },
     } as const;
   }, [cliAgents, cliLoading, cliError, fetchCliAgents]);

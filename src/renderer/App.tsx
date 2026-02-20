@@ -135,7 +135,7 @@ const AppContent: React.FC = () => {
   );
 
   // Show toast on update availability
-  useUpdateNotifier({ checkOnMount: true, onOpenSettings: () => openSettings('general') });
+  useUpdateNotifier({ checkOnMount: true, onOpenSettings: () => openSettings('about') });
 
   // Auto-refresh PR status
   useAutoPrRefresh(taskMgmt.activeTask?.path);

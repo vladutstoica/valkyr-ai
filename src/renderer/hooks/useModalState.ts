@@ -62,7 +62,7 @@ export function useModalState(): ModalState & ModalActions {
   }, [openSettings]);
 
   const handleOpenKeyboardShortcuts = useCallback(() => {
-    openSettings('interface');
+    openSettings('general');
   }, [openSettings]);
 
   const handleCloseSettings = useCallback(() => {
