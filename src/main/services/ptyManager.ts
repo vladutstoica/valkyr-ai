@@ -480,11 +480,11 @@ export async function startPty(options: {
   } catch (err: any) {
     // Track initial spawn error
     const provider = args.find((arg) => PROVIDERS.some((p) => p.cli === arg));
-    await errorTracking.captureAgentSpawnError(err, shell || 'unknown', id, {
+    errorTracking.captureAgentSpawnError(err, shell || 'unknown', id, {
       cwd: useCwd,
       args: args.join(' '),
       provider: provider || undefined,
-    });
+    }).catch(() => {});
 
     try {
       const fallbackShell = getDefaultShell();
@@ -552,6 +552,13 @@ export function killPty(id: string): void {
   }
   try {
     rec.proc.kill();
+  } catch {
+    // SIGTERM failed, try SIGKILL as fallback
+    try {
+      rec.proc.kill('SIGKILL');
+    } catch {
+      // Process may already be dead
+    }
   } finally {
     ptys.delete(id);
   }

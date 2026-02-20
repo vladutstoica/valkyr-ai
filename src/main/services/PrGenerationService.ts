@@ -1,9 +1,8 @@
-import { exec, execFile, spawn } from 'child_process';
+import { execFile, spawn } from 'child_process';
 import { promisify } from 'util';
 import { log } from '../lib/logger';
 import { getProvider, PROVIDER_IDS, type ProviderId } from '../../shared/providers/registry';
 
-const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
 
 export interface GeneratedPrContent {
@@ -109,10 +108,10 @@ export class PrGenerationService {
       // This is critical: if local main is behind remote, we'd incorrectly include others' commits
       // Only fetch if remote exists
       try {
-        await execAsync('git remote get-url origin', { cwd: taskPath });
+        await execFileAsync('git', ['remote', 'get-url', 'origin'], { cwd: taskPath });
         // Remote exists, try to fetch
         try {
-          await execAsync('git fetch origin --quiet', { cwd: taskPath });
+          await execFileAsync('git', ['fetch', 'origin', '--quiet'], { cwd: taskPath });
         } catch (fetchError) {
           log.debug('Failed to fetch remote, continuing with existing refs', { fetchError });
         }
@@ -127,13 +126,13 @@ export class PrGenerationService {
 
       // First try remote branch (most reliable - always up to date)
       try {
-        await execAsync(`git rev-parse --verify origin/${baseBranch}`, { cwd: taskPath });
+        await execFileAsync('git', ['rev-parse', '--verify', `origin/${baseBranch}`], { cwd: taskPath });
         baseBranchExists = true;
         baseBranchRef = `origin/${baseBranch}`;
       } catch {
         // Fall back to local branch only if remote doesn't exist
         try {
-          await execAsync(`git rev-parse --verify ${baseBranch}`, { cwd: taskPath });
+          await execFileAsync('git', ['rev-parse', '--verify', baseBranch], { cwd: taskPath });
           baseBranchExists = true;
           baseBranchRef = baseBranch;
         } catch {
@@ -144,15 +143,15 @@ export class PrGenerationService {
       if (baseBranchExists) {
         // Get diff between base branch and current HEAD (committed changes)
         try {
-          const { stdout: diffOut } = await execAsync(`git diff ${baseBranchRef}...HEAD --stat`, {
+          const { stdout: diffOut } = await execFileAsync('git', ['diff', `${baseBranchRef}...HEAD`, '--stat'], {
             cwd: taskPath,
             maxBuffer: 10 * 1024 * 1024,
           });
           diff = diffOut || '';
 
           // Get list of changed files from commits
-          const { stdout: filesOut } = await execAsync(
-            `git diff --name-only ${baseBranchRef}...HEAD`,
+          const { stdout: filesOut } = await execFileAsync(
+            'git', ['diff', '--name-only', `${baseBranchRef}...HEAD`],
             { cwd: taskPath }
           );
           const committedFiles = (filesOut || '')
@@ -162,8 +161,8 @@ export class PrGenerationService {
           changedFiles.push(...committedFiles);
 
           // Get commit messages
-          const { stdout: commitsOut } = await execAsync(
-            `git log ${baseBranchRef}..HEAD --pretty=format:"%s"`,
+          const { stdout: commitsOut } = await execFileAsync(
+            'git', ['log', `${baseBranchRef}..HEAD`, '--pretty=format:%s'],
             { cwd: taskPath }
           );
           commits = (commitsOut || '')
@@ -178,7 +177,7 @@ export class PrGenerationService {
       // Also include uncommitted changes (working directory) to capture all changes
       // This ensures PR description includes changes that will be committed
       try {
-        const { stdout: workingDiff } = await execAsync('git diff --stat', {
+        const { stdout: workingDiff } = await execFileAsync('git', ['diff', '--stat'], {
           cwd: taskPath,
           maxBuffer: 10 * 1024 * 1024,
         });
@@ -194,7 +193,7 @@ export class PrGenerationService {
         }
 
         // Get uncommitted changed files and merge with committed files
-        const { stdout: filesOut } = await execAsync('git diff --name-only', {
+        const { stdout: filesOut } = await execFileAsync('git', ['diff', '--name-only'], {
           cwd: taskPath,
         });
         const uncommittedFiles = (filesOut || '')
@@ -212,13 +211,13 @@ export class PrGenerationService {
       // Fallback: if we still have no diff or commits, try staged changes
       if (commits.length === 0 && diff.length === 0) {
         try {
-          const { stdout: stagedDiff } = await execAsync('git diff --cached --stat', {
+          const { stdout: stagedDiff } = await execFileAsync('git', ['diff', '--cached', '--stat'], {
             cwd: taskPath,
             maxBuffer: 10 * 1024 * 1024,
           });
           if (stagedDiff) {
             diff = stagedDiff;
-            const { stdout: filesOut } = await execAsync('git diff --cached --name-only', {
+            const { stdout: filesOut } = await execFileAsync('git', ['diff', '--cached', '--name-only'], {
               cwd: taskPath,
             });
             changedFiles = (filesOut || '')
@@ -308,6 +307,10 @@ export class PrGenerationService {
       const timeoutId = setTimeout(() => {
         try {
           child.kill('SIGTERM');
+          // SIGKILL fallback if process doesn't exit
+          setTimeout(() => {
+            try { child.kill('SIGKILL'); } catch {}
+          }, 5000);
         } catch {}
         log.debug(`Provider ${providerId} invocation timed out`);
         resolve(null);
@@ -357,6 +360,9 @@ export class PrGenerationService {
       // Handle errors
       child.on('error', (error: Error) => {
         clearTimeout(timeoutId);
+        try {
+          child.kill();
+        } catch {}
         log.debug(`Failed to spawn ${providerId}`, { error });
         resolve(null);
       });

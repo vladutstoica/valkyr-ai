@@ -101,7 +101,9 @@ export class WorktreePoolService {
       }
       // Stale reserve - clean it up and create fresh one
       this.reserves.delete(projectId);
-      this.cleanupReserve(existing).catch(() => {});
+      this.cleanupReserve(existing).catch((err) => {
+        log.warn('WorktreePool: Failed to cleanup stale reserve:', err);
+      });
     }
 
     // Start background creation
@@ -258,7 +260,9 @@ export class WorktreePoolService {
     }
 
     // Push branch to remote in background (non-blocking)
-    this.pushBranchAsync(newPath, newBranch, settings);
+    this.pushBranchAsync(newPath, newBranch, settings).catch((err) => {
+      log.warn('WorktreePool: Background push failed for branch:', { branch: newBranch, error: err });
+    });
 
     const worktree: WorktreeInfo = {
       id: newId,

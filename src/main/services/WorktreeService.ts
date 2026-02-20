@@ -481,18 +481,18 @@ export class WorktreeService {
           cwd: projectPath,
         });
       } catch (gitError) {
-        console.warn('git worktree remove failed, attempting filesystem cleanup', gitError);
+        log.warn('git worktree remove failed, attempting filesystem cleanup', gitError);
       }
 
       // Best-effort prune to clear any stale worktree metadata that can keep a branch "checked out"
       try {
         await execFileAsync('git', ['worktree', 'prune', '--verbose'], { cwd: projectPath });
       } catch (pruneErr) {
-        console.warn('git worktree prune failed (continuing):', pruneErr);
+        log.warn('git worktree prune failed (continuing):', pruneErr);
       }
 
       // Ensure directory is removed even if git command failed
-      void this.cleanupWorktreeDirectory(pathToRemove, projectPath);
+      await this.cleanupWorktreeDirectory(pathToRemove, projectPath);
 
       if (branchToDelete) {
         const tryDeleteBranch = async () =>
@@ -588,17 +588,21 @@ export class WorktreeService {
         .filter((line) => line.length > 0);
 
       for (const line of lines) {
-        const status = line.substring(0, 2);
+        const statusCode = line.substring(0, 2);
         const file = line.substring(3);
 
-        if (status.includes('A') || status.includes('M') || status.includes('D')) {
-          stagedFiles.push(file);
-        }
-        if (status.includes('M') || status.includes('D')) {
-          unstagedFiles.push(file);
-        }
-        if (status.includes('??')) {
+        const indexStatus = statusCode[0]; // Staged (index) status
+        const wtStatus = statusCode[1]; // Working tree (unstaged) status
+
+        if (statusCode === '??') {
           untrackedFiles.push(file);
+        } else {
+          if ('AMDRC'.includes(indexStatus)) {
+            stagedFiles.push(file);
+          }
+          if ('MD'.includes(wtStatus)) {
+            unstagedFiles.push(file);
+          }
         }
       }
 
@@ -1417,7 +1421,10 @@ export class WorktreeService {
           // Try to delete the branch (best effort)
           try {
             // Find the branch name from the worktree
-            const branchPattern = new RegExp(`valkyr/.*-${subRepo.name}-`);
+            const { getAppSettings } = await import('../settings');
+            const settings = getAppSettings();
+            const prefix = settings?.repository?.branchPrefix || 'valkyr';
+            const branchPattern = new RegExp(`${prefix}/.*-${subRepo.name}-`);
             const { stdout } = await execFileAsync('git', ['branch'], { cwd: subRepo.path });
             const branches = stdout.split('\n').map((b) => b.trim().replace(/^\*\s*/, ''));
             const worktreeBranch = branches.find((b) => branchPattern.test(b));

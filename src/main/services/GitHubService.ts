@@ -1089,7 +1089,7 @@ export class GitHubService {
   /**
    * Retrieve stored authentication token
    */
-  private async getStoredToken(): Promise<string | null> {
+  async getStoredToken(): Promise<string | null> {
     try {
       const keytar = await import('keytar');
       return await keytar.getPassword(this.SERVICE_NAME, this.ACCOUNT_NAME);
