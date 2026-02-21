@@ -199,33 +199,60 @@ All optional:
 
 Use the **playwright-electron MCP** tools to interact with the running Electron app directly from Claude Code. This is the preferred method for debugging UI issues, verifying state, and inspecting the renderer process.
 
-### Setup
+### Setup — Starting the App with Remote Debugging
 
-1. Start the dev server with remote debugging enabled:
-   ```bash
-   ELECTRON_EXTRA_LAUNCH_ARGS="--remote-debugging-port=9222" pnpm run dev
-   ```
-2. The playwright-electron MCP is already configured. Use `mcp__playwright-electron__*` tools to interact with the app.
+**IMPORTANT**: `ELECTRON_EXTRA_LAUNCH_ARGS` does NOT work with this project's `pnpm run dev` script. You MUST start the renderer and electron separately, passing `--remote-debugging-port=9222` directly to the electron binary.
+
+```bash
+# Step 1: Build the main process
+pnpm exec tsc -p tsconfig.main.json && \
+  mkdir -p dist/main && cp src/main/appConfig.json dist/main/appConfig.json && \
+  mkdir -p dist/main/main/services/skills && \
+  cp src/main/services/skills/bundled-catalog.json dist/main/main/services/skills/bundled-catalog.json
+
+# Step 2: Start renderer (Vite dev server) in background
+pnpm run dev:renderer > /tmp/valkyr-renderer.log 2>&1 &
+
+# Step 3: Start electron with remote debugging port passed DIRECTLY to the binary
+pnpm exec electron dist/main/main/entry.js --dev --remote-debugging-port=9222 > /tmp/valkyr-main.log 2>&1 &
+
+# Step 4: Wait ~8-10 seconds for startup, then verify CDP is listening
+sleep 10
+curl -s http://127.0.0.1:9222/json/version | head -3
+# Should output JSON with "Browser": "Chrome/..." if successful
+```
+
+To **restart after main process changes**:
+```bash
+# Kill existing processes
+pkill -f "Electron dist/main" 2>/dev/null; pkill -f "vite" 2>/dev/null; sleep 2
+
+# Rebuild main and relaunch (repeat Steps 1-4 above)
+```
+
+Renderer-only changes hot-reload via Vite — no restart needed.
 
 ### Workflow
 
-1. **Connect**: Call `mcp__playwright-electron__browser_navigate` or `mcp__playwright-electron__browser_snapshot` to connect to the running Electron window.
+1. **Connect**: Call `mcp__playwright-electron__browser_snapshot` to connect to the running Electron window.
 2. **Inspect UI state**: Use `mcp__playwright-electron__browser_snapshot` to get a DOM accessibility snapshot — shows all visible elements, text, and interactive controls.
-3. **Execute JS in renderer**: Use `mcp__playwright-electron__browser_evaluate` to run JavaScript in the renderer context. Useful for:
+3. **Execute JS in renderer**: Use `mcp__playwright-electron__browser_evaluate` to run JavaScript in the renderer context. The `function` parameter must be a string like `() => { return document.title; }`. Useful for:
    - Reading React component state or props
    - Calling `window.electronAPI.*` methods directly
-   - Adding temporary `console.log` debug statements
    - Inspecting Zustand/context store values
 4. **Click/interact**: Use `mcp__playwright-electron__browser_click` to simulate user interactions (clicking projects, tabs, buttons).
-5. **Read console output**: Use `mcp__playwright-electron__browser_console_messages` to read `console.log` output from the renderer.
-6. **Take screenshots**: Use `mcp__playwright-electron__browser_take_screenshot` for visual verification.
+5. **Type text**: Use `mcp__playwright-electron__browser_type` with `submit: true` to type and press Enter.
+6. **Read console output**: Use `mcp__playwright-electron__browser_console_messages` to read `console.log` output from the renderer.
+7. **Take screenshots**: Use `mcp__playwright-electron__browser_take_screenshot` for visual verification.
+8. **Check main process logs**: `tail -50 /tmp/valkyr-main.log` for main process output.
 
 ### Tips
 
-- After adding debug `console.log` statements to source files, Vite HMR will hot-reload the renderer — no restart needed.
+- After adding debug `console.log` statements to renderer source files, Vite HMR will hot-reload — no restart needed.
 - Always clean up debug logs after investigation.
 - The app runs on `http://localhost:3000` (Vite dev server) inside Electron.
-- To debug main process issues, add `console.log` in main process code and check the terminal where `pnpm run dev` is running (main process requires restart).
+- Main process logs go to `/tmp/valkyr-main.log`, renderer logs to `/tmp/valkyr-renderer.log`.
+- If `browser_snapshot` returns `ECONNREFUSED`, the app isn't running with CDP enabled — follow the setup steps above.
 
 ## Common Pitfalls
 
