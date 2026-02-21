@@ -1,8 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ArrowUpRight, Pencil, Pin, PinOff, MoreVertical, Archive, Trash2, GitBranch } from 'lucide-react';
 import { usePrStatus } from '../hooks/usePrStatus';
-import { useTaskBusy } from '../hooks/useTaskBusy';
-import { useTaskIdle } from '../hooks/useTaskIdle';
 import { useUnifiedStatus } from '../hooks/useUnifiedStatus';
 import PrPreviewTooltip from './PrPreviewTooltip';
 import { normalizeTaskName, MAX_TASK_NAME_LENGTH } from '../lib/taskNames';
@@ -66,8 +64,6 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   showDelete,
 }) => {
   const { pr } = usePrStatus(task.path);
-  const isRunning = useTaskBusy(task.id);
-  const isIdle = useTaskIdle(task.id);
   const unifiedDot = useUnifiedStatus(task.id);
 
   const [isDeleting, setIsDeleting] = useState(false);

@@ -757,6 +757,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on(channel, wrapped);
     return () => ipcRenderer.removeListener(channel, wrapped);
   },
+
+  // Model metadata
+  modelMetadataGet: (args: { acpModelId: string; providerId: string }) =>
+    ipcRenderer.invoke('modelMetadata:get', args),
+  modelMetadataGetUptime: (args: { providerId: string }) =>
+    ipcRenderer.invoke('modelMetadata:getUptime', args),
+  modelMetadataGetStatus: (args: { providerId: string }) =>
+    ipcRenderer.invoke('modelMetadata:getStatus', args),
 });
 
 // Type definitions for the exposed API

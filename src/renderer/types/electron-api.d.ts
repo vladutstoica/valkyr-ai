@@ -1,5 +1,31 @@
 // Updated for Codex integration
 
+// Model metadata types
+export type ModelMetadataResult = {
+  id: string;
+  name: string;
+  description: string;
+  contextLength: number;
+  maxCompletionTokens: number;
+  pricing: {
+    input: number;
+    output: number;
+  };
+  modality: string;
+};
+
+export type UptimeDayData = {
+  date: string;
+  status: 'operational' | 'degraded' | 'outage';
+  incidentCount: number;
+};
+
+export type ProviderStatusResult = {
+  status: 'operational' | 'degraded' | 'partial_outage' | 'major_outage';
+  components: { name: string; status: string }[];
+  activeIncidents: { name: string; impact: string; startedAt: string }[];
+};
+
 // ACP (Agent Communication Protocol) types
 export type AcpSessionStatus =
   | 'initializing'
@@ -1668,6 +1694,18 @@ declare global {
         sessionKey: string,
         listener: (status: AcpSessionStatus) => void
       ) => () => void;
+
+      // Model metadata
+      modelMetadataGet: (args: {
+        acpModelId: string;
+        providerId: string;
+      }) => Promise<{ success: boolean; data?: ModelMetadataResult | null; error?: string }>;
+      modelMetadataGetUptime: (args: {
+        providerId: string;
+      }) => Promise<{ success: boolean; data?: UptimeDayData[]; error?: string }>;
+      modelMetadataGetStatus: (args: {
+        providerId: string;
+      }) => Promise<{ success: boolean; data?: ProviderStatusResult | null; error?: string }>;
     };
   }
 }
@@ -2483,6 +2521,18 @@ export interface ElectronAPI {
     sessionKey: string,
     listener: (status: AcpSessionStatus) => void
   ) => () => void;
+
+  // Model metadata
+  modelMetadataGet: (args: {
+    acpModelId: string;
+    providerId: string;
+  }) => Promise<{ success: boolean; data?: ModelMetadataResult | null; error?: string }>;
+  modelMetadataGetUptime: (args: {
+    providerId: string;
+  }) => Promise<{ success: boolean; data?: UptimeDayData[]; error?: string }>;
+  modelMetadataGetStatus: (args: {
+    providerId: string;
+  }) => Promise<{ success: boolean; data?: ProviderStatusResult | null; error?: string }>;
 }
 import type { TerminalSnapshotPayload } from '#types/terminalSnapshot';
 import type { OpenInAppId } from '#shared/openInApps';
