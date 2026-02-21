@@ -12,11 +12,19 @@ const AcpStartSchema = z.object({
   providerId: z.string().min(1),
   cwd: z.string().min(1),
   env: z.record(z.string()).optional(),
+  acpSessionId: z.string().optional(),
+});
+
+const AcpFileSchema = z.object({
+  url: z.string().min(1),
+  mediaType: z.string().min(1),
+  filename: z.string().optional(),
 });
 
 const AcpPromptSchema = z.object({
   sessionKey: z.string().min(1),
-  message: z.string().min(1),
+  message: z.string(),
+  files: z.array(AcpFileSchema).optional(),
 });
 
 const AcpSessionKeySchema = z.object({
@@ -32,6 +40,23 @@ const AcpApproveSchema = z.object({
 const AcpSetModeSchema = z.object({
   sessionKey: z.string().min(1),
   mode: z.string().min(1),
+});
+
+const AcpSetModelSchema = z.object({
+  sessionKey: z.string().min(1),
+  modelId: z.string().min(1),
+});
+
+const AcpSetConfigOptionSchema = z.object({
+  sessionKey: z.string().min(1),
+  optionId: z.string().min(1),
+  value: z.string(),
+});
+
+const AcpExtMethodSchema = z.object({
+  sessionKey: z.string().min(1),
+  method: z.string().min(1),
+  params: z.record(z.unknown()).optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -81,6 +106,7 @@ export function registerAcpIpc(): void {
         parsed.providerId,
         parsed.cwd,
         parsed.env,
+        parsed.acpSessionId,
       );
 
       if (result.success && result.sessionKey) {
@@ -117,7 +143,7 @@ export function registerAcpIpc(): void {
   ipcMain.handle('acp:prompt', async (_event, args: unknown) => {
     try {
       const parsed = AcpPromptSchema.parse(args);
-      return await acpSessionManager.sendPrompt(parsed.sessionKey, parsed.message);
+      return await acpSessionManager.sendPrompt(parsed.sessionKey, parsed.message, parsed.files);
     } catch (error: any) {
       if (error instanceof z.ZodError) {
         return { success: false, error: `Validation error: ${error.errors.map(e => e.message).join(', ')}` };
@@ -184,6 +210,85 @@ export function registerAcpIpc(): void {
     try {
       const parsed = AcpSetModeSchema.parse(args);
       return await acpSessionManager.setMode(parsed.sessionKey, parsed.mode);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return { success: false, error: `Validation error: ${error.errors.map(e => e.message).join(', ')}` };
+      }
+      return { success: false, error: error.message || 'Unknown error' };
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // acp:setConfigOption — Set a session config option
+  // -------------------------------------------------------------------------
+  ipcMain.handle('acp:setConfigOption', async (_event, args: unknown) => {
+    try {
+      const parsed = AcpSetConfigOptionSchema.parse(args);
+      return await acpSessionManager.setConfigOption(parsed.sessionKey, parsed.optionId, parsed.value);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return { success: false, error: `Validation error: ${error.errors.map(e => e.message).join(', ')}` };
+      }
+      return { success: false, error: error.message || 'Unknown error' };
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // acp:setModel — Set the session model (unstable API)
+  // -------------------------------------------------------------------------
+  ipcMain.handle('acp:setModel', async (_event, args: unknown) => {
+    try {
+      const parsed = AcpSetModelSchema.parse(args);
+      return await acpSessionManager.setModel(parsed.sessionKey, parsed.modelId);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return { success: false, error: `Validation error: ${error.errors.map(e => e.message).join(', ')}` };
+      }
+      return { success: false, error: error.message || 'Unknown error' };
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // acp:listSessions — List available sessions (unstable API)
+  // -------------------------------------------------------------------------
+  ipcMain.handle('acp:listSessions', async (_event, args: unknown) => {
+    try {
+      const parsed = AcpSessionKeySchema.parse(args);
+      return await acpSessionManager.listSessions(parsed.sessionKey);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return { success: false, error: `Validation error: ${error.errors.map(e => e.message).join(', ')}` };
+      }
+      return { success: false, error: error.message || 'Unknown error' };
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // acp:forkSession — Fork the current session (unstable API)
+  // -------------------------------------------------------------------------
+  ipcMain.handle('acp:forkSession', async (_event, args: unknown) => {
+    try {
+      const parsed = AcpSessionKeySchema.parse(args);
+      return await acpSessionManager.forkSession(parsed.sessionKey);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return { success: false, error: `Validation error: ${error.errors.map(e => e.message).join(', ')}` };
+      }
+      return { success: false, error: error.message || 'Unknown error' };
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // acp:extMethod — Call a custom extension method
+  // -------------------------------------------------------------------------
+  ipcMain.handle('acp:extMethod', async (_event, args: unknown) => {
+    try {
+      const parsed = AcpExtMethodSchema.parse(args);
+      return await acpSessionManager.extMethod(
+        parsed.sessionKey,
+        parsed.method,
+        parsed.params || {},
+      );
     } catch (error: any) {
       if (error instanceof z.ZodError) {
         return { success: false, error: `Validation error: ${error.errors.map(e => e.message).join(', ')}` };

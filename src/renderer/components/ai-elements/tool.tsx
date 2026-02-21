@@ -22,7 +22,7 @@ export type ToolProps = ComponentProps<typeof Collapsible>;
 
 export const Tool = ({ className, ...props }: ToolProps) => (
   <Collapsible
-    className={cn("not-prose mb-4 w-full rounded-md border", className)}
+    className={cn("not-prose mb-0.5 w-full rounded-md border border-border/50", className)}
     {...props}
   />
 );
@@ -72,7 +72,7 @@ export const ToolHeader = ({
 }: ToolHeaderProps) => (
   <CollapsibleTrigger
     className={cn(
-      "flex w-full items-center justify-between gap-4 p-3",
+      "flex w-full items-center justify-between gap-4 px-3 py-2",
       className
     )}
     {...props}
@@ -104,16 +104,22 @@ export type ToolInputProps = ComponentProps<"div"> & {
   input: ToolUIPart["input"];
 };
 
-export const ToolInput = ({ className, input, ...props }: ToolInputProps) => (
-  <div className={cn("space-y-2 overflow-hidden p-4", className)} {...props}>
-    <h4 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
-      Parameters
-    </h4>
-    <div className="rounded-md bg-muted/50">
-      <CodeBlock code={JSON.stringify(input, null, 2)} language="json" />
+export const ToolInput = ({ className, input, ...props }: ToolInputProps) => {
+  // Hide empty parameters
+  const isEmpty = !input || (typeof input === 'object' && Object.keys(input).length === 0);
+  if (isEmpty) return null;
+
+  return (
+    <div className={cn("space-y-2 overflow-hidden p-4", className)} {...props}>
+      <h4 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+        Parameters
+      </h4>
+      <div className="rounded-md bg-muted/50">
+        <CodeBlock code={JSON.stringify(input, null, 2)} language="json" />
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export type ToolOutputProps = ComponentProps<"div"> & {
   output: ToolUIPart["output"];

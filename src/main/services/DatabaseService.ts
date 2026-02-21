@@ -782,6 +782,29 @@ export class DatabaseService {
     });
   }
 
+  async updateConversationAcpSessionId(conversationId: string, acpSessionId: string): Promise<void> {
+    if (this.disabled) return;
+    const { db } = await getDrizzleClient();
+
+    await db
+      .update(conversationsTable)
+      .set({ acpSessionId, updatedAt: new Date().toISOString() })
+      .where(eq(conversationsTable.id, conversationId));
+  }
+
+  async getConversationAcpSessionId(conversationId: string): Promise<string | null> {
+    if (this.disabled) return null;
+    const { db } = await getDrizzleClient();
+
+    const rows = await db
+      .select({ acpSessionId: conversationsTable.acpSessionId })
+      .from(conversationsTable)
+      .where(eq(conversationsTable.id, conversationId))
+      .limit(1);
+
+    return rows[0]?.acpSessionId ?? null;
+  }
+
   async updateConversationTitle(conversationId: string, title: string): Promise<void> {
     if (this.disabled) return;
     const { db } = await getDrizzleClient();

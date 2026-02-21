@@ -8,6 +8,28 @@ export type AcpSessionStatus =
   | 'streaming'
   | 'error';
 
+export type AcpSessionMode = {
+  id: string;
+  name: string;
+  description?: string;
+};
+
+export type AcpSessionModel = {
+  id: string;
+  name: string;
+  description?: string;
+};
+
+export type AcpSessionModes = {
+  availableModes: AcpSessionMode[];
+  currentModeId: string;
+} | null;
+
+export type AcpSessionModels = {
+  availableModels: AcpSessionModel[];
+  currentModelId: string;
+} | null;
+
 export type AcpUpdateEvent = {
   type: 'session_update';
   data: any; // ACP SessionNotification
@@ -20,6 +42,9 @@ export type AcpUpdateEvent = {
   status: AcpSessionStatus;
 } | {
   type: 'session_error';
+  error: string;
+} | {
+  type: 'prompt_error';
   error: string;
 } | {
   type: 'prompt_complete';
@@ -1590,10 +1615,12 @@ declare global {
         providerId: string;
         cwd: string;
         env?: Record<string, string>;
-      }) => Promise<{ success: boolean; sessionKey?: string; error?: string }>;
+        acpSessionId?: string;
+      }) => Promise<{ success: boolean; sessionKey?: string; acpSessionId?: string; modes?: AcpSessionModes; models?: AcpSessionModels; error?: string }>;
       acpPrompt: (args: {
         sessionKey: string;
         message: string;
+        files?: Array<{ url: string; mediaType: string; filename?: string }>;
       }) => Promise<{ success: boolean; error?: string }>;
       acpCancel: (args: {
         sessionKey: string;
@@ -1610,6 +1637,26 @@ declare global {
         sessionKey: string;
         mode: string;
       }) => Promise<{ success: boolean; error?: string }>;
+      acpSetModel: (args: {
+        sessionKey: string;
+        modelId: string;
+      }) => Promise<{ success: boolean; error?: string }>;
+      acpSetConfigOption: (args: {
+        sessionKey: string;
+        optionId: string;
+        value: string;
+      }) => Promise<{ success: boolean; error?: string }>;
+      acpListSessions: (args: {
+        sessionKey: string;
+      }) => Promise<{ success: boolean; sessions?: any[]; error?: string }>;
+      acpForkSession: (args: {
+        sessionKey: string;
+      }) => Promise<{ success: boolean; newSessionId?: string; error?: string }>;
+      acpExtMethod: (args: {
+        sessionKey: string;
+        method: string;
+        params?: Record<string, unknown>;
+      }) => Promise<{ success: boolean; result?: Record<string, unknown>; error?: string }>;
       onAcpUpdate: (
         sessionKey: string,
         listener: (event: AcpUpdateEvent) => void
@@ -2381,7 +2428,8 @@ export interface ElectronAPI {
     providerId: string;
     cwd: string;
     env?: Record<string, string>;
-  }) => Promise<{ success: boolean; sessionKey?: string; error?: string }>;
+    acpSessionId?: string;
+  }) => Promise<{ success: boolean; sessionKey?: string; acpSessionId?: string; modes?: AcpSessionModes; models?: AcpSessionModels; error?: string }>;
   acpPrompt: (args: {
     sessionKey: string;
     message: string;
@@ -2401,6 +2449,26 @@ export interface ElectronAPI {
     sessionKey: string;
     mode: string;
   }) => Promise<{ success: boolean; error?: string }>;
+  acpSetModel: (args: {
+    sessionKey: string;
+    modelId: string;
+  }) => Promise<{ success: boolean; error?: string }>;
+  acpSetConfigOption: (args: {
+    sessionKey: string;
+    optionId: string;
+    value: string;
+  }) => Promise<{ success: boolean; error?: string }>;
+  acpListSessions: (args: {
+    sessionKey: string;
+  }) => Promise<{ success: boolean; sessions?: any[]; error?: string }>;
+  acpForkSession: (args: {
+    sessionKey: string;
+  }) => Promise<{ success: boolean; newSessionId?: string; error?: string }>;
+  acpExtMethod: (args: {
+    sessionKey: string;
+    method: string;
+    params?: Record<string, unknown>;
+  }) => Promise<{ success: boolean; result?: Record<string, unknown>; error?: string }>;
   onAcpUpdate: (
     sessionKey: string,
     listener: (event: AcpUpdateEvent) => void

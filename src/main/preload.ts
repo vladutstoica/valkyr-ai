@@ -724,8 +724,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     providerId: string;
     cwd: string;
     env?: Record<string, string>;
+    acpSessionId?: string;
   }) => ipcRenderer.invoke('acp:start', args),
-  acpPrompt: (args: { sessionKey: string; message: string }) =>
+  acpPrompt: (args: { sessionKey: string; message: string; files?: Array<{ url: string; mediaType: string; filename?: string }> }) =>
     ipcRenderer.invoke('acp:prompt', args),
   acpCancel: (args: { sessionKey: string }) => ipcRenderer.invoke('acp:cancel', args),
   acpKill: (args: { sessionKey: string }) => ipcRenderer.invoke('acp:kill', args),
@@ -733,6 +734,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('acp:approve', args),
   acpSetMode: (args: { sessionKey: string; mode: string }) =>
     ipcRenderer.invoke('acp:setMode', args),
+  acpSetModel: (args: { sessionKey: string; modelId: string }) =>
+    ipcRenderer.invoke('acp:setModel', args),
+  acpSetConfigOption: (args: { sessionKey: string; optionId: string; value: string }) =>
+    ipcRenderer.invoke('acp:setConfigOption', args),
+  acpListSessions: (args: { sessionKey: string }) =>
+    ipcRenderer.invoke('acp:listSessions', args),
+  acpForkSession: (args: { sessionKey: string }) =>
+    ipcRenderer.invoke('acp:forkSession', args),
+  acpExtMethod: (args: { sessionKey: string; method: string; params?: Record<string, unknown> }) =>
+    ipcRenderer.invoke('acp:extMethod', args),
   onAcpUpdate: (sessionKey: string, listener: (event: any) => void) => {
     const channel = `acp:update:${sessionKey}`;
     const wrapped = (_: Electron.IpcRendererEvent, event: any) => listener(event);

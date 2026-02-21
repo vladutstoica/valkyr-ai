@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import type { UIMessage } from 'ai';
 import { AcpChatTransport } from '../lib/acpChatTransport';
-import type { AcpSessionStatus } from '../types/electron-api';
+import type { AcpSessionStatus, AcpSessionModes, AcpSessionModels } from '../types/electron-api';
 
 const api = () => window.electronAPI;
 
@@ -17,6 +17,8 @@ export type UseAcpSessionReturn = {
   sessionError: Error | null;
   initialMessages: UIMessage[];
   sessionKey: string | null;
+  modes: AcpSessionModes;
+  models: AcpSessionModels;
 };
 
 /**
@@ -58,6 +60,8 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
   const [sessionStatus, setSessionStatus] = useState<AcpSessionStatus>('initializing');
   const [sessionError, setSessionError] = useState<Error | null>(null);
   const [initialMessages, setInitialMessages] = useState<UIMessage[]>([]);
+  const [modes, setModes] = useState<AcpSessionModes>(null);
+  const [models, setModels] = useState<AcpSessionModels>(null);
 
   const mountedRef = useRef(true);
   const sessionKeyRef = useRef<string | null>(null);
@@ -108,6 +112,8 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
       const key = result.sessionKey;
       sessionKeyRef.current = key;
       setSessionKey(key);
+      setModes(result.modes ?? null);
+      setModels(result.models ?? null);
       setSessionStatus('ready');
 
       // Subscribe to ACP status changes
@@ -132,5 +138,5 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId, providerId, cwd]);
 
-  return { transport, sessionStatus, sessionError, initialMessages, sessionKey };
+  return { transport, sessionStatus, sessionError, initialMessages, sessionKey, modes, models };
 }
