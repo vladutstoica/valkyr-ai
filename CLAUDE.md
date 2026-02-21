@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Tech Stack
 
-- **Runtime**: Electron 30.5.1, Node.js 20.0.0+ (recommended: 22.20.0 via `.nvmrc`)
+- **Runtime**: Electron 30.5.1, Node.js 20.0.0+ (recommended: 22.22.0 via `.nvmrc`)
 - **Frontend**: React 18, TypeScript 5.3, Vite 5, Tailwind CSS 3
 - **Backend**: Node.js, TypeScript, Drizzle ORM, SQLite3
 - **Editor**: Monaco Editor 0.55, **Terminal**: xterm.js + node-pty 1.0
@@ -290,7 +290,7 @@ Renderer-only changes hot-reload via Vite — no restart needed.
 - `tsconfig.json` — Renderer/shared TypeScript config
 - `tsconfig.main.json` — Main process TypeScript config (CommonJS output)
 - `tailwind.config.js` — Tailwind configuration
-- `.nvmrc` — Node version (22.20.0)
+- `.nvmrc` — Node version (22.22.0)
 - Electron Builder config is in `package.json` under `"build"` key
 
 ## Project Documentation (`.notes/`)
