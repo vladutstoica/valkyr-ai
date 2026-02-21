@@ -1,5 +1,6 @@
 import { classifyActivity } from './activityClassifier';
 import { CLEAR_BUSY_MS, BUSY_HOLD_MS } from './activityConstants';
+import { PROVIDER_IDS } from '@shared/providers/registry';
 
 type Listener = (busy: boolean) => void;
 type IdleListener = (idle: boolean) => void;
@@ -11,46 +12,7 @@ class ActivityStore {
   private idleStates = new Map<string, boolean>();
   private timers = new Map<string, ReturnType<typeof setTimeout>>();
   private busySince = new Map<string, number>();
-  private subscribed = false;
   private subscribedIds = new Set<string>();
-
-  private ensureSubscribed() {
-    if (this.subscribed) return;
-    this.subscribed = true;
-    const api: any = (window as any).electronAPI;
-    api?.onPtyActivity?.((info: { id: string; chunk?: string }) => {
-      try {
-        const id = String(info?.id || '');
-        // Match any subscribed task id by suffix
-        for (const wsId of this.subscribedIds) {
-          if (!id.endsWith(wsId)) continue;
-          const prov = id.includes('-main-') ? id.split('-main-')[0] || '' : '';
-          const signal = classifyActivity(prov, info?.chunk || '');
-          if (signal === 'busy') {
-            this.setBusy(wsId, true, true);
-            this.setIdle(wsId, false);
-          } else if (signal === 'idle') {
-            this.setBusy(wsId, false, true);
-            this.setIdle(wsId, true);
-          } else {
-            // neutral: keep current but set soft clear timer
-            if (this.states.get(wsId)) this.armTimer(wsId);
-          }
-        }
-      } catch {}
-    });
-    api?.onPtyExitGlobal?.((info: { id: string }) => {
-      try {
-        const id = String(info?.id || '');
-        for (const wsId of this.subscribedIds) {
-          if (id.endsWith(wsId)) {
-            this.setBusy(wsId, false, true);
-            this.setIdle(wsId, false);
-          }
-        }
-      } catch {}
-    });
-  }
 
   private armTimer(wsId: string) {
     const prev = this.timers.get(wsId);
@@ -133,7 +95,6 @@ class ActivityStore {
   }
 
   subscribeIdle(wsId: string, fn: IdleListener) {
-    this.ensureSubscribed();
     this.subscribedIds.add(wsId);
     const set = this.idleListeners.get(wsId) || new Set<IdleListener>();
     set.add(fn);
@@ -150,7 +111,6 @@ class ActivityStore {
   }
 
   subscribe(wsId: string, fn: Listener) {
-    this.ensureSubscribed();
     this.subscribedIds.add(wsId);
     const set = this.listeners.get(wsId) || new Set<Listener>();
     set.add(fn);
@@ -161,29 +121,7 @@ class ActivityStore {
     const offDirect: Array<() => void> = [];
     try {
       const api: any = (window as any).electronAPI;
-      const providers = [
-        'amp',
-        'auggie',
-        'charm',
-        'claude',
-        'cline',
-        'codebuff',
-        'codex',
-        'continue',
-        'copilot',
-        'cursor',
-        'droid',
-        'gemini',
-        'goose',
-        'kilocode',
-        'kimi',
-        'kiro',
-        'mistral',
-        'opencode',
-        'qwen',
-        'rovo',
-      ];
-      for (const prov of providers) {
+      for (const prov of PROVIDER_IDS) {
         const ptyId = `${prov}-main-${wsId}`;
         const off = api?.onPtyData?.(ptyId, (chunk: string) => {
           try {

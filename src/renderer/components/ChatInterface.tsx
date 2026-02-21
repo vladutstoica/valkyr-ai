@@ -12,7 +12,8 @@ import { useTaskComments } from '../hooks/useLineComments';
 import { type Agent } from '../types';
 import { Task } from '../types/chat';
 import { useTaskTerminals } from '@/lib/taskTerminalsStore';
-import { getInstallCommandForProvider } from '@shared/providers/registry';
+import { getInstallCommandForProvider, getProvider } from '@shared/providers/registry';
+import { AcpChatPane } from './AcpChatPane';
 import { useAutoScrollOnTaskSwitch } from '@/hooks/useAutoScrollOnTaskSwitch';
 import { TaskScopeProvider } from './TaskScopeContext';
 import { CreateChatModal } from './CreateChatModal';
@@ -83,6 +84,9 @@ const ChatInterface: React.FC<Props> = ({
     // Fallback to main format if no active conversation
     return `${agent}-main-${task.id}`;
   }, [activeConversationId, agent, task.id, conversations]);
+
+  // All agent conversations use ACP mode
+  const activeConversationMode = 'acp' as const;
 
   // Claude needs consistent working directory to maintain session state
   const terminalCwd = useMemo(() => {
@@ -868,92 +872,18 @@ const ChatInterface: React.FC<Props> = ({
               }`}
             >
               {/* Wait for conversations to load to ensure stable terminalId */}
-              {conversationsLoaded && (
-                <TerminalPane
-                  ref={terminalRef}
-                  id={terminalId}
-                  cwd={terminalCwd}
-                  remote={
-                    projectRemoteConnectionId
-                      ? { connectionId: projectRemoteConnectionId }
-                      : undefined
-                  }
+              {conversationsLoaded && activeConversationId ? (
+                <AcpChatPane
+                  conversationId={activeConversationId}
                   providerId={agent}
-                  autoApprove={autoApproveEnabled}
-                  env={taskEnv}
-                  keepAlive={true}
-                  mapShiftEnterToCtrlJ
-                  disableSnapshots={false}
-                  onActivity={() => {
+                  cwd={terminalCwd || task.path || '.'}
+                  onStatusChange={() => {
                     try { window.localStorage.setItem(`agent:locked:${task.id}`, agent); } catch {}
                     try { window.electronAPI?.setTaskAgent?.({ taskId: task.id, lockedAgent: agent }); } catch {}
                   }}
-                  onStartError={() => {
-                    setCliStartFailed(true);
-                  }}
-                  onStartSuccess={() => {
-                    setCliStartFailed(false);
-                    // Mark initial injection as sent so it won't re-run on restart
-                    if (initialInjection && !task.metadata?.initialInjectionSent) {
-                      void window.electronAPI.saveTask({
-                        ...task,
-                        metadata: {
-                          ...task.metadata,
-                          initialInjectionSent: true,
-                        },
-                      });
-                    }
-                  }}
-                  variant={
-                    effectiveTheme === 'dark' || effectiveTheme === 'dark-black' ? 'dark' : 'light'
-                  }
-                  themeOverride={
-                    agent === 'charm'
-                      ? {
-                          background:
-                            effectiveTheme === 'dark-black'
-                              ? '#0a0a0a'
-                              : effectiveTheme === 'dark'
-                                ? '#1f2937'
-                                : '#ffffff',
-                          selectionBackground: 'rgba(96, 165, 250, 0.35)',
-                          selectionForeground: effectiveTheme === 'light' ? '#0f172a' : '#f9fafb',
-                        }
-                      : agent === 'mistral'
-                        ? {
-                            background:
-                              effectiveTheme === 'dark-black'
-                                ? '#141820'
-                                : effectiveTheme === 'dark'
-                                  ? '#202938'
-                                  : '#ffffff',
-                            selectionBackground: 'rgba(96, 165, 250, 0.35)',
-                            selectionForeground: effectiveTheme === 'light' ? '#0f172a' : '#f9fafb',
-                          }
-                        : effectiveTheme === 'dark-black'
-                          ? {
-                              background: '#000000',
-                              selectionBackground: 'rgba(96, 165, 250, 0.35)',
-                              selectionForeground: '#f9fafb',
-                            }
-                          : undefined
-                  }
-                  contentFilter={
-                    agent === 'charm' &&
-                    effectiveTheme !== 'dark' &&
-                    effectiveTheme !== 'dark-black'
-                      ? 'invert(1) hue-rotate(180deg) brightness(1.1) contrast(1.05)'
-                      : undefined
-                  }
-                  initialPrompt={
-                    agentMeta[agent]?.initialPromptFlag !== undefined &&
-                    !task.metadata?.initialInjectionSent
-                      ? (initialInjection ?? undefined)
-                      : undefined
-                  }
                   className="h-full w-full"
                 />
-              )}
+              ) : null}
             </div>
           </div>
         </div>

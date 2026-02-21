@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { type Task } from '../types/chat';
 import { type Agent } from '../types';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import OpenInMenu from './titlebar/OpenInMenu';
-import { TerminalPane } from './TerminalPane';
+import { AcpChatPane } from './AcpChatPane';
 import { agentMeta } from '@/providers/meta';
 import { agentAssets } from '@/providers/assets';
 import { useTheme } from '@/hooks/useTheme';
@@ -15,7 +15,6 @@ import { BUSY_HOLD_MS, CLEAR_BUSY_MS } from '@/lib/activityConstants';
 import { CornerDownLeft } from 'lucide-react';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { useAutoScrollOnTaskSwitch } from '@/hooks/useAutoScrollOnTaskSwitch';
-import { getTaskEnvVars } from '@shared/task/envVars';
 
 interface Props {
   task: Task;
@@ -38,37 +37,18 @@ type Variant = {
 
 const MultiAgentTask: React.FC<Props> = ({
   task,
-  projectPath,
+  projectPath: _projectPath,
   projectRemoteConnectionId,
   projectRemotePath: _projectRemotePath,
-  defaultBranch,
+  defaultBranch: _defaultBranch,
 }) => {
   const { effectiveTheme } = useTheme();
   const [prompt, setPrompt] = useState('');
   const [activeTabIndex, setActiveTabIndex] = useState(0);
   const [variantBusy, setVariantBusy] = useState<Record<string, boolean>>({});
+  const acpAppendRefs = useRef<Record<string, ((msg: { content: string }) => Promise<void>) | null>>({});
   const multi = task.metadata?.multiAgent;
   const variants = (multi?.variants || []) as Variant[];
-
-  const variantEnvs = useMemo(() => {
-    if (!projectPath) return new Map<string, Record<string, string>>();
-    const envMap = new Map<string, Record<string, string>>();
-    for (const variant of variants) {
-      const key = variant.worktreeId || variant.path;
-      envMap.set(
-        key,
-        getTaskEnvVars({
-          taskId: task.id,
-          taskName: variant.name || task.name,
-          taskPath: variant.path,
-          projectPath,
-          defaultBranch: defaultBranch || undefined,
-          portSeed: key,
-        })
-      );
-    }
-    return envMap;
-  }, [variants, task.id, task.name, projectPath, defaultBranch]);
 
   // Auto-scroll to bottom when this task becomes active
   const { scrollToBottom } = useAutoScrollOnTaskSwitch(true, task.id);
@@ -187,65 +167,16 @@ const MultiAgentTask: React.FC<Props> = ({
     return null;
   }, [task.metadata]);
 
-  const injectPrompt = async (ptyId: string, agent: Agent, text: string) => {
-    const trimmed = (text || '').trim();
-    if (!trimmed) return;
-    let sent = false;
-    let silenceTimer: any = null;
-    const send = () => {
-      if (sent) return;
-      try {
-        (window as any).electronAPI?.ptyInput?.({ id: ptyId, data: trimmed + '\n' });
-        sent = true;
-      } catch {}
-    };
-    const offData = (window as any).electronAPI?.onPtyData?.(ptyId, (chunk: string) => {
-      if (silenceTimer) clearTimeout(silenceTimer);
-      silenceTimer = setTimeout(() => {
-        if (!sent) send();
-      }, 1000);
-      try {
-        const signal = classifyActivity(agent, chunk);
-        if (signal === 'idle' && !sent) {
-          setTimeout(send, 200);
-        }
-      } catch {}
-    });
-    const offStarted = (window as any).electronAPI?.onPtyStarted?.((info: { id: string }) => {
-      if (info?.id === ptyId) {
-        if (silenceTimer) clearTimeout(silenceTimer);
-        silenceTimer = setTimeout(() => {
-          if (!sent) send();
-        }, 1500);
-      }
-    });
-    // Fallback in case no events arrive
-    // Try once shortly in case PTY is already interactive
-    const eager = setTimeout(() => {
-      if (!sent) send();
-    }, 300);
-
-    const hard = setTimeout(() => {
-      if (!sent) send();
-    }, 5000);
-    // Give the injector a brief window; cleanup shortly after send
-    setTimeout(() => {
-      clearTimeout(eager);
-      clearTimeout(hard);
-      if (silenceTimer) clearTimeout(silenceTimer);
-      offData?.();
-      offStarted?.();
-    }, 6000);
-  };
-
   const handleRunAll = async () => {
     const msg = prompt.trim();
     if (!msg) return;
-    // Send concurrently via PTY injection for all agents (Codex/Claude included)
+    // Send concurrently to all ACP panes
     const tasks: Promise<any>[] = [];
     variants.forEach((v) => {
-      const termId = `${v.worktreeId}-main`;
-      tasks.push(injectPrompt(termId, v.agent, msg));
+      const appendFn = acpAppendRefs.current[v.worktreeId];
+      if (appendFn) {
+        tasks.push(appendFn({ content: msg }));
+      }
     });
     await Promise.all(tasks);
     setPrompt('');
@@ -512,71 +443,11 @@ const MultiAgentTask: React.FC<Props> = ({
                         : 'bg-white'
                   }`}
                 >
-                  <TerminalPane
-                    ref={isActive ? activeTerminalRef : undefined}
-                    id={`${v.worktreeId}-main`}
+                  <AcpChatPaneWithRef
+                    worktreeId={v.worktreeId}
+                    agent={v.agent}
                     cwd={v.path}
-                    remote={
-                      projectRemoteConnectionId
-                        ? { connectionId: projectRemoteConnectionId }
-                        : undefined
-                    }
-                    providerId={v.agent}
-                    env={variantEnvs.get(v.worktreeId || v.path)}
-                    autoApprove={
-                      Boolean(task.metadata?.autoApprove) &&
-                      Boolean(agentMeta[v.agent]?.autoApproveFlag)
-                    }
-                    initialPrompt={
-                      agentMeta[v.agent]?.initialPromptFlag !== undefined &&
-                      !task.metadata?.initialInjectionSent
-                        ? (initialInjection ?? undefined)
-                        : undefined
-                    }
-                    keepAlive
-                    mapShiftEnterToCtrlJ
-                    variant={isDark ? 'dark' : 'light'}
-                    themeOverride={
-                      v.agent === 'mistral'
-                        ? {
-                            background:
-                              effectiveTheme === 'dark-black'
-                                ? '#141820'
-                                : isDark
-                                  ? '#202938'
-                                  : '#ffffff',
-                            selectionBackground: 'rgba(96, 165, 250, 0.35)',
-                            selectionForeground: isDark ? '#f9fafb' : '#0f172a',
-                          }
-                        : effectiveTheme === 'dark-black'
-                          ? {
-                              background: '#000000',
-                              selectionBackground: 'rgba(96, 165, 250, 0.35)',
-                              selectionForeground: '#f9fafb',
-                            }
-                          : undefined
-                    }
-                    className="h-full w-full"
-                    onStartSuccess={() => {
-                      // For agents WITHOUT CLI flag support, use keystroke injection
-                      if (
-                        initialInjection &&
-                        !task.metadata?.initialInjectionSent &&
-                        agentMeta[v.agent]?.initialPromptFlag === undefined
-                      ) {
-                        void injectPrompt(`${v.worktreeId}-main`, v.agent, initialInjection);
-                      }
-                      // Mark initial injection as sent so it won't re-run on restart
-                      if (initialInjection && !task.metadata?.initialInjectionSent) {
-                        void window.electronAPI.saveTask({
-                          ...task,
-                          metadata: {
-                            ...task.metadata,
-                            initialInjectionSent: true,
-                          },
-                        });
-                      }
-                    }}
+                    onAppendRef={(fn) => { acpAppendRefs.current[v.worktreeId] = fn; }}
                   />
                 </div>
               </div>
@@ -621,5 +492,33 @@ const MultiAgentTask: React.FC<Props> = ({
     </div>
   );
 };
+
+/**
+ * Wrapper that renders AcpChatPane and registers the append function
+ * into a shared ref so the synced prompt toolbar can broadcast to all ACP panes.
+ */
+function AcpChatPaneWithRef({
+  worktreeId,
+  agent,
+  cwd,
+  onAppendRef,
+}: {
+  worktreeId: string;
+  agent: Agent;
+  cwd: string;
+  onAppendRef?: (fn: ((msg: { content: string }) => Promise<void>) | null) => void;
+}) {
+  const conversationId = `multi-${worktreeId}`;
+
+  return (
+    <AcpChatPane
+      conversationId={conversationId}
+      providerId={agent}
+      cwd={cwd}
+      onAppendRef={onAppendRef}
+      className="h-full w-full"
+    />
+  );
+}
 
 export default MultiAgentTask;

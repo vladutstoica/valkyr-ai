@@ -23,6 +23,11 @@ export const PROVIDER_IDS = [
 
 export type ProviderId = (typeof PROVIDER_IDS)[number];
 
+export type AcpSupport = {
+  command: string; // ACP binary (e.g., 'claude-code-acp')
+  args?: string[];
+};
+
 export type ProviderDefinition = {
   id: ProviderId;
   name: string;
@@ -40,6 +45,10 @@ export type ProviderDefinition = {
   autoStartCommand?: string;
   icon?: string;
   terminalOnly?: boolean;
+  acpSupport?: AcpSupport;
+  envVars?: string[]; // Provider-specific env vars (scoped keys)
+  description?: string;
+  contextWindow?: number;
 };
 
 export const PROVIDERS: ProviderDefinition[] = [
@@ -56,6 +65,10 @@ export const PROVIDERS: ProviderDefinition[] = [
     resumeFlag: 'resume --last',
     icon: 'openai.png',
     terminalOnly: true,
+    acpSupport: { command: 'codex', args: ['--acp'] },
+    envVars: ['OPENAI_API_KEY'],
+    description: 'OpenAI Codex CLI agent',
+    contextWindow: 128000,
   },
   {
     id: 'claude',
@@ -71,6 +84,10 @@ export const PROVIDERS: ProviderDefinition[] = [
     planActivateCommand: '/plan',
     icon: 'claude.png',
     terminalOnly: true,
+    acpSupport: { command: 'claude-code-acp' },
+    envVars: ['ANTHROPIC_API_KEY'],
+    description: 'Anthropic Claude Code agent',
+    contextWindow: 200000,
   },
   {
     id: 'cursor',
@@ -98,6 +115,10 @@ export const PROVIDERS: ProviderDefinition[] = [
     resumeFlag: '--resume',
     icon: 'gemini.png',
     terminalOnly: true,
+    acpSupport: { command: 'gemini', args: ['--experimental-acp'] },
+    envVars: ['GEMINI_API_KEY', 'GOOGLE_API_KEY'],
+    description: 'Google Gemini CLI agent',
+    contextWindow: 1000000,
   },
   {
     id: 'qwen',
@@ -161,6 +182,9 @@ export const PROVIDERS: ProviderDefinition[] = [
     cli: 'copilot',
     icon: 'ghcopilot.png',
     terminalOnly: true,
+    acpSupport: { command: 'copilot-acp' },
+    envVars: ['GITHUB_TOKEN'],
+    description: 'GitHub Copilot CLI agent',
   },
   {
     id: 'charm',

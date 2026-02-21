@@ -1,5 +1,31 @@
 // Updated for Codex integration
 
+// ACP (Agent Communication Protocol) types
+export type AcpSessionStatus =
+  | 'initializing'
+  | 'ready'
+  | 'submitted'
+  | 'streaming'
+  | 'error';
+
+export type AcpUpdateEvent = {
+  type: 'session_update';
+  data: any; // ACP SessionNotification
+} | {
+  type: 'permission_request';
+  data: any; // ACP RequestPermissionRequest
+  toolCallId: string;
+} | {
+  type: 'status_change';
+  status: AcpSessionStatus;
+} | {
+  type: 'session_error';
+  error: string;
+} | {
+  type: 'prompt_complete';
+  stopReason: string;
+};
+
 type ProjectSettingsPayload = {
   projectId: string;
   name: string;
@@ -1538,6 +1564,60 @@ declare global {
       ) => () => void;
       scriptInput: (args: { ptyId: string; data: string }) => void;
       scriptResize: (args: { ptyId: string; cols: number; rows: number }) => void;
+
+      // ACP Registry — browse, install, uninstall agents
+      acpRegistryFetch: () => Promise<{
+        success: boolean;
+        data?: import('@shared/acpRegistry').AcpRegistryEntry[];
+        error?: string;
+      }>;
+      acpRegistryGetInstalled: () => Promise<{
+        success: boolean;
+        data?: import('@shared/acpRegistry').InstalledAcpAgent[];
+        error?: string;
+      }>;
+      acpRegistryInstall: (args: {
+        agentId: string;
+        method?: 'npx' | 'binary';
+      }) => Promise<{ success: boolean; error?: string }>;
+      acpRegistryUninstall: (args: {
+        agentId: string;
+      }) => Promise<{ success: boolean; error?: string }>;
+
+      // ACP (Agent Communication Protocol) session management
+      acpStart: (args: {
+        conversationId: string;
+        providerId: string;
+        cwd: string;
+        env?: Record<string, string>;
+      }) => Promise<{ success: boolean; sessionKey?: string; error?: string }>;
+      acpPrompt: (args: {
+        sessionKey: string;
+        message: string;
+      }) => Promise<{ success: boolean; error?: string }>;
+      acpCancel: (args: {
+        sessionKey: string;
+      }) => Promise<{ success: boolean; error?: string }>;
+      acpKill: (args: {
+        sessionKey: string;
+      }) => Promise<{ success: boolean; error?: string }>;
+      acpApprove: (args: {
+        sessionKey: string;
+        toolCallId: string;
+        approved: boolean;
+      }) => Promise<{ success: boolean; error?: string }>;
+      acpSetMode: (args: {
+        sessionKey: string;
+        mode: string;
+      }) => Promise<{ success: boolean; error?: string }>;
+      onAcpUpdate: (
+        sessionKey: string,
+        listener: (event: AcpUpdateEvent) => void
+      ) => () => void;
+      onAcpStatus: (
+        sessionKey: string,
+        listener: (status: AcpSessionStatus) => void
+      ) => () => void;
     };
   }
 }
@@ -2275,6 +2355,60 @@ export interface ElectronAPI {
   ) => () => void;
   scriptInput: (args: { ptyId: string; data: string }) => void;
   scriptResize: (args: { ptyId: string; cols: number; rows: number }) => void;
+
+  // ACP Registry — browse, install, uninstall agents
+  acpRegistryFetch: () => Promise<{
+    success: boolean;
+    data?: import('@shared/acpRegistry').AcpRegistryEntry[];
+    error?: string;
+  }>;
+  acpRegistryGetInstalled: () => Promise<{
+    success: boolean;
+    data?: import('@shared/acpRegistry').InstalledAcpAgent[];
+    error?: string;
+  }>;
+  acpRegistryInstall: (args: {
+    agentId: string;
+    method?: 'npx' | 'binary';
+  }) => Promise<{ success: boolean; error?: string }>;
+  acpRegistryUninstall: (args: {
+    agentId: string;
+  }) => Promise<{ success: boolean; error?: string }>;
+
+  // ACP (Agent Communication Protocol) session management
+  acpStart: (args: {
+    conversationId: string;
+    providerId: string;
+    cwd: string;
+    env?: Record<string, string>;
+  }) => Promise<{ success: boolean; sessionKey?: string; error?: string }>;
+  acpPrompt: (args: {
+    sessionKey: string;
+    message: string;
+  }) => Promise<{ success: boolean; error?: string }>;
+  acpCancel: (args: {
+    sessionKey: string;
+  }) => Promise<{ success: boolean; error?: string }>;
+  acpKill: (args: {
+    sessionKey: string;
+  }) => Promise<{ success: boolean; error?: string }>;
+  acpApprove: (args: {
+    sessionKey: string;
+    toolCallId: string;
+    approved: boolean;
+  }) => Promise<{ success: boolean; error?: string }>;
+  acpSetMode: (args: {
+    sessionKey: string;
+    mode: string;
+  }) => Promise<{ success: boolean; error?: string }>;
+  onAcpUpdate: (
+    sessionKey: string,
+    listener: (event: AcpUpdateEvent) => void
+  ) => () => void;
+  onAcpStatus: (
+    sessionKey: string,
+    listener: (status: AcpSessionStatus) => void
+  ) => () => void;
 }
 import type { TerminalSnapshotPayload } from '#types/terminalSnapshot';
 import type { OpenInAppId } from '#shared/openInApps';

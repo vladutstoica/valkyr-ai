@@ -419,7 +419,8 @@ export function registerDatabaseIpc() {
           taskId,
           title,
           provider,
-          isMain
+          isMain,
+          'acp',
         );
         return { success: true, conversation };
       } catch (error) {

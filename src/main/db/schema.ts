@@ -139,6 +139,8 @@ export const conversations = sqliteTable(
       .references(() => tasks.id, { onDelete: 'cascade' }),
     title: text('title').notNull(),
     provider: text('provider'), // AI provider for this chat (claude, codex, qwen, etc.)
+    mode: text('mode').default('acp'), // 'pty' | 'acp' — determines rendering mode
+    acpSessionId: text('acp_session_id'), // ACP session ID for potential future session resume
     isActive: integer('is_active').notNull().default(0), // 1 if this is the active chat for the task
     isMain: integer('is_main').notNull().default(0), // 1 if this is the main/primary chat (gets full persistence)
     displayOrder: integer('display_order').notNull().default(0), // Order in the tab bar
@@ -165,6 +167,7 @@ export const messages = sqliteTable(
       .references(() => conversations.id, { onDelete: 'cascade' }),
     content: text('content').notNull(),
     sender: text('sender').notNull(),
+    parts: text('parts'), // JSON-serialized structured message parts (text, reasoning, tool-invocation)
     timestamp: text('timestamp')
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
