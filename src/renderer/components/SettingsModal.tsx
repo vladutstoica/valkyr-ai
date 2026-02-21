@@ -16,6 +16,7 @@ import TerminalSettingsCard from './TerminalSettingsCard';
 import ProjectPrepSettingsCard from './ProjectPrepSettingsCard';
 import Context7SettingsCard from './Context7SettingsCard';
 import DefaultAgentSettingsCard from './DefaultAgentSettingsCard';
+import AcpAgentsList from './AcpAgentsList';
 import DefaultOpenInSettingsCard from './DefaultOpenInSettingsCard';
 import TaskSettingsCard from './TaskSettingsCard';
 import KeyboardSettingsCard from './KeyboardSettingsCard';
@@ -213,7 +214,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
         sections: [
           { title: 'Default agent', render: () => <DefaultAgentSettingsCard /> },
           {
-            title: 'CLI agents',
+            title: 'ACP Agents',
+            description: 'Browse and install ACP-compatible agents from the official registry.',
+            render: () => <AcpAgentsList />,
+          },
+          {
+            title: 'Native CLI agents',
+            description: 'Disabled — ACP agents are preferred.',
             action: (
               <Button
                 type="button"
@@ -229,7 +236,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
               </Button>
             ),
             render: () => (
-              <CliAgentsList agents={cliAgents} isLoading={cliLoading} error={cliError} />
+              <div className="pointer-events-none opacity-50">
+                <CliAgentsList agents={cliAgents} isLoading={cliLoading} error={cliError} />
+              </div>
             ),
           },
           { title: 'MCP Tools', render: () => <Context7SettingsCard /> },
@@ -306,7 +315,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
     }
 
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex min-w-0 flex-col gap-6">
         {sections.map((section: SettingsSection, index) => {
           let renderedContent: React.ReactNode = null;
           if (typeof section.render === 'function') {
@@ -331,7 +340,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
                   ) : null}
                 </div>
                 {renderedContent ? (
-                  <div className="flex flex-col gap-3">{renderedContent}</div>
+                  <div className="flex min-w-0 flex-col gap-3">{renderedContent}</div>
                 ) : null}
               </section>
             </React.Fragment>
@@ -395,7 +404,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
                 </nav>
               </aside>
 
-              <div className="flex min-h-0 flex-1 flex-col">
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                 <header className="flex items-center justify-between border-b border-border/60 px-6 py-4">
                   <div>
                     <h2 className="text-lg font-semibold">{activeTabDetails.title}</h2>
@@ -412,7 +421,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
                   </Button>
                 </header>
 
-                <div className="flex min-h-0 flex-1 overflow-y-auto px-6 py-6">
+                <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-6 py-6">
                   {renderContent()}
                 </div>
               </div>

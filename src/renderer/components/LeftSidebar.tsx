@@ -398,8 +398,9 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
       swipeCooldownRef.current = true;
       onSwitchWorkspace(sortedWorkspaces[nextIndex].id);
       setTimeout(() => {
+        swipeDeltaRef.current = 0;
         swipeCooldownRef.current = false;
-      }, 300);
+      }, 500);
     };
 
     el.addEventListener('wheel', handleWheel, { passive: false });

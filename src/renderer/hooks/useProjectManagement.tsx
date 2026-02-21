@@ -998,7 +998,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
     setActiveWorkspaceId(workspaceId);
 
     // If the currently selected project doesn't belong to the new workspace,
-    // auto-select the first project from the new workspace
+    // auto-select the first project from the new workspace and restore its last task
     if (selectedProject) {
       const defaultWs = workspaces.find((ws) => ws.isDefault);
       const isNewDefault = defaultWs?.id === workspaceId;
@@ -1012,7 +1012,16 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
         );
         const firstProject = wsProjects[0];
         if (firstProject) {
-          activateProjectView(firstProject);
+          // Pick the most recent task instead of showing the project view
+          const lastTask = firstProject.tasks
+            ?.slice()
+            .sort((a, b) => (b.updatedAt ?? b.createdAt ?? '').localeCompare(a.updatedAt ?? a.createdAt ?? ''))
+            [0] ?? null;
+          setSelectedProject(firstProject);
+          setShowHomeView(false);
+          setShowSkillsView(false);
+          setActiveTask(lastTask);
+          saveActiveIds(firstProject.id, lastTask?.id ?? null);
         } else {
           setSelectedProject(null);
           setShowHomeView(true);
