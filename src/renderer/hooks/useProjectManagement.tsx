@@ -69,6 +69,16 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
     } catch {}
   }, [activeWorkspaceId]);
 
+  // Auto-select the default workspace when workspaces load and no workspace is active
+  useEffect(() => {
+    if (!activeWorkspaceId && workspaces.length > 0) {
+      const defaultWs = workspaces.find((ws) => ws.isDefault) ?? workspaces[0];
+      if (defaultWs) {
+        setActiveWorkspaceId(defaultWs.id);
+      }
+    }
+  }, [activeWorkspaceId, workspaces]);
+
   // Filter projects by active workspace
   const filteredProjects = useMemo(() => {
     if (!activeWorkspaceId) return projects;
