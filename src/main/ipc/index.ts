@@ -24,6 +24,8 @@ import { registerLineCommentsIpc } from './lineCommentsIpc';
 import { registerSshIpc } from './sshIpc';
 import { registerSkillsIpc } from './skillsIpc';
 import { registerScriptRunnerIpc } from './scriptRunnerIpc';
+import { registerAcpIpc } from './acpIpc';
+import { registerAcpRegistryIpc } from './acpRegistryIpc';
 
 export function registerAllIpc() {
   // Core app/utility IPC
@@ -56,4 +58,6 @@ export function registerAllIpc() {
   registerSshIpc();
   registerSkillsIpc();
   registerScriptRunnerIpc();
+  registerAcpIpc();
+  registerAcpRegistryIpc();
 }

@@ -120,6 +120,8 @@ export interface Conversation {
   taskId: string;
   title: string;
   provider?: string | null;
+  mode?: 'pty' | 'acp' | null;
+  acpSessionId?: string | null;
   isActive?: boolean;
   isMain?: boolean;
   displayOrder?: number;
@@ -133,6 +135,7 @@ export interface Message {
   conversationId: string;
   content: string;
   sender: 'user' | 'agent';
+  parts?: string | null; // JSON-serialized structured message parts
   timestamp: string;
   metadata?: string; // JSON string for additional data
 }
@@ -526,6 +529,7 @@ export class DatabaseService {
         isMain: conversation.isMain ? 1 : 0,
         displayOrder: conversation.displayOrder ?? 0,
         metadata: conversation.metadata ?? null,
+        mode: conversation.mode ?? 'pty',
         updatedAt: new Date().toISOString(),
       })
       .onConflictDoUpdate({
@@ -537,6 +541,7 @@ export class DatabaseService {
           isMain: conversation.isMain ? 1 : 0,
           displayOrder: conversation.displayOrder ?? 0,
           metadata: conversation.metadata ?? null,
+          mode: conversation.mode ?? 'pty',
           updatedAt: new Date().toISOString(),
         },
       });
@@ -622,6 +627,7 @@ export class DatabaseService {
           conversationId: message.conversationId,
           content: message.content,
           sender: message.sender,
+          parts: message.parts ?? null,
           metadata: metadataValue,
           timestamp: new Date().toISOString(),
         })
@@ -658,7 +664,8 @@ export class DatabaseService {
     taskId: string,
     title: string,
     provider?: string,
-    isMain?: boolean
+    isMain?: boolean,
+    mode?: 'pty' | 'acp',
   ): Promise<Conversation> {
     if (this.disabled) {
       return {
@@ -715,6 +722,7 @@ export class DatabaseService {
         isActive: 1,
         isMain: (shouldBeMain ?? false) ? 1 : 0,
         displayOrder: maxOrder + 1,
+        mode: mode ?? 'pty',
       });
     });
 
@@ -1299,6 +1307,8 @@ export class DatabaseService {
       taskId: row.taskId,
       title: row.title,
       provider: row.provider ?? null,
+      mode: (row.mode as 'pty' | 'acp') ?? 'pty',
+      acpSessionId: row.acpSessionId ?? null,
       isActive: row.isActive === 1,
       // For backward compatibility: treat missing isMain as true (assume first/only conversation is main)
       isMain: row.isMain !== undefined ? row.isMain === 1 : true,
@@ -1315,6 +1325,7 @@ export class DatabaseService {
       conversationId: row.conversationId,
       content: row.content,
       sender: row.sender as Message['sender'],
+      parts: row.parts ?? null,
       timestamp: row.timestamp,
       metadata: row.metadata ?? undefined,
     };

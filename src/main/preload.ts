@@ -709,6 +709,42 @@ contextBridge.exposeInMainWorld('electronAPI', {
   scriptInput: (args: { ptyId: string; data: string }) => ipcRenderer.send('scripts:input', args),
   scriptResize: (args: { ptyId: string; cols: number; rows: number }) =>
     ipcRenderer.send('scripts:resize', args),
+
+  // ACP Registry — browse, install, uninstall agents
+  acpRegistryFetch: () => ipcRenderer.invoke('acpRegistry:fetch'),
+  acpRegistryGetInstalled: () => ipcRenderer.invoke('acpRegistry:installed'),
+  acpRegistryInstall: (args: { agentId: string; method?: 'npx' | 'binary' }) =>
+    ipcRenderer.invoke('acpRegistry:install', args),
+  acpRegistryUninstall: (args: { agentId: string }) =>
+    ipcRenderer.invoke('acpRegistry:uninstall', args),
+
+  // ACP (Agent Communication Protocol) session management
+  acpStart: (args: {
+    conversationId: string;
+    providerId: string;
+    cwd: string;
+    env?: Record<string, string>;
+  }) => ipcRenderer.invoke('acp:start', args),
+  acpPrompt: (args: { sessionKey: string; message: string }) =>
+    ipcRenderer.invoke('acp:prompt', args),
+  acpCancel: (args: { sessionKey: string }) => ipcRenderer.invoke('acp:cancel', args),
+  acpKill: (args: { sessionKey: string }) => ipcRenderer.invoke('acp:kill', args),
+  acpApprove: (args: { sessionKey: string; toolCallId: string; approved: boolean }) =>
+    ipcRenderer.invoke('acp:approve', args),
+  acpSetMode: (args: { sessionKey: string; mode: string }) =>
+    ipcRenderer.invoke('acp:setMode', args),
+  onAcpUpdate: (sessionKey: string, listener: (event: any) => void) => {
+    const channel = `acp:update:${sessionKey}`;
+    const wrapped = (_: Electron.IpcRendererEvent, event: any) => listener(event);
+    ipcRenderer.on(channel, wrapped);
+    return () => ipcRenderer.removeListener(channel, wrapped);
+  },
+  onAcpStatus: (sessionKey: string, listener: (status: string) => void) => {
+    const channel = `acp:status:${sessionKey}`;
+    const wrapped = (_: Electron.IpcRendererEvent, status: string) => listener(status);
+    ipcRenderer.on(channel, wrapped);
+    return () => ipcRenderer.removeListener(channel, wrapped);
+  },
 });
 
 // Type definitions for the exposed API
