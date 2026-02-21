@@ -26,6 +26,7 @@ import { registerSkillsIpc } from './skillsIpc';
 import { registerScriptRunnerIpc } from './scriptRunnerIpc';
 import { registerAcpIpc } from './acpIpc';
 import { registerAcpRegistryIpc } from './acpRegistryIpc';
+import { registerModelMetadataIpc } from './modelMetadataIpc';
 
 export function registerAllIpc() {
   // Core app/utility IPC
@@ -60,4 +61,5 @@ export function registerAllIpc() {
   registerScriptRunnerIpc();
   registerAcpIpc();
   registerAcpRegistryIpc();
+  registerModelMetadataIpc();
 }

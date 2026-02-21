@@ -3,6 +3,17 @@
  * Agents use different naming conventions for the same operations.
  */
 
+import type { LucideIcon } from 'lucide-react';
+import {
+  FileTextIcon,
+  FilePlusIcon,
+  FileEditIcon,
+  TerminalIcon,
+  FolderTreeIcon,
+  SearchIcon,
+  WrenchIcon,
+} from 'lucide-react';
+
 const TOOL_NAME_MAP: Record<string, string> = {
   // File read
   Read: 'read_file',
@@ -77,6 +88,22 @@ export function getToolDisplayLabel(toolName: string, args: Record<string, unkno
       return `Search "${(args.pattern || args.query || args.regex || '') as string}"`;
     default:
       return toolName;
+  }
+}
+
+/**
+ * Get the Lucide icon component for a tool.
+ */
+export function getToolIconComponent(toolName: string): LucideIcon {
+  const normalized = normalizeToolName(toolName);
+  switch (normalized) {
+    case 'read_file': return FileTextIcon;
+    case 'write_file': return FilePlusIcon;
+    case 'edit_file': return FileEditIcon;
+    case 'bash': return TerminalIcon;
+    case 'list_files': return FolderTreeIcon;
+    case 'search': return SearchIcon;
+    default: return WrenchIcon;
   }
 }
 

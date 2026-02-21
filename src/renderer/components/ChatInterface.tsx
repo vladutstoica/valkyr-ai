@@ -13,7 +13,6 @@ import { Task } from '../types/chat';
 import { useTaskTerminals } from '@/lib/taskTerminalsStore';
 import { getInstallCommandForProvider, getProvider } from '@shared/providers/registry';
 import { AcpChatPane } from './AcpChatPane';
-import { acpStatusStore } from '../lib/acpStatusStore';
 import { unifiedStatusStore } from '../lib/unifiedStatusStore';
 import { useAutoScrollOnTaskSwitch } from '@/hooks/useAutoScrollOnTaskSwitch';
 import { useAcpInitialPrompt } from '@/hooks/useAcpInitialPrompt';
@@ -855,15 +854,14 @@ const ChatInterface: React.FC<Props> = ({
                   onClick={() => setActiveConversationId(conv.id)}
                 >
                   <AcpChatPane
+                    taskId={task.id}
                     conversationId={conv.id}
                     providerId={convAgent}
                     cwd={terminalCwd || task.path || '.'}
                     autoApprove={Boolean(task.metadata?.autoApprove)}
-                    onStatusChange={(status, sessionKey) => {
+                    onStatusChange={(status) => {
                       try { window.localStorage.setItem(`agent:locked:${task.id}`, convAgent); } catch {}
                       try { window.electronAPI?.setTaskAgent?.({ taskId: task.id, lockedAgent: convAgent }); } catch {}
-                      acpStatusStore.setStatus(sessionKey, status, false);
-                      unifiedStatusStore.setTaskMode(task.id, 'acp', sessionKey);
                       if (conv.id === activeConversationId) {
                         setAcpChatStatus(status);
                       }

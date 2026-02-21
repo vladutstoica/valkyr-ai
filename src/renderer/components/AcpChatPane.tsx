@@ -5,9 +5,12 @@ import { AlertCircle, ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon, CheckIcon,
 import { useAcpSession } from '../hooks/useAcpSession';
 import { AcpChatTransport, type AcpUsageData, type AcpPlanEntry, type AcpCommand, type AcpConfigOption } from '../lib/acpChatTransport';
 import { Button } from './ui/button';
-import { getToolDisplayLabel } from '../lib/toolRenderer';
+import { getToolDisplayLabel, getToolIconComponent } from '../lib/toolRenderer';
 import type { AcpSessionStatus, AcpSessionModes, AcpSessionModels, AcpSessionModel } from '../types/electron-api';
+import { acpStatusStore } from '../lib/acpStatusStore';
+import { unifiedStatusStore } from '../lib/unifiedStatusStore';
 import { agentConfig } from '../lib/agentConfig';
+import { ModelInfoCard } from './ModelInfoCard';
 import type { Agent } from '../types';
 import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from './ui/dropdown-menu';
@@ -17,7 +20,7 @@ import { Check } from 'lucide-react';
 // AI Elements
 import { Message, MessageContent, MessageResponse, MessageActions, MessageAction } from './ai-elements/message';
 import { Reasoning, ReasoningTrigger, ReasoningContent } from './ai-elements/reasoning';
-import { Tool, ToolHeader, ToolContent, ToolInput, ToolOutput } from './ai-elements/tool';
+import { Tool, ToolHeader, ToolContent, ToolInput, ToolOutput, ToolInline, ToolGroup } from './ai-elements/tool';
 import { Conversation, ConversationContent, ConversationEmptyState, ConversationScrollButton } from './ai-elements/conversation';
 import { Loader } from './ai-elements/loader';
 import { Plan, PlanHeader, PlanTitle, PlanContent, PlanFooter, PlanTrigger } from './ai-elements/plan';
@@ -49,6 +52,7 @@ import { Confirmation, ConfirmationActions, ConfirmationAction, ConfirmationTitl
 // ---------------------------------------------------------------------------
 
 type AcpChatPaneProps = {
+  taskId?: string;
   conversationId: string;
   providerId: string;
   cwd: string;
@@ -79,12 +83,13 @@ function getTextFromParts(parts: UIMessage['parts']): string {
 
 type ModelPickerProps = {
   agent: { name: string; logo: string; alt: string; invertInDark?: boolean };
+  providerId: string;
   models: AcpSessionModel[];
   currentModelId: string;
   onModelChange: (modelId: string) => void;
 };
 
-function ModelPicker({ agent, models, currentModelId, onModelChange }: ModelPickerProps) {
+function ModelPicker({ agent, providerId, models, currentModelId, onModelChange }: ModelPickerProps) {
   const [open, setOpen] = useState(false);
   const [hoveredModel, setHoveredModel] = useState<AcpSessionModel | null>(null);
 
@@ -108,7 +113,7 @@ function ModelPicker({ agent, models, currentModelId, onModelChange }: ModelPick
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="w-auto min-w-[200px] max-w-[420px] rounded-md p-0"
+        className="w-auto min-w-[200px] max-w-[480px] rounded-md p-0"
       >
         <div className="flex">
           {/* Model list */}
@@ -139,14 +144,16 @@ function ModelPicker({ agent, models, currentModelId, onModelChange }: ModelPick
             ))}
           </div>
 
-          {/* Hover detail panel */}
-          {hoveredModel?.description && (
-            <div className="w-[200px] border-l border-border bg-muted/30 p-3">
-              <div className="text-xs font-medium mb-1">{hoveredModel.name}</div>
-              <p className="text-[11px] leading-relaxed text-muted-foreground">
-                {hoveredModel.description}
-              </p>
-            </div>
+          {/* Hover detail panel — model info card with pricing, status & uptime */}
+          {hoveredModel && (
+            <ModelInfoCard
+              modelId={hoveredModel.id}
+              providerId={providerId}
+              providerName={agent.name}
+              modelName={hoveredModel.name}
+              providerIcon={agent.logo}
+              invertIconInDark={agent.invertInDark}
+            />
           )}
         </div>
       </PopoverContent>
@@ -158,118 +165,151 @@ function ModelPicker({ agent, models, currentModelId, onModelChange }: ModelPick
 // Message rendering
 // ---------------------------------------------------------------------------
 
+function renderToolPart(toolPart: any, i: number) {
+  const toolName = toolPart.toolName || toolPart.type?.replace(/^tool-/, '') || '';
+  if (!toolName) return null;
+  const title = getToolDisplayLabel(toolName, toolPart.input || {});
+  const Icon = getToolIconComponent(toolName);
+
+  // Check if this tool has meaningful expandable content
+  const inputObj = toolPart.input || {};
+  const hasInput = typeof inputObj === 'object' && Object.keys(inputObj).length > 0;
+  const hasOutput = toolPart.output && String(toolPart.output).length > 80;
+  const hasError = !!toolPart.errorText;
+  const hasContent = hasInput || hasOutput || hasError;
+
+  // Compact inline display for tools with no useful detail
+  if (!hasContent) {
+    return (
+      <ToolInline
+        key={toolPart.toolCallId || i}
+        title={title}
+        state={toolPart.state}
+        icon={Icon}
+      />
+    );
+  }
+
+  return (
+    <Tool key={toolPart.toolCallId || i} defaultOpen={hasError}>
+      <ToolHeader
+        title={title}
+        type={toolPart.type}
+        state={toolPart.state}
+        icon={Icon}
+      />
+      <ToolContent>
+        <ToolInput input={inputObj} />
+        <ToolOutput
+          output={toolPart.output}
+          errorText={toolPart.errorText}
+        />
+      </ToolContent>
+    </Tool>
+  );
+}
+
 function MessageParts({ message, chatStatus }: { message: UIMessage; chatStatus: string }) {
   // Collect source parts for grouped rendering
   const sourceParts = message.parts.filter(
     (p) => p.type === 'source-url' || p.type === 'source-document'
   ) as Array<{ type: string; url?: string; title?: string; sourceId?: string }>;
 
+  // Group consecutive completed tool parts (3+) into collapsible groups
+  const elements: React.ReactNode[] = [];
+  let toolRun: Array<{ part: any; index: number }> = [];
+
+  const flushToolRun = () => {
+    if (toolRun.length === 0) return;
+    const allCompleted = toolRun.every(
+      (t) => t.part.state === 'output-available' || t.part.state === 'output-error' || t.part.state === 'output-denied'
+    );
+    if (allCompleted && toolRun.length >= 3) {
+      elements.push(
+        <ToolGroup key={`tg-${toolRun[0].index}`} count={toolRun.length}>
+          {toolRun.map((t) => renderToolPart(t.part, t.index))}
+        </ToolGroup>
+      );
+    } else {
+      for (const t of toolRun) {
+        elements.push(renderToolPart(t.part, t.index));
+      }
+    }
+    toolRun = [];
+  };
+
+  message.parts.forEach((part, i) => {
+    // Skip source parts — rendered grouped below
+    if (part.type === 'source-url' || part.type === 'source-document') return;
+
+    const isToolPart = typeof part.type === 'string' && part.type.startsWith('tool-');
+
+    if (isToolPart) {
+      const toolPart = part as any;
+      // Approval-requested tools break out of grouping
+      if (toolPart.state === 'approval-requested') {
+        flushToolRun();
+        const toolName = toolPart.toolName || toolPart.type?.replace(/^tool-/, '') || '';
+        const title = getToolDisplayLabel(toolName, toolPart.input || {});
+        elements.push(
+          <Confirmation
+            key={toolPart.toolCallId || i}
+            state="approval-requested"
+            approval={{ id: toolPart.toolCallId }}
+          >
+            <ConfirmationTitle>
+              Agent requests permission to run <strong>{title}</strong>
+            </ConfirmationTitle>
+            <ConfirmationRequest>
+              <ConfirmationActions>
+                <ConfirmationAction
+                  variant="default"
+                  data-tool-call-id={toolPart.toolCallId}
+                  data-action="approve"
+                >
+                  Allow
+                </ConfirmationAction>
+                <ConfirmationAction
+                  variant="destructive"
+                  data-tool-call-id={toolPart.toolCallId}
+                  data-action="deny"
+                >
+                  Deny
+                </ConfirmationAction>
+              </ConfirmationActions>
+            </ConfirmationRequest>
+          </Confirmation>
+        );
+      } else {
+        toolRun.push({ part: toolPart, index: i });
+      }
+    } else {
+      flushToolRun();
+      switch (part.type) {
+        case 'text':
+          elements.push(<MessageResponse key={i}>{part.text}</MessageResponse>);
+          break;
+        case 'reasoning':
+          elements.push(
+            <Reasoning
+              key={i}
+              isStreaming={chatStatus === 'streaming' && (part as any).state === 'streaming'}
+            >
+              <ReasoningTrigger />
+              <ReasoningContent>{part.text}</ReasoningContent>
+            </Reasoning>
+          );
+          break;
+        default:
+          break;
+      }
+    }
+  });
+  flushToolRun();
+
   return (
     <>
-      {message.parts.map((part, i) => {
-        // Skip source parts — rendered grouped below
-        if (part.type === 'source-url' || part.type === 'source-document') return null;
-
-        switch (part.type) {
-          case 'text':
-            return <MessageResponse key={i}>{part.text}</MessageResponse>;
-
-          case 'reasoning':
-            return (
-              <Reasoning
-                key={i}
-                isStreaming={chatStatus === 'streaming' && (part as any).state === 'streaming'}
-              >
-                <ReasoningTrigger />
-                <ReasoningContent>{part.text}</ReasoningContent>
-              </Reasoning>
-            );
-
-          default: {
-            // Tool parts (type starts with 'tool-')
-            if (typeof part.type === 'string' && part.type.startsWith('tool-')) {
-              const toolPart = part as any;
-              const toolName = toolPart.toolName || toolPart.type?.replace(/^tool-/, '') || '';
-              if (!toolName) return null;
-              const title = getToolDisplayLabel(toolName, toolPart.input || {});
-
-              // Approval requested — show confirmation
-              if (toolPart.state === 'approval-requested') {
-                return (
-                  <Confirmation
-                    key={toolPart.toolCallId || i}
-                    state="approval-requested"
-                    approval={{ id: toolPart.toolCallId }}
-                  >
-                    <ConfirmationTitle>
-                      Agent requests permission to run <strong>{title}</strong>
-                    </ConfirmationTitle>
-                    <ConfirmationRequest>
-                      <ConfirmationActions>
-                        <ConfirmationAction
-                          variant="default"
-                          data-tool-call-id={toolPart.toolCallId}
-                          data-action="approve"
-                        >
-                          Allow
-                        </ConfirmationAction>
-                        <ConfirmationAction
-                          variant="destructive"
-                          data-tool-call-id={toolPart.toolCallId}
-                          data-action="deny"
-                        >
-                          Deny
-                        </ConfirmationAction>
-                      </ConfirmationActions>
-                    </ConfirmationRequest>
-                  </Confirmation>
-                );
-              }
-
-              // Check if this tool has meaningful expandable content
-              const inputObj = toolPart.input || {};
-              const hasInput = typeof inputObj === 'object' && Object.keys(inputObj).length > 0;
-              const hasOutput = toolPart.output && String(toolPart.output).length > 80;
-              const hasError = !!toolPart.errorText;
-              const hasContent = hasInput || hasOutput || hasError;
-
-              // Compact inline display for tools with no useful detail
-              if (!hasContent) {
-                return (
-                  <div key={toolPart.toolCallId || i} className="flex items-center gap-1.5 rounded-md border border-border/50 px-2.5 py-1 mb-0.5">
-                    <WrenchIcon className="size-3 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">{title}</span>
-                    {toolPart.state === 'output-available' && (
-                      <CheckCircleIcon className="size-3 text-green-600" />
-                    )}
-                    {toolPart.state === 'input-available' && (
-                      <ClockIcon className="size-3 animate-pulse text-muted-foreground" />
-                    )}
-                  </div>
-                );
-              }
-
-              return (
-                <Tool key={toolPart.toolCallId || i} defaultOpen={hasError}>
-                  <ToolHeader
-                    title={title}
-                    type={toolPart.type}
-                    state={toolPart.state}
-                  />
-                  <ToolContent>
-                    <ToolInput input={inputObj} />
-                    <ToolOutput
-                      output={toolPart.output}
-                      errorText={toolPart.errorText}
-                    />
-                  </ToolContent>
-                </Tool>
-              );
-            }
-            return null;
-          }
-        }
-      })}
+      {elements}
 
       {/* Sources (grouped) */}
       {sourceParts.length > 0 && (
@@ -425,6 +465,14 @@ function AcpChatInner({
   useEffect(() => {
     onStatusChange?.(effectiveStatus, sessionKey);
   }, [effectiveStatus, sessionKey, onStatusChange]);
+
+  // Update acpStatusStore so unifiedStatusStore can aggregate
+  useEffect(() => {
+    const hasPending = messages.some((m) =>
+      m.parts.some((p: any) => p.state === 'approval-requested')
+    );
+    acpStatusStore.setStatus(sessionKey, effectiveStatus, hasPending);
+  }, [effectiveStatus, messages, sessionKey]);
 
   // Handle approval clicks (delegated from Confirmation buttons)
   const handleApprovalClick = useCallback((e: React.MouseEvent) => {
@@ -592,6 +640,7 @@ function AcpChatInner({
           {agent && initialModels && initialModels.availableModels.length > 1 && currentModelId ? (
             <ModelPicker
               agent={agent}
+              providerId={providerId}
               models={initialModels.availableModels}
               currentModelId={currentModelId}
               onModelChange={handleModelChange}
@@ -889,7 +938,25 @@ function AcpChatInner({
                 </PromptInputActionMenuContent>
               </PromptInputActionMenu>
 
-
+              {/* Model selector with agent branding + hover detail panel */}
+              {agent && initialModels && initialModels.availableModels.length > 1 && currentModelId ? (
+                <ModelPicker
+                  agent={agent}
+                  providerId={providerId}
+                  models={initialModels.availableModels}
+                  currentModelId={currentModelId}
+                  onModelChange={handleModelChange}
+                />
+              ) : agent && (
+                <div className="flex h-8 shrink-0 items-center gap-1 px-2 text-xs text-muted-foreground">
+                  <img
+                    src={agent.logo}
+                    alt={agent.alt}
+                    className={`size-3.5 rounded-sm ${agent.invertInDark ? 'dark:invert' : ''}`}
+                  />
+                  <span>{agent.name}</span>
+                </div>
+              )}
 
               {/* Mode selector */}
               {initialModes && initialModes.availableModes.length > 1 && (
@@ -981,6 +1048,7 @@ function AcpChatInner({
 // ---------------------------------------------------------------------------
 
 export function AcpChatPane({
+  taskId,
   conversationId,
   providerId,
   cwd,
@@ -1007,6 +1075,18 @@ export function AcpChatPane({
     models,
     restartSession,
   } = useAcpSession({ conversationId, providerId, cwd });
+
+  // Register this conversation with unifiedStatusStore for sidebar aggregation
+  useEffect(() => {
+    if (sessionKey && taskId) {
+      unifiedStatusStore.setConversationMode(taskId, conversationId, 'acp', sessionKey);
+    }
+    return () => {
+      if (taskId) {
+        unifiedStatusStore.removeConversation(taskId, conversationId);
+      }
+    };
+  }, [taskId, conversationId, sessionKey]);
 
   useEffect(() => {
     if (!transport && sessionKey) {
