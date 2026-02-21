@@ -299,7 +299,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({
           onSelectFile={onSelectFile}
           onOpenFile={onOpenFile}
           className="flex-1 overflow-y-auto"
-          showHiddenFiles={false}
+          showHiddenFiles
           fileChanges={fileChanges}
         />
       </div>

@@ -3,6 +3,7 @@ import { ArrowUpRight, Pencil, Pin, PinOff, MoreVertical, Archive, Trash2, GitBr
 import { usePrStatus } from '../hooks/usePrStatus';
 import { useTaskBusy } from '../hooks/useTaskBusy';
 import { useTaskIdle } from '../hooks/useTaskIdle';
+import { useUnifiedStatus } from '../hooks/useUnifiedStatus';
 import PrPreviewTooltip from './PrPreviewTooltip';
 import { normalizeTaskName, MAX_TASK_NAME_LENGTH } from '../lib/taskNames';
 import {
@@ -67,6 +68,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   const { pr } = usePrStatus(task.path);
   const isRunning = useTaskBusy(task.id);
   const isIdle = useTaskIdle(task.id);
+  const unifiedDot = useUnifiedStatus(task.id);
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -146,17 +148,31 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   const taskContent = (
     <div className="flex min-w-0 items-center justify-between">
       <div className="flex min-w-0 flex-1 items-center gap-2 py-1">
-        {/* Status dot indicator */}
-        {isRunning || task.status === 'running' ? (
-          // Amber dot - agent in progress
-          <span className="h-2 w-2 flex-shrink-0 rounded-full bg-amber-500 animate-pulse" title="In progress" />
-        ) : isIdle ? (
-          // Red dot - agent needs user input
-          <span className="h-2 w-2 flex-shrink-0 rounded-full bg-red-500" title="Needs input" />
-        ) : (
-          // Green dot - work done / inactive
-          <span className="h-2 w-2 flex-shrink-0 rounded-full bg-green-500" title="Done" />
-        )}
+        {/* Status dot indicator — unified across ACP and PTY modes */}
+        {(() => {
+          // Prefer unified status (handles both ACP and PTY)
+          const dot = unifiedDot;
+          const colorMap: Record<string, string> = {
+            green: 'bg-green-500',
+            amber: 'bg-amber-500',
+            red: 'bg-red-500',
+            gray: 'bg-gray-400',
+          };
+          const titleMap: Record<string, string> = {
+            green: 'Done',
+            amber: 'In progress',
+            red: 'Needs input',
+            gray: 'Initializing',
+          };
+          const bg = colorMap[dot.color] || 'bg-green-500';
+          const pulse = dot.style === 'pulsing' ? 'animate-pulse' : '';
+          return (
+            <span
+              className={`h-2 w-2 flex-shrink-0 rounded-full ${bg} ${pulse}`}
+              title={titleMap[dot.color] || 'Unknown'}
+            />
+          );
+        })()}
         {isEditing ? (
           <input
             ref={inputRef}

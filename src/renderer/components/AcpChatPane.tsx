@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { UIMessage } from 'ai';
 import { useChat } from '@ai-sdk/react';
-import { AlertCircle, CheckCircleIcon, CheckIcon, ChevronDownIcon, ClockIcon, CopyIcon, Loader2, PaperclipIcon, RefreshCwIcon, WrenchIcon } from 'lucide-react';
+import { AlertCircle, ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon, CheckIcon, ChevronDownIcon, ClockIcon, CopyIcon, Loader2, MoreHorizontalIcon, PaperclipIcon, PlusIcon, RefreshCwIcon, SettingsIcon, Trash2Icon, WrenchIcon } from 'lucide-react';
 import { useAcpSession } from '../hooks/useAcpSession';
 import { AcpChatTransport, type AcpUsageData, type AcpPlanEntry, type AcpCommand, type AcpConfigOption } from '../lib/acpChatTransport';
 import { Button } from './ui/button';
@@ -10,6 +10,7 @@ import type { AcpSessionStatus, AcpSessionModes, AcpSessionModels, AcpSessionMod
 import { agentConfig } from '../lib/agentConfig';
 import type { Agent } from '../types';
 import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from './ui/dropdown-menu';
 import * as SelectPrimitive from '@radix-ui/react-select';
 import { Check } from 'lucide-react';
 
@@ -21,13 +22,6 @@ import { Conversation, ConversationContent, ConversationEmptyState, Conversation
 import { Loader } from './ai-elements/loader';
 import { Plan, PlanHeader, PlanTitle, PlanContent, PlanFooter, PlanTrigger } from './ai-elements/plan';
 import { Sources, SourcesTrigger, SourcesContent, Source } from './ai-elements/sources';
-import {
-  Queue,
-  QueueList,
-  QueueItem,
-  QueueItemIndicator,
-  QueueItemContent,
-} from './ai-elements/queue';
 import { Checkpoint, CheckpointIcon, CheckpointTrigger } from './ai-elements/checkpoint';
 import {
   PromptInput,
@@ -58,9 +52,17 @@ type AcpChatPaneProps = {
   conversationId: string;
   providerId: string;
   cwd: string;
-  onStatusChange?: (status: AcpSessionStatus) => void;
+  autoApprove?: boolean;
+  onStatusChange?: (status: AcpSessionStatus, sessionKey: string) => void;
   onAppendRef?: (fn: ((msg: { content: string }) => Promise<void>) | null) => void;
   onOpenAgentSettings?: () => void;
+  onCreateNewChat?: () => void;
+  onClearChat?: () => void;
+  onDeleteChat?: () => void;
+  onMoveLeft?: () => void;
+  onMoveRight?: () => void;
+  canMoveLeft?: boolean;
+  canMoveRight?: boolean;
   className?: string;
 };
 
@@ -296,8 +298,16 @@ type AcpChatInnerProps = {
   sessionKey: string;
   modes: AcpSessionModes;
   models: AcpSessionModels;
-  onStatusChange?: (status: AcpSessionStatus) => void;
+  autoApproveInitial?: boolean;
+  onStatusChange?: (status: AcpSessionStatus, sessionKey: string) => void;
   onAppendRef?: (fn: ((msg: { content: string }) => Promise<void>) | null) => void;
+  onCreateNewChat?: () => void;
+  onClearChat?: () => void;
+  onDeleteChat?: () => void;
+  onMoveLeft?: () => void;
+  onMoveRight?: () => void;
+  canMoveLeft?: boolean;
+  canMoveRight?: boolean;
   className: string;
 };
 
@@ -309,10 +319,19 @@ function AcpChatInner({
   sessionKey,
   modes: initialModes,
   models: initialModels,
+  autoApproveInitial = false,
   onStatusChange,
   onAppendRef,
+  onCreateNewChat,
+  onClearChat,
+  onDeleteChat,
+  onMoveLeft,
+  onMoveRight,
+  canMoveLeft = true,
+  canMoveRight = true,
   className,
 }: AcpChatInnerProps) {
+  const [autoApprove, setAutoApprove] = useState(autoApproveInitial);
   const [currentModeId, setCurrentModeId] = useState(initialModes?.currentModeId ?? '');
   const [currentModelId, setCurrentModelId] = useState(initialModels?.currentModelId ?? '');
 
@@ -320,12 +339,21 @@ function AcpChatInner({
   const [messageHistory, setMessageHistory] = useState<string[]>([]);
   const historyIndexRef = useRef(-1);
 
+  // Message queue for rapid sends
+  const messageQueueRef = useRef<Array<{ text: string; files?: any[] }>>([]);
+
   // Side-channel state
   const [usage, setUsage] = useState<AcpUsageData | null>(null);
   const [planEntries, setPlanEntries] = useState<AcpPlanEntry[]>([]);
   const [availableCommands, setAvailableCommands] = useState<AcpCommand[]>([]);
   const [sessionTitle, setSessionTitle] = useState<string | null>(null);
   const [configOptions, setConfigOptions] = useState<Map<string, AcpConfigOption>>(new Map());
+
+  // Sync autoApprove to transport (transport is mutable by design)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability
+    transport.autoApprove = autoApprove;
+  }, [transport, autoApprove]);
 
   // Wire side-channel callbacks on transport
   useEffect(() => {
@@ -395,8 +423,8 @@ function AcpChatInner({
   }, [appendFn, onAppendRef]);
 
   useEffect(() => {
-    onStatusChange?.(effectiveStatus);
-  }, [effectiveStatus, onStatusChange]);
+    onStatusChange?.(effectiveStatus, sessionKey);
+  }, [effectiveStatus, sessionKey, onStatusChange]);
 
   // Handle approval clicks (delegated from Confirmation buttons)
   const handleApprovalClick = useCallback((e: React.MouseEvent) => {
@@ -416,11 +444,25 @@ function AcpChatInner({
       setMessageHistory((prev) => [...prev, message.text.trim()]);
       historyIndexRef.current = -1;
     }
-    sendMessage({
+    const payload = {
       text: message.text,
       files: message.files.length > 0 ? message.files : undefined,
-    });
-  }, [sendMessage]);
+    };
+    // Queue if the chat is busy processing a previous message
+    if (chatStatus !== 'ready') {
+      messageQueueRef.current.push(payload);
+      return;
+    }
+    sendMessage(payload);
+  }, [sendMessage, chatStatus]);
+
+  // Drain queued messages when chat becomes ready
+  useEffect(() => {
+    if (chatStatus === 'ready' && messageQueueRef.current.length > 0) {
+      const next = messageQueueRef.current.shift()!;
+      sendMessage(next);
+    }
+  }, [chatStatus, sendMessage]);
 
   // Slash command autocomplete
   const [commandFilter, setCommandFilter] = useState<string | null>(null);
@@ -543,9 +585,82 @@ function AcpChatInner({
         </div>
       )}
 
+      {/* Toolbar */}
+      <div className="flex shrink-0 items-center justify-between border-b border-border/50 p-3">
+        {/* Left: model name */}
+        <div className="flex items-center">
+          {agent && initialModels && initialModels.availableModels.length > 1 && currentModelId ? (
+            <ModelPicker
+              agent={agent}
+              models={initialModels.availableModels}
+              currentModelId={currentModelId}
+              onModelChange={handleModelChange}
+            />
+          ) : agent ? (
+            <div className="flex h-7 shrink-0 items-center gap-1.5 px-1 text-xs text-muted-foreground">
+              <img
+                src={agent.logo}
+                alt={agent.alt}
+                className={`size-3.5 rounded-sm ${agent.invertInDark ? 'dark:invert' : ''}`}
+              />
+              <span>{agent.name}</span>
+            </div>
+          ) : null}
+        </div>
+
+        {/* Right: action buttons */}
+        <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={onCreateNewChat}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            title="New Chat"
+          >
+            <PlusIcon className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            title="Settings"
+          >
+            <SettingsIcon className="size-3.5" />
+          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                title="More"
+              >
+                <MoreHorizontalIcon className="size-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={onClearChat}>
+                <RefreshCwIcon className="size-4" />
+                Clear Chat
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onMoveRight} disabled={!canMoveRight}>
+                <ArrowRightIcon className="size-4" />
+                Move Right
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onMoveLeft} disabled={!canMoveLeft}>
+                <ArrowLeftIcon className="size-4" />
+                Move Left
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onDeleteChat} className="text-red-400 focus:text-red-400">
+                <Trash2Icon className="size-4" />
+                Delete Chat
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
       {/* Messages area */}
       <Conversation>
-        <ConversationContent className="gap-3 px-0 py-2">
+        <ConversationContent className="gap-3 p-3">
           {messages.length === 0 && chatStatus === 'ready' && (
             <ConversationEmptyState
               title="Start a conversation"
@@ -640,74 +755,55 @@ function AcpChatInner({
             </Message>
           )}
 
+          {/* Inline plan card */}
+          {planEntries.length > 0 && (
+            <div className="px-2">
+              <Plan isStreaming={isStreaming} defaultOpen>
+                <PlanHeader>
+                  <PlanTitle>Plan</PlanTitle>
+                  <PlanTrigger />
+                </PlanHeader>
+                <PlanContent>
+                  <ul className="space-y-1 text-xs">
+                    {planEntries.map((entry, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <span className="mt-0.5 shrink-0">
+                          {entry.status === 'completed' ? (
+                            <CheckCircleIcon className="size-3.5 text-green-500" />
+                          ) : entry.status === 'in_progress' ? (
+                            <Loader2 className="size-3.5 animate-spin text-primary" />
+                          ) : (
+                            <ClockIcon className="size-3.5 text-muted-foreground" />
+                          )}
+                        </span>
+                        <span className={entry.status === 'completed' ? 'text-muted-foreground line-through' : ''}>
+                          {entry.content}
+                        </span>
+                        {entry.priority === 'high' && (
+                          <span className="ml-auto shrink-0 rounded bg-red-500/15 px-1 text-[10px] text-red-400">high</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </PlanContent>
+                <PlanFooter>
+                  <span className="text-[10px] text-muted-foreground">
+                    {planEntries.filter((e) => e.status === 'completed').length}/{planEntries.length} completed
+                  </span>
+                </PlanFooter>
+              </Plan>
+            </div>
+          )}
+
           {/* Error display */}
           {chatStatus === 'error' && chatError && (
             <div className="mx-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-              {chatError.message}
+              <p>{chatError.message}</p>
             </div>
           )}
         </ConversationContent>
         <ConversationScrollButton />
       </Conversation>
-
-      {/* Plan + Queue display */}
-      {planEntries.length > 0 && (
-        <div className="border-t border-border/50 px-3 pt-2">
-          {/* Queue: compact pending items view during streaming */}
-          {isStreaming && planEntries.some((e) => e.status !== 'completed') && (
-            <Queue className="mb-2">
-              <QueueList>
-                {planEntries
-                  .filter((e) => e.status !== 'completed')
-                  .map((entry, i) => (
-                    <QueueItem key={i}>
-                      <div className="flex items-center gap-2">
-                        <QueueItemIndicator completed={false} />
-                        <QueueItemContent>{entry.content}</QueueItemContent>
-                      </div>
-                    </QueueItem>
-                  ))}
-              </QueueList>
-            </Queue>
-          )}
-
-          {/* Full plan view */}
-          <Plan isStreaming={isStreaming} defaultOpen>
-            <PlanHeader>
-              <PlanTitle>Plan</PlanTitle>
-              <PlanTrigger />
-            </PlanHeader>
-            <PlanContent>
-              <ul className="space-y-1 text-xs">
-                {planEntries.map((entry, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <span className="mt-0.5 shrink-0">
-                      {entry.status === 'completed' ? (
-                        <CheckCircleIcon className="size-3.5 text-green-500" />
-                      ) : entry.status === 'in_progress' ? (
-                        <Loader2 className="size-3.5 animate-spin text-primary" />
-                      ) : (
-                        <ClockIcon className="size-3.5 text-muted-foreground" />
-                      )}
-                    </span>
-                    <span className={entry.status === 'completed' ? 'text-muted-foreground line-through' : ''}>
-                      {entry.content}
-                    </span>
-                    {entry.priority === 'high' && (
-                      <span className="ml-auto shrink-0 rounded bg-red-500/15 px-1 text-[10px] text-red-400">high</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </PlanContent>
-            <PlanFooter>
-              <span className="text-[10px] text-muted-foreground">
-                {planEntries.filter((e) => e.status === 'completed').length}/{planEntries.length} completed
-              </span>
-            </PlanFooter>
-          </Plan>
-        </div>
-      )}
 
       {/* Usage bar */}
       {usage && usage.size && usage.used != null && (
@@ -736,7 +832,7 @@ function AcpChatInner({
       )}
 
       {/* Input area */}
-      <div className="shrink-0 border-t border-border/50 px-0 pb-1 pt-3 [&_[data-slot=input-group]]:items-stretch [&_[data-slot=input-group]]:!border-0 [&_[data-slot=input-group]]:!bg-transparent [&_[data-slot=input-group]]:dark:!bg-transparent [&_[data-slot=input-group]]:![box-shadow:none] [&_[data-slot=input-group]]:!ring-0 [&_textarea]:!py-1.5 [&_textarea]:!px-0 [&_textarea]:!ring-offset-0 [&_textarea]:!outline-none [&_[data-slot=input-group-addon]]:!px-0 [&_[data-slot=input-group-addon]]:!pb-0 [&_[data-slot=input-group-addon]]:!pt-0">
+      <div className="shrink-0 border-t border-border/50 p-3 [&_[data-slot=input-group]]:items-stretch [&_[data-slot=input-group]]:!border-0 [&_[data-slot=input-group]]:!bg-transparent [&_[data-slot=input-group]]:dark:!bg-transparent [&_[data-slot=input-group]]:![box-shadow:none] [&_[data-slot=input-group]]:!ring-0 [&_textarea]:!py-1.5 [&_textarea]:!px-0 [&_textarea]:!ring-offset-0 [&_textarea]:!outline-none [&_[data-slot=input-group-addon]]:!px-0 [&_[data-slot=input-group-addon]]:!pb-0 [&_[data-slot=input-group-addon]]:!pt-0">
         <PromptInput
           onSubmit={handleSubmit}
           multiple
@@ -793,24 +889,7 @@ function AcpChatInner({
                 </PromptInputActionMenuContent>
               </PromptInputActionMenu>
 
-              {/* Model selector with agent branding + hover detail panel */}
-              {agent && initialModels && initialModels.availableModels.length > 1 && currentModelId ? (
-                <ModelPicker
-                  agent={agent}
-                  models={initialModels.availableModels}
-                  currentModelId={currentModelId}
-                  onModelChange={handleModelChange}
-                />
-              ) : agent && (
-                <div className="flex h-8 shrink-0 items-center gap-1 px-2 text-xs text-muted-foreground">
-                  <img
-                    src={agent.logo}
-                    alt={agent.alt}
-                    className={`size-3.5 rounded-sm ${agent.invertInDark ? 'dark:invert' : ''}`}
-                  />
-                  <span>{agent.name}</span>
-                </div>
-              )}
+
 
               {/* Mode selector */}
               {initialModes && initialModes.availableModes.length > 1 && (
@@ -841,6 +920,20 @@ function AcpChatInner({
                   </PromptInputSelectContent>
                 </PromptInputSelect>
               )}
+
+              {/* Auto-approve toggle */}
+              <PromptInputSelect
+                value={autoApprove ? 'auto' : 'ask'}
+                onValueChange={(val) => setAutoApprove(val === 'auto')}
+              >
+                <PromptInputSelectTrigger className="h-8 w-auto shrink-0 gap-1 px-2 text-xs whitespace-nowrap">
+                  <PromptInputSelectValue />
+                </PromptInputSelectTrigger>
+                <PromptInputSelectContent>
+                  <PromptInputSelectItem value="ask">Ask for approval</PromptInputSelectItem>
+                  <PromptInputSelectItem value="auto">Auto-approve</PromptInputSelectItem>
+                </PromptInputSelectContent>
+              </PromptInputSelect>
 
               {/* Config option selectors — only show when value matches an option */}
               {Array.from(configOptions.values())
@@ -891,9 +984,17 @@ export function AcpChatPane({
   conversationId,
   providerId,
   cwd,
+  autoApprove: autoApproveProp = false,
   onStatusChange,
   onAppendRef,
   onOpenAgentSettings,
+  onCreateNewChat,
+  onClearChat,
+  onDeleteChat,
+  onMoveLeft,
+  onMoveRight,
+  canMoveLeft,
+  canMoveRight,
   className = '',
 }: AcpChatPaneProps) {
   const {
@@ -904,13 +1005,14 @@ export function AcpChatPane({
     sessionKey,
     modes,
     models,
+    restartSession,
   } = useAcpSession({ conversationId, providerId, cwd });
 
   useEffect(() => {
-    if (!transport) {
-      onStatusChange?.('initializing');
+    if (!transport && sessionKey) {
+      onStatusChange?.('initializing', sessionKey);
     }
-  }, [transport, onStatusChange]);
+  }, [transport, sessionKey, onStatusChange]);
 
   useEffect(() => {
     if (!transport) {
@@ -938,6 +1040,21 @@ export function AcpChatPane({
     );
   }
 
+  // General session error with reconnect option
+  if (sessionError && sessionError.message !== 'no_acp_support' && sessionError.message !== 'acp_unavailable') {
+    return (
+      <div className={`flex h-full flex-col items-center justify-center gap-3 p-6 text-center ${className}`}>
+        <AlertCircle className="h-8 w-8 text-destructive" />
+        <h3 className="text-sm font-semibold">Session Error</h3>
+        <p className="max-w-md text-xs text-muted-foreground">{sessionError.message}</p>
+        <Button variant="outline" size="sm" onClick={restartSession}>
+          <RefreshCwIcon className="mr-1.5 h-3.5 w-3.5" />
+          Reconnect
+        </Button>
+      </div>
+    );
+  }
+
   // Loading state
   if (!transport) {
     return (
@@ -956,8 +1073,16 @@ export function AcpChatPane({
       sessionKey={sessionKey!}
       modes={modes}
       models={models}
+      autoApproveInitial={autoApproveProp}
       onStatusChange={onStatusChange}
       onAppendRef={onAppendRef}
+      onCreateNewChat={onCreateNewChat}
+      onClearChat={onClearChat}
+      onDeleteChat={onDeleteChat}
+      onMoveLeft={onMoveLeft}
+      onMoveRight={onMoveRight}
+      canMoveLeft={canMoveLeft}
+      canMoveRight={canMoveRight}
       className={className}
     />
   );

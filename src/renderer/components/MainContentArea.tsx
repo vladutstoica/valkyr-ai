@@ -85,6 +85,7 @@ const MainContentArea: React.FC<MainContentAreaProps> = ({
             />
           ) : (
             <ChatInterface
+              key={activeTask.id}
               task={activeTask}
               projectName={selectedProject.name}
               projectPath={selectedProject.path}

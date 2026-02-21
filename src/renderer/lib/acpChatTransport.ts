@@ -1,5 +1,6 @@
 import type { ChatTransport, UIMessage, UIMessageChunk } from 'ai';
 import type { AcpUpdateEvent } from '../types/electron-api';
+import { acpStatusStore } from './acpStatusStore';
 
 const api = () => window.electronAPI;
 
@@ -110,8 +111,8 @@ class ChunkMapper {
       case 'tool_call': {
         chunks.push(...this.endAll());
         const toolCallId = update.toolCallId || `tool-${Date.now()}`;
-        // Derive a tool name from the title (e.g. "Read file.ts" → "Read")
-        const toolName = update.title?.split(/\s/)[0] || update.kind || 'tool';
+        // Use canonical tool kind if available, fall back to deriving from title
+        const toolName = update.kind || update.title?.split(/\s/)[0] || 'tool';
         chunks.push({
           type: 'tool-input-available',
           toolCallId,
@@ -368,6 +369,7 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
                 // Auto-approve without showing UI
                 api().acpApprove({ sessionKey, toolCallId: event.toolCallId, approved: true });
               } else {
+                acpStatusStore.setStatus(sessionKey, 'streaming', true);
                 controller.enqueue({
                   type: 'tool-approval-request',
                   approvalId: event.toolCallId,
@@ -435,7 +437,8 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
   }
 
   async reconnectToStream(): Promise<ReadableStream<UIMessageChunk> | null> {
-    // ACP sessions don't support stream reconnection
+    // ACP sessions don't support mid-stream reconnection.
+    // Error recovery is handled at the session level via restartSession in useAcpSession.
     return null;
   }
 
@@ -443,6 +446,7 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
    * Forward tool approval to ACP session.
    */
   approve(toolCallId: string, approved: boolean): void {
+    acpStatusStore.setStatus(this.sessionKey, 'streaming', false);
     api().acpApprove({ sessionKey: this.sessionKey, toolCallId, approved });
   }
 
@@ -450,6 +454,6 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
    * Kill the ACP session.
    */
   destroy(): void {
-    api().acpKill({ sessionKey: this.sessionKey });
+    api().acpDetach({ sessionKey: this.sessionKey });
   }
 }

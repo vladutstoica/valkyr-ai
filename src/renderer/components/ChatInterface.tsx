@@ -2,7 +2,6 @@ import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { Plus, X } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
 import { useTheme } from '../hooks/useTheme';
-import { TerminalPane } from './TerminalPane';
 import InstallBanner from './InstallBanner';
 import { agentMeta } from '../providers/meta';
 import { agentConfig } from '../lib/agentConfig';
@@ -14,7 +13,10 @@ import { Task } from '../types/chat';
 import { useTaskTerminals } from '@/lib/taskTerminalsStore';
 import { getInstallCommandForProvider, getProvider } from '@shared/providers/registry';
 import { AcpChatPane } from './AcpChatPane';
+import { acpStatusStore } from '../lib/acpStatusStore';
+import { unifiedStatusStore } from '../lib/unifiedStatusStore';
 import { useAutoScrollOnTaskSwitch } from '@/hooks/useAutoScrollOnTaskSwitch';
+import { useAcpInitialPrompt } from '@/hooks/useAcpInitialPrompt';
 import { TaskScopeProvider } from './TaskScopeContext';
 import { CreateChatModal } from './CreateChatModal';
 import { DeleteChatModal } from './DeleteChatModal';
@@ -117,6 +119,13 @@ const ChatInterface: React.FC<Props> = ({
   // Line comments for agent context injection
   const { formatted: commentsContext } = useTaskComments(task.id);
 
+  // Cleanup unified status store on task change / unmount
+  useEffect(() => {
+    return () => {
+      unifiedStatusStore.removeTask(task.id);
+    };
+  }, [task.id]);
+
   // Auto-scroll to bottom when this task becomes active
   useAutoScrollOnTaskSwitch(true, task.id);
 
@@ -189,6 +198,10 @@ const ChatInterface: React.FC<Props> = ({
 
     loadConversations();
   }, [task.id, task.agentId, initialAgent]); // provider is intentionally not included as a dependency
+
+  // ACP initial prompt injection refs
+  const acpAppendRef = useRef<((msg: { content: string }) => Promise<void>) | null>(null);
+  const [acpChatStatus, setAcpChatStatus] = useState<string>('initializing');
 
   // Ref to control terminal focus imperatively if needed
   const terminalRef = useRef<{ focus: () => void }>(null);
@@ -342,9 +355,11 @@ const ChatInterface: React.FC<Props> = ({
     [task.id, toast]
   );
 
-  const handleCreateNewChat = useCallback(() => {
-    setShowCreateChatModal(true);
-  }, []);
+  const handleCreateNewChat = useCallback(async () => {
+    const config = agentConfig[agent as Agent];
+    const title = config?.name || agent;
+    await handleCreateChat(title, agent);
+  }, [agent, handleCreateChat]);
 
   const handleSwitchChat = useCallback(
     async (conversationId: string) => {
@@ -424,6 +439,64 @@ const ChatInterface: React.FC<Props> = ({
     setChatToDelete(null);
     setShowDeleteChatModal(false);
   }, [chatToDelete, conversations, agent, task.id, activeConversationId]);
+
+  const handleClearChat = useCallback(
+    (conversationId: string) => {
+      const conv = conversations.find((c) => c.id === conversationId);
+      const convAgent = conv?.provider || agent;
+      const config = agentConfig[convAgent as Agent];
+      const title = config?.name || convAgent;
+      (async () => {
+        const terminalToDispose = `${convAgent}-chat-${conversationId}`;
+        terminalSessionRegistry.dispose(terminalToDispose);
+        await window.electronAPI.deleteConversation(conversationId);
+        await handleCreateChat(title, convAgent);
+      })();
+    },
+    [agent, conversations, handleCreateChat]
+  );
+
+  const handleDeleteChatById = useCallback(
+    (conversationId: string) => {
+      handleCloseChat(conversationId);
+    },
+    [handleCloseChat]
+  );
+
+  const handleMoveChat = useCallback(
+    async (conversationId: string, direction: 'left' | 'right') => {
+      const sorted = [...conversations].sort((a, b) => {
+        if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
+          return a.displayOrder - b.displayOrder;
+        }
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      });
+      const idx = sorted.findIndex((c) => c.id === conversationId);
+      if (idx < 0) return;
+      const swapIdx = direction === 'left' ? idx - 1 : idx + 1;
+      if (swapIdx < 0 || swapIdx >= sorted.length) return;
+      const newOrder = sorted.map((c) => c.id);
+      [newOrder[idx], newOrder[swapIdx]] = [newOrder[swapIdx], newOrder[idx]];
+      await window.electronAPI.reorderConversations({ taskId: task.id, conversationIds: newOrder });
+      const result = await window.electronAPI.getConversations(task.id);
+      if (result.success) {
+        setConversations(result.conversations || []);
+      }
+    },
+    [conversations, task.id]
+  );
+
+  // Helper to compute sorted conversations (used for rendering and move logic)
+  const sortedConversations = React.useMemo(
+    () =>
+      [...conversations].sort((a, b) => {
+        if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
+          return a.displayOrder - b.displayOrder;
+        }
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }),
+    [conversations]
+  );
 
   // Persist last-selected agent per task (including Droid)
   useEffect(() => {
@@ -689,6 +762,16 @@ const ChatInterface: React.FC<Props> = ({
     enabled: isTerminal && agentMeta[agent]?.initialPromptFlag === undefined,
   });
 
+  // ACP initial prompt injection — sends task context as first message
+  useAcpInitialPrompt({
+    taskId: task.id,
+    providerId: agent,
+    prompt: initialInjection,
+    appendFn: acpAppendRef.current,
+    chatStatus: acpChatStatus,
+    enabled: activeConversationMode === 'acp',
+  });
+
   // Ensure an agent is stored for this task so fallbacks can subscribe immediately
   useEffect(() => {
     try {
@@ -724,167 +807,80 @@ const ChatInterface: React.FC<Props> = ({
         />
 
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="shrink-0 p-3 pb-0">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {[...conversations]
-                    .sort((a, b) => {
-                      // Sort by display order or creation time to maintain consistent order
-                      if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
-                        return a.displayOrder - b.displayOrder;
-                      }
-                      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-                    })
-                    .map((conv, index) => {
-                      const isActive = conv.id === activeConversationId;
-                      const convAgent = conv.provider || agent;
-                      const config = agentConfig[convAgent as Agent];
-                      const agentName = config?.name || convAgent;
-
-                      // Count how many chats use the same agent up to this point
-                      const sameAgentCount = conversations
-                        .slice(0, index + 1)
-                        .filter((c) => (c.provider || agent) === convAgent).length;
-                      const showNumber =
-                        conversations.filter((c) => (c.provider || agent) === convAgent).length > 1;
-
-                      return (
-                        <button
-                          key={conv.id}
-                          onClick={() => handleSwitchChat(conv.id)}
-                          className={`inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-muted px-2.5 text-xs font-medium text-foreground transition-colors ${
-                            isActive
-                              ? 'font-semibold' // Just make active tab bold
-                              : 'hover:bg-muted/80' // Only inactive tabs have hover effect
-                          }`}
-                          title={`${agentName}${showNumber ? ` (${sameAgentCount})` : ''}`}
-                        >
-                          {config?.logo && (
-                            <img
-                              src={config.logo}
-                              alt=""
-                              className={`h-3.5 w-3.5 flex-shrink-0 object-contain ${
-                                config.invertInDark ? 'dark:invert' : ''
-                              }`}
-                            />
-                          )}
-                          <span className="max-w-[10rem] truncate">
-                            {agentName}
-                            {showNumber && (
-                              <span className="ml-1 opacity-60">{sameAgentCount}</span>
-                            )}
-                          </span>
-                          {conversations.length > 1 && (
-                            <span
-                              role="button"
-                              tabIndex={0}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCloseChat(conv.id);
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleCloseChat(conv.id);
-                                }
-                              }}
-                              className="ml-1 rounded hover:bg-background/20"
-                              title="Close chat"
-                            >
-                              <X className="h-3 w-3" />
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-
-                  <button
-                    onClick={handleCreateNewChat}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-muted transition-colors hover:bg-muted/80"
-                    title="New Chat"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                  </button>
-
-                  {(task.metadata?.linearIssue ||
-                    task.metadata?.githubIssue ||
-                    task.metadata?.jiraIssue) && (
-                    <AgentDisplay
-                      agent={agent}
-                      taskId={task.id}
-                      linearIssue={task.metadata?.linearIssue || null}
-                      githubIssue={task.metadata?.githubIssue || null}
-                      jiraIssue={task.metadata?.jiraIssue || null}
-                    />
-                  )}
-                </div>
-                {autoApproveEnabled && (
-                  <div className="inline-flex items-center gap-1.5 rounded-md border border-orange-500/50 bg-orange-500/10 px-2 py-1 text-xs font-medium text-orange-700 dark:text-orange-400">
-                    <span className="h-1.5 w-1.5 rounded-full bg-orange-500" />
-                    Auto-approve
-                  </div>
-                )}
-              </div>
-              {(() => {
-                if (isAgentInstalled !== true) {
-                  return (
-                    <InstallBanner
-                      agent={agent as any}
-                      terminalId={terminalId}
-                      installCommand={getInstallCommandForProvider(agent as any)}
-                      onRunInstall={runInstallCommand}
-                      onOpenExternal={(url) => window.electronAPI.openExternal(url)}
-                    />
-                  );
-                }
-                if (cliStartFailed) {
-                  return (
-                    <InstallBanner
-                      agent={agent as any}
-                      terminalId={terminalId}
-                      onRunInstall={runInstallCommand}
-                      onOpenExternal={(url) => window.electronAPI.openExternal(url)}
-                    />
-                  );
-                }
-                return null;
-              })()}
-            </div>
-          </div>
-          <div className="flex min-h-0 flex-1 flex-col p-3 pt-3">
-            <div
-              className={`min-h-0 flex-1 overflow-hidden rounded-md ${
-                agent === 'charm'
+          {(() => {
+            if (isAgentInstalled !== true) {
+              return (
+                <InstallBanner
+                  agent={agent as any}
+                  terminalId={terminalId}
+                  installCommand={getInstallCommandForProvider(agent as any)}
+                  onRunInstall={runInstallCommand}
+                  onOpenExternal={(url) => window.electronAPI.openExternal(url)}
+                />
+              );
+            }
+            if (cliStartFailed) {
+              return (
+                <InstallBanner
+                  agent={agent as any}
+                  terminalId={terminalId}
+                  onRunInstall={runInstallCommand}
+                  onOpenExternal={(url) => window.electronAPI.openExternal(url)}
+                />
+              );
+            }
+            return null;
+          })()}
+          <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto p-3 pt-3">
+            {conversationsLoaded && sortedConversations.map((conv, idx) => {
+              const convAgent = conv.provider || agent;
+              const agentBg =
+                convAgent === 'charm'
                   ? effectiveTheme === 'dark-black'
                     ? 'bg-black'
                     : effectiveTheme === 'dark'
                       ? 'bg-card'
                       : 'bg-white'
-                  : agent === 'mistral'
+                  : convAgent === 'mistral'
                     ? effectiveTheme === 'dark' || effectiveTheme === 'dark-black'
                       ? effectiveTheme === 'dark-black'
                         ? 'bg-[#141820]'
                         : 'bg-[#202938]'
                       : 'bg-white'
-                    : ''
-              }`}
-            >
-              {/* Wait for conversations to load to ensure stable terminalId */}
-              {conversationsLoaded && activeConversationId ? (
-                <AcpChatPane
-                  conversationId={activeConversationId}
-                  providerId={agent}
-                  cwd={terminalCwd || task.path || '.'}
-                  onStatusChange={() => {
-                    try { window.localStorage.setItem(`agent:locked:${task.id}`, agent); } catch {}
-                    try { window.electronAPI?.setTaskAgent?.({ taskId: task.id, lockedAgent: agent }); } catch {}
-                  }}
-                  className="h-full w-full"
-                />
-              ) : null}
-            </div>
+                    : '';
+              return (
+                <div
+                  key={conv.id}
+                  className={`min-w-[400px] flex-1 overflow-hidden rounded-md border border-border/50 ${agentBg}`}
+                  onClick={() => setActiveConversationId(conv.id)}
+                >
+                  <AcpChatPane
+                    conversationId={conv.id}
+                    providerId={convAgent}
+                    cwd={terminalCwd || task.path || '.'}
+                    autoApprove={Boolean(task.metadata?.autoApprove)}
+                    onStatusChange={(status, sessionKey) => {
+                      try { window.localStorage.setItem(`agent:locked:${task.id}`, convAgent); } catch {}
+                      try { window.electronAPI?.setTaskAgent?.({ taskId: task.id, lockedAgent: convAgent }); } catch {}
+                      acpStatusStore.setStatus(sessionKey, status, false);
+                      unifiedStatusStore.setTaskMode(task.id, 'acp', sessionKey);
+                      if (conv.id === activeConversationId) {
+                        setAcpChatStatus(status);
+                      }
+                    }}
+                    onAppendRef={conv.id === activeConversationId ? (fn) => { acpAppendRef.current = fn; } : undefined}
+                    onCreateNewChat={handleCreateNewChat}
+                    onClearChat={() => handleClearChat(conv.id)}
+                    onDeleteChat={() => handleDeleteChatById(conv.id)}
+                    onMoveLeft={() => handleMoveChat(conv.id, 'left')}
+                    onMoveRight={() => handleMoveChat(conv.id, 'right')}
+                    canMoveLeft={idx > 0}
+                    canMoveRight={idx < sortedConversations.length - 1}
+                    className="h-full w-full"
+                  />
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

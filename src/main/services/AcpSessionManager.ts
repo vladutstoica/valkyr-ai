@@ -369,7 +369,14 @@ export class AcpSessionManager {
   ): Promise<SessionCreateResult> {
     const sessionKey = `${providerId}-acp-${conversationId}`;
 
-    // If a stale session exists (e.g. after Ctrl+R reload), kill it first
+    // Reuse healthy existing session (e.g. when switching back to a task)
+    const existing = this.sessions.get(sessionKey);
+    if (existing && !this.finalizedSessions.has(sessionKey) && existing.status !== 'error') {
+      log.info(`Reusing existing ACP session: ${sessionKey}`);
+      return { success: true, sessionKey, acpSessionId: existing.acpSessionId ?? undefined, modes: existing.modes, models: existing.models };
+    }
+
+    // If a stale/errored session exists (e.g. after Ctrl+R reload), kill it first
     if (this.sessions.has(sessionKey)) {
       log.info(`Killing stale ACP session before recreate: ${sessionKey}`);
       this.killSession(sessionKey);

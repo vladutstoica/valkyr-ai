@@ -1628,6 +1628,9 @@ declare global {
       acpKill: (args: {
         sessionKey: string;
       }) => Promise<{ success: boolean; error?: string }>;
+      acpDetach: (args: {
+        sessionKey: string;
+      }) => Promise<{ success: boolean; error?: string }>;
       acpApprove: (args: {
         sessionKey: string;
         toolCallId: string;
@@ -2438,6 +2441,9 @@ export interface ElectronAPI {
     sessionKey: string;
   }) => Promise<{ success: boolean; error?: string }>;
   acpKill: (args: {
+    sessionKey: string;
+  }) => Promise<{ success: boolean; error?: string }>;
+  acpDetach: (args: {
     sessionKey: string;
   }) => Promise<{ success: boolean; error?: string }>;
   acpApprove: (args: {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { UIMessage } from 'ai';
 import { AcpChatTransport } from '../lib/acpChatTransport';
 import type { AcpSessionStatus, AcpSessionModes, AcpSessionModels } from '../types/electron-api';
@@ -19,6 +19,7 @@ export type UseAcpSessionReturn = {
   sessionKey: string | null;
   modes: AcpSessionModes;
   models: AcpSessionModels;
+  restartSession: () => void;
 };
 
 /**
@@ -43,6 +44,12 @@ function convertStoredParts(parts: any[]): UIMessage['parts'] {
         input: part.args || {},
         output: part.result,
       } as any);
+    } else if (typeof part.type === 'string' && part.type.startsWith('tool-')) {
+      // New AI SDK format (tool-Read, tool-Write, etc.) — pass through as-is
+      result.push(part as any);
+    } else if (part.type) {
+      // Unknown type — include rather than silently drop
+      result.push(part as any);
     }
   }
 
@@ -63,6 +70,7 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
   const [modes, setModes] = useState<AcpSessionModes>(null);
   const [models, setModels] = useState<AcpSessionModels>(null);
 
+  const [restartCount, setRestartCount] = useState(0);
   const mountedRef = useRef(true);
   const sessionKeyRef = useRef<string | null>(null);
 
@@ -131,12 +139,25 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
       cleanupStatus?.();
 
       if (sessionKeyRef.current) {
-        api().acpKill({ sessionKey: sessionKeyRef.current });
+        api().acpDetach({ sessionKey: sessionKeyRef.current });
       }
       sessionKeyRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId, providerId, cwd]);
+  }, [conversationId, providerId, cwd, restartCount]);
 
-  return { transport, sessionStatus, sessionError, initialMessages, sessionKey, modes, models };
+  const restartSession = useCallback(() => {
+    // Kill the dead session
+    if (sessionKeyRef.current) {
+      api().acpKill({ sessionKey: sessionKeyRef.current }).catch(() => {});
+      sessionKeyRef.current = null;
+    }
+    // Reset state to trigger a fresh init
+    setSessionKey(null);
+    setSessionStatus('initializing');
+    setSessionError(null);
+    setRestartCount((c) => c + 1);
+  }, []);
+
+  return { transport, sessionStatus, sessionError, initialMessages, sessionKey, modes, models, restartSession };
 }

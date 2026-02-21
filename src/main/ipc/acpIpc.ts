@@ -66,6 +66,9 @@ const AcpExtMethodSchema = z.object({
 // Map session keys to the WebContents that owns them
 const sessionOwners = new Map<string, WebContents>();
 
+// Track which WebContents IDs already have a 'destroyed' listener to avoid stacking
+const destroyedListenerIds = new Set<number>();
+
 function safeSendToOwner(sessionKey: string, channel: string, payload: unknown): boolean {
   const wc = sessionOwners.get(sessionKey);
   if (!wc) return false;
@@ -113,10 +116,12 @@ export function registerAcpIpc(): void {
         // Track ownership for per-session event routing
         sessionOwners.set(result.sessionKey, event.sender);
 
-        // Clean up ownership when window is destroyed
+        // Clean up ownership when window is destroyed (only register once per WebContents)
         const wcId = event.sender.id;
-        if (!event.sender.isDestroyed()) {
+        if (!event.sender.isDestroyed() && !destroyedListenerIds.has(wcId)) {
+          destroyedListenerIds.add(wcId);
           event.sender.once('destroyed', () => {
+            destroyedListenerIds.delete(wcId);
             for (const [key, wc] of sessionOwners.entries()) {
               if (wc.id === wcId) {
                 sessionOwners.delete(key);
@@ -159,6 +164,22 @@ export function registerAcpIpc(): void {
     try {
       const parsed = AcpSessionKeySchema.parse(args);
       return await acpSessionManager.cancelSession(parsed.sessionKey);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return { success: false, error: `Validation error: ${error.errors.map(e => e.message).join(', ')}` };
+      }
+      return { success: false, error: error.message || 'Unknown error' };
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // acp:detach — Detach from session without killing it
+  // -------------------------------------------------------------------------
+  ipcMain.handle('acp:detach', async (_event, args: unknown) => {
+    try {
+      const parsed = AcpSessionKeySchema.parse(args);
+      sessionOwners.delete(parsed.sessionKey);
+      return { success: true };
     } catch (error: any) {
       if (error instanceof z.ZodError) {
         return { success: false, error: `Validation error: ${error.errors.map(e => e.message).join(', ')}` };
