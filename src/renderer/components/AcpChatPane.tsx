@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { UIMessage } from 'ai';
 import { useChat } from '@ai-sdk/react';
 import * as SelectPrimitive from '@radix-ui/react-select';
-import { AlertCircle, ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon, CheckIcon, ChevronDownIcon, ClockIcon, CopyIcon, DownloadIcon, Loader2, MoreHorizontalIcon, PaperclipIcon, PlusIcon, RefreshCwIcon, SettingsIcon, Trash2Icon, WrenchIcon } from 'lucide-react';
+import { AlertCircle, ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon, CheckIcon, ChevronDownIcon, ClockIcon, CopyIcon, DownloadIcon, Loader2, MoreHorizontalIcon, PaperclipIcon, PlusIcon, RefreshCwIcon, SettingsIcon, Trash2Icon, WrenchIcon, XIcon } from 'lucide-react';
 import { useAcpSession } from '../hooks/useAcpSession';
 import { LazyAcpChatTransport, type AcpUsageData, type AcpPlanEntry, type AcpCommand, type AcpConfigOption } from '../lib/acpChatTransport';
 import { Button } from './ui/button';
@@ -11,9 +11,7 @@ import type { AcpSessionStatus, AcpSessionModes, AcpSessionModels, AcpSessionMod
 import { acpStatusStore } from '../lib/acpStatusStore';
 import { unifiedStatusStore } from '../lib/unifiedStatusStore';
 import { agentConfig } from '../lib/agentConfig';
-import { ModelInfoCard } from './ModelInfoCard';
 import type { Agent } from '../types';
-import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from './ui/dropdown-menu';
 
 // AI Elements
@@ -47,6 +45,23 @@ import {
   type PromptInputMessage,
 } from './ai-elements/prompt-input';
 import { Confirmation, ConfirmationActions, ConfirmationAction, ConfirmationTitle, ConfirmationRequest, ConfirmationAccepted, ConfirmationRejected } from './ai-elements/confirmation';
+import { Shimmer } from './ai-elements/shimmer';
+import { Suggestions, Suggestion } from './ai-elements/suggestion';
+import { Task, TaskTrigger, TaskContent, TaskItem, TaskItemFile } from './ai-elements/task';
+import {
+  InlineCitation, InlineCitationCard, InlineCitationCardTrigger,
+  InlineCitationCardBody, InlineCitationCarousel, InlineCitationCarouselContent,
+  InlineCitationCarouselItem, InlineCitationSource,
+} from './ai-elements/inline-citation';
+import {
+  ModelSelector, ModelSelectorTrigger, ModelSelectorContent, ModelSelectorInput,
+  ModelSelectorList, ModelSelectorEmpty, ModelSelectorGroup, ModelSelectorItem, ModelSelectorName,
+} from './ai-elements/model-selector';
+import {
+  Queue, QueueSection, QueueSectionTrigger, QueueSectionLabel,
+  QueueSectionContent, QueueList, QueueItem, QueueItemIndicator,
+  QueueItemContent, QueueItemActions, QueueItemAction,
+} from './ai-elements/queue';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -79,86 +94,6 @@ function getTextFromParts(parts: UIMessage['parts']): string {
     .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
     .map((p) => p.text)
     .join('');
-}
-
-type ModelPickerProps = {
-  agent: { name: string; logo: string; alt: string; invertInDark?: boolean };
-  providerId: string;
-  models: AcpSessionModel[];
-  currentModelId: string;
-  onModelChange: (modelId: string) => void;
-};
-
-function ModelPicker({ agent, providerId, models, currentModelId, onModelChange }: ModelPickerProps) {
-  const [open, setOpen] = useState(false);
-  const [hoveredModel, setHoveredModel] = useState<AcpSessionModel | null>(null);
-
-  const currentModel = models.find((m) => m.id === currentModelId);
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className="flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-        >
-          <img
-            src={agent.logo}
-            alt={agent.alt}
-            className={`size-3.5 rounded-sm ${agent.invertInDark ? 'dark:invert' : ''}`}
-          />
-          <span>{currentModel?.name ?? agent.name}</span>
-          <ChevronDownIcon className="size-3 opacity-50" />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        className="w-auto min-w-[200px] max-w-[480px] rounded-md p-0"
-      >
-        <div className="flex">
-          {/* Model list */}
-          <div className="min-w-[200px] max-h-[300px] overflow-auto py-1">
-            {models.map((model) => (
-              <button
-                key={model.id}
-                type="button"
-                className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors ${
-                  model.id === currentModelId
-                    ? 'bg-accent text-accent-foreground'
-                    : 'text-popover-foreground hover:bg-accent/50'
-                }`}
-                onMouseEnter={() => setHoveredModel(model)}
-                onMouseLeave={() => setHoveredModel(null)}
-                onClick={() => {
-                  onModelChange(model.id);
-                  setOpen(false);
-                }}
-              >
-                {model.id === currentModelId ? (
-                  <CheckIcon className="size-3 shrink-0" />
-                ) : (
-                  <span className="size-3 shrink-0" />
-                )}
-                <span>{model.name}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Hover detail panel — model info card with pricing, status & uptime */}
-          {hoveredModel && (
-            <ModelInfoCard
-              modelId={hoveredModel.id}
-              providerId={providerId}
-              providerName={agent.name}
-              modelName={hoveredModel.name}
-              providerIcon={agent.logo}
-              invertIconInDark={agent.invertInDark}
-            />
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -207,6 +142,59 @@ function renderToolPart(toolPart: any, i: number) {
       </ToolContent>
     </Tool>
   );
+}
+
+/** Render text with inline citation pills when `[N]` markers and source parts exist */
+function renderTextWithCitations(
+  text: string,
+  sources: Array<{ type: string; url?: string; title?: string; sourceId?: string }>,
+) {
+  // Match [1], [2], etc.
+  const citationPattern = /\[(\d+)\]/g;
+  if (!citationPattern.test(text) || sources.length === 0) return null;
+
+  // Reset regex state
+  citationPattern.lastIndex = 0;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = citationPattern.exec(text)) !== null) {
+    // Text before the citation marker
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    const citationNum = parseInt(match[1], 10);
+    const source = sources[citationNum - 1]; // [1] → index 0
+    if (source?.url) {
+      parts.push(
+        <InlineCitation key={`cite-${match.index}`}>
+          <InlineCitationCard>
+            <InlineCitationCardTrigger sources={[source.url]} />
+            <InlineCitationCardBody>
+              <InlineCitationCarousel>
+                <InlineCitationCarouselContent>
+                  <InlineCitationCarouselItem>
+                    <InlineCitationSource
+                      title={source.title || `Source ${citationNum}`}
+                      url={source.url}
+                    />
+                  </InlineCitationCarouselItem>
+                </InlineCitationCarouselContent>
+              </InlineCitationCarousel>
+            </InlineCitationCardBody>
+          </InlineCitationCard>
+        </InlineCitation>
+      );
+    } else {
+      parts.push(match[0]); // No source data — keep raw text
+    }
+    lastIndex = citationPattern.lastIndex;
+  }
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  return parts;
 }
 
 function MessageParts({ message, chatStatus }: { message: UIMessage; chatStatus: string }) {
@@ -262,8 +250,32 @@ function MessageParts({ message, chatStatus }: { message: UIMessage; chatStatus:
 
     if (isToolPart) {
       const toolPart = part as any;
-      // Approval lifecycle tools break out of grouping
-      if (toolPart.state === 'approval-requested' || toolPart.state === 'output-denied') {
+      const toolName = toolPart.toolName || toolPart.type?.replace(/^tool-/, '') || '';
+
+      // Render TodoWrite / TaskCreate calls using the Task component
+      if ((toolName === 'TodoWrite' || toolName === 'TaskCreate') && toolPart.input) {
+        flushToolRun();
+        const input = toolPart.input;
+        const tasks: Array<{ subject: string; status?: string; description?: string }> = input.tasks || input.items || (input.subject ? [input] : []);
+        if (tasks.length > 0) {
+          elements.push(
+            <Task key={toolPart.toolCallId || i} defaultOpen>
+              <TaskTrigger title={input.title || `Tasks (${tasks.length})`} />
+              <TaskContent>
+                {tasks.map((t, ti) => (
+                  <TaskItem key={ti} className={t.status === 'completed' ? 'line-through text-muted-foreground/60' : ''}>
+                    {t.subject || t.description}
+                    {input.file_path && <TaskItemFile>{input.file_path}</TaskItemFile>}
+                  </TaskItem>
+                ))}
+              </TaskContent>
+            </Task>
+          );
+        } else {
+          elements.push(renderToolPart(toolPart, i));
+        }
+      } else if (toolPart.state === 'approval-requested' || toolPart.state === 'output-denied') {
+        // Approval lifecycle tools break out of grouping
         flushToolRun();
         const toolName = toolPart.toolName || toolPart.type?.replace(/^tool-/, '') || '';
         const title = getToolDisplayLabel(toolName, toolPart.input || {});
@@ -311,9 +323,26 @@ function MessageParts({ message, chatStatus }: { message: UIMessage; chatStatus:
     } else {
       flushToolRun();
       switch (part.type) {
-        case 'text':
-          elements.push(<MessageResponse key={i}>{part.text}</MessageResponse>);
+        case 'text': {
+          const citationElements = sourceParts.length > 0 ? renderTextWithCitations(part.text, sourceParts) : null;
+          if (citationElements) {
+            // Render with inline citation pills embedded between markdown segments
+            elements.push(
+              <div key={i} className="size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                {citationElements.map((segment, si) =>
+                  typeof segment === 'string' ? (
+                    <MessageResponse key={si}>{segment}</MessageResponse>
+                  ) : (
+                    segment
+                  )
+                )}
+              </div>
+            );
+          } else {
+            elements.push(<MessageResponse key={i}>{part.text}</MessageResponse>);
+          }
           break;
+        }
         case 'reasoning':
           elements.push(
             <Reasoning
@@ -411,6 +440,7 @@ function AcpChatInner({
 
   // Message queue for rapid sends
   const messageQueueRef = useRef<Array<{ text: string; files?: any[] }>>([]);
+  const [queuedMessages, setQueuedMessages] = useState<Array<{ text: string; files?: any[] }>>([]);
 
   // Side-channel state
   const [usage, setUsage] = useState<AcpUsageData | null>(null);
@@ -524,6 +554,7 @@ function AcpChatInner({
     // Queue if the chat is busy processing a previous message
     if (chatStatus !== 'ready') {
       messageQueueRef.current.push(payload);
+      setQueuedMessages([...messageQueueRef.current]);
       return;
     }
     sendMessage(payload);
@@ -533,6 +564,7 @@ function AcpChatInner({
   useEffect(() => {
     if (chatStatus === 'ready' && messageQueueRef.current.length > 0) {
       const next = messageQueueRef.current.shift()!;
+      setQueuedMessages([...messageQueueRef.current]);
       sendMessage(next);
     }
   }, [chatStatus, sendMessage]);
@@ -649,7 +681,14 @@ function AcpChatInner({
     window.electronAPI.acpSetModel({ sessionKey, modelId });
   }, [sessionKey]);
 
+  const removeFromQueue = useCallback((index: number) => {
+    messageQueueRef.current.splice(index, 1);
+    setQueuedMessages([...messageQueueRef.current]);
+  }, []);
+
   const isStreaming = chatStatus === 'streaming' || chatStatus === 'submitted';
+
+  const currentModel = initialModels?.availableModels.find((m) => m.id === currentModelId);
 
   return (
     <div className={`flex h-full flex-col ${className}`} onClick={handleApprovalClick}>
@@ -665,13 +704,48 @@ function AcpChatInner({
         {/* Left: model name */}
         <div className="flex items-center">
           {agent && initialModels && initialModels.availableModels.length > 1 && currentModelId ? (
-            <ModelPicker
-              agent={agent}
-              providerId={providerId}
-              models={initialModels.availableModels}
-              currentModelId={currentModelId}
-              onModelChange={handleModelChange}
-            />
+            <ModelSelector>
+              <ModelSelectorTrigger asChild>
+                <button
+                  type="button"
+                  className="flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                >
+                  <img
+                    src={agent.logo}
+                    alt={agent.alt}
+                    className={`size-3.5 rounded-sm ${agent.invertInDark ? 'dark:invert' : ''}`}
+                  />
+                  <span>{currentModel?.name ?? agent.name}</span>
+                  <ChevronDownIcon className="size-3 opacity-50" />
+                </button>
+              </ModelSelectorTrigger>
+              <ModelSelectorContent title="Select Model">
+                <ModelSelectorInput placeholder="Search models..." />
+                <ModelSelectorList>
+                  <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
+                  <ModelSelectorGroup heading={agent.name}>
+                    {initialModels.availableModels.map((model) => (
+                      <ModelSelectorItem
+                        key={model.id}
+                        value={model.id}
+                        onSelect={() => handleModelChange(model.id)}
+                        className="flex items-center gap-2"
+                      >
+                        <img
+                          src={agent.logo}
+                          alt={agent.alt}
+                          className={`size-3.5 rounded-sm ${agent.invertInDark ? 'dark:invert' : ''}`}
+                        />
+                        <ModelSelectorName>{model.name}</ModelSelectorName>
+                        {model.id === currentModelId && (
+                          <CheckIcon className="ml-auto size-3.5 shrink-0" />
+                        )}
+                      </ModelSelectorItem>
+                    ))}
+                  </ModelSelectorGroup>
+                </ModelSelectorList>
+              </ModelSelectorContent>
+            </ModelSelector>
           ) : agent ? (
             <div className="flex h-7 shrink-0 items-center gap-1.5 px-1 text-xs text-muted-foreground">
               <img
@@ -762,10 +836,18 @@ function AcpChatInner({
       <Conversation>
         <ConversationContent className="gap-3 p-3">
           {messages.length === 0 && chatStatus === 'ready' && (
-            <ConversationEmptyState
-              title="Start a conversation"
-              description="Send a message to begin working with this agent"
-            />
+            <>
+              <ConversationEmptyState
+                title="Start a conversation"
+                description="Send a message to begin working with this agent"
+              />
+              <Suggestions className="justify-center px-4">
+                <Suggestion suggestion="Explain this codebase" onClick={(s) => sendMessage({ text: s })} />
+                <Suggestion suggestion="Find and fix bugs" onClick={(s) => sendMessage({ text: s })} />
+                <Suggestion suggestion="Write tests" onClick={(s) => sendMessage({ text: s })} />
+                <Suggestion suggestion="Refactor code" onClick={(s) => sendMessage({ text: s })} />
+              </Suggestions>
+            </>
           )}
 
           {messages.map((msg, msgIdx) => (
@@ -847,10 +929,7 @@ function AcpChatInner({
             <Message from="assistant">
               <MessageContent>
                 {chatStatus === 'submitted' ? (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="inline-block size-2 animate-pulse rounded-full bg-muted-foreground" />
-                    Thinking…
-                  </div>
+                  <Shimmer className="text-sm">Thinking…</Shimmer>
                 ) : (
                   <Loader />
                 )}
@@ -902,6 +981,38 @@ function AcpChatInner({
         </ConversationContent>
         <ConversationScrollButton />
       </Conversation>
+
+      {/* Queued messages */}
+      {queuedMessages.length > 0 && (
+        <div className="shrink-0 border-t border-border/50 px-3 py-2">
+          <Queue>
+            <QueueSection defaultOpen>
+              <QueueSectionTrigger>
+                <QueueSectionLabel
+                  count={queuedMessages.length}
+                  label={queuedMessages.length === 1 ? 'message queued' : 'messages queued'}
+                  icon={<Loader2 className="size-3.5 animate-spin" />}
+                />
+              </QueueSectionTrigger>
+              <QueueSectionContent>
+                <QueueList>
+                  {queuedMessages.map((msg, i) => (
+                    <QueueItem key={i} className="flex-row items-center">
+                      <QueueItemIndicator />
+                      <QueueItemContent className="ml-2">{msg.text}</QueueItemContent>
+                      <QueueItemActions>
+                        <QueueItemAction onClick={() => removeFromQueue(i)} title="Remove">
+                          <XIcon className="size-3" />
+                        </QueueItemAction>
+                      </QueueItemActions>
+                    </QueueItem>
+                  ))}
+                </QueueList>
+              </QueueSectionContent>
+            </QueueSection>
+          </Queue>
+        </div>
+      )}
 
       {/* Context usage (hover card) */}
       {usage && usage.size && usage.used != null && (
