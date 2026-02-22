@@ -369,7 +369,11 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
       e.preventDefault();
 
-      if (swipeCooldownRef.current) return;
+      // During cooldown, absorb all events and discard delta
+      if (swipeCooldownRef.current) {
+        swipeDeltaRef.current = 0;
+        return;
+      }
 
       swipeDeltaRef.current += e.deltaX;
 
@@ -400,7 +404,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
       setTimeout(() => {
         swipeDeltaRef.current = 0;
         swipeCooldownRef.current = false;
-      }, 500);
+      }, 1000);
     };
 
     el.addEventListener('wheel', handleWheel, { passive: false });
