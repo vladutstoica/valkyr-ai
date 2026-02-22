@@ -330,10 +330,6 @@ const ChatInterface: React.FC<Props> = ({
           }
           setActiveConversationId(result.conversation.id);
           setAgent(newAgent as Agent);
-          toast({
-            title: 'Chat Created',
-            description: `Created new chat: ${title}`,
-          });
         } else {
           console.error('Failed to create conversation:', result.error);
           toast({
@@ -631,9 +627,6 @@ const ChatInterface: React.FC<Props> = ({
   }, [conversations, activeConversationId, handleSwitchChat]);
 
   const isTerminal = agentMeta[agent]?.terminalOnly === true;
-  const autoApproveEnabled =
-    Boolean(task.metadata?.autoApprove) && Boolean(agentMeta[agent]?.autoApproveFlag);
-
   const initialInjection = useMemo(() => {
     if (!isTerminal) return null;
     const md = task.metadata || null;
@@ -858,7 +851,6 @@ const ChatInterface: React.FC<Props> = ({
                     conversationId={conv.id}
                     providerId={convAgent}
                     cwd={terminalCwd || task.path || '.'}
-                    autoApprove={Boolean(task.metadata?.autoApprove)}
                     onStatusChange={(status) => {
                       try { window.localStorage.setItem(`agent:locked:${task.id}`, convAgent); } catch {}
                       try { window.electronAPI?.setTaskAgent?.({ taskId: task.id, lockedAgent: convAgent }); } catch {}
