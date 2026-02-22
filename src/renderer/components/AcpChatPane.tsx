@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { UIMessage } from 'ai';
 import { useChat } from '@ai-sdk/react';
 import * as SelectPrimitive from '@radix-ui/react-select';
-import { AlertCircle, ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon, CheckIcon, ChevronDownIcon, ClockIcon, CopyIcon, Loader2, MoreHorizontalIcon, PaperclipIcon, PlusIcon, RefreshCwIcon, SettingsIcon, Trash2Icon, WrenchIcon } from 'lucide-react';
+import { AlertCircle, ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon, CheckIcon, ChevronDownIcon, ClockIcon, CopyIcon, DownloadIcon, Loader2, MoreHorizontalIcon, PaperclipIcon, PlusIcon, RefreshCwIcon, SettingsIcon, Trash2Icon, WrenchIcon } from 'lucide-react';
 import { useAcpSession } from '../hooks/useAcpSession';
 import { LazyAcpChatTransport, type AcpUsageData, type AcpPlanEntry, type AcpCommand, type AcpConfigOption } from '../lib/acpChatTransport';
 import { Button } from './ui/button';
@@ -21,7 +21,7 @@ import { Message, MessageContent, MessageResponse, MessageActions, MessageAction
 import { Reasoning, ReasoningTrigger, ReasoningContent } from './ai-elements/reasoning';
 import { Tool, ToolHeader, ToolContent, ToolInput, ToolOutput, ToolInline, mapToolStateToStepStatus } from './ai-elements/tool';
 import { ChainOfThought, ChainOfThoughtHeader, ChainOfThoughtContent, ChainOfThoughtStep } from './ai-elements/chain-of-thought';
-import { Conversation, ConversationContent, ConversationEmptyState, ConversationScrollButton } from './ai-elements/conversation';
+import { Conversation, ConversationContent, ConversationEmptyState, ConversationScrollButton, messagesToMarkdown, type ConversationMessage } from './ai-elements/conversation';
 import { Loader } from './ai-elements/loader';
 import { Plan, PlanContent, PlanTrigger } from './ai-elements/plan';
 import { Sources, SourcesTrigger, SourcesContent, Source } from './ai-elements/sources';
@@ -723,6 +723,30 @@ function AcpChatInner({
               <DropdownMenuItem onClick={onMoveLeft} disabled={!canMoveLeft}>
                 <ArrowLeftIcon className="size-4" />
                 Move Left
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={messages.length === 0}
+                onClick={async () => {
+                  const conversationMessages: ConversationMessage[] = messages.map((m) => ({
+                    role: m.role,
+                    content: getTextFromParts(m.parts),
+                  }));
+                  const markdown = messagesToMarkdown(conversationMessages);
+                  try {
+                    const handle = await (window as any).showSaveFilePicker({
+                      suggestedName: `conversation-${Date.now()}.md`,
+                      types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md'] } }],
+                    });
+                    const writable = await handle.createWritable();
+                    await writable.write(markdown);
+                    await writable.close();
+                  } catch {
+                    // User cancelled the dialog
+                  }
+                }}
+              >
+                <DownloadIcon className="size-4" />
+                Download Chat
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onDeleteChat} className="text-red-400 focus:text-red-400">
