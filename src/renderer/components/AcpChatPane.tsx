@@ -306,11 +306,36 @@ function renderTextWithCitations(
   return parts;
 }
 
+/**
+ * Extract a trailing "Sources:" section from markdown text.
+ * Returns the text without the sources block and an array of parsed links.
+ */
+function extractMarkdownSources(text: string): { text: string; sources: Array<{ title: string; url: string }> } | null {
+  // Match a trailing "Sources:" or "**Sources:**" section followed by a markdown list of links
+  const sourcesMatch = text.match(/\n\n(?:\*{0,2}Sources:?\*{0,2})\s*\n((?:\s*[-*]\s+\[.+?\]\(.+?\)\s*\n?)+)\s*$/i);
+  if (!sourcesMatch) return null;
+
+  const sources: Array<{ title: string; url: string }> = [];
+  const linkPattern = /\[([^\]]+)\]\(([^)]+)\)/g;
+  let match;
+  while ((match = linkPattern.exec(sourcesMatch[1])) !== null) {
+    sources.push({ title: match[1], url: match[2] });
+  }
+
+  if (sources.length === 0) return null;
+
+  const cleanedText = text.slice(0, sourcesMatch.index!).trimEnd();
+  return { text: cleanedText, sources };
+}
+
 function MessageParts({ message, chatStatus }: { message: UIMessage; chatStatus: string }) {
   // Collect source parts for grouped rendering
   const sourceParts = message.parts.filter(
     (p) => p.type === 'source-url' || p.type === 'source-document'
   ) as Array<{ type: string; url?: string; title?: string; sourceId?: string }>;
+
+  // Sources extracted from markdown text (e.g. trailing "Sources:" sections)
+  const extractedSources: Array<{ title: string; url: string }> = [];
 
   // Group consecutive completed tool parts (3+) into collapsible groups
   const elements: React.ReactNode[] = [];
@@ -433,7 +458,15 @@ function MessageParts({ message, chatStatus }: { message: UIMessage; chatStatus:
       flushToolRun();
       switch (part.type) {
         case 'text': {
-          const citationElements = sourceParts.length > 0 ? renderTextWithCitations(part.text, sourceParts) : null;
+          // Try to extract a trailing "Sources:" section from the last text part
+          let textContent = part.text;
+          const extracted = message.role === 'assistant' ? extractMarkdownSources(textContent) : null;
+          if (extracted) {
+            textContent = extracted.text;
+            extractedSources.push(...extracted.sources);
+          }
+
+          const citationElements = sourceParts.length > 0 ? renderTextWithCitations(textContent, sourceParts) : null;
           if (citationElements) {
             // Render with inline citation pills embedded between markdown segments
             elements.push(
@@ -448,7 +481,7 @@ function MessageParts({ message, chatStatus }: { message: UIMessage; chatStatus:
               </div>
             );
           } else {
-            elements.push(<MessageResponse key={i}>{part.text}</MessageResponse>);
+            elements.push(<MessageResponse key={i}>{textContent}</MessageResponse>);
           }
           break;
         }
@@ -470,17 +503,23 @@ function MessageParts({ message, chatStatus }: { message: UIMessage; chatStatus:
   });
   flushToolRun();
 
+  // Merge typed source parts with sources extracted from markdown
+  const allSources = [
+    ...sourceParts.map((src) => ({ title: (src as any).title || (src as any).url || '', url: (src as any).url || '' })),
+    ...extractedSources,
+  ];
+
   return (
     <>
       {elements}
 
       {/* Sources (grouped) */}
-      {sourceParts.length > 0 && (
+      {allSources.length > 0 && (
         <Sources>
-          <SourcesTrigger count={sourceParts.length} />
+          <SourcesTrigger count={allSources.length} />
           <SourcesContent>
-            {sourceParts.map((src, i) => (
-              <Source key={i} href={(src as any).url} title={(src as any).title || (src as any).url || `Source ${i + 1}`} />
+            {allSources.map((src, i) => (
+              <Source key={i} href={src.url} title={src.title || src.url || `Source ${i + 1}`} />
             ))}
           </SourcesContent>
         </Sources>
