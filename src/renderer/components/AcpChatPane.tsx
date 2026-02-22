@@ -45,7 +45,7 @@ import {
   PromptInputSelectValue,
   type PromptInputMessage,
 } from './ai-elements/prompt-input';
-import { Confirmation, ConfirmationActions, ConfirmationAction, ConfirmationTitle, ConfirmationRequest } from './ai-elements/confirmation';
+import { Confirmation, ConfirmationActions, ConfirmationAction, ConfirmationTitle, ConfirmationRequest, ConfirmationAccepted, ConfirmationRejected } from './ai-elements/confirmation';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -261,16 +261,19 @@ function MessageParts({ message, chatStatus }: { message: UIMessage; chatStatus:
 
     if (isToolPart) {
       const toolPart = part as any;
-      // Approval-requested tools break out of grouping
-      if (toolPart.state === 'approval-requested') {
+      // Approval lifecycle tools break out of grouping
+      if (toolPart.state === 'approval-requested' || toolPart.state === 'output-denied') {
         flushToolRun();
         const toolName = toolPart.toolName || toolPart.type?.replace(/^tool-/, '') || '';
         const title = getToolDisplayLabel(toolName, toolPart.input || {});
+        const approval = toolPart.state === 'output-denied'
+          ? { id: toolPart.toolCallId, approved: false as const }
+          : { id: toolPart.toolCallId };
         elements.push(
           <Confirmation
             key={toolPart.toolCallId || i}
-            state="approval-requested"
-            approval={{ id: toolPart.toolCallId }}
+            state={toolPart.state}
+            approval={approval}
           >
             <ConfirmationTitle>
               Agent requests permission to run <strong>{title}</strong>
@@ -293,6 +296,12 @@ function MessageParts({ message, chatStatus }: { message: UIMessage; chatStatus:
                 </ConfirmationAction>
               </ConfirmationActions>
             </ConfirmationRequest>
+            <ConfirmationAccepted>
+              Allowed <strong>{title}</strong>
+            </ConfirmationAccepted>
+            <ConfirmationRejected>
+              Denied <strong>{title}</strong>
+            </ConfirmationRejected>
           </Confirmation>
         );
       } else {
