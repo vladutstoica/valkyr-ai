@@ -6,7 +6,7 @@ import { AlertCircle, ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon, CheckIcon,
 import { useAcpSession } from '../hooks/useAcpSession';
 import { LazyAcpChatTransport, type AcpUsageData, type AcpPlanEntry, type AcpCommand, type AcpConfigOption } from '../lib/acpChatTransport';
 import { Button } from './ui/button';
-import { getToolDisplayLabel, getToolStepLabel, getToolIconComponent } from '../lib/toolRenderer';
+import { getToolDisplayLabel, getToolStepLabel, getToolIconComponent, normalizeToolName, getLanguageFromPath } from '../lib/toolRenderer';
 import type { AcpSessionStatus, AcpSessionModes, AcpSessionModels, AcpSessionModel } from '../types/electron-api';
 import { acpStatusStore } from '../lib/acpStatusStore';
 import { unifiedStatusStore } from '../lib/unifiedStatusStore';
@@ -65,6 +65,20 @@ import {
   QueueSectionContent, QueueList, QueueItem, QueueItemIndicator,
   QueueItemContent, QueueItemActions, QueueItemAction,
 } from './ai-elements/queue';
+import {
+  Terminal, TerminalHeader, TerminalTitle, TerminalStatus,
+  TerminalActions, TerminalCopyButton, TerminalContent,
+} from './ai-elements/terminal';
+import {
+  StackTrace, StackTraceHeader, StackTraceError, StackTraceErrorType,
+  StackTraceErrorMessage, StackTraceActions, StackTraceCopyButton,
+  StackTraceExpandButton, StackTraceContent, StackTraceFrames,
+} from './ai-elements/stack-trace';
+import {
+  CodeBlockContainer, CodeBlockHeader, CodeBlockTitle, CodeBlockFilename,
+  CodeBlockActions, CodeBlockContent, CodeBlockCopyButton,
+} from './ai-elements/code-block';
+import type { BundledLanguage } from 'shiki';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -103,9 +117,101 @@ function getTextFromParts(parts: UIMessage['parts']): string {
 // Message rendering
 // ---------------------------------------------------------------------------
 
+/** Regex to detect stack traces: 3+ lines starting with "at " */
+const STACK_TRACE_PATTERN = /(?:^\s*at\s+.+$[\n\r]*){3,}/m;
+
+/**
+ * Attempt to render a tool part using a rich AI Element component.
+ * Returns a React element if a rich match is found, or null to fall through
+ * to the generic Tool rendering.
+ */
+function renderRichToolPart(toolPart: any, i: number): React.ReactNode | null {
+  const toolName = toolPart.toolName || toolPart.type?.replace(/^tool-/, '') || '';
+  const normalized = normalizeToolName(toolName);
+  const output = toolPart.output != null ? String(toolPart.output) : '';
+  const errorText = toolPart.errorText || '';
+  const inputObj = toolPart.input || {};
+  const key = toolPart.toolCallId || i;
+  const isStreaming = toolPart.state === 'partial-call' || toolPart.state === 'call';
+
+  // 1. Bash/shell → Terminal component
+  if (normalized === 'bash' && (output || isStreaming)) {
+    const command = (inputObj.command || inputObj.cmd || '') as string;
+    return (
+      <Terminal key={key} output={output} isStreaming={isStreaming}>
+        <TerminalHeader>
+          <TerminalTitle>{command ? `$ ${command.slice(0, 80)}` : 'Terminal'}</TerminalTitle>
+          <div className="flex items-center gap-1">
+            <TerminalStatus />
+            <TerminalActions>
+              <TerminalCopyButton />
+            </TerminalActions>
+          </div>
+        </TerminalHeader>
+        <TerminalContent />
+      </Terminal>
+    );
+  }
+
+  // 2. Error text with stack traces → StackTrace component
+  if (errorText && STACK_TRACE_PATTERN.test(errorText)) {
+    return (
+      <StackTrace key={key} trace={errorText} defaultOpen>
+        <StackTraceHeader>
+          <StackTraceError>
+            <StackTraceErrorType />
+            <StackTraceErrorMessage />
+          </StackTraceError>
+          <StackTraceActions>
+            <StackTraceCopyButton />
+            <StackTraceExpandButton />
+          </StackTraceActions>
+        </StackTraceHeader>
+        <StackTraceContent>
+          <StackTraceFrames />
+        </StackTraceContent>
+      </StackTrace>
+    );
+  }
+
+  // 3. File read/write/edit → CodeBlock with language detection
+  if (
+    (normalized === 'read_file' || normalized === 'write_file' || normalized === 'edit_file') &&
+    output &&
+    output.length > 0
+  ) {
+    const filePath = (inputObj.file_path || inputObj.path || inputObj.file || '') as string;
+    const language = getLanguageFromPath(filePath) as BundledLanguage;
+    const filename = filePath ? filePath.split('/').pop() ?? '' : '';
+
+    return (
+      <CodeBlockContainer key={key} language={language}>
+        <CodeBlockHeader>
+          <CodeBlockTitle>
+            {filename && <CodeBlockFilename>{filename}</CodeBlockFilename>}
+            {!filename && <span>{normalized === 'read_file' ? 'Read' : normalized === 'write_file' ? 'Write' : 'Edit'}</span>}
+          </CodeBlockTitle>
+          <CodeBlockActions>
+            <CodeBlockCopyButton />
+          </CodeBlockActions>
+        </CodeBlockHeader>
+        <CodeBlockContent code={output} language={language} showLineNumbers />
+      </CodeBlockContainer>
+    );
+  }
+
+  // No rich match — fall through
+  return null;
+}
+
 function renderToolPart(toolPart: any, i: number) {
   const toolName = toolPart.toolName || toolPart.type?.replace(/^tool-/, '') || '';
   if (!toolName) return null;
+
+  // Try rich rendering first
+  const rich = renderRichToolPart(toolPart, i);
+  if (rich) return rich;
+
   const title = getToolDisplayLabel(toolName, toolPart.input || {});
   const Icon = getToolIconComponent(toolName);
 

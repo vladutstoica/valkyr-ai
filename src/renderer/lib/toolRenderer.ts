@@ -244,3 +244,70 @@ export function getToolIcon(toolName: string): string {
     default: return 'Wrench';
   }
 }
+
+/**
+ * Map a file extension to a shiki BundledLanguage name.
+ * Falls back to 'text' for unknown extensions.
+ */
+const EXTENSION_TO_LANGUAGE: Record<string, string> = {
+  ts: 'typescript',
+  tsx: 'tsx',
+  js: 'javascript',
+  jsx: 'jsx',
+  py: 'python',
+  rb: 'ruby',
+  rs: 'rust',
+  go: 'go',
+  java: 'java',
+  kt: 'kotlin',
+  swift: 'swift',
+  c: 'c',
+  cpp: 'cpp',
+  h: 'c',
+  hpp: 'cpp',
+  cs: 'csharp',
+  php: 'php',
+  sh: 'bash',
+  bash: 'bash',
+  zsh: 'bash',
+  json: 'json',
+  yaml: 'yaml',
+  yml: 'yaml',
+  toml: 'toml',
+  xml: 'xml',
+  html: 'html',
+  css: 'css',
+  scss: 'scss',
+  less: 'less',
+  md: 'markdown',
+  mdx: 'mdx',
+  sql: 'sql',
+  graphql: 'graphql',
+  gql: 'graphql',
+  dockerfile: 'dockerfile',
+  makefile: 'makefile',
+  lua: 'lua',
+  r: 'r',
+  dart: 'dart',
+  vue: 'vue',
+  svelte: 'svelte',
+  zig: 'zig',
+  prisma: 'prisma',
+  tf: 'hcl',
+  ini: 'ini',
+  env: 'dotenv',
+};
+
+export function getLanguageFromPath(filePath: string): string {
+  if (!filePath) return 'text';
+
+  const filename = filePath.split('/').pop() ?? '';
+  const lower = filename.toLowerCase();
+
+  // Handle dotfiles like Dockerfile, Makefile
+  if (lower === 'dockerfile') return 'dockerfile';
+  if (lower === 'makefile') return 'makefile';
+
+  const ext = lower.includes('.') ? lower.split('.').pop() ?? '' : '';
+  return EXTENSION_TO_LANGUAGE[ext] || 'text';
+}
