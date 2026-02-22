@@ -423,6 +423,7 @@ const AppContent: React.FC = () => {
   const agentsContent = useMemo(
     () => (
       <MainContentArea
+        allProjects={projectMgmt.projects}
         selectedProject={selectedProject}
         activeTask={activeTask}
         activeTaskAgent={activeTaskAgent}
@@ -444,6 +445,7 @@ const AppContent: React.FC = () => {
       />
     ),
     [
+      projectMgmt.projects,
       selectedProject,
       activeTask,
       activeTaskAgent,

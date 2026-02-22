@@ -8,6 +8,7 @@ import type { Agent } from '../types';
 import type { Project, Task } from '../types/app';
 
 interface MainContentAreaProps {
+  allProjects: Project[];
   selectedProject: Project | null;
   activeTask: Task | null;
   activeTaskAgent: Agent | null;
@@ -37,6 +38,7 @@ interface MainContentAreaProps {
 }
 
 const MainContentArea: React.FC<MainContentAreaProps> = ({
+  allProjects,
   selectedProject,
   activeTask,
   activeTaskAgent,
@@ -74,27 +76,50 @@ const MainContentArea: React.FC<MainContentAreaProps> = ({
   if (selectedProject) {
     return (
       <div className="flex h-full min-h-0 flex-col overflow-hidden">
-        {activeTask ? (
-          (activeTask.metadata as any)?.multiAgent?.enabled ? (
-            <MultiAgentTask
-              task={activeTask}
-              projectName={selectedProject.name}
-              projectId={selectedProject.id}
-              projectPath={selectedProject.path}
-              defaultBranch={projectDefaultBranch}
-            />
-          ) : (
-            <ChatInterface
-              key={activeTask.id}
-              task={activeTask}
-              projectName={selectedProject.name}
-              projectPath={selectedProject.path}
-              defaultBranch={projectDefaultBranch}
-              className="h-full min-h-0"
-              initialAgent={activeTaskAgent || undefined}
-            />
-          )
-        ) : (
+        {/* Render tasks from ALL projects simultaneously — hidden when inactive.
+            This keeps ACP transports, useChat state, and IPC listeners alive
+            so background agents continue working while the user switches
+            between sessions, projects, and workspaces. */}
+        {allProjects.map((project) => {
+          const tasks = project.tasks || [];
+          const isSelectedProject = project.id === selectedProject.id;
+
+          return tasks.map((task) => {
+            const isActive = isSelectedProject && task.id === activeTask?.id;
+            const isMultiAgent = (task.metadata as any)?.multiAgent?.enabled;
+
+            return (
+              <div
+                key={task.id}
+                className="h-full min-h-0 flex-col overflow-hidden"
+                style={{ display: isActive ? 'flex' : 'none' }}
+              >
+                {isMultiAgent ? (
+                  <MultiAgentTask
+                    task={task}
+                    projectName={project.name}
+                    projectId={project.id}
+                    projectPath={project.path}
+                    defaultBranch={isSelectedProject ? projectDefaultBranch : undefined}
+                  />
+                ) : (
+                  <ChatInterface
+                    task={task}
+                    isActive={isActive}
+                    projectName={project.name}
+                    projectPath={project.path}
+                    defaultBranch={isSelectedProject ? projectDefaultBranch : undefined}
+                    className="h-full min-h-0"
+                    initialAgent={isActive ? (activeTaskAgent || undefined) : undefined}
+                  />
+                )}
+              </div>
+            );
+          });
+        })}
+
+        {/* Project landing page when no task is selected */}
+        {!activeTask && (
           <ProjectMainView
             project={selectedProject}
             onCreateTask={() => setShowTaskModal(true)}

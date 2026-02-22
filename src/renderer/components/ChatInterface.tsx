@@ -31,6 +31,7 @@ declare const window: Window & {
 
 interface Props {
   task: Task;
+  isActive?: boolean;
   projectName: string;
   projectPath?: string | null;
   projectRemoteConnectionId?: string | null;
@@ -42,6 +43,7 @@ interface Props {
 
 const ChatInterface: React.FC<Props> = ({
   task,
+  isActive = true,
   projectName: _projectName,
   projectPath,
   projectRemoteConnectionId,
@@ -57,6 +59,8 @@ const ChatInterface: React.FC<Props> = ({
     Record<string, { installed?: boolean; path?: string | null; version?: string | null }>
   >({});
   const [agent, setAgent] = useState<Agent>(initialAgent || 'claude');
+  const initialAgentRef = useRef(initialAgent);
+  initialAgentRef.current = initialAgent;
   const currentAgentStatus = agentStatuses[agent];
   const [cliStartFailed, setCliStartFailed] = useState(false);
 
@@ -126,7 +130,7 @@ const ChatInterface: React.FC<Props> = ({
   }, [task.id]);
 
   // Auto-scroll to bottom when this task becomes active
-  useAutoScrollOnTaskSwitch(true, task.id);
+  useAutoScrollOnTaskSwitch(isActive, task.id);
 
   // Load conversations when task changes
   useEffect(() => {
@@ -156,15 +160,15 @@ const ChatInterface: React.FC<Props> = ({
           try {
             const lastKey = `agent:last:${task.id}`;
             const last = window.localStorage.getItem(lastKey) as Agent | null;
-            if (initialAgent) {
-              setAgent(initialAgent);
+            if (initialAgentRef.current) {
+              setAgent(initialAgentRef.current);
             } else if (last) {
               setAgent(last);
             } else {
               setAgent('codex');
             }
           } catch {
-            setAgent(initialAgent || 'codex');
+            setAgent(initialAgentRef.current || 'codex');
           }
         }
         setConversationsLoaded(true);
@@ -196,7 +200,8 @@ const ChatInterface: React.FC<Props> = ({
     };
 
     loadConversations();
-  }, [task.id, task.agentId, initialAgent]); // provider is intentionally not included as a dependency
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [task.id, task.agentId]); // initialAgent accessed via ref to avoid re-triggering on isActive changes
 
   // ACP initial prompt injection refs
   const acpAppendRef = useRef<((msg: { content: string }) => Promise<void>) | null>(null);
@@ -207,6 +212,7 @@ const ChatInterface: React.FC<Props> = ({
 
   // Auto-focus terminal when switching to this task
   useEffect(() => {
+    if (!isActive) return;
     // Small delay to ensure terminal is mounted and attached
     const timer = setTimeout(() => {
       const session = terminalSessionRegistry.getSession(terminalId);
@@ -215,16 +221,17 @@ const ChatInterface: React.FC<Props> = ({
       }
     }, 100);
     return () => clearTimeout(timer);
-  }, [task.id, terminalId]);
+  }, [task.id, terminalId, isActive]);
 
   // Focus terminal when this task becomes active (for already-mounted terminals)
   useEffect(() => {
+    if (!isActive) return;
     // Small delay to ensure terminal is visible after tab switch
     const timer = setTimeout(() => {
       terminalRef.current?.focus();
     }, 50);
     return () => clearTimeout(timer);
-  }, [task.id]);
+  }, [task.id, isActive]);
 
   useEffect(() => {
     const meta = agentMeta[agent];
@@ -599,6 +606,7 @@ const ChatInterface: React.FC<Props> = ({
   // Switch active chat/agent via global shortcuts (Cmd+Shift+J/K)
   useEffect(() => {
     const handleAgentSwitch = (event: Event) => {
+      if (!isActive) return;
       const customEvent = event as CustomEvent<{ direction: 'next' | 'prev' }>;
       if (conversations.length <= 1) return;
       const direction = customEvent.detail?.direction;
