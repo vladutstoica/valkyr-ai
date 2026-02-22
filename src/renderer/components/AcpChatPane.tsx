@@ -741,7 +741,10 @@ function AcpChatInner({
                 <Checkpoint className="my-1">
                   <CheckpointIcon />
                   <CheckpointTrigger
-                    className="text-[10px] text-muted-foreground whitespace-nowrap pointer-events-none"
+                    className="text-[10px] whitespace-nowrap"
+                    tooltip="Restore to this point"
+                    disabled={isStreaming}
+                    onClick={() => setMessages(messages.slice(0, msgIdx))}
                   >
                     Turn {messages.slice(0, msgIdx).filter((m) => m.role === 'user').length + 1}
                   </CheckpointTrigger>
