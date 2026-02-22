@@ -328,6 +328,49 @@ function extractMarkdownSources(text: string): { text: string; sources: Array<{ 
   return { text: cleanedText, sources };
 }
 
+function StreamingToolGroup({ toolRun }: { toolRun: Array<{ part: any; index: number }> }) {
+  const completed: Array<{ part: any; index: number }> = [];
+  const active: Array<{ part: any; index: number }> = [];
+  for (const t of toolRun) {
+    const s = t.part.state;
+    if (s === 'output-available' || s === 'output-error' || s === 'output-denied') {
+      completed.push(t);
+    } else {
+      active.push(t);
+    }
+  }
+  return (
+    <>
+      <ChainOfThought key={`stg-${toolRun[0].index}`}>
+        <ChainOfThoughtHeader>
+          <span className="flex items-center gap-1.5">
+            <Loader2 className="size-3.5 animate-spin" />
+            Running tools{' '}
+            <span className="tabular-nums">({completed.length} completed)</span>
+          </span>
+        </ChainOfThoughtHeader>
+        <ChainOfThoughtContent>
+          {completed.map((t) => {
+            const toolName = t.part.toolName || t.part.type?.replace(/^tool-/, '') || '';
+            const Icon = getToolIconComponent(toolName);
+            const label = getToolStepLabel(toolName, t.part.input || {});
+            const status = mapToolStateToStepStatus(t.part.state);
+            return (
+              <ChainOfThoughtStep
+                key={t.part.toolCallId || t.index}
+                icon={Icon}
+                label={label}
+                status={status}
+              />
+            );
+          })}
+        </ChainOfThoughtContent>
+      </ChainOfThought>
+      {active.map((t) => renderToolPart(t.part, t.index))}
+    </>
+  );
+}
+
 function MessageParts({ message, chatStatus }: { message: UIMessage; chatStatus: string }) {
   // Collect source parts for grouped rendering
   const sourceParts = message.parts.filter(
@@ -367,6 +410,10 @@ function MessageParts({ message, chatStatus }: { message: UIMessage; chatStatus:
             })}
           </ChainOfThoughtContent>
         </ChainOfThought>
+      );
+    } else if (!allCompleted && toolRun.length >= 3) {
+      elements.push(
+        <StreamingToolGroup key={`stg-${toolRun[0].index}`} toolRun={[...toolRun]} />
       );
     } else {
       for (const t of toolRun) {
