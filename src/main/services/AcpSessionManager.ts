@@ -136,6 +136,7 @@ const EVENT_FLUSH_MS = 16;
 export class AcpSessionManager {
   private sessions = new Map<string, AcpSession>();
   private finalizedSessions = new Set<string>();
+  private detachedSessions = new Set<string>(); // Sessions whose renderer has navigated away
   private eventBuffers = new Map<string, AcpUpdateEvent[]>();
   private eventTimers = new Map<string, NodeJS.Timeout>();
 
@@ -316,6 +317,14 @@ export class AcpSessionManager {
     childProcess.on('exit', (code, signal) => {
       if (this.finalizedSessions.has(sessionKey)) return;
       log.info(`ACP subprocess exited: ${sessionKey} code=${code} signal=${signal}`);
+      // If detached (user navigated away), don't mark as error — the session
+      // is still valid for reconnection when the user comes back.
+      if (this.detachedSessions.has(sessionKey)) {
+        log.info(`Subprocess exited while detached, cleaning up: ${sessionKey}`);
+        this.finalizedSessions.add(sessionKey);
+        this.sessions.delete(sessionKey);
+        return;
+      }
       this.setStatus(sessionKey, 'error');
       this.bufferEvent(sessionKey, {
         type: 'session_error',
@@ -331,13 +340,18 @@ export class AcpSessionManager {
     connection.closed.then(() => {
       if (this.finalizedSessions.has(sessionKey)) return;
       const s = this.sessions.get(sessionKey);
-      if (s && s.status !== 'error') {
-        this.setStatus(sessionKey, 'error');
-        this.bufferEvent(sessionKey, {
-          type: 'session_error',
-          error: 'ACP connection closed unexpectedly',
-        });
+      if (!s || s.status === 'error') return;
+      // If detached (user navigated away), don't mark as error.
+      // The connection closing while detached is normal — the agent finished work.
+      if (this.detachedSessions.has(sessionKey)) {
+        log.info(`ACP connection closed while detached: ${sessionKey}`);
+        return;
       }
+      this.setStatus(sessionKey, 'error');
+      this.bufferEvent(sessionKey, {
+        type: 'session_error',
+        error: 'ACP connection closed unexpectedly',
+      });
     });
 
     // Initialize the ACP connection (race against spawn errors)
@@ -772,9 +786,27 @@ export class AcpSessionManager {
     }
   }
 
+  /**
+   * Mark a session as detached (renderer navigated away).
+   * The subprocess stays alive — don't treat close/exit as errors.
+   */
+  detachSession(sessionKey: string): void {
+    this.detachedSessions.add(sessionKey);
+    log.info(`ACP session detached: ${sessionKey}`);
+  }
+
+  /**
+   * Re-attach a previously detached session (renderer navigated back).
+   */
+  reattachSession(sessionKey: string): void {
+    this.detachedSessions.delete(sessionKey);
+    log.info(`ACP session reattached: ${sessionKey}`);
+  }
+
   killSession(sessionKey: string): void {
     if (this.finalizedSessions.has(sessionKey)) return;
     this.finalizedSessions.add(sessionKey);
+    this.detachedSessions.delete(sessionKey);
 
     const session = this.sessions.get(sessionKey);
     if (!session) return;

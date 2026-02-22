@@ -115,6 +115,8 @@ export function registerAcpIpc(): void {
       if (result.success && result.sessionKey) {
         // Track ownership for per-session event routing
         sessionOwners.set(result.sessionKey, event.sender);
+        // Re-attach in case this session was previously detached (user navigated back)
+        acpSessionManager.reattachSession(result.sessionKey);
 
         // Clean up ownership when window is destroyed (only register once per WebContents)
         const wcId = event.sender.id;
@@ -125,7 +127,8 @@ export function registerAcpIpc(): void {
             for (const [key, wc] of sessionOwners.entries()) {
               if (wc.id === wcId) {
                 sessionOwners.delete(key);
-                acpSessionManager.killSession(key);
+                // Detach instead of kill — sessions should persist across window reloads
+                acpSessionManager.detachSession(key);
               }
             }
           });
@@ -179,6 +182,7 @@ export function registerAcpIpc(): void {
     try {
       const parsed = AcpSessionKeySchema.parse(args);
       sessionOwners.delete(parsed.sessionKey);
+      acpSessionManager.detachSession(parsed.sessionKey);
       return { success: true };
     } catch (error: any) {
       if (error instanceof z.ZodError) {

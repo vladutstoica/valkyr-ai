@@ -492,6 +492,7 @@ function AcpChatInner({
       setMessageHistory((prev) => [...prev, message.text.trim()]);
       historyIndexRef.current = -1;
     }
+
     const payload = {
       text: message.text,
       files: message.files.length > 0 ? message.files : undefined,
@@ -937,26 +938,6 @@ function AcpChatInner({
                   <PromptInputActionAddAttachments />
                 </PromptInputActionMenuContent>
               </PromptInputActionMenu>
-
-              {/* Model selector with agent branding + hover detail panel */}
-              {agent && initialModels && initialModels.availableModels.length > 1 && currentModelId ? (
-                <ModelPicker
-                  agent={agent}
-                  providerId={providerId}
-                  models={initialModels.availableModels}
-                  currentModelId={currentModelId}
-                  onModelChange={handleModelChange}
-                />
-              ) : agent && (
-                <div className="flex h-8 shrink-0 items-center gap-1 px-2 text-xs text-muted-foreground">
-                  <img
-                    src={agent.logo}
-                    alt={agent.alt}
-                    className={`size-3.5 rounded-sm ${agent.invertInDark ? 'dark:invert' : ''}`}
-                  />
-                  <span>{agent.name}</span>
-                </div>
-              )}
 
               {/* Mode selector */}
               {initialModes && initialModes.availableModes.length > 1 && (

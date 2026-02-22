@@ -260,8 +260,33 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
   private sessionKey: string;
   private conversationId: string;
 
+  /** Cleanup function for the active onAcpUpdate IPC listener (stream or side-channel). */
+  private activeCleanup: (() => void) | null = null;
+
+  /** Cleanup for the persistent side-channel listener (runs when not streaming). */
+  private sideChannelCleanup: (() => void) | null = null;
+
   /** Mutable side-channel callbacks — can be set/updated at any time. */
-  sideChannel: AcpSideChannelEvents = {};
+  private _sideChannel: AcpSideChannelEvents = {};
+
+  /** Buffer for side-channel events that arrive before callbacks are wired. */
+  private sideChannelBuffer: Array<{ updateType: string; update: any }> = [];
+
+  get sideChannel(): AcpSideChannelEvents {
+    return this._sideChannel;
+  }
+
+  set sideChannel(sc: AcpSideChannelEvents) {
+    this._sideChannel = sc;
+    // Replay any buffered events now that callbacks are wired
+    if (this.sideChannelBuffer.length > 0) {
+      const buffered = this.sideChannelBuffer;
+      this.sideChannelBuffer = [];
+      for (const { updateType, update } of buffered) {
+        this.dispatchSideChannelEvent(sc, updateType, update);
+      }
+    }
+  }
 
   /** When true, permission requests are auto-approved without UI confirmation. */
   autoApprove = false;
@@ -269,7 +294,54 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
   constructor(options: AcpTransportOptions) {
     this.sessionKey = options.sessionKey;
     this.conversationId = options.conversationId;
-    if (options.sideChannel) this.sideChannel = options.sideChannel;
+    if (options.sideChannel) this._sideChannel = options.sideChannel;
+    // Start listening for side-channel events immediately (commands, modes, etc.)
+    this.startSideChannelListener();
+  }
+
+  /**
+   * Dispatch a side-channel event to the appropriate callback.
+   * Returns true if the event was handled, false if no callback was available.
+   */
+  private dispatchSideChannelEvent(sc: AcpSideChannelEvents, updateType: string, update: any): boolean {
+    if (updateType === 'available_commands_update' && sc.onCommandsUpdate) {
+      sc.onCommandsUpdate(update.availableCommands || update.commands || []);
+      return true;
+    } else if (updateType === 'current_mode_update' && sc.onModeUpdate) {
+      sc.onModeUpdate(update.modeId || update.currentModeId || '');
+      return true;
+    } else if (updateType === 'config_option_update' && sc.onConfigOptionUpdate) {
+      sc.onConfigOptionUpdate(update);
+      return true;
+    } else if (updateType === 'session_info_update' && sc.onSessionInfoUpdate) {
+      sc.onSessionInfoUpdate({ title: update.title, timestamp: update.timestamp });
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Persistent listener for side-channel events that arrive outside of streaming
+   * (e.g. available_commands_update sent right after session creation).
+   */
+  private startSideChannelListener(): void {
+    this.stopSideChannelListener();
+    this.sideChannelCleanup = api().onAcpUpdate(this.sessionKey, (event: AcpUpdateEvent) => {
+      if (event.type !== 'session_update') return;
+      const sc = this._sideChannel;
+      const update = event.data?.update;
+      const updateType = update?.sessionUpdate;
+      if (!updateType) return;
+      // If the callback isn't wired yet, buffer the event for replay
+      if (!this.dispatchSideChannelEvent(sc, updateType, update)) {
+        this.sideChannelBuffer.push({ updateType, update });
+      }
+    });
+  }
+
+  private stopSideChannelListener(): void {
+    this.sideChannelCleanup?.();
+    this.sideChannelCleanup = null;
   }
 
   async sendMessages(options: {
@@ -325,12 +397,18 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
 
     // Return a stream that listens for ACP events
     const self = this;
-    const sideChannel = this.sideChannel;
+    const sideChannel = this._sideChannel;
+    // Stop the side-channel listener — the stream listener handles everything
+    this.stopSideChannelListener();
+    // Clean up any previous stream listener
+    this.activeCleanup?.();
+    this.activeCleanup = null;
+
     return new ReadableStream<UIMessageChunk>({
       start(controller) {
         const mapper = new ChunkMapper();
 
-        const cleanupUpdate = api().onAcpUpdate(sessionKey, (event: AcpUpdateEvent) => {
+        const rawCleanup = api().onAcpUpdate(sessionKey, (event: AcpUpdateEvent) => {
           switch (event.type) {
             case 'session_update': {
               // Route side-channel events before mapping to chunks
@@ -345,7 +423,7 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
               } else if (updateType === 'plan' && sideChannel.onPlanUpdate) {
                 sideChannel.onPlanUpdate(update.entries || update.plan || []);
               } else if (updateType === 'available_commands_update' && sideChannel.onCommandsUpdate) {
-                sideChannel.onCommandsUpdate(update.commands || []);
+                sideChannel.onCommandsUpdate(update.availableCommands || update.commands || []);
               } else if (updateType === 'current_mode_update' && sideChannel.onModeUpdate) {
                 sideChannel.onModeUpdate(update.modeId || update.currentModeId || '');
               } else if (updateType === 'config_option_update' && sideChannel.onConfigOptionUpdate) {
@@ -417,6 +495,15 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
           }
         });
 
+        // Wrap cleanup to also clear the tracked reference and restart side-channel
+        const cleanupUpdate = () => {
+          rawCleanup();
+          self.activeCleanup = null;
+          // Resume side-channel listener for events between prompts
+          self.startSideChannelListener();
+        };
+        self.activeCleanup = cleanupUpdate;
+
         // Handle abort (user clicks stop)
         options.abortSignal?.addEventListener('abort', () => {
           api().acpCancel({ sessionKey });
@@ -451,9 +538,19 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
   }
 
   /**
-   * Kill the ACP session.
+   * Clean up any in-flight IPC listeners without killing the session.
+   */
+  cleanupListeners(): void {
+    this.activeCleanup?.();
+    this.activeCleanup = null;
+    this.stopSideChannelListener();
+  }
+
+  /**
+   * Detach from the ACP session (cleanup listeners + IPC ownership).
    */
   destroy(): void {
+    this.cleanupListeners();
     api().acpDetach({ sessionKey: this.sessionKey });
   }
 }

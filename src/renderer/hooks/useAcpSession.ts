@@ -73,11 +73,14 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
   const [restartCount, setRestartCount] = useState(0);
   const mountedRef = useRef(true);
   const sessionKeyRef = useRef<string | null>(null);
+  const transportRef = useRef<AcpChatTransport | null>(null);
 
   // Create transport once session key is available
   const transport = useMemo(() => {
     if (!sessionKey) return null;
-    return new AcpChatTransport({ sessionKey, conversationId });
+    const t = new AcpChatTransport({ sessionKey, conversationId });
+    transportRef.current = t;
+    return t;
   }, [sessionKey, conversationId]);
 
   useEffect(() => {
@@ -139,6 +142,8 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
       cleanupStatus?.();
 
       if (sessionKeyRef.current) {
+        // Clean up transport listeners before detaching to prevent orphaned IPC listeners
+        transportRef.current?.cleanupListeners();
         api().acpDetach({ sessionKey: sessionKeyRef.current });
       }
       sessionKeyRef.current = null;
