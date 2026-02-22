@@ -23,7 +23,7 @@ import { Reasoning, ReasoningTrigger, ReasoningContent } from './ai-elements/rea
 import { Tool, ToolHeader, ToolContent, ToolInput, ToolOutput, ToolInline, ToolGroup } from './ai-elements/tool';
 import { Conversation, ConversationContent, ConversationEmptyState, ConversationScrollButton } from './ai-elements/conversation';
 import { Loader } from './ai-elements/loader';
-import { Plan, PlanHeader, PlanTitle, PlanContent, PlanFooter, PlanTrigger } from './ai-elements/plan';
+import { Plan, PlanContent, PlanTrigger } from './ai-elements/plan';
 import { Sources, SourcesTrigger, SourcesContent, Source } from './ai-elements/sources';
 import { Checkpoint, CheckpointIcon, CheckpointTrigger } from './ai-elements/checkpoint';
 import {
@@ -805,14 +805,14 @@ function AcpChatInner({
             </Message>
           )}
 
-          {/* Inline plan card */}
+          {/* Inline plan */}
           {planEntries.length > 0 && (
             <div className="px-2">
               <Plan isStreaming={isStreaming} defaultOpen>
-                <PlanHeader>
-                  <PlanTitle>Plan</PlanTitle>
-                  <PlanTrigger />
-                </PlanHeader>
+                <PlanTrigger
+                  completed={planEntries.filter((e) => e.status === 'completed').length}
+                  total={planEntries.length}
+                />
                 <PlanContent>
                   <ul className="space-y-1 text-xs">
                     {planEntries.map((entry, i) => (
@@ -836,11 +836,6 @@ function AcpChatInner({
                     ))}
                   </ul>
                 </PlanContent>
-                <PlanFooter>
-                  <span className="text-[10px] text-muted-foreground">
-                    {planEntries.filter((e) => e.status === 'completed').length}/{planEntries.length} completed
-                  </span>
-                </PlanFooter>
               </Plan>
             </div>
           )}
