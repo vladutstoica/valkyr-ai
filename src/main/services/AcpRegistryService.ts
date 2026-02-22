@@ -14,6 +14,7 @@ const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
 export class AcpRegistryService {
   private memoryCache: { registry: AcpRegistry; fetchedAt: number } | null = null;
+  private installedCache: InstalledAcpAgent[] | null = null;
 
   private get baseDir(): string {
     return path.join(app.getPath('userData'), 'acp-agents');
@@ -74,9 +75,11 @@ export class AcpRegistryService {
   // -----------------------------------------------------------------------
 
   async getInstalledAgents(): Promise<InstalledAcpAgent[]> {
+    if (this.installedCache) return this.installedCache;
     try {
       const raw = await fs.readFile(this.installedPath, 'utf-8');
-      return JSON.parse(raw) as InstalledAcpAgent[];
+      this.installedCache = JSON.parse(raw) as InstalledAcpAgent[];
+      return this.installedCache;
     } catch {
       return [];
     }
@@ -85,6 +88,7 @@ export class AcpRegistryService {
   private async saveInstalledAgents(agents: InstalledAcpAgent[]): Promise<void> {
     await this.ensureBaseDir();
     await fs.writeFile(this.installedPath, JSON.stringify(agents, null, 2), 'utf-8');
+    this.installedCache = agents;
   }
 
   async isInstalled(agentId: string): Promise<boolean> {

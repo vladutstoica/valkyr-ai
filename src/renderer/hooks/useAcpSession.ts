@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { UIMessage } from 'ai';
-import { AcpChatTransport } from '../lib/acpChatTransport';
+import { AcpChatTransport, LazyAcpChatTransport } from '../lib/acpChatTransport';
 import type { AcpSessionStatus, AcpSessionModes, AcpSessionModels } from '../types/electron-api';
 
 const api = () => window.electronAPI;
@@ -12,7 +12,7 @@ export type UseAcpSessionOptions = {
 };
 
 export type UseAcpSessionReturn = {
-  transport: AcpChatTransport | null;
+  transport: LazyAcpChatTransport | null;
   sessionStatus: AcpSessionStatus;
   sessionError: Error | null;
   initialMessages: UIMessage[];
@@ -57,8 +57,23 @@ function convertStoredParts(parts: any[]): UIMessage['parts'] {
 }
 
 /**
+ * Safely parse a message's parts JSON, falling back to plain text on error.
+ */
+function safeParseMessageParts(m: any): UIMessage['parts'] {
+  if (!m.parts) {
+    return [{ type: 'text' as const, text: m.content || '' }];
+  }
+  try {
+    return convertStoredParts(JSON.parse(m.parts));
+  } catch {
+    return [{ type: 'text' as const, text: m.content || '' }];
+  }
+}
+
+/**
  * Manages ACP session lifecycle (init, cleanup) separately from useChat.
- * Returns the transport instance once the session is ready.
+ * Returns a lazy transport immediately so the UI can render without waiting
+ * for the ACP subprocess to start.
  */
 export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionReturn {
   const { conversationId, providerId, cwd } = options;
@@ -71,65 +86,67 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
   const [models, setModels] = useState<AcpSessionModels>(null);
 
   const [restartCount, setRestartCount] = useState(0);
-  const mountedRef = useRef(true);
   const sessionKeyRef = useRef<string | null>(null);
-  const transportRef = useRef<AcpChatTransport | null>(null);
+  const transportRef = useRef<LazyAcpChatTransport | null>(null);
+  const innerTransportRef = useRef<AcpChatTransport | null>(null);
 
-  // Create transport once session key is available
+  // Create lazy transport immediately (stable across the session lifecycle)
   const transport = useMemo(() => {
-    if (!sessionKey) return null;
-    const t = new AcpChatTransport({ sessionKey, conversationId });
+    const t = new LazyAcpChatTransport();
     transportRef.current = t;
     return t;
-  }, [sessionKey, conversationId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId, providerId, restartCount]);
 
   useEffect(() => {
-    mountedRef.current = true;
+    // Per-effect cancel flag — prevents stale init from wiring wrong transport
+    // after restartSession() is called while a previous init is still in-flight.
+    let cancelled = false;
     let cleanupStatus: (() => void) | null = null;
 
     async function init() {
-      // Load existing messages from DB and convert to UIMessage format
-      try {
-        const msgResult = await api().getMessages(conversationId);
-        if (msgResult.success && msgResult.messages && mountedRef.current) {
-          const restored: UIMessage[] = msgResult.messages.map((m: any) => ({
-            id: m.id,
-            role: m.sender === 'user' ? ('user' as const) : ('assistant' as const),
-            parts: m.parts
-              ? convertStoredParts(JSON.parse(m.parts))
-              : [{ type: 'text' as const, text: m.content }],
-          }));
-          setInitialMessages(restored);
-        }
-      } catch {
-        // Non-fatal: proceed without restored messages
+      // Run message loading and session creation in parallel
+      const [msgResult, sessionResult] = await Promise.all([
+        api().getMessages(conversationId).catch(() => ({ success: false as const })),
+        api().acpStart({ conversationId, providerId, cwd }),
+      ]);
+
+      if (cancelled) return;
+
+      // Restore messages from DB
+      if (msgResult.success && (msgResult as any).messages) {
+        const restored: UIMessage[] = (msgResult as any).messages.map((m: any) => ({
+          id: m.id,
+          role: m.sender === 'user' ? ('user' as const) : ('assistant' as const),
+          parts: safeParseMessageParts(m),
+        }));
+        setInitialMessages(restored);
       }
 
-      // Start the ACP session
-      const result = await api().acpStart({
-        conversationId,
-        providerId,
-        cwd,
-      });
-
-      if (!mountedRef.current) return;
-
-      if (!result.success || !result.sessionKey) {
+      // Handle session creation result
+      if (!sessionResult.success || !sessionResult.sessionKey) {
+        const err = new Error(sessionResult.error || 'Failed to start ACP session');
         setSessionStatus('error');
-        setSessionError(new Error(result.error || 'Failed to start ACP session'));
+        setSessionError(err);
+        transportRef.current?.setError(err);
         return;
       }
 
-      const key = result.sessionKey;
+      const key = sessionResult.sessionKey;
       sessionKeyRef.current = key;
       setSessionKey(key);
-      setModes(result.modes ?? null);
-      setModels(result.models ?? null);
+      setModes(sessionResult.modes ?? null);
+      setModels(sessionResult.models ?? null);
       setSessionStatus('ready');
+
+      // Create the real transport and wire it into the lazy wrapper
+      const realTransport = new AcpChatTransport({ sessionKey: key, conversationId });
+      innerTransportRef.current = realTransport;
+      transportRef.current?.setTransport(realTransport);
 
       // Subscribe to ACP status changes
       cleanupStatus = api().onAcpStatus(key, (newStatus: AcpSessionStatus) => {
-        if (!mountedRef.current) return;
+        if (cancelled) return;
         if (sessionKeyRef.current !== key) return;
         setSessionStatus(newStatus);
       });
@@ -138,15 +155,19 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
     init();
 
     return () => {
-      mountedRef.current = false;
+      cancelled = true;
       cleanupStatus?.();
+
+      // Reject any queued message on the outgoing lazy transport
+      transportRef.current?.setError(new Error('Session disposed'));
 
       if (sessionKeyRef.current) {
         // Clean up transport listeners before detaching to prevent orphaned IPC listeners
-        transportRef.current?.cleanupListeners();
+        innerTransportRef.current?.cleanupListeners();
         api().acpDetach({ sessionKey: sessionKeyRef.current });
       }
       sessionKeyRef.current = null;
+      innerTransportRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId, providerId, cwd, restartCount]);
@@ -157,6 +178,7 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
       api().acpKill({ sessionKey: sessionKeyRef.current }).catch(() => {});
       sessionKeyRef.current = null;
     }
+    innerTransportRef.current = null;
     // Reset state to trigger a fresh init
     setSessionKey(null);
     setSessionStatus('initializing');

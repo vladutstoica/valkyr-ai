@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from 'child_process';
 import * as path from 'path';
+import * as fsp from 'fs/promises';
 // ACP SDK is ESM-only — use type imports statically, runtime imports dynamically
 import type {
   ClientSideConnection,
@@ -32,6 +33,11 @@ async function getAcpSdk() {
     _acpSdk = await dynamicImport('@agentclientprotocol/sdk');
   }
   return _acpSdk;
+}
+
+/** Pre-warm the ACP SDK import so the first session doesn't pay the ESM load cost. */
+export function warmAcpSdk(): void {
+  getAcpSdk().catch(() => { /* best-effort */ });
 }
 
 // ---------------------------------------------------------------------------
@@ -194,6 +200,10 @@ export class AcpSessionManager {
     cwd: string,
     env?: Record<string, string>,
   ): Promise<SpawnInitResult> {
+    // Start SDK load immediately in parallel with command resolution
+    // (no-op if already warm, but overlaps with resolveCommand if not)
+    const sdkPromise = getAcpSdk();
+
     // Resolve ACP command: try registry first, then hardcoded acpSupport
     const acpId = PROVIDER_TO_ACP_ID[providerId] ?? providerId;
     const resolved = await acpRegistryService.resolveCommand(acpId);
@@ -287,7 +297,7 @@ export class AcpSessionManager {
       },
     });
 
-    const acpSdk = await getAcpSdk();
+    const acpSdk = await sdkPromise;
     const stream = acpSdk.ndJsonStream(stdinStream, stdoutStream);
 
     const session: AcpSession = {
@@ -399,15 +409,18 @@ export class AcpSessionManager {
     this.finalizedSessions.delete(sessionKey);
 
     try {
-      const { session, connection, initResp, spawnError } =
-        await this.spawnAndInitialize(sessionKey, conversationId, providerId, cwd, env);
+      // Parallelize subprocess spawn with DB lookup for stored session ID
+      const [spawnResult, storedSessionId] = await Promise.all([
+        this.spawnAndInitialize(sessionKey, conversationId, providerId, cwd, env),
+        resumeAcpSessionId
+          ? Promise.resolve(resumeAcpSessionId)
+          : databaseService.getConversationAcpSessionId(conversationId).catch(() => null),
+      ]);
+
+      const { session, connection, initResp, spawnError } = spawnResult;
 
       let acpSessionId: string;
       let sessionResp: any;
-
-      // Look up stored acpSessionId from DB if not provided
-      const storedSessionId = resumeAcpSessionId
-        ?? await databaseService.getConversationAcpSessionId(conversationId).catch(() => null);
 
       // Try to resume an existing session if we have a stored acpSessionId
       if (storedSessionId) {
@@ -898,8 +911,7 @@ export class AcpSessionManager {
           throw new Error(`Path traversal blocked: ${params.path}`);
         }
 
-        const fs = await import('fs/promises');
-        const content = await fs.readFile(resolved, 'utf-8');
+        const content = await fsp.readFile(resolved, 'utf-8');
         return { content };
       },
 
@@ -915,9 +927,8 @@ export class AcpSessionManager {
           throw new Error(`Path traversal blocked: ${params.path}`);
         }
 
-        const fs = await import('fs/promises');
-        await fs.mkdir(path.dirname(resolved), { recursive: true });
-        await fs.writeFile(resolved, params.content, 'utf-8');
+        await fsp.mkdir(path.dirname(resolved), { recursive: true });
+        await fsp.writeFile(resolved, params.content, 'utf-8');
         return {};
       },
     };

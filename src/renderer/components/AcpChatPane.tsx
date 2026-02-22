@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { UIMessage } from 'ai';
 import { useChat } from '@ai-sdk/react';
+import * as SelectPrimitive from '@radix-ui/react-select';
 import { AlertCircle, ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon, CheckIcon, ChevronDownIcon, ClockIcon, CopyIcon, Loader2, MoreHorizontalIcon, PaperclipIcon, PlusIcon, RefreshCwIcon, SettingsIcon, Trash2Icon, WrenchIcon } from 'lucide-react';
 import { useAcpSession } from '../hooks/useAcpSession';
-import { AcpChatTransport, type AcpUsageData, type AcpPlanEntry, type AcpCommand, type AcpConfigOption } from '../lib/acpChatTransport';
+import { LazyAcpChatTransport, type AcpUsageData, type AcpPlanEntry, type AcpCommand, type AcpConfigOption } from '../lib/acpChatTransport';
 import { Button } from './ui/button';
 import { getToolDisplayLabel, getToolIconComponent } from '../lib/toolRenderer';
 import type { AcpSessionStatus, AcpSessionModes, AcpSessionModels, AcpSessionModel } from '../types/electron-api';
@@ -14,8 +15,6 @@ import { ModelInfoCard } from './ModelInfoCard';
 import type { Agent } from '../types';
 import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from './ui/dropdown-menu';
-import * as SelectPrimitive from '@radix-ui/react-select';
-import { Check } from 'lucide-react';
 
 // AI Elements
 import { Message, MessageContent, MessageResponse, MessageActions, MessageAction } from './ai-elements/message';
@@ -56,7 +55,6 @@ type AcpChatPaneProps = {
   conversationId: string;
   providerId: string;
   cwd: string;
-  autoApprove?: boolean;
   onStatusChange?: (status: AcpSessionStatus, sessionKey: string) => void;
   onAppendRef?: (fn: ((msg: { content: string }) => Promise<void>) | null) => void;
   onOpenAgentSettings?: () => void;
@@ -327,18 +325,17 @@ function MessageParts({ message, chatStatus }: { message: UIMessage; chatStatus:
 }
 
 // ---------------------------------------------------------------------------
-// Inner component — mounts only when transport is ready
+// Inner component — mounts when lazy transport is available
 // ---------------------------------------------------------------------------
 
 type AcpChatInnerProps = {
   conversationId: string;
   providerId: string;
-  transport: AcpChatTransport;
+  transport: LazyAcpChatTransport;
   initialMessages: UIMessage[];
-  sessionKey: string;
+  sessionKey: string | null;
   modes: AcpSessionModes;
   models: AcpSessionModels;
-  autoApproveInitial?: boolean;
   onStatusChange?: (status: AcpSessionStatus, sessionKey: string) => void;
   onAppendRef?: (fn: ((msg: { content: string }) => Promise<void>) | null) => void;
   onCreateNewChat?: () => void;
@@ -359,7 +356,6 @@ function AcpChatInner({
   sessionKey,
   modes: initialModes,
   models: initialModels,
-  autoApproveInitial = false,
   onStatusChange,
   onAppendRef,
   onCreateNewChat,
@@ -371,9 +367,16 @@ function AcpChatInner({
   canMoveRight = true,
   className,
 }: AcpChatInnerProps) {
-  const [autoApprove, setAutoApprove] = useState(autoApproveInitial);
   const [currentModeId, setCurrentModeId] = useState(initialModes?.currentModeId ?? '');
   const [currentModelId, setCurrentModelId] = useState(initialModels?.currentModelId ?? '');
+
+  // Sync mode/model when initial data arrives (useState only captures the first value)
+  useEffect(() => {
+    if (initialModes?.currentModeId) setCurrentModeId(initialModes.currentModeId);
+  }, [initialModes?.currentModeId]);
+  useEffect(() => {
+    if (initialModels?.currentModelId) setCurrentModelId(initialModels.currentModelId);
+  }, [initialModels?.currentModelId]);
 
   // Arrow-up message recall
   const [messageHistory, setMessageHistory] = useState<string[]>([]);
@@ -388,12 +391,6 @@ function AcpChatInner({
   const [availableCommands, setAvailableCommands] = useState<AcpCommand[]>([]);
   const [sessionTitle, setSessionTitle] = useState<string | null>(null);
   const [configOptions, setConfigOptions] = useState<Map<string, AcpConfigOption>>(new Map());
-
-  // Sync autoApprove to transport (transport is mutable by design)
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/immutability
-    transport.autoApprove = autoApprove;
-  }, [transport, autoApprove]);
 
   // Wire side-channel callbacks on transport
   useEffect(() => {
@@ -463,7 +460,7 @@ function AcpChatInner({
   }, [appendFn, onAppendRef]);
 
   useEffect(() => {
-    onStatusChange?.(effectiveStatus, sessionKey);
+    if (sessionKey) onStatusChange?.(effectiveStatus, sessionKey);
   }, [effectiveStatus, sessionKey, onStatusChange]);
 
   // Update acpStatusStore so unifiedStatusStore can aggregate
@@ -471,7 +468,7 @@ function AcpChatInner({
     const hasPending = messages.some((m) =>
       m.parts.some((p: any) => p.state === 'approval-requested')
     );
-    acpStatusStore.setStatus(sessionKey, effectiveStatus, hasPending);
+    if (sessionKey) acpStatusStore.setStatus(sessionKey, effectiveStatus, hasPending);
   }, [effectiveStatus, messages, sessionKey]);
 
   // Handle approval clicks (delegated from Confirmation buttons)
@@ -607,18 +604,20 @@ function AcpChatInner({
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
       }
     }
-  }, [messageHistory]);
+  }, [messageHistory, filteredCommands, commandIndex, selectCommand]);
 
   const handleStop = useCallback(() => {
     stop();
   }, [stop]);
 
   const handleModeChange = useCallback((modeId: string) => {
+    if (!sessionKey) return;
     setCurrentModeId(modeId);
     window.electronAPI.acpSetMode({ sessionKey, mode: modeId });
   }, [sessionKey]);
 
   const handleModelChange = useCallback((modelId: string) => {
+    if (!sessionKey) return;
     setCurrentModelId(modelId);
     window.electronAPI.acpSetModel({ sessionKey, modelId });
   }, [sessionKey]);
@@ -920,7 +919,9 @@ function AcpChatInner({
               placeholder={
                 chatStatus === 'error'
                   ? 'Session error'
-                  : 'Type a message...'
+                  : !transport.isReady
+                    ? 'Connecting...'
+                    : 'Type a message...'
               }
               disabled={chatStatus !== 'ready' && !isStreaming}
             />
@@ -936,7 +937,7 @@ function AcpChatInner({
 
               {/* Mode selector */}
               {initialModes && initialModes.availableModes.length > 1 && (
-                <PromptInputSelect value={currentModeId} onValueChange={handleModeChange}>
+                <PromptInputSelect value={currentModeId} onValueChange={handleModeChange} disabled={!sessionKey}>
                   <PromptInputSelectTrigger className="h-8 w-auto shrink-0 gap-1 px-2 text-xs whitespace-nowrap">
                     <PromptInputSelectValue />
                   </PromptInputSelectTrigger>
@@ -949,7 +950,7 @@ function AcpChatInner({
                       >
                         <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
                           <SelectPrimitive.ItemIndicator>
-                            <Check className="h-4 w-4" />
+                            <CheckIcon className="h-4 w-4" />
                           </SelectPrimitive.ItemIndicator>
                         </span>
                         <div className="flex flex-col gap-0.5">
@@ -964,29 +965,16 @@ function AcpChatInner({
                 </PromptInputSelect>
               )}
 
-              {/* Auto-approve toggle */}
-              <PromptInputSelect
-                value={autoApprove ? 'auto' : 'ask'}
-                onValueChange={(val) => setAutoApprove(val === 'auto')}
-              >
-                <PromptInputSelectTrigger className="h-8 w-auto shrink-0 gap-1 px-2 text-xs whitespace-nowrap">
-                  <PromptInputSelectValue />
-                </PromptInputSelectTrigger>
-                <PromptInputSelectContent>
-                  <PromptInputSelectItem value="ask">Ask for approval</PromptInputSelectItem>
-                  <PromptInputSelectItem value="auto">Auto-approve</PromptInputSelectItem>
-                </PromptInputSelectContent>
-              </PromptInputSelect>
-
-              {/* Config option selectors — only show when value matches an option */}
+              {/* Config option selectors */}
               {Array.from(configOptions.values())
                 .filter((opt) => opt.type === 'enum' && opt.options && opt.options.length > 1 && opt.options.some((o) => o.value === opt.value))
                 .map((opt) => (
                   <PromptInputSelect
                     key={opt.optionId}
                     value={opt.value}
+                    disabled={!sessionKey}
                     onValueChange={(val) => {
-                      window.electronAPI.acpSetConfigOption({ sessionKey, optionId: opt.optionId, value: val });
+                      if (sessionKey) window.electronAPI.acpSetConfigOption({ sessionKey, optionId: opt.optionId, value: val });
                       setConfigOptions((prev) => {
                         const next = new Map(prev);
                         next.set(opt.optionId, { ...opt, value: val });
@@ -1028,7 +1016,6 @@ export function AcpChatPane({
   conversationId,
   providerId,
   cwd,
-  autoApprove: autoApproveProp = false,
   onStatusChange,
   onAppendRef,
   onOpenAgentSettings,
@@ -1065,16 +1052,16 @@ export function AcpChatPane({
   }, [taskId, conversationId, sessionKey]);
 
   useEffect(() => {
-    if (!transport && sessionKey) {
+    if (sessionStatus === 'initializing' && sessionKey) {
       onStatusChange?.('initializing', sessionKey);
     }
-  }, [transport, sessionKey, onStatusChange]);
+  }, [sessionStatus, sessionKey, onStatusChange]);
 
   useEffect(() => {
-    if (!transport) {
+    if (sessionStatus === 'initializing') {
       onAppendRef?.(null);
     }
-  }, [transport, onAppendRef]);
+  }, [sessionStatus, onAppendRef]);
 
   // Agent unavailable error
   if (sessionError && (sessionError.message === 'no_acp_support' || sessionError.message === 'acp_unavailable')) {
@@ -1111,7 +1098,7 @@ export function AcpChatPane({
     );
   }
 
-  // Loading state
+  // Loading state — show spinner only if transport isn't available yet
   if (!transport) {
     return (
       <div className={`flex h-full items-center justify-center ${className}`}>
@@ -1126,10 +1113,9 @@ export function AcpChatPane({
       providerId={providerId}
       transport={transport}
       initialMessages={initialMessages}
-      sessionKey={sessionKey!}
+      sessionKey={sessionKey ?? null}
       modes={modes}
       models={models}
-      autoApproveInitial={autoApproveProp}
       onStatusChange={onStatusChange}
       onAppendRef={onAppendRef}
       onCreateNewChat={onCreateNewChat}

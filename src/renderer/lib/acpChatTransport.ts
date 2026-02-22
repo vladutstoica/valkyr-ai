@@ -518,7 +518,7 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
           } catch {
             // Stream may already be closed
           }
-        });
+        }, { once: true });
       },
     });
   }
@@ -552,5 +552,142 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
   destroy(): void {
     this.cleanupListeners();
     api().acpDetach({ sessionKey: this.sessionKey });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// LazyAcpChatTransport — wraps AcpChatTransport for deferred session init
+// ---------------------------------------------------------------------------
+
+/**
+ * A lazy wrapper around AcpChatTransport that allows the chat UI to render
+ * immediately while the ACP session is still initializing.
+ *
+ * On first `sendMessages()` call, if the real transport isn't ready yet,
+ * the message is queued and replayed once the session is established.
+ */
+export class LazyAcpChatTransport implements ChatTransport<UIMessage> {
+  private inner: AcpChatTransport | null = null;
+  private pendingSend: {
+    options: Parameters<AcpChatTransport['sendMessages']>[0];
+    resolve: (stream: ReadableStream<UIMessageChunk>) => void;
+    reject: (err: Error) => void;
+  } | null = null;
+  private _error: Error | null = null;
+
+  /** Mutable side-channel callbacks — forwarded to inner transport when ready. */
+  private _sideChannel: AcpSideChannelEvents = {};
+  private _autoApprove = false;
+
+  get sideChannel(): AcpSideChannelEvents {
+    return this.inner ? this.inner.sideChannel : this._sideChannel;
+  }
+
+  set sideChannel(sc: AcpSideChannelEvents) {
+    this._sideChannel = sc;
+    if (this.inner) this.inner.sideChannel = sc;
+  }
+
+  get autoApprove(): boolean {
+    return this.inner ? this.inner.autoApprove : this._autoApprove;
+  }
+
+  set autoApprove(v: boolean) {
+    this._autoApprove = v;
+    if (this.inner) this.inner.autoApprove = v;
+  }
+
+  /** Whether the real transport is connected and ready. */
+  get isReady(): boolean {
+    return this.inner !== null;
+  }
+
+  /** Whether session creation failed. */
+  get error(): Error | null {
+    return this._error;
+  }
+
+  /**
+   * Called by useAcpSession once the ACP session is established.
+   * Transfers buffered side-channel/autoApprove settings and replays queued message.
+   */
+  setTransport(transport: AcpChatTransport): void {
+    this.inner = transport;
+    // Forward buffered settings
+    transport.sideChannel = this._sideChannel;
+    transport.autoApprove = this._autoApprove;
+
+    // Replay queued send
+    if (this.pendingSend) {
+      const { options, resolve, reject } = this.pendingSend;
+      this.pendingSend = null;
+      transport.sendMessages(options).then(resolve, reject);
+    }
+  }
+
+  /**
+   * Called by useAcpSession if session creation fails or the session is disposed.
+   * Rejects any queued message.
+   */
+  setError(err: Error): void {
+    if (!this._error) this._error = err;
+    if (this.pendingSend) {
+      const { reject } = this.pendingSend;
+      this.pendingSend = null;
+      reject(err);
+    }
+  }
+
+  async sendMessages(options: Parameters<AcpChatTransport['sendMessages']>[0]): Promise<ReadableStream<UIMessageChunk>> {
+    if (this.inner) {
+      return this.inner.sendMessages(options);
+    }
+
+    if (this._error) {
+      return new ReadableStream<UIMessageChunk>({
+        start(controller) {
+          controller.enqueue({ type: 'error', errorText: 'Session failed to initialize' });
+          controller.close();
+        },
+      });
+    }
+
+    // Reject previous pending send if any (useChat should not call concurrently,
+    // but guard against it to avoid orphaned promises)
+    if (this.pendingSend) {
+      this.pendingSend.reject(new Error('Superseded by newer message'));
+      this.pendingSend = null;
+    }
+
+    // Queue the message until the real transport is ready
+    return new Promise<ReadableStream<UIMessageChunk>>((resolve, reject) => {
+      this.pendingSend = { options, resolve, reject };
+
+      // Respect abort signal — if the user cancels before session is ready,
+      // reject the queued send instead of replaying it later
+      options.abortSignal?.addEventListener('abort', () => {
+        if (this.pendingSend?.options === options) {
+          this.pendingSend = null;
+          reject(new Error('Aborted'));
+        }
+      }, { once: true });
+    });
+  }
+
+  async reconnectToStream(): Promise<ReadableStream<UIMessageChunk> | null> {
+    if (this.inner) return this.inner.reconnectToStream();
+    return null;
+  }
+
+  approve(toolCallId: string, approved: boolean): void {
+    this.inner?.approve(toolCallId, approved);
+  }
+
+  cleanupListeners(): void {
+    this.inner?.cleanupListeners();
+  }
+
+  destroy(): void {
+    this.inner?.destroy();
   }
 }

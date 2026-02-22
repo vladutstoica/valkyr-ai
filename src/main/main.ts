@@ -108,6 +108,8 @@ import { databaseService } from './services/DatabaseService';
 import { connectionsService } from './services/ConnectionsService';
 import { autoUpdateService } from './services/AutoUpdateService';
 import { worktreePoolService } from './services/WorktreePoolService';
+import { warmAcpSdk } from './services/AcpSessionManager';
+import { acpRegistryService } from './services/AcpRegistryService';
 import { sshService } from './services/ssh/SshService';
 import { taskLifecycleService } from './services/TaskLifecycleService';
 import * as telemetry from './telemetry';
@@ -238,6 +240,11 @@ app.whenReady().then(async () => {
 
   // Register IPC handlers
   registerAllIpc();
+
+  // Pre-warm ACP SDK and registry caches so first session doesn't pay cold-start costs
+  warmAcpSdk();
+  acpRegistryService.getInstalledAgents().catch(() => {});
+  acpRegistryService.fetchRegistry().catch(() => {});
 
   // Clean up any orphaned reserve worktrees from previous sessions
   worktreePoolService.cleanupOrphanedReserves().catch((error) => {
