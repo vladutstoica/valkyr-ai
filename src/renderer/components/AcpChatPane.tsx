@@ -26,6 +26,7 @@ import { Loader } from './ai-elements/loader';
 import { Plan, PlanContent, PlanTrigger } from './ai-elements/plan';
 import { Sources, SourcesTrigger, SourcesContent, Source } from './ai-elements/sources';
 import { Checkpoint, CheckpointIcon, CheckpointTrigger } from './ai-elements/checkpoint';
+import { Context, ContextTrigger, ContextContent, ContextContentHeader, ContextContentBody, ContextContentFooter, ContextInputUsage, ContextOutputUsage, ContextReasoningUsage, ContextCacheUsage } from './ai-elements/context';
 import {
   PromptInput,
   PromptInputTextarea,
@@ -878,29 +879,22 @@ function AcpChatInner({
         <ConversationScrollButton />
       </Conversation>
 
-      {/* Usage bar */}
+      {/* Context usage (hover card) */}
       {usage && usage.size && usage.used != null && (
-        <div className="flex items-center gap-2 border-t border-border/50 px-3 pt-2 text-[10px] text-muted-foreground">
-          <div className="flex-1">
-            <div className="flex items-center justify-between mb-0.5">
-              <span>Context: {Math.round((usage.used / usage.size) * 100)}%</span>
-              <span>{(usage.used / 1000).toFixed(1)}k / {(usage.size / 1000).toFixed(0)}k tokens</span>
-            </div>
-            <div className="h-1 w-full rounded-full bg-muted">
-              <div
-                className={`h-1 rounded-full transition-all ${
-                  usage.used / usage.size > 0.9 ? 'bg-red-500' :
-                  usage.used / usage.size > 0.7 ? 'bg-yellow-500' : 'bg-primary'
-                }`}
-                style={{ width: `${Math.min(100, (usage.used / usage.size) * 100)}%` }}
-              />
-            </div>
-          </div>
-          {usage.cost && (
-            <span className="shrink-0 tabular-nums">
-              {usage.cost.currency === 'USD' ? '$' : ''}{usage.cost.amount.toFixed(4)}
-            </span>
-          )}
+        <div className="flex justify-end border-t border-border/50 px-2 pt-1">
+          <Context usedTokens={usage.used} maxTokens={usage.size} cost={usage.cost}>
+            <ContextTrigger />
+            <ContextContent side="top" align="end">
+              <ContextContentHeader />
+              <ContextContentBody>
+                <ContextInputUsage />
+                <ContextOutputUsage />
+                <ContextReasoningUsage />
+                <ContextCacheUsage />
+              </ContextContentBody>
+              <ContextContentFooter />
+            </ContextContent>
+          </Context>
         </div>
       )}
 
