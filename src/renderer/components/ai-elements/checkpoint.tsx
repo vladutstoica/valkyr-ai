@@ -5,6 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -51,16 +52,18 @@ export const CheckpointTrigger = ({
   ...props
 }: CheckpointTriggerProps) =>
   tooltip ? (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button size={size} type="button" variant={variant} {...props}>
-          {children}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent align="start" side="bottom">
-        {tooltip}
-      </TooltipContent>
-    </Tooltip>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button size={size} type="button" variant={variant} {...props}>
+            {children}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent align="start" side="bottom">
+          {tooltip}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   ) : (
     <Button size={size} type="button" variant={variant} {...props}>
       {children}
