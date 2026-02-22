@@ -13,6 +13,9 @@ import { unifiedStatusStore } from '../lib/unifiedStatusStore';
 import { agentConfig } from '../lib/agentConfig';
 import type { Agent } from '../types';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from './ui/dropdown-menu';
+import { PopoverContent } from './ui/popover';
+import { Command } from './ui/command';
+import { ModelInfoCard } from './ModelInfoCard';
 
 // AI Elements
 import { Message, MessageContent, MessageResponse, MessageActions, MessageAction } from './ai-elements/message';
@@ -54,7 +57,7 @@ import {
   InlineCitationCarouselItem, InlineCitationSource,
 } from './ai-elements/inline-citation';
 import {
-  ModelSelector, ModelSelectorTrigger, ModelSelectorContent, ModelSelectorInput,
+  ModelSelector, ModelSelectorTrigger, ModelSelectorInput,
   ModelSelectorList, ModelSelectorEmpty, ModelSelectorGroup, ModelSelectorItem, ModelSelectorName,
 } from './ai-elements/model-selector';
 import {
@@ -425,6 +428,7 @@ function AcpChatInner({
 }: AcpChatInnerProps) {
   const [currentModeId, setCurrentModeId] = useState(initialModes?.currentModeId ?? '');
   const [currentModelId, setCurrentModelId] = useState(initialModels?.currentModelId ?? '');
+  const [hoveredModel, setHoveredModel] = useState<AcpSessionModel | null>(null);
 
   // Sync mode/model when initial data arrives (useState only captures the first value)
   useEffect(() => {
@@ -492,6 +496,18 @@ function AcpChatInner({
       }).catch(() => { /* non-fatal */ });
     },
   });
+
+  // Sync restored messages into useChat when they arrive after initial mount
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (initialMessages.length > 0 && !restoredRef.current) {
+      restoredRef.current = true;
+      // Only set if useChat currently has no messages (i.e. it missed the initial prop)
+      if (messages.length === 0) {
+        setMessages(initialMessages);
+      }
+    }
+  }, [initialMessages, messages.length, setMessages]);
 
   // Auto-prune: when context usage > 90%, keep only the last 10 messages
   useEffect(() => {
@@ -704,7 +720,7 @@ function AcpChatInner({
         {/* Left: model name */}
         <div className="flex items-center">
           {agent && initialModels && initialModels.availableModels.length > 1 && currentModelId ? (
-            <ModelSelector>
+            <ModelSelector onOpenChange={(open) => { if (!open) setHoveredModel(null); }}>
               <ModelSelectorTrigger asChild>
                 <button
                   type="button"
@@ -719,32 +735,48 @@ function AcpChatInner({
                   <ChevronDownIcon className="size-3 opacity-50" />
                 </button>
               </ModelSelectorTrigger>
-              <ModelSelectorContent title="Select Model">
-                <ModelSelectorInput placeholder="Search models..." />
-                <ModelSelectorList>
-                  <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
-                  <ModelSelectorGroup heading={agent.name}>
-                    {initialModels.availableModels.map((model) => (
-                      <ModelSelectorItem
-                        key={model.id}
-                        value={model.id}
-                        onSelect={() => handleModelChange(model.id)}
-                        className="flex items-center gap-2"
-                      >
-                        <img
-                          src={agent.logo}
-                          alt={agent.alt}
-                          className={`size-3.5 rounded-sm ${agent.invertInDark ? 'dark:invert' : ''}`}
-                        />
-                        <ModelSelectorName>{model.name}</ModelSelectorName>
-                        {model.id === currentModelId && (
-                          <CheckIcon className="ml-auto size-3.5 shrink-0" />
-                        )}
-                      </ModelSelectorItem>
-                    ))}
-                  </ModelSelectorGroup>
-                </ModelSelectorList>
-              </ModelSelectorContent>
+              <PopoverContent className="w-auto p-0" align="start">
+                <div className="flex">
+                  <Command className="w-64 **:data-[slot=command-input-wrapper]:h-auto">
+                    <ModelSelectorInput placeholder="Search models..." />
+                    <ModelSelectorList>
+                      <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
+                      <ModelSelectorGroup heading={agent.name}>
+                        {initialModels.availableModels.map((model) => (
+                          <ModelSelectorItem
+                            key={model.id}
+                            value={model.id}
+                            onSelect={() => handleModelChange(model.id)}
+                            className="flex items-center gap-2"
+                            onMouseEnter={() => setHoveredModel(model)}
+                            onMouseLeave={() => setHoveredModel(null)}
+                          >
+                            <img
+                              src={agent.logo}
+                              alt={agent.alt}
+                              className={`size-3.5 rounded-sm ${agent.invertInDark ? 'dark:invert' : ''}`}
+                            />
+                            <ModelSelectorName>{model.name}</ModelSelectorName>
+                            {model.id === currentModelId && (
+                              <CheckIcon className="ml-auto size-3.5 shrink-0" />
+                            )}
+                          </ModelSelectorItem>
+                        ))}
+                      </ModelSelectorGroup>
+                    </ModelSelectorList>
+                  </Command>
+                  {hoveredModel && (
+                    <ModelInfoCard
+                      modelId={hoveredModel.id}
+                      providerId={providerId}
+                      providerName={agent.name}
+                      modelName={hoveredModel.name}
+                      providerIcon={agent.logo}
+                      invertIconInDark={agent.invertInDark}
+                    />
+                  )}
+                </div>
+              </PopoverContent>
             </ModelSelector>
           ) : agent ? (
             <div className="flex h-7 shrink-0 items-center gap-1.5 px-1 text-xs text-muted-foreground">

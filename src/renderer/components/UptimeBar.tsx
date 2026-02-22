@@ -30,12 +30,12 @@ export function UptimeBar({ data }: { data: UptimeDayData[] }) {
 
   return (
     <div className="space-y-1.5">
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-px">
         {data.map((day) => (
           <HoverCard key={day.date} openDelay={100} closeDelay={0}>
             <HoverCardTrigger asChild>
               <div
-                className={`h-6 flex-1 rounded-[1px] transition-opacity hover:opacity-80 ${STATUS_COLORS[day.status]}`}
+                className={`h-5 flex-1 rounded-[1px] transition-opacity hover:opacity-80 ${STATUS_COLORS[day.status]}`}
               />
             </HoverCardTrigger>
             <HoverCardContent

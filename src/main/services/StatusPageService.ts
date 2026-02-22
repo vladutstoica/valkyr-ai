@@ -38,7 +38,7 @@ type StatusPageIncident = {
 
 const STATUS_TTL = 1000 * 60 * 5; // 5 min
 const INCIDENT_TTL = 1000 * 60 * 30; // 30 min
-const UPTIME_DAYS = 45;
+const UPTIME_DAYS = 90;
 
 export class StatusPageService {
   private statusCache = new Map<string, { data: ProviderStatus; ts: number }>();
@@ -105,7 +105,7 @@ export class StatusPageService {
       const componentNames = PROVIDER_STATUS_COMPONENTS[providerId] ?? [];
       const incidents = (json.incidents ?? []).filter((inc) => {
         if (componentNames.length === 0) return true;
-        if (!inc.components?.length) return true;
+        if (!inc.components?.length) return false;
         return inc.components.some((c) =>
           componentNames.some((n) => c.name.toLowerCase().includes(n.toLowerCase()))
         );
@@ -136,14 +136,20 @@ export class StatusPageService {
 
       for (const inc of incidents) {
         const incStart = new Date(inc.started_at).getTime();
+        // For unresolved incidents, only count them on their start day —
+        // don't paint every subsequent day as an outage
         const incEnd = inc.resolved_at
           ? new Date(inc.resolved_at).getTime()
-          : Date.now();
+          : incStart + 86400000;
 
         if (incStart < dayEnd && incEnd > dayStart) {
           count++;
+          // Only escalate status for significant incidents;
+          // minor/none incidents keep the day operational (matches real status pages)
           if (inc.impact === 'major' || inc.impact === 'critical') {
             status = 'outage';
+          } else if (inc.impact === 'minor' || inc.impact === 'none') {
+            // minor incidents don't change day status
           } else if (status !== 'outage') {
             status = 'degraded';
           }
