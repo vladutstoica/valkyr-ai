@@ -14,6 +14,7 @@ import {
   GlobeIcon,
   BookOpenIcon,
   WrenchIcon,
+  ToggleRightIcon,
 } from 'lucide-react';
 
 const TOOL_NAME_MAP: Record<string, string> = {
@@ -122,8 +123,14 @@ export function getToolDisplayLabel(toolName: string, args: Record<string, unkno
       return `Edit notebook`;
     case 'task':
       return `Task: ${((args.description || '') as string).slice(0, 60)}`;
-    default:
+    default: {
+      // Handle switch_mode and similar non-normalized tools with descriptive titles
+      if (toolName === 'switch_mode') {
+        const mode = (args.mode_slug || args.mode || args.title || '') as string;
+        return mode ? `Switch to ${mode} mode` : 'Switch mode';
+      }
       return toolName;
+    }
   }
 }
 
@@ -196,6 +203,11 @@ export function getToolStepLabel(toolName: string, args: Record<string, unknown>
       return desc ? desc.slice(0, 50) : 'Run sub-task';
     }
     default: {
+      // Handle switch_mode with target mode info
+      if (toolName === 'switch_mode') {
+        const mode = (args.mode_slug || args.mode || '') as string;
+        return mode ? `Switch to ${mode} mode` : 'Switch mode';
+      }
       // For MCP or unknown tools, humanize the tool name
       const humanized = toolName
         .replace(/^mcp__[^_]+__/, '')  // strip MCP prefix
@@ -222,7 +234,10 @@ export function getToolIconComponent(toolName: string): LucideIcon {
     case 'web_search': return GlobeIcon;
     case 'web_fetch': return GlobeIcon;
     case 'notebook_edit': return BookOpenIcon;
-    default: return WrenchIcon;
+    default: {
+      if (toolName === 'switch_mode') return ToggleRightIcon;
+      return WrenchIcon;
+    }
   }
 }
 
