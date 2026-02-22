@@ -181,6 +181,14 @@ export type ToolGroupProps = {
   className?: string;
 };
 
+export function mapToolStateToStepStatus(
+  state: string
+): 'complete' | 'active' | 'pending' {
+  if (state === 'output-available' || state === 'output-error' || state === 'output-denied') return 'complete';
+  if (state === 'input-available' || state === 'input-streaming') return 'active';
+  return 'pending';
+}
+
 export const ToolGroup = ({ children, count, className }: ToolGroupProps) => {
   const [expanded, setExpanded] = useState(false);
 

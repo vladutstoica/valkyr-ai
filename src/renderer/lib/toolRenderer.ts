@@ -11,6 +11,8 @@ import {
   TerminalIcon,
   FolderTreeIcon,
   SearchIcon,
+  GlobeIcon,
+  BookOpenIcon,
   WrenchIcon,
 } from 'lucide-react';
 
@@ -52,6 +54,21 @@ const TOOL_NAME_MAP: Record<string, string> = {
   search: 'search',
   file_search: 'search',
   ripgrep: 'search',
+
+  // Web
+  WebSearch: 'web_search',
+  web_search: 'web_search',
+  WebFetch: 'web_fetch',
+  web_fetch: 'web_fetch',
+  fetch: 'web_fetch',
+
+  // Notebook
+  NotebookEdit: 'notebook_edit',
+  notebook_edit: 'notebook_edit',
+
+  // Task / agent delegation
+  Task: 'task',
+  task: 'task',
 };
 
 export type NormalizedToolName =
@@ -61,10 +78,21 @@ export type NormalizedToolName =
   | 'bash'
   | 'list_files'
   | 'search'
+  | 'web_search'
+  | 'web_fetch'
+  | 'notebook_edit'
+  | 'task'
   | 'unknown';
 
 export function normalizeToolName(toolName: string): NormalizedToolName {
   return (TOOL_NAME_MAP[toolName] as NormalizedToolName) || 'unknown';
+}
+
+/** Extract just the filename from a path string. */
+function extractFilename(val: unknown): string {
+  if (typeof val !== 'string' || !val) return '';
+  const parts = val.split('/');
+  return parts[parts.length - 1];
 }
 
 /**
@@ -86,8 +114,96 @@ export function getToolDisplayLabel(toolName: string, args: Record<string, unkno
       return `List ${(args.pattern || args.path || args.directory || '') as string}`;
     case 'search':
       return `Search "${(args.pattern || args.query || args.regex || '') as string}"`;
+    case 'web_search':
+      return `Search web: ${((args.query || '') as string).slice(0, 60)}`;
+    case 'web_fetch':
+      return `Fetch ${(args.url || '') as string}`;
+    case 'notebook_edit':
+      return `Edit notebook`;
+    case 'task':
+      return `Task: ${((args.description || '') as string).slice(0, 60)}`;
     default:
       return toolName;
+  }
+}
+
+/**
+ * Get a short, human-readable step label for a tool invocation (used in ChainOfThought).
+ *
+ * Priority:
+ * 1. ACP `title` field — already a human-readable description from the agent
+ * 2. Smart extraction from tool args (filename from path, truncated commands, etc.)
+ * 3. Fallback to a sensible default per tool type
+ */
+export function getToolStepLabel(toolName: string, args: Record<string, unknown>): string {
+  // ACP provides a human-readable title (e.g., "Read file: package.json") — use it first
+  if (typeof args.title === 'string' && args.title) {
+    return args.title;
+  }
+
+  // Bash description field is a short human-readable summary
+  if (typeof args.description === 'string' && args.description) {
+    return args.description;
+  }
+
+  const normalized = normalizeToolName(toolName);
+
+  switch (normalized) {
+    case 'read_file': {
+      const name = extractFilename(args.file_path || args.path || args.file);
+      return name ? `Read ${name}` : 'Read file';
+    }
+    case 'write_file': {
+      const name = extractFilename(args.file_path || args.path || args.file);
+      return name ? `Write ${name}` : 'Write file';
+    }
+    case 'edit_file': {
+      const name = extractFilename(args.file_path || args.path || args.file);
+      return name ? `Edit ${name}` : 'Edit file';
+    }
+    case 'bash': {
+      const cmd = ((args.command || args.cmd || '') as string).slice(0, 50);
+      return cmd ? `Run \`${cmd}\`` : 'Run command';
+    }
+    case 'list_files': {
+      const pattern = (args.pattern || '') as string;
+      const dir = extractFilename(args.path || args.directory);
+      return pattern ? `List ${pattern}` : dir ? `List ${dir}/` : 'List files';
+    }
+    case 'search': {
+      const q = (args.pattern || args.query || args.regex || '') as string;
+      return q ? `Search for "${q.slice(0, 40)}"` : 'Search codebase';
+    }
+    case 'web_search': {
+      const q = (args.query || '') as string;
+      return q ? `Search web for "${q.slice(0, 40)}"` : 'Search web';
+    }
+    case 'web_fetch': {
+      const url = (args.url || '') as string;
+      if (url) {
+        try {
+          return `Fetch ${new URL(url).hostname}`;
+        } catch { /* fallthrough */ }
+      }
+      return 'Fetch URL';
+    }
+    case 'notebook_edit': {
+      const nb = extractFilename(args.notebook_path || args.path);
+      return nb ? `Edit ${nb}` : 'Edit notebook';
+    }
+    case 'task': {
+      const desc = (args.description || args.prompt || '') as string;
+      return desc ? desc.slice(0, 50) : 'Run sub-task';
+    }
+    default: {
+      // For MCP or unknown tools, humanize the tool name
+      const humanized = toolName
+        .replace(/^mcp__[^_]+__/, '')  // strip MCP prefix
+        .replace(/_/g, ' ')
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .toLowerCase();
+      return humanized.charAt(0).toUpperCase() + humanized.slice(1);
+    }
   }
 }
 
@@ -103,6 +219,9 @@ export function getToolIconComponent(toolName: string): LucideIcon {
     case 'bash': return TerminalIcon;
     case 'list_files': return FolderTreeIcon;
     case 'search': return SearchIcon;
+    case 'web_search': return GlobeIcon;
+    case 'web_fetch': return GlobeIcon;
+    case 'notebook_edit': return BookOpenIcon;
     default: return WrenchIcon;
   }
 }
@@ -119,6 +238,9 @@ export function getToolIcon(toolName: string): string {
     case 'bash': return 'Terminal';
     case 'list_files': return 'FolderTree';
     case 'search': return 'Search';
+    case 'web_search': return 'Globe';
+    case 'web_fetch': return 'Globe';
+    case 'notebook_edit': return 'BookOpen';
     default: return 'Wrench';
   }
 }

@@ -6,7 +6,7 @@ import { AlertCircle, ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon, CheckIcon,
 import { useAcpSession } from '../hooks/useAcpSession';
 import { LazyAcpChatTransport, type AcpUsageData, type AcpPlanEntry, type AcpCommand, type AcpConfigOption } from '../lib/acpChatTransport';
 import { Button } from './ui/button';
-import { getToolDisplayLabel, getToolIconComponent } from '../lib/toolRenderer';
+import { getToolDisplayLabel, getToolStepLabel, getToolIconComponent } from '../lib/toolRenderer';
 import type { AcpSessionStatus, AcpSessionModes, AcpSessionModels, AcpSessionModel } from '../types/electron-api';
 import { acpStatusStore } from '../lib/acpStatusStore';
 import { unifiedStatusStore } from '../lib/unifiedStatusStore';
@@ -19,7 +19,8 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 // AI Elements
 import { Message, MessageContent, MessageResponse, MessageActions, MessageAction } from './ai-elements/message';
 import { Reasoning, ReasoningTrigger, ReasoningContent } from './ai-elements/reasoning';
-import { Tool, ToolHeader, ToolContent, ToolInput, ToolOutput, ToolInline, ToolGroup } from './ai-elements/tool';
+import { Tool, ToolHeader, ToolContent, ToolInput, ToolOutput, ToolInline, mapToolStateToStepStatus } from './ai-elements/tool';
+import { ChainOfThought, ChainOfThoughtHeader, ChainOfThoughtContent, ChainOfThoughtStep } from './ai-elements/chain-of-thought';
 import { Conversation, ConversationContent, ConversationEmptyState, ConversationScrollButton } from './ai-elements/conversation';
 import { Loader } from './ai-elements/loader';
 import { Plan, PlanContent, PlanTrigger } from './ai-elements/plan';
@@ -224,9 +225,25 @@ function MessageParts({ message, chatStatus }: { message: UIMessage; chatStatus:
     );
     if (allCompleted && toolRun.length >= 3) {
       elements.push(
-        <ToolGroup key={`tg-${toolRun[0].index}`} count={toolRun.length}>
-          {toolRun.map((t) => renderToolPart(t.part, t.index))}
-        </ToolGroup>
+        <ChainOfThought key={`tg-${toolRun[0].index}`}>
+          <ChainOfThoughtHeader>Used {toolRun.length} tools</ChainOfThoughtHeader>
+          <ChainOfThoughtContent>
+            {toolRun.map((t) => {
+              const toolName = t.part.toolName || t.part.type?.replace(/^tool-/, '') || '';
+              const Icon = getToolIconComponent(toolName);
+              const label = getToolStepLabel(toolName, t.part.input || {});
+              const status = mapToolStateToStepStatus(t.part.state);
+              return (
+                <ChainOfThoughtStep
+                  key={t.part.toolCallId || t.index}
+                  icon={Icon}
+                  label={label}
+                  status={status}
+                />
+              );
+            })}
+          </ChainOfThoughtContent>
+        </ChainOfThought>
       );
     } else {
       for (const t of toolRun) {
