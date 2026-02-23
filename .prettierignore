@@ -8,6 +8,9 @@
 **/build
 **/.turbo
 
+# ignore auto-generated drizzle migration files
+drizzle/
+
 # ignore config files that shouldn't be formatted
 **/.env*
 **/pnpm-lock.yaml
