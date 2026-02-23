@@ -17,6 +17,7 @@ export type UseAcpSessionReturn = {
   sessionError: Error | null;
   initialMessages: UIMessage[];
   sessionKey: string | null;
+  acpSessionId: string | null;
   modes: AcpSessionModes;
   models: AcpSessionModels;
   restartSession: () => void;
@@ -79,6 +80,7 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
   const { conversationId, providerId, cwd } = options;
 
   const [sessionKey, setSessionKey] = useState<string | null>(null);
+  const [acpSessionId, setAcpSessionId] = useState<string | null>(null);
   const [sessionStatus, setSessionStatus] = useState<AcpSessionStatus>('initializing');
   const [sessionError, setSessionError] = useState<Error | null>(null);
   const [initialMessages, setInitialMessages] = useState<UIMessage[]>([]);
@@ -135,6 +137,7 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
       const key = sessionResult.sessionKey;
       sessionKeyRef.current = key;
       setSessionKey(key);
+      setAcpSessionId(sessionResult.acpSessionId ?? null);
       setModes(sessionResult.modes ?? null);
       setModels(sessionResult.models ?? null);
       setSessionStatus('ready');
@@ -186,5 +189,5 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
     setRestartCount((c) => c + 1);
   }, []);
 
-  return { transport, sessionStatus, sessionError, initialMessages, sessionKey, modes, models, restartSession };
+  return { transport, sessionStatus, sessionError, initialMessages, sessionKey, acpSessionId, modes, models, restartSession };
 }

@@ -137,6 +137,19 @@ export function registerDatabaseIpc() {
   });
 
   ipcMain.handle(
+    'db:updateConversationAcpSessionId',
+    async (_, params: { conversationId: string; acpSessionId: string }) => {
+      try {
+        await databaseService.updateConversationAcpSessionId(params.conversationId, params.acpSessionId);
+        return { success: true };
+      } catch (error) {
+        log.error('Failed to update conversation ACP session ID:', error);
+        return { success: false, error: (error as Error).message };
+      }
+    }
+  );
+
+  ipcMain.handle(
     'db:cleanupSessionDirectory',
     async (_, args: { taskPath: string; conversationId: string }) => {
       try {

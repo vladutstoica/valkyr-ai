@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { UIMessage } from 'ai';
 import { useChat } from '@ai-sdk/react';
 import * as SelectPrimitive from '@radix-ui/react-select';
-import { AlertCircle, ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon, CheckIcon, ChevronDownIcon, ClockIcon, CopyIcon, DownloadIcon, Loader2, MoreHorizontalIcon, PaperclipIcon, PlusIcon, RefreshCwIcon, SettingsIcon, Trash2Icon, WrenchIcon, XIcon } from 'lucide-react';
+import { AlertCircle, ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon, CheckIcon, ChevronDownIcon, ClockIcon, CopyIcon, DownloadIcon, HistoryIcon, Loader2, MoreHorizontalIcon, PaperclipIcon, PlusIcon, RefreshCwIcon, SettingsIcon, Trash2Icon, WrenchIcon, XIcon } from 'lucide-react';
 import { useAcpSession } from '../hooks/useAcpSession';
 import { LazyAcpChatTransport, type AcpUsageData, type AcpPlanEntry, type AcpCommand, type AcpConfigOption } from '../lib/acpChatTransport';
 import { Button } from './ui/button';
@@ -13,7 +13,7 @@ import { unifiedStatusStore } from '../lib/unifiedStatusStore';
 import { agentConfig } from '../lib/agentConfig';
 import type { Agent } from '../types';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from './ui/dropdown-menu';
-import { PopoverContent } from './ui/popover';
+import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
 import { Command } from './ui/command';
 import { ModelInfoCard } from './ModelInfoCard';
 
@@ -95,6 +95,7 @@ type AcpChatPaneProps = {
   onAppendRef?: (fn: ((msg: { content: string }) => Promise<void>) | null) => void;
   onOpenAgentSettings?: () => void;
   onCreateNewChat?: () => void;
+  onResumeSession?: (acpSessionId: string, title?: string) => void;
   onClearChat?: () => void;
   onDeleteChat?: () => void;
   onMoveLeft?: () => void;
@@ -113,6 +114,118 @@ function getTextFromParts(parts: UIMessage['parts']): string {
     .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
     .map((p) => p.text)
     .join('');
+}
+
+function formatRelativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return 'yesterday';
+  if (days < 30) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString();
+}
+
+type AcpSessionInfo = { sessionId: string; title?: string | null; updatedAt?: string | null; cwd: string };
+
+function SessionHistoryPopover({
+  sessionKey,
+  currentAcpSessionId,
+  onResumeSession,
+}: {
+  sessionKey: string | null;
+  currentAcpSessionId: string | null;
+  onResumeSession: (acpSessionId: string, title?: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [sessions, setSessions] = useState<AcpSessionInfo[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchSessions = useCallback(async () => {
+    if (!sessionKey) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await window.electronAPI.acpListSessions({ sessionKey });
+      if (result.success && result.sessions) {
+        const filtered = (result.sessions as AcpSessionInfo[])
+          .filter((s) => s.sessionId !== currentAcpSessionId)
+          .sort((a, b) => {
+            if (!a.updatedAt || !b.updatedAt) return 0;
+            return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+          });
+        setSessions(filtered);
+      } else {
+        setError(result.error || 'Failed to load sessions');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to load sessions');
+    } finally {
+      setLoading(false);
+    }
+  }, [sessionKey, currentAcpSessionId]);
+
+  useEffect(() => {
+    if (open) fetchSessions();
+  }, [open, fetchSessions]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+          title="Session History"
+        >
+          <HistoryIcon className="size-3.5" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-72 p-0">
+        <div className="border-b border-border/50 px-3 py-2">
+          <p className="text-xs font-medium text-muted-foreground">Session History</p>
+        </div>
+        <div className="max-h-64 overflow-y-auto">
+          {loading && (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            </div>
+          )}
+          {error && (
+            <div className="px-3 py-4 text-center text-xs text-muted-foreground">{error}</div>
+          )}
+          {!loading && !error && sessions.length === 0 && (
+            <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+              No previous sessions found
+            </div>
+          )}
+          {!loading && !error && sessions.map((s) => (
+            <button
+              key={s.sessionId}
+              type="button"
+              className="flex w-full flex-col gap-0.5 px-3 py-2 text-left transition-colors hover:bg-accent"
+              onClick={() => {
+                onResumeSession(s.sessionId, s.title ?? undefined);
+                setOpen(false);
+              }}
+            >
+              <span className="truncate text-xs font-medium">
+                {s.title || s.sessionId.slice(0, 12) + '...'}
+              </span>
+              {s.updatedAt && (
+                <span className="text-[10px] text-muted-foreground">
+                  {formatRelativeTime(s.updatedAt)}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -653,11 +766,13 @@ type AcpChatInnerProps = {
   transport: LazyAcpChatTransport;
   initialMessages: UIMessage[];
   sessionKey: string | null;
+  acpSessionId: string | null;
   modes: AcpSessionModes;
   models: AcpSessionModels;
   onStatusChange?: (status: AcpSessionStatus, sessionKey: string) => void;
   onAppendRef?: (fn: ((msg: { content: string }) => Promise<void>) | null) => void;
   onCreateNewChat?: () => void;
+  onResumeSession?: (acpSessionId: string, title?: string) => void;
   onClearChat?: () => void;
   onDeleteChat?: () => void;
   onMoveLeft?: () => void;
@@ -673,11 +788,13 @@ function AcpChatInner({
   transport,
   initialMessages,
   sessionKey,
+  acpSessionId,
   modes: initialModes,
   models: initialModels,
   onStatusChange,
   onAppendRef,
   onCreateNewChat,
+  onResumeSession,
   onClearChat,
   onDeleteChat,
   onMoveLeft,
@@ -1086,6 +1203,13 @@ function AcpChatInner({
           >
             <PlusIcon className="size-3.5" />
           </button>
+          {onResumeSession && sessionKey && (
+            <SessionHistoryPopover
+              sessionKey={sessionKey}
+              currentAcpSessionId={acpSessionId}
+              onResumeSession={onResumeSession}
+            />
+          )}
           <button
             type="button"
             className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
@@ -1502,6 +1626,7 @@ export function AcpChatPane({
   onAppendRef,
   onOpenAgentSettings,
   onCreateNewChat,
+  onResumeSession,
   onClearChat,
   onDeleteChat,
   onMoveLeft,
@@ -1516,6 +1641,7 @@ export function AcpChatPane({
     sessionError,
     initialMessages,
     sessionKey,
+    acpSessionId,
     modes,
     models,
     restartSession,
@@ -1596,11 +1722,13 @@ export function AcpChatPane({
       transport={transport}
       initialMessages={initialMessages}
       sessionKey={sessionKey ?? null}
+      acpSessionId={acpSessionId ?? null}
       modes={modes}
       models={models}
       onStatusChange={onStatusChange}
       onAppendRef={onAppendRef}
       onCreateNewChat={onCreateNewChat}
+      onResumeSession={onResumeSession}
       onClearChat={onClearChat}
       onDeleteChat={onDeleteChat}
       onMoveLeft={onMoveLeft}

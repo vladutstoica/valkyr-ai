@@ -363,6 +363,40 @@ const ChatInterface: React.FC<Props> = ({
     await handleCreateChat(title, agent);
   }, [agent, handleCreateChat]);
 
+  const handleResumeSession = useCallback(async (acpSessionId: string, title?: string) => {
+    try {
+      const config = agentConfig[agent as Agent];
+      const chatTitle = title || `Resumed: ${config?.name || agent}`;
+
+      const result = await window.electronAPI.createConversation({
+        taskId: task.id,
+        title: chatTitle,
+        provider: agent,
+        isMain: false,
+      });
+
+      if (result.success && result.conversation) {
+        await window.electronAPI.updateConversationAcpSessionId({
+          conversationId: result.conversation.id,
+          acpSessionId,
+        });
+
+        const conversationsResult = await window.electronAPI.getConversations(task.id);
+        if (conversationsResult.success) {
+          setConversations(conversationsResult.conversations || []);
+        }
+        setActiveConversationId(result.conversation.id);
+      }
+    } catch (error) {
+      console.error('Failed to resume session:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to resume session',
+        variant: 'destructive',
+      });
+    }
+  }, [agent, task.id, toast]);
+
   const handleSwitchChat = useCallback(
     async (conversationId: string) => {
       // Don't dispose terminals - just switch between them
@@ -875,6 +909,7 @@ const ChatInterface: React.FC<Props> = ({
                     }}
                     onAppendRef={conv.id === activeConversationId ? (fn) => { acpAppendRef.current = fn; } : undefined}
                     onCreateNewChat={handleCreateNewChat}
+                    onResumeSession={handleResumeSession}
                     onClearChat={() => handleClearChat(conv.id)}
                     onDeleteChat={() => handleDeleteChatById(conv.id)}
                     onMoveLeft={() => handleMoveChat(conv.id, 'left')}

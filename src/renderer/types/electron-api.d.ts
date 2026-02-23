@@ -1399,6 +1399,10 @@ declare global {
         conversationId: string;
         title: string;
       }) => Promise<{ success: boolean; error?: string }>;
+      updateConversationAcpSessionId: (params: {
+        conversationId: string;
+        acpSessionId: string;
+      }) => Promise<{ success: boolean; error?: string }>;
 
       // App state
       getAppState(): Promise<{ success: boolean; data?: { activeProjectId: string | null; activeTaskId: string | null; activeWorkspaceId: string | null; prMode: string | null; prDraft: boolean }; error?: string }>;

@@ -486,6 +486,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('db:reorderConversations', params),
   updateConversationTitle: (params: { conversationId: string; title: string }) =>
     ipcRenderer.invoke('db:updateConversationTitle', params),
+  updateConversationAcpSessionId: (params: { conversationId: string; acpSessionId: string }) =>
+    ipcRenderer.invoke('db:updateConversationAcpSessionId', params),
 
   // App state
   getAppState: () => ipcRenderer.invoke('db:appState:get'),
