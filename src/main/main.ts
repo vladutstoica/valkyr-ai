@@ -108,7 +108,7 @@ import { databaseService } from './services/DatabaseService';
 import { connectionsService } from './services/ConnectionsService';
 import { autoUpdateService } from './services/AutoUpdateService';
 import { worktreePoolService } from './services/WorktreePoolService';
-import { warmAcpSdk } from './services/AcpSessionManager';
+import { warmAcpSdk, acpSessionManager } from './services/AcpSessionManager';
 import { acpRegistryService } from './services/AcpRegistryService';
 import { sshService } from './services/ssh/SshService';
 import { taskLifecycleService } from './services/TaskLifecycleService';
@@ -295,6 +295,9 @@ app.on('before-quit', () => {
 
   // Cleanup reserve worktrees (fire and forget - don't block quit)
   worktreePoolService.cleanup().catch(() => {});
+
+  // Kill all ACP sessions to avoid orphaned claude/claude-agent-acp processes
+  acpSessionManager.shutdown();
 
   // Disconnect all SSH connections to avoid orphaned sessions on remote hosts
   sshService.disconnectAll().catch(() => {});

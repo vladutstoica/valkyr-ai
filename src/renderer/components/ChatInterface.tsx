@@ -412,6 +412,10 @@ const ChatInterface: React.FC<Props> = ({
     const terminalToDispose = `${convAgent}-chat-${chatToDelete}`;
     terminalSessionRegistry.dispose(terminalToDispose);
 
+    // Kill the ACP session process if one exists for this conversation
+    const acpSessionKey = `${convAgent}-acp-${chatToDelete}`;
+    window.electronAPI.acpKill({ sessionKey: acpSessionKey }).catch(() => {});
+
     await window.electronAPI.deleteConversation(chatToDelete);
 
     // Reload conversations
@@ -451,6 +455,9 @@ const ChatInterface: React.FC<Props> = ({
       (async () => {
         const terminalToDispose = `${convAgent}-chat-${conversationId}`;
         terminalSessionRegistry.dispose(terminalToDispose);
+        // Kill the ACP session process if one exists for this conversation
+        const acpSessionKey = `${convAgent}-acp-${conversationId}`;
+        window.electronAPI.acpKill({ sessionKey: acpSessionKey }).catch(() => {});
         await window.electronAPI.deleteConversation(conversationId);
         await handleCreateChat(title, convAgent);
       })();

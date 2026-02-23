@@ -846,6 +846,15 @@ export class AcpSessionManager {
     log.info(`ACP session killed: ${sessionKey}`);
   }
 
+  shutdown(): void {
+    const keys = [...this.sessions.keys()];
+    if (keys.length === 0) return;
+    log.info(`Shutting down ${keys.length} ACP session(s)`);
+    for (const key of keys) {
+      this.killSession(key);
+    }
+  }
+
   getStatus(sessionKey: string): AcpSessionStatus | null {
     return this.sessions.get(sessionKey)?.status || null;
   }

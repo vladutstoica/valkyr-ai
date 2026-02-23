@@ -279,6 +279,9 @@ Renderer-only changes hot-reload via Vite — no restart needed.
 
 ## Git Workflow
 
+- **Hosted on GitHub** (private repo) — use `gh` CLI for GitHub operations
+- **CI/CD**: GitHub Actions (`.github/workflows/release.yml`)
+- **Releases**: electron-builder publishes to GitHub Releases; electron-updater fetches from there
 - Worktrees: `../worktrees/{workspace-name}-{timestamp}`, agents run there
 - Conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`, `test:`
 - Example: `fix(agent): resolve worktree path issue (#123)`

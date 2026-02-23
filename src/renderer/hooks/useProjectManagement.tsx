@@ -805,6 +805,21 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
       // Clean up reserve worktree before deleting project
       await window.electronAPI.worktreeRemoveReserve({ projectId: project.id }).catch(() => {});
 
+      // Kill all ACP sessions for this project's tasks before deleting
+      try {
+        const tasks = await window.electronAPI.getTasks(project.id);
+        for (const task of tasks || []) {
+          const convResult = await window.electronAPI.getConversations(task.id);
+          if (convResult.success && convResult.conversations) {
+            for (const conv of convResult.conversations) {
+              const provider = conv.provider || 'claude-code';
+              const acpKey = `${provider}-acp-${conv.id}`;
+              window.electronAPI.acpKill({ sessionKey: acpKey }).catch(() => {});
+            }
+          }
+        }
+      } catch {}
+
       const res = await window.electronAPI.deleteProject(project.id);
       if (!res?.success) throw new Error(res?.error || 'Failed to delete project');
 
