@@ -3,7 +3,7 @@ import type { ComponentProps, HTMLAttributes } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import Ansi from "ansi-to-react";
-import { CheckIcon, CopyIcon, TerminalIcon, Trash2Icon } from "lucide-react";
+import { CheckIcon, CopyIcon, SquareIcon, TerminalIcon, Trash2Icon } from "lucide-react";
 import {
   createContext,
   useCallback,
@@ -232,6 +232,39 @@ export const TerminalClearButton = ({
       {...props}
     >
       {children ?? <Trash2Icon size={14} />}
+    </Button>
+  );
+};
+
+export type TerminalStopButtonProps = ComponentProps<typeof Button> & {
+  onStop?: () => void;
+};
+
+export const TerminalStopButton = ({
+  onStop,
+  children,
+  className,
+  ...props
+}: TerminalStopButtonProps) => {
+  const { isStreaming } = useContext(TerminalContext);
+
+  if (!isStreaming) {
+    return null;
+  }
+
+  return (
+    <Button
+      className={cn(
+        "size-7 shrink-0 text-zinc-400 hover:bg-red-900/50 hover:text-red-400",
+        className
+      )}
+      onClick={onStop}
+      size="icon"
+      variant="ghost"
+      title="Stop process"
+      {...props}
+    >
+      {children ?? <SquareIcon size={12} className="fill-current" />}
     </Button>
   );
 };

@@ -1,6 +1,7 @@
 import type { ChatTransport, UIMessage, UIMessageChunk } from 'ai';
 import type { AcpUpdateEvent } from '../types/electron-api';
 import { acpStatusStore } from './acpStatusStore';
+import { useToolOutputStore } from './toolOutputStore';
 
 const api = () => window.electronAPI;
 
@@ -127,8 +128,17 @@ class ChunkMapper {
         const toolCallId = update.toolCallId;
         if (!toolCallId) break;
 
+        // Stream incremental output for in-progress tools (e.g. long-running bash)
+        if (update.status === 'in_progress') {
+          const text = update.rawOutput ?? this.extractToolContent(update.content);
+          if (text) {
+            useToolOutputStore.getState().append(toolCallId, text);
+          }
+        }
+
         // When status is completed/failed, emit tool output
         if (update.status === 'completed' || update.status === 'failed') {
+          useToolOutputStore.getState().markDone(toolCallId);
           const output = update.rawOutput ?? this.extractToolContent(update.content);
           chunks.push({
             type: 'tool-output-available',
