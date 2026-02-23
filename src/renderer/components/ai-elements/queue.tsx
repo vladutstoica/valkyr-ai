@@ -52,10 +52,10 @@ export const QueueItemIndicator = ({
 }: QueueItemIndicatorProps) => (
   <span
     className={cn(
-      "mt-0.5 inline-block size-2.5 rounded-full border",
+      "mt-0.5 inline-block size-2 shrink-0 rounded-full",
       completed
-        ? "border-muted-foreground/20 bg-muted-foreground/10"
-        : "border-muted-foreground/50",
+        ? "bg-muted-foreground/20"
+        : "bg-muted-foreground/50",
       className
     )}
     {...props}

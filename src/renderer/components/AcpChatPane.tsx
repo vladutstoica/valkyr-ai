@@ -28,6 +28,7 @@ import { Plan, PlanContent, PlanTrigger } from './ai-elements/plan';
 import { Sources, SourcesTrigger, SourcesContent, Source } from './ai-elements/sources';
 import { Checkpoint, CheckpointIcon, CheckpointTrigger } from './ai-elements/checkpoint';
 import { Context, ContextTrigger, ContextContent, ContextContentHeader, ContextContentBody, ContextContentFooter, ContextInputUsage, ContextOutputUsage, ContextReasoningUsage, ContextCacheUsage } from './ai-elements/context';
+import { PlanUsageHoverCard, PlanUsageContent, useClaudeUsageLimits } from './ai-elements/plan-usage';
 import {
   PromptInput,
   PromptInputTextarea,
@@ -47,7 +48,7 @@ import {
   PromptInputSelectValue,
   type PromptInputMessage,
 } from './ai-elements/prompt-input';
-import { Confirmation, ConfirmationActions, ConfirmationAction, ConfirmationTitle, ConfirmationRequest, ConfirmationAccepted, ConfirmationRejected } from './ai-elements/confirmation';
+import { Confirmation, ConfirmationActions, ConfirmationAction, ConfirmationTitle, ConfirmationRequest, ConfirmationBody, ConfirmationAccepted, ConfirmationRejected } from './ai-elements/confirmation';
 import { Shimmer } from './ai-elements/shimmer';
 import { Suggestions, Suggestion } from './ai-elements/suggestion';
 import { Task, TaskTrigger, TaskContent, TaskItem, TaskItemFile } from './ai-elements/task';
@@ -67,8 +68,9 @@ import {
 } from './ai-elements/queue';
 import {
   Terminal, TerminalHeader, TerminalTitle, TerminalStatus,
-  TerminalActions, TerminalCopyButton, TerminalContent,
+  TerminalActions, TerminalCopyButton, TerminalStopButton, TerminalContent,
 } from './ai-elements/terminal';
+import { useToolOutput } from '../lib/toolOutputStore';
 import {
   StackTrace, StackTraceHeader, StackTraceError, StackTraceErrorType,
   StackTraceErrorMessage, StackTraceActions, StackTraceCopyButton,
@@ -121,11 +123,48 @@ function getTextFromParts(parts: UIMessage['parts']): string {
 const STACK_TRACE_PATTERN = /(?:^\s*at\s+.+$[\n\r]*){3,}/m;
 
 /**
+ * Terminal that subscribes to streaming tool output from the side-channel store.
+ * Used for in-progress bash commands so incremental output is visible.
+ */
+function StreamingTerminal({ toolCallId, command, finalOutput, isStreaming, sessionKey }: {
+  toolCallId: string;
+  command: string;
+  finalOutput: string;
+  isStreaming: boolean;
+  sessionKey: string | null;
+}) {
+  const streamingOutput = useToolOutput(toolCallId);
+  const output = finalOutput || streamingOutput;
+
+  const handleStop = useCallback(() => {
+    if (sessionKey) {
+      window.electronAPI.acpCancel({ sessionKey });
+    }
+  }, [sessionKey]);
+
+  return (
+    <Terminal output={output} isStreaming={isStreaming}>
+      <TerminalHeader>
+        <TerminalTitle>{command ? `$ ${command.slice(0, 80)}` : 'Terminal'}</TerminalTitle>
+        <div className="flex items-center gap-1">
+          <TerminalStatus />
+          <TerminalActions>
+            {sessionKey && <TerminalStopButton onStop={handleStop} />}
+            <TerminalCopyButton />
+          </TerminalActions>
+        </div>
+      </TerminalHeader>
+      <TerminalContent />
+    </Terminal>
+  );
+}
+
+/**
  * Attempt to render a tool part using a rich AI Element component.
  * Returns a React element if a rich match is found, or null to fall through
  * to the generic Tool rendering.
  */
-function renderRichToolPart(toolPart: any, i: number): React.ReactNode | null {
+function renderRichToolPart(toolPart: any, i: number, sessionKey?: string | null): React.ReactNode | null {
   const toolName = toolPart.toolName || toolPart.type?.replace(/^tool-/, '') || '';
   const normalized = normalizeToolName(toolName);
   const output = toolPart.output != null ? String(toolPart.output) : '';
@@ -134,22 +173,18 @@ function renderRichToolPart(toolPart: any, i: number): React.ReactNode | null {
   const key = toolPart.toolCallId || i;
   const isStreaming = toolPart.state === 'partial-call' || toolPart.state === 'call';
 
-  // 1. Bash/shell → Terminal component
+  // 1. Bash/shell → StreamingTerminal (with stop button + incremental output)
   if (normalized === 'bash' && (output || isStreaming)) {
     const command = (inputObj.command || inputObj.cmd || '') as string;
     return (
-      <Terminal key={key} output={output} isStreaming={isStreaming}>
-        <TerminalHeader>
-          <TerminalTitle>{command ? `$ ${command.slice(0, 80)}` : 'Terminal'}</TerminalTitle>
-          <div className="flex items-center gap-1">
-            <TerminalStatus />
-            <TerminalActions>
-              <TerminalCopyButton />
-            </TerminalActions>
-          </div>
-        </TerminalHeader>
-        <TerminalContent />
-      </Terminal>
+      <StreamingTerminal
+        key={key}
+        toolCallId={toolPart.toolCallId || `tool-${i}`}
+        command={command}
+        finalOutput={output}
+        isStreaming={isStreaming}
+        sessionKey={sessionKey ?? null}
+      />
     );
   }
 
@@ -204,12 +239,12 @@ function renderRichToolPart(toolPart: any, i: number): React.ReactNode | null {
   return null;
 }
 
-function renderToolPart(toolPart: any, i: number) {
+function renderToolPart(toolPart: any, i: number, sessionKey?: string | null) {
   const toolName = toolPart.toolName || toolPart.type?.replace(/^tool-/, '') || '';
   if (!toolName) return null;
 
   // Try rich rendering first
-  const rich = renderRichToolPart(toolPart, i);
+  const rich = renderRichToolPart(toolPart, i, sessionKey);
   if (rich) return rich;
 
   const title = getToolDisplayLabel(toolName, toolPart.input || {});
@@ -328,7 +363,7 @@ function extractMarkdownSources(text: string): { text: string; sources: Array<{ 
   return { text: cleanedText, sources };
 }
 
-function StreamingToolGroup({ toolRun }: { toolRun: Array<{ part: any; index: number }> }) {
+function StreamingToolGroup({ toolRun, sessionKey }: { toolRun: Array<{ part: any; index: number }>; sessionKey?: string | null }) {
   const completed: Array<{ part: any; index: number }> = [];
   const active: Array<{ part: any; index: number }> = [];
   for (const t of toolRun) {
@@ -366,12 +401,12 @@ function StreamingToolGroup({ toolRun }: { toolRun: Array<{ part: any; index: nu
           })}
         </ChainOfThoughtContent>
       </ChainOfThought>
-      {active.map((t) => renderToolPart(t.part, t.index))}
+      {active.map((t) => renderToolPart(t.part, t.index, sessionKey))}
     </>
   );
 }
 
-function MessageParts({ message, chatStatus }: { message: UIMessage; chatStatus: string }) {
+function MessageParts({ message, chatStatus, sessionKey }: { message: UIMessage; chatStatus: string; sessionKey?: string | null }) {
   // Collect source parts for grouped rendering
   const sourceParts = message.parts.filter(
     (p) => p.type === 'source-url' || p.type === 'source-document'
@@ -413,11 +448,11 @@ function MessageParts({ message, chatStatus }: { message: UIMessage; chatStatus:
       );
     } else if (!allCompleted && toolRun.length >= 3) {
       elements.push(
-        <StreamingToolGroup key={`stg-${toolRun[0].index}`} toolRun={[...toolRun]} />
+        <StreamingToolGroup key={`stg-${toolRun[0].index}`} toolRun={[...toolRun]} sessionKey={sessionKey} />
       );
     } else {
       for (const t of toolRun) {
-        elements.push(renderToolPart(t.part, t.index));
+        elements.push(renderToolPart(t.part, t.index, sessionKey));
       }
     }
     toolRun = [];
@@ -453,7 +488,7 @@ function MessageParts({ message, chatStatus }: { message: UIMessage; chatStatus:
             </Task>
           );
         } else {
-          elements.push(renderToolPart(toolPart, i));
+          elements.push(renderToolPart(toolPart, i, sessionKey));
         }
       } else if (toolPart.state === 'approval-requested' || toolPart.state === 'output-denied') {
         // Approval lifecycle tools break out of grouping
@@ -463,6 +498,24 @@ function MessageParts({ message, chatStatus }: { message: UIMessage; chatStatus:
         const approval = toolPart.state === 'output-denied'
           ? { id: toolPart.toolCallId, approved: false as const }
           : { id: toolPart.toolCallId };
+
+        // For switch_mode, find the preceding plan file content to show inline
+        let planPreviewContent: string | null = null;
+        if (toolName === 'switch_mode' || toolName === 'ExitPlanMode') {
+          for (let j = i - 1; j >= 0; j--) {
+            const prev = message.parts[j] as any;
+            const prevToolName = prev?.toolName || prev?.type?.replace(/^tool-/, '') || '';
+            const prevNormalized = normalizeToolName(prevToolName);
+            if (prevNormalized === 'edit_file' || prevNormalized === 'write_file') {
+              const filePath = (prev.input?.file_path || prev.input?.path || prev.input?.file || '') as string;
+              if (filePath.endsWith('.md') && prev.output) {
+                planPreviewContent = String(prev.output);
+                break;
+              }
+            }
+          }
+        }
+
         elements.push(
           <Confirmation
             key={toolPart.toolCallId || i}
@@ -470,24 +523,39 @@ function MessageParts({ message, chatStatus }: { message: UIMessage; chatStatus:
             approval={approval}
           >
             <ConfirmationTitle>
-              Agent requests permission to run <strong>{title}</strong>
+              {planPreviewContent
+                ? <>Review plan before switching to <strong>{(toolPart.input?.mode_slug || toolPart.input?.mode || toolPart.input?.title || 'code') as string}</strong> mode</>
+                : <>Agent requests permission to run <strong>{title}</strong></>
+              }
             </ConfirmationTitle>
+            {planPreviewContent && (
+              <ConfirmationBody className="max-h-72 overflow-y-auto rounded border border-border/50 bg-muted/30 p-3">
+                <pre className="whitespace-pre-wrap text-xs text-muted-foreground font-mono leading-relaxed">{planPreviewContent}</pre>
+              </ConfirmationBody>
+            )}
             <ConfirmationRequest>
-              <ConfirmationActions>
-                <ConfirmationAction
-                  variant="default"
-                  data-tool-call-id={toolPart.toolCallId}
-                  data-action="approve"
-                >
-                  Allow
-                </ConfirmationAction>
-                <ConfirmationAction
-                  variant="destructive"
-                  data-tool-call-id={toolPart.toolCallId}
-                  data-action="deny"
-                >
-                  Deny
-                </ConfirmationAction>
+              <ConfirmationActions className="w-full justify-between">
+                <span className="text-xs text-muted-foreground/60">
+                  <kbd className="rounded border border-border/50 bg-muted/50 px-1.5 py-0.5 font-mono text-[10px]">Enter</kbd> to allow
+                  {' \u00b7 '}
+                  <kbd className="rounded border border-border/50 bg-muted/50 px-1.5 py-0.5 font-mono text-[10px]">Esc</kbd> to deny
+                </span>
+                <span className="flex items-center gap-2">
+                  <ConfirmationAction
+                    variant="default"
+                    data-tool-call-id={toolPart.toolCallId}
+                    data-action="approve"
+                  >
+                    Allow
+                  </ConfirmationAction>
+                  <ConfirmationAction
+                    variant="destructive"
+                    data-tool-call-id={toolPart.toolCallId}
+                    data-action="deny"
+                  >
+                    Deny
+                  </ConfirmationAction>
+                </span>
               </ConfirmationActions>
             </ConfirmationRequest>
             <ConfirmationAccepted>
@@ -665,6 +733,7 @@ function AcpChatInner({
   }, [transport]);
 
   const agent = agentConfig[providerId as Agent];
+  const claudeUsageLimits = useClaudeUsageLimits(providerId);
   const {
     messages,
     sendMessage,
@@ -745,6 +814,28 @@ function AcpChatInner({
     if (toolCallId && action) {
       transport.approve(toolCallId, action === 'approve');
     }
+  }, [transport]);
+
+  // Keyboard shortcuts: Enter to approve, Escape to deny pending confirmations
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter' && e.key !== 'Escape') return;
+      // Don't intercept when typing in an input/textarea
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      const action = e.key === 'Enter' ? 'approve' : 'deny';
+      const btn = document.querySelector<HTMLElement>(`[data-action="${action}"][data-tool-call-id]`);
+      if (!btn) return;
+
+      e.preventDefault();
+      const toolCallId = btn.getAttribute('data-tool-call-id');
+      if (toolCallId) {
+        transport.approve(toolCallId, action === 'approve');
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
   }, [transport]);
 
   const handleSubmit = useCallback((message: PromptInputMessage) => {
@@ -982,8 +1073,11 @@ function AcpChatInner({
           ) : null}
         </div>
 
-        {/* Right: action buttons */}
+        {/* Right: plan usage + action buttons */}
         <div className="flex items-center gap-0.5">
+          {claudeUsageLimits && (
+            <PlanUsageHoverCard limits={claudeUsageLimits} side="bottom" align="end" />
+          )}
           <button
             type="button"
             onClick={onCreateNewChat}
@@ -1114,7 +1208,7 @@ function AcpChatInner({
                     <p className="whitespace-pre-wrap">{getTextFromParts(msg.parts)}</p>
                   </>
                 ) : (
-                  <MessageParts message={msg} chatStatus={chatStatus} />
+                  <MessageParts message={msg} chatStatus={chatStatus} sessionKey={sessionKey} />
                 )}
               </MessageContent>
               {/* Message actions (visible on hover) */}
@@ -1238,9 +1332,12 @@ function AcpChatInner({
         </div>
       )}
 
-      {/* Context usage (hover card) */}
+      {/* Context usage + plan usage (hover card) */}
       {usage && usage.size && usage.used != null && (
-        <div className="flex justify-end border-t border-border/50 px-2 pt-1">
+        <div className="flex items-center justify-end gap-1 border-t border-border/50 px-2 pt-1">
+          {claudeUsageLimits && (
+            <PlanUsageHoverCard limits={claudeUsageLimits} side="top" align="end" />
+          )}
           <Context usedTokens={usage.used} maxTokens={usage.size} cost={usage.cost}>
             <ContextTrigger />
             <ContextContent side="top" align="end">
@@ -1251,6 +1348,9 @@ function AcpChatInner({
                 <ContextReasoningUsage />
                 <ContextCacheUsage />
               </ContextContentBody>
+              {claudeUsageLimits && (
+                <PlanUsageContent limits={claudeUsageLimits} className="border-t" />
+              )}
               <ContextContentFooter />
             </ContextContent>
           </Context>

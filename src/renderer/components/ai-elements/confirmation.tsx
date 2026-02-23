@@ -138,6 +138,26 @@ export const ConfirmationRejected = ({
   return children;
 };
 
+export type ConfirmationBodyProps = ComponentProps<"div">;
+
+export const ConfirmationBody = ({
+  className,
+  children,
+  ...props
+}: ConfirmationBodyProps) => {
+  const { state } = useConfirmation();
+
+  if ((state as string) !== "approval-requested") {
+    return null;
+  }
+
+  return (
+    <div className={cn(className)} {...props}>
+      {children}
+    </div>
+  );
+};
+
 export type ConfirmationActionsProps = ComponentProps<"div">;
 
 export const ConfirmationActions = ({
