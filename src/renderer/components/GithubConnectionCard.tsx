@@ -124,8 +124,8 @@ const GithubConnectionCard: React.FC<GithubConnectionCardProps> = ({ onStatusCha
     <div id="settings-github-card" className="space-y-3">
       {status === 'missing' ? (
         <div className="space-y-3">
-          <div className="rounded-lg border border-dashed border-border bg-white p-3 dark:border-border dark:bg-background">
-            <p className="text-sm text-muted-foreground">
+          <div className="border-border dark:border-border dark:bg-background rounded-lg border border-dashed bg-white p-3">
+            <p className="text-muted-foreground text-sm">
               Install GitHub CLI (gh) to enable repo access.
             </p>
           </div>
@@ -135,7 +135,7 @@ const GithubConnectionCard: React.FC<GithubConnectionCardProps> = ({ onStatusCha
         </div>
       ) : status === 'connected' ? (
         <div className="space-y-3">
-          <div className="flex items-center justify-between rounded-lg border border-border bg-white p-3 dark:border-border dark:bg-background">
+          <div className="border-border dark:border-border dark:bg-background flex items-center justify-between rounded-lg border bg-white p-3">
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
               {avatarUrl ? (
@@ -146,7 +146,7 @@ const GithubConnectionCard: React.FC<GithubConnectionCardProps> = ({ onStatusCha
                   referrerPolicy="no-referrer"
                 />
               ) : null}
-              <span className="text-sm font-medium text-foreground">
+              <span className="text-foreground text-sm font-medium">
                 Connected{displayName ? ` as ${displayName}` : ''}
               </span>
             </div>
@@ -172,13 +172,13 @@ const GithubConnectionCard: React.FC<GithubConnectionCardProps> = ({ onStatusCha
               </Button>
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-muted-foreground text-xs">
             gh stays signed in to keep PR actions working.
           </p>
         </div>
       ) : (
         <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Sign in to gh to enable cloning and PR actions.
           </p>
           <div className="flex flex-wrap gap-3">

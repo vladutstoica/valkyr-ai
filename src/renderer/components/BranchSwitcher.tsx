@@ -304,7 +304,10 @@ export const BranchSwitcher: React.FC<BranchSwitcherProps> = ({
 
     if (branch.ahead && branch.ahead > 0) {
       return (
-        <span className="text-xs text-blue-600 dark:text-blue-400" title={`${branch.ahead} commits ahead`}>
+        <span
+          className="text-xs text-blue-600 dark:text-blue-400"
+          title={`${branch.ahead} commits ahead`}
+        >
           ↑{branch.ahead} ahead
         </span>
       );
@@ -312,7 +315,10 @@ export const BranchSwitcher: React.FC<BranchSwitcherProps> = ({
 
     if (branch.behind && branch.behind > 0) {
       return (
-        <span className="text-xs text-orange-600 dark:text-orange-400" title={`${branch.behind} commits behind`}>
+        <span
+          className="text-xs text-orange-600 dark:text-orange-400"
+          title={`${branch.behind} commits behind`}
+        >
           ↓{branch.behind} behind
         </span>
       );
@@ -347,7 +353,7 @@ export const BranchSwitcher: React.FC<BranchSwitcherProps> = ({
         aria-current={isCurrent ? 'true' : undefined}
       >
         <div className="flex items-center gap-2 truncate">
-          <GitBranch className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+          <GitBranch className="text-muted-foreground h-3.5 w-3.5 flex-shrink-0" />
           <span className="truncate">{branch.name}</span>
         </div>
         {'tracking' in branch && renderBranchStatus(fullBranch, isCurrent)}
@@ -365,9 +371,7 @@ export const BranchSwitcher: React.FC<BranchSwitcherProps> = ({
   const renderBranchGroup = (group: BranchGroup, startIndex: number) => {
     if (group.prefix === '') {
       // Ungrouped branches
-      return group.branches.map((branch, idx) =>
-        renderBranchItem(branch, false, startIndex + idx)
-      );
+      return group.branches.map((branch, idx) => renderBranchItem(branch, false, startIndex + idx));
     }
 
     const isExpanded = expandedGroups.has(group.prefix);
@@ -382,22 +386,20 @@ export const BranchSwitcher: React.FC<BranchSwitcherProps> = ({
           onClick={() => toggleGroup(group.prefix)}
         >
           <div className="flex items-center gap-2">
-            <Folder className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+            <Folder className="text-muted-foreground h-3.5 w-3.5 flex-shrink-0" />
             <span>{group.prefix}</span>
-            <span className="text-xs text-muted-foreground">({group.branches.length})</span>
+            <span className="text-muted-foreground text-xs">({group.branches.length})</span>
           </div>
           <ChevronRight
             className={cn(
-              'h-3.5 w-3.5 text-muted-foreground transition-transform',
+              'text-muted-foreground h-3.5 w-3.5 transition-transform',
               isExpanded && 'rotate-90'
             )}
           />
         </button>
         {isExpanded && (
           <div className="ml-4 space-y-0.5">
-            {group.branches.map((branch, idx) =>
-              renderBranchItem(branch, false, startIndex + idx)
-            )}
+            {group.branches.map((branch, idx) => renderBranchItem(branch, false, startIndex + idx))}
           </div>
         )}
       </div>
@@ -413,10 +415,7 @@ export const BranchSwitcher: React.FC<BranchSwitcherProps> = ({
         <Button
           variant="ghost"
           size="sm"
-          className={cn(
-            'h-7 gap-1.5 px-2 text-xs font-normal',
-            className
-          )}
+          className={cn('h-7 gap-1.5 px-2 text-xs font-normal', className)}
           aria-label={`Current branch: ${currentBranch}. Click to switch branches`}
           aria-haspopup="listbox"
           aria-expanded={open}
@@ -435,7 +434,7 @@ export const BranchSwitcher: React.FC<BranchSwitcherProps> = ({
         {/* Search input */}
         <div className="p-2">
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Search className="text-muted-foreground absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
             <Input
               ref={searchInputRef}
               placeholder="Search branches..."
@@ -465,10 +464,10 @@ export const BranchSwitcher: React.FC<BranchSwitcherProps> = ({
             aria-selected={selectedIndex === 0}
           >
             <div className="flex items-center gap-2">
-              <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+              <Plus className="text-muted-foreground h-3.5 w-3.5" />
               <span>New Branch...</span>
             </div>
-            <kbd className="pointer-events-none hidden select-none rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground sm:inline-block">
+            <kbd className="bg-muted text-muted-foreground pointer-events-none hidden rounded border px-1.5 py-0.5 text-[10px] font-medium select-none sm:inline-block">
               {navigator.platform.includes('Mac') ? '⌥⌘' : 'Alt+Ctrl+'}N
             </kbd>
           </button>
@@ -479,7 +478,7 @@ export const BranchSwitcher: React.FC<BranchSwitcherProps> = ({
         {/* Loading state */}
         {isLoading && (
           <div className="flex items-center justify-center py-6">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
           </div>
         )}
 
@@ -490,7 +489,7 @@ export const BranchSwitcher: React.FC<BranchSwitcherProps> = ({
               {/* Recent branches */}
               {filteredData.recent.length > 0 && (
                 <div className="space-y-0.5">
-                  <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <div className="text-muted-foreground px-2 py-1 text-[10px] font-semibold tracking-wider uppercase">
                     Recent
                   </div>
                   {filteredData.recent.map((name) => {
@@ -506,22 +505,20 @@ export const BranchSwitcher: React.FC<BranchSwitcherProps> = ({
                 <>
                   {filteredData.recent.length > 0 && <Separator className="my-1" />}
                   <div className="space-y-0.5">
-                    <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <div className="text-muted-foreground px-2 py-1 text-[10px] font-semibold tracking-wider uppercase">
                       Local
                     </div>
                     {/* If searching, show flat list; otherwise show groups */}
-                    {searchQuery.trim() ? (
-                      filteredData.local.map((branch) => {
-                        itemIndex++;
-                        return renderBranchItem(branch, false, itemIndex);
-                      })
-                    ) : (
-                      groupedLocalBranches.map((group) => {
-                        const startIdx = itemIndex + 1;
-                        itemIndex += group.branches.length;
-                        return renderBranchGroup(group, startIdx);
-                      })
-                    )}
+                    {searchQuery.trim()
+                      ? filteredData.local.map((branch) => {
+                          itemIndex++;
+                          return renderBranchItem(branch, false, itemIndex);
+                        })
+                      : groupedLocalBranches.map((group) => {
+                          const startIdx = itemIndex + 1;
+                          itemIndex += group.branches.length;
+                          return renderBranchGroup(group, startIdx);
+                        })}
                   </div>
                 </>
               )}
@@ -533,7 +530,7 @@ export const BranchSwitcher: React.FC<BranchSwitcherProps> = ({
                     <Separator className="my-1" />
                   )}
                   <div className="space-y-0.5">
-                    <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <div className="text-muted-foreground px-2 py-1 text-[10px] font-semibold tracking-wider uppercase">
                       Remote
                     </div>
                     {filteredData.remote.map((branch) => {
@@ -548,7 +545,7 @@ export const BranchSwitcher: React.FC<BranchSwitcherProps> = ({
               {filteredData.recent.length === 0 &&
                 filteredData.local.length === 0 &&
                 filteredData.remote.length === 0 && (
-                  <div className="py-6 text-center text-sm text-muted-foreground">
+                  <div className="text-muted-foreground py-6 text-center text-sm">
                     {searchQuery.trim() ? 'No branches found' : 'No branches available'}
                   </div>
                 )}
@@ -558,7 +555,7 @@ export const BranchSwitcher: React.FC<BranchSwitcherProps> = ({
 
         {/* Switching overlay */}
         {isSwitching && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/80">
+          <div className="bg-background/80 absolute inset-0 flex items-center justify-center">
             <div className="flex items-center gap-2 text-sm">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span>Switching branch...</span>

@@ -340,7 +340,9 @@ export function disposeTaskTerminals(taskKey: string): void {
       // ignore storage errors
     }
   }
-  try { window.electronAPI?.deleteTerminalSessions?.(taskKey); } catch {}
+  try {
+    window.electronAPI?.deleteTerminalSessions?.(taskKey);
+  } catch {}
 }
 
 export function useTaskTerminals(

@@ -1,5 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ArrowUpRight, Pencil, Pin, PinOff, MoreVertical, Archive, Trash2, GitBranch } from 'lucide-react';
+import {
+  ArrowUpRight,
+  Pencil,
+  Pin,
+  PinOff,
+  MoreVertical,
+  Archive,
+  Trash2,
+  GitBranch,
+} from 'lucide-react';
 import { usePrStatus } from '../hooks/usePrStatus';
 import { useUnifiedStatus } from '../hooks/useUnifiedStatus';
 import PrPreviewTooltip from './PrPreviewTooltip';
@@ -193,16 +202,16 @@ export const TaskItem: React.FC<TaskItemProps> = ({
               }
             }}
             maxLength={MAX_TASK_NAME_LENGTH}
-            className="min-w-0 flex-1 border border-border bg-background px-1.5 py-0.5 text-xs font-medium text-foreground outline-hidden focus:border-ring focus:ring-1 focus:ring-ring"
+            className="border-border bg-background text-foreground focus:border-ring focus:ring-ring min-w-0 flex-1 border px-1.5 py-0.5 text-xs font-medium outline-hidden focus:ring-1"
             onClick={stopPropagation}
           />
         ) : (
           <>
-            {isPinned && <Pin className="h-3 w-3 flex-shrink-0 text-muted-foreground" />}
-            <span className="block truncate text-xs font-medium text-foreground">{task.name}</span>
+            {isPinned && <Pin className="text-muted-foreground h-3 w-3 flex-shrink-0" />}
+            <span className="text-foreground block truncate text-xs font-medium">{task.name}</span>
             {task.useWorktree !== false && (
               <span title="Running in worktree">
-                <GitBranch className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+                <GitBranch className="text-muted-foreground h-3 w-3 flex-shrink-0" />
               </span>
             )}
           </>
@@ -215,7 +224,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
               <Button
                 variant="ghost"
                 size="icon"
-                className={`h-6 w-6 cursor-pointer text-muted-foreground ${
+                className={`text-muted-foreground h-6 w-6 cursor-pointer ${
                   isDeleting || isMenuOpen ? '' : 'opacity-0 group-hover/task:opacity-100'
                 }`}
                 onClick={stopPropagation}
@@ -256,7 +265,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    className="cursor-pointer text-destructive focus:text-destructive"
+                    className="text-destructive focus:text-destructive cursor-pointer"
                     onClick={() => setShowDeleteDialog(true)}
                   >
                     <Trash2 className="mr-2 h-3.5 w-3.5" />
@@ -275,7 +284,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
                 e.stopPropagation();
                 if (pr.url) window.electronAPI.openExternal(pr.url);
               }}
-              className="inline-flex items-center gap-1 rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+              className="border-border bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium transition-colors"
               title={`${pr.title || 'Pull Request'} (#${pr.number})`}
             >
               {pr.isDraft
@@ -303,7 +312,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
         <AlertDialogFooter>
           <AlertDialogCancel className="cursor-pointer">Cancel</AlertDialogCancel>
           <AlertDialogAction
-            className="cursor-pointer bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer"
             onClick={handleConfirmDelete}
           >
             Delete
@@ -370,7 +379,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
               <>
                 <ContextMenuSeparator />
                 <ContextMenuItem
-                  className="cursor-pointer text-destructive focus:text-destructive"
+                  className="text-destructive focus:text-destructive cursor-pointer"
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowDeleteDialog(true);

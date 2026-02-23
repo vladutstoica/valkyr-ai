@@ -90,7 +90,7 @@ export const MultiAgentDropdown: React.FC<MultiAgentDropdownProps> = ({
         }}
       >
         <SelectTrigger
-          className={`flex h-9 w-full items-center justify-between border-none bg-muted px-3 text-sm ${className}`}
+          className={`bg-muted flex h-9 w-full items-center justify-between border-none px-3 text-sm ${className}`}
         >
           <div className="flex min-w-0 items-center gap-2">
             {singleAgentConfig && (
@@ -127,7 +127,7 @@ export const MultiAgentDropdown: React.FC<MultiAgentDropdownProps> = ({
                   }}
                 >
                   <div
-                    className="flex h-8 cursor-pointer items-center justify-between rounded-none px-2 hover:bg-accent"
+                    className="hover:bg-accent flex h-8 cursor-pointer items-center justify-between rounded-none px-2"
                     onClick={() => handleRowClick(agent)}
                   >
                     <div className="flex flex-1 items-center gap-2">
@@ -218,7 +218,7 @@ export const MultiAgentDropdown: React.FC<MultiAgentDropdownProps> = ({
                           alt={config.alt}
                           className={`h-4 w-4 flex-shrink-0 rounded-none ${config.invertInDark ? 'dark:invert' : ''} grayscale`}
                         />
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-muted-foreground text-sm">
                           {config.name}
                           <span className="ml-1 text-xs">(in use)</span>
                         </span>
@@ -258,7 +258,7 @@ const AgentTooltipRow: React.FC<{
       <TooltipContent
         side="left"
         align="start"
-        className="z-[1000] border-foreground/20 bg-background p-0 text-foreground"
+        className="border-foreground/20 bg-background text-foreground z-[1000] p-0"
         onMouseEnter={onHover}
         onMouseLeave={onLeave}
         onPointerEnter={onHover}

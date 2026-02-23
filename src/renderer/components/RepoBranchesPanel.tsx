@@ -87,9 +87,9 @@ export const RepoBranchesPanel: React.FC<RepoBranchesPanelProps> = ({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="w-full justify-start" size="sm">
-                  <GitBranch className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <GitBranch className="text-muted-foreground mr-2 h-4 w-4" />
                   <span className="flex-1 truncate text-left">{repo.name}</span>
-                  <span className="ml-2 text-xs text-muted-foreground">{repo.branch}</span>
+                  <span className="text-muted-foreground ml-2 text-xs">{repo.branch}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-48">
@@ -115,9 +115,9 @@ export const RepoBranchesPanel: React.FC<RepoBranchesPanelProps> = ({
             </DropdownMenu>
           ) : (
             <div className="flex items-center px-3 py-2 text-sm">
-              <GitBranch className="mr-2 h-4 w-4 text-muted-foreground" />
+              <GitBranch className="text-muted-foreground mr-2 h-4 w-4" />
               <span className="flex-1 truncate">{repo.name}</span>
-              <span className="ml-2 text-xs text-muted-foreground">{repo.branch}</span>
+              <span className="text-muted-foreground ml-2 text-xs">{repo.branch}</span>
             </div>
           )}
         </div>

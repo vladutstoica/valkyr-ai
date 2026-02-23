@@ -117,7 +117,9 @@ export class McpConfigService {
     for (const s of projectServers) byName.set(s.name, s);
 
     const merged = Array.from(byName.values());
-    log.info(`MCP: injecting ${merged.length} servers into session (${globalServers.length} global, ${projectServers.length} project)`);
+    log.info(
+      `MCP: injecting ${merged.length} servers into session (${globalServers.length} global, ${projectServers.length} project)`
+    );
     return merged.map(toAcpMcpServer);
   }
 }

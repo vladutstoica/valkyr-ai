@@ -404,7 +404,7 @@ export default function EditorMode({ taskPath, taskName, onClose }: EditorModePr
       <div key={node.path}>
         <div
           className={cn(
-            'flex h-7 cursor-pointer items-center px-2 hover:bg-muted/50',
+            'hover:bg-muted/50 flex h-7 cursor-pointer items-center px-2',
             isSelected && 'bg-muted/70'
           )}
           style={{ paddingLeft: `${level * 16 + 8}px` }}
@@ -440,8 +440,8 @@ export default function EditorMode({ taskPath, taskName, onClose }: EditorModePr
   };
 
   return (
-    <div className="fixed inset-0 z-30 flex flex-col bg-background">
-      <div className="flex h-12 items-center justify-between border-b border-border bg-muted/30 px-4">
+    <div className="bg-background fixed inset-0 z-30 flex flex-col">
+      <div className="border-border bg-muted/30 flex h-12 items-center justify-between border-b px-4">
         <div className="flex items-center gap-2">
           <FolderOpen className="h-5 w-5" />
           <span className="font-medium">{taskName} - Editor</span>
@@ -477,8 +477,8 @@ export default function EditorMode({ taskPath, taskName, onClose }: EditorModePr
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        <div className="relative bg-muted/10" style={{ width: explorerWidth }}>
-          <div className="flex h-10 items-center justify-end border-b border-border px-2">
+        <div className="bg-muted/10 relative" style={{ width: explorerWidth }}>
+          <div className="border-border flex h-10 items-center justify-end border-b px-2">
             <div className="flex items-center gap-1">
               <Button
                 variant="ghost"
@@ -496,17 +496,17 @@ export default function EditorMode({ taskPath, taskName, onClose }: EditorModePr
           </div>
           <div className="h-full overflow-auto">
             {isLoading ? (
-              <div className="p-4 text-center text-sm text-muted-foreground">Loading files...</div>
+              <div className="text-muted-foreground p-4 text-center text-sm">Loading files...</div>
             ) : files ? (
               renderFileTree(files)
             ) : (
-              <div className="p-4 text-center text-sm text-muted-foreground">No files found</div>
+              <div className="text-muted-foreground p-4 text-center text-sm">No files found</div>
             )}
           </div>
 
           {/* Resize handle */}
           <div
-            className="absolute right-0 top-0 h-full w-1 cursor-col-resize bg-border hover:bg-border/80"
+            className="bg-border hover:bg-border/80 absolute top-0 right-0 h-full w-1 cursor-col-resize"
             onMouseDown={handleMouseDown}
           />
         </div>
@@ -514,13 +514,13 @@ export default function EditorMode({ taskPath, taskName, onClose }: EditorModePr
         <div className="flex flex-1 flex-col">
           {selectedFile ? (
             <>
-              <div className="flex h-10 items-center justify-between border-b border-border px-4">
+              <div className="border-border flex h-10 items-center justify-between border-b px-4">
                 <div className="flex items-center">
                   <FileText className="mr-2 h-4 w-4" />
                   <span className="text-sm">{selectedFile}</span>
                   {hasUnsavedChanges && <span className="ml-2 text-xs text-amber-500">●</span>}
                 </div>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-muted-foreground text-xs">
                   {hasUnsavedChanges ? 'Auto-save in 2s' : 'All changes saved'}
                 </span>
               </div>
@@ -545,7 +545,7 @@ export default function EditorMode({ taskPath, taskName, onClose }: EditorModePr
               </div>
             </>
           ) : (
-            <div className="flex flex-1 items-center justify-center text-muted-foreground">
+            <div className="text-muted-foreground flex flex-1 items-center justify-center">
               Select a file to edit
             </div>
           )}

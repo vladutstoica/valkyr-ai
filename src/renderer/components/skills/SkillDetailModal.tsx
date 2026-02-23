@@ -15,7 +15,7 @@ const ModalSkillIcon: React.FC<{ skill: CatalogSkill }> = ({ skill }) => {
 
   if (skill.iconUrl) {
     return (
-      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted/40">
+      <div className="bg-muted/40 flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl">
         <img
           src={skill.iconUrl}
           alt=""
@@ -26,7 +26,7 @@ const ModalSkillIcon: React.FC<{ skill: CatalogSkill }> = ({ skill }) => {
   }
 
   return (
-    <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-muted/40 text-base font-semibold text-foreground/60 dark:text-white">
+    <div className="bg-muted/40 text-foreground/60 flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl text-base font-semibold dark:text-white">
       {letter}
     </div>
   );
@@ -102,7 +102,7 @@ const SkillDetailModal: React.FC<SkillDetailModalProps> = ({
         </DialogHeader>
 
         {skill.source !== 'local' && (
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <div className="text-muted-foreground flex items-center gap-1.5 text-sm">
             <img
               src={
                 skill.source === 'openai'
@@ -120,30 +120,30 @@ const SkillDetailModal: React.FC<SkillDetailModalProps> = ({
 
         {skill.defaultPrompt && (
           <div className="space-y-1">
-            <p className="text-xs font-medium text-muted-foreground">Example prompt</p>
-            <pre className="whitespace-pre-wrap break-words rounded-md bg-muted/40 px-3 py-2 text-xs text-foreground">
+            <p className="text-muted-foreground text-xs font-medium">Example prompt</p>
+            <pre className="bg-muted/40 text-foreground rounded-md px-3 py-2 text-xs break-words whitespace-pre-wrap">
               {skill.defaultPrompt}
             </pre>
           </div>
         )}
 
         {body && (
-          <div className="max-h-60 overflow-y-auto rounded-md bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+          <div className="bg-muted/20 text-muted-foreground max-h-60 overflow-y-auto rounded-md px-3 py-2 text-xs">
             <Markdown
               remarkPlugins={[remarkGfm]}
               components={{
                 h1: ({ children }) => (
-                  <h2 className="mb-1 mt-3 text-sm font-semibold text-foreground first:mt-0">
+                  <h2 className="text-foreground mt-3 mb-1 text-sm font-semibold first:mt-0">
                     {children}
                   </h2>
                 ),
                 h2: ({ children }) => (
-                  <h3 className="mb-1 mt-3 text-sm font-semibold text-foreground first:mt-0">
+                  <h3 className="text-foreground mt-3 mb-1 text-sm font-semibold first:mt-0">
                     {children}
                   </h3>
                 ),
                 h3: ({ children }) => (
-                  <h4 className="mb-1 mt-2 text-xs font-semibold text-foreground">{children}</h4>
+                  <h4 className="text-foreground mt-2 mb-1 text-xs font-semibold">{children}</h4>
                 ),
                 p: ({ children }) => <p className="mb-2 leading-relaxed">{children}</p>,
                 ul: ({ children }) => (
@@ -156,16 +156,16 @@ const SkillDetailModal: React.FC<SkillDetailModalProps> = ({
                 code: ({ children, className }) => {
                   const isBlock = className?.includes('language-');
                   return isBlock ? (
-                    <code className="block overflow-x-auto rounded bg-muted/60 p-2 text-[11px]">
+                    <code className="bg-muted/60 block overflow-x-auto rounded p-2 text-[11px]">
                       {children}
                     </code>
                   ) : (
-                    <code className="rounded bg-muted/60 px-1 py-0.5 text-[11px]">{children}</code>
+                    <code className="bg-muted/60 rounded px-1 py-0.5 text-[11px]">{children}</code>
                   );
                 },
                 pre: ({ children }) => <pre className="mb-2 overflow-x-auto">{children}</pre>,
                 strong: ({ children }) => (
-                  <strong className="font-semibold text-foreground">{children}</strong>
+                  <strong className="text-foreground font-semibold">{children}</strong>
                 ),
                 a: ({ href, children }) => (
                   <a

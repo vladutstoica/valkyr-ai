@@ -53,7 +53,9 @@ class ScriptRunnerService {
       }));
     } catch (error) {
       log.error('ScriptRunnerService: Failed to read package.json', { projectPath, error });
-      throw new Error(`Failed to read package.json: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to read package.json: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -105,7 +107,9 @@ class ScriptRunnerService {
       ...(process.env.LANG && { LANG: process.env.LANG }),
       // Pass through npm-related env vars
       ...(process.env.NODE_ENV && { NODE_ENV: process.env.NODE_ENV }),
-      ...(process.env.npm_config_registry && { npm_config_registry: process.env.npm_config_registry }),
+      ...(process.env.npm_config_registry && {
+        npm_config_registry: process.env.npm_config_registry,
+      }),
     };
 
     try {
@@ -137,7 +141,9 @@ class ScriptRunnerService {
       return ptyId;
     } catch (error) {
       log.error('ScriptRunnerService: Failed to spawn PTY', { scriptName, projectPath, error });
-      throw new Error(`Failed to start script: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to start script: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 

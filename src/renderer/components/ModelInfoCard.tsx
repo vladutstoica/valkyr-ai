@@ -45,24 +45,21 @@ export function ModelInfoCard({
   providerIcon,
   invertIconInDark,
 }: ModelInfoCardProps) {
-  const { metadata, uptimeData, providerStatus, loading } = useModelMetadata(
-    modelId,
-    providerId
-  );
+  const { metadata, uptimeData, providerStatus, loading } = useModelMetadata(modelId, providerId);
 
   if (loading) {
     return (
-      <div className="w-[260px] border-l border-border bg-muted/30 p-3 space-y-2">
-        <div className="h-3 w-24 animate-pulse rounded bg-muted" />
-        <div className="h-2 w-full animate-pulse rounded bg-muted" />
-        <div className="h-2 w-3/4 animate-pulse rounded bg-muted" />
-        <div className="h-2 w-1/2 animate-pulse rounded bg-muted" />
+      <div className="border-border bg-muted/30 w-[260px] space-y-2 border-l p-3">
+        <div className="bg-muted h-3 w-24 animate-pulse rounded" />
+        <div className="bg-muted h-2 w-full animate-pulse rounded" />
+        <div className="bg-muted h-2 w-3/4 animate-pulse rounded" />
+        <div className="bg-muted h-2 w-1/2 animate-pulse rounded" />
       </div>
     );
   }
 
   return (
-    <div className="w-[260px] border-l border-border bg-muted/30 p-3 space-y-2.5">
+    <div className="border-border bg-muted/30 w-[260px] space-y-2.5 border-l p-3">
       {/* Header */}
       <div className="flex items-center gap-2">
         {providerIcon && (
@@ -73,14 +70,14 @@ export function ModelInfoCard({
           />
         )}
         <div className="min-w-0">
-          <div className="text-[11px] text-muted-foreground">{providerName}</div>
-          <div className="text-xs font-medium truncate">{metadata?.name ?? modelName}</div>
+          <div className="text-muted-foreground text-[11px]">{providerName}</div>
+          <div className="truncate text-xs font-medium">{metadata?.name ?? modelName}</div>
         </div>
       </div>
 
       {/* Description */}
       {metadata?.description && (
-        <p className="text-[11px] leading-relaxed text-muted-foreground line-clamp-3">
+        <p className="text-muted-foreground line-clamp-3 text-[11px] leading-relaxed">
           {metadata.description}
         </p>
       )}
@@ -113,7 +110,7 @@ export function ModelInfoCard({
             <div
               className={`size-1.5 rounded-full ${STATUS_DOT[providerStatus.status] ?? 'bg-muted-foreground'}`}
             />
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-muted-foreground text-[11px]">
               {STATUS_LABEL[providerStatus.status] ?? providerStatus.status}
             </span>
           </div>
@@ -125,7 +122,7 @@ export function ModelInfoCard({
         <>
           <Separator />
           <div>
-            <div className="text-[11px] text-muted-foreground mb-1">Uptime</div>
+            <div className="text-muted-foreground mb-1 text-[11px]">Uptime</div>
             <UptimeBar data={uptimeData} />
           </div>
         </>

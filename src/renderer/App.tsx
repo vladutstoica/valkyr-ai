@@ -160,7 +160,9 @@ const AppContent: React.FC = () => {
         next.delete(task.id);
       }
       localStorage.setItem(PINNED_TASKS_KEY, JSON.stringify([...next]));
-      try { window.electronAPI?.setTaskPinned?.({ taskId: task.id, pinned }); } catch {}
+      try {
+        window.electronAPI?.setTaskPinned?.({ taskId: task.id, pinned });
+      } catch {}
       return next;
     });
   }, []);
@@ -310,9 +312,7 @@ const AppContent: React.FC = () => {
           activeTask?.metadata?.multiAgent?.enabled
             ? null
             : activeTask?.path ||
-              (selectedProject?.isRemote
-                ? selectedProject?.remotePath
-                : selectedProject?.path) ||
+              (selectedProject?.isRemote ? selectedProject?.remotePath : selectedProject?.path) ||
               null
         }
         projects={projectMgmt.projects}
@@ -528,7 +528,9 @@ const AppContent: React.FC = () => {
             branchOptions={projectMgmt.projectBranchOptions}
             isLoadingBranches={projectMgmt.isLoadingBranches}
             subRepos={selectedProject?.subRepos}
-            hasExistingNonWorktreeTask={(selectedProject?.tasks || []).some((t) => t.useWorktree === false)}
+            hasExistingNonWorktreeTask={(selectedProject?.tasks || []).some(
+              (t) => t.useWorktree === false
+            )}
           />
           <NewProjectModal
             isOpen={showNewProjectModal}
@@ -552,9 +554,9 @@ const AppContent: React.FC = () => {
             onError={github.handleDeviceFlowError}
           />
           <Toaster />
-          </RightSidebarProvider>
-        </SidebarProvider>
-      </KeyboardSettingsProvider>
+        </RightSidebarProvider>
+      </SidebarProvider>
+    </KeyboardSettingsProvider>
   );
 };
 

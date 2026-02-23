@@ -56,8 +56,7 @@ function loadFromStorage(): Partial<TerminalPanelState> | null {
         typeof parsed.height === 'number' && Number.isFinite(parsed.height)
           ? clampHeight(parsed.height)
           : undefined,
-      activeTerminal:
-        typeof parsed.activeTerminal === 'string' ? parsed.activeTerminal : undefined,
+      activeTerminal: typeof parsed.activeTerminal === 'string' ? parsed.activeTerminal : undefined,
     };
   } catch {
     return null;

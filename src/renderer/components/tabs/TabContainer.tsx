@@ -50,10 +50,7 @@ function TabPanel({ tabId, activeTab, children }: TabPanelProps) {
 
   return (
     <div
-      className={cn(
-        'absolute inset-0 h-full w-full',
-        isActive ? 'visible' : 'hidden'
-      )}
+      className={cn('absolute inset-0 h-full w-full', isActive ? 'visible' : 'hidden')}
       role="tabpanel"
       aria-hidden={!isActive}
       data-tab={tabId}
@@ -68,7 +65,7 @@ function TabPanel({ tabId, activeTab, children }: TabPanelProps) {
       {/* Focus indicator ring */}
       {hasFocus && isActive && (
         <div
-          className="pointer-events-none absolute inset-0 z-50 ring-1 ring-inset ring-white/15"
+          className="pointer-events-none absolute inset-0 z-50 ring-1 ring-white/15 ring-inset"
           aria-hidden="true"
         />
       )}

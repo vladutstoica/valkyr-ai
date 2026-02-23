@@ -1,9 +1,5 @@
 import type { UptimeDayData } from '@/types/electron-api';
-import {
-  HoverCard,
-  HoverCardTrigger,
-  HoverCardContent,
-} from '@/components/ui/hover-card';
+import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card';
 
 const STATUS_COLORS: Record<UptimeDayData['status'], string> = {
   operational: 'bg-emerald-500',
@@ -38,20 +34,18 @@ export function UptimeBar({ data }: { data: UptimeDayData[] }) {
                 className={`h-5 flex-1 rounded-[1px] transition-opacity hover:opacity-80 ${STATUS_COLORS[day.status]}`}
               />
             </HoverCardTrigger>
-            <HoverCardContent
-              side="top"
-              className="w-auto px-2 py-1 text-[11px]"
-            >
+            <HoverCardContent side="top" className="w-auto px-2 py-1 text-[11px]">
               <div className="font-medium">{formatDate(day.date)}</div>
               <div className="text-muted-foreground">
                 {STATUS_LABELS[day.status]}
-                {day.incidentCount > 0 && ` · ${day.incidentCount} incident${day.incidentCount > 1 ? 's' : ''}`}
+                {day.incidentCount > 0 &&
+                  ` · ${day.incidentCount} incident${day.incidentCount > 1 ? 's' : ''}`}
               </div>
             </HoverCardContent>
           </HoverCard>
         ))}
       </div>
-      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+      <div className="text-muted-foreground flex items-center justify-between text-[10px]">
         <span>{data.length} days ago</span>
         <span>{uptimePercent}% uptime</span>
         <span>Today</span>

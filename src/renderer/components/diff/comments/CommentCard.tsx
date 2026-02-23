@@ -53,7 +53,7 @@ const CommentTitle = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLHeadingElement>
 >(({ className, ...props }, ref) => (
-  <CardTitle ref={ref} className={cn('text-sm font-semibold leading-none', className)} {...props} />
+  <CardTitle ref={ref} className={cn('text-sm leading-none font-semibold', className)} {...props} />
 ));
 CommentTitle.displayName = 'CommentTitle';
 
@@ -61,7 +61,7 @@ const CommentMeta = React.forwardRef<HTMLSpanElement, React.HTMLAttributes<HTMLS
   ({ className, ...props }, ref) => (
     <span
       ref={ref}
-      className={cn('text-xs font-normal text-muted-foreground', className)}
+      className={cn('text-muted-foreground text-xs font-normal', className)}
       {...props}
     />
   )
@@ -79,7 +79,7 @@ const CommentBody = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDi
   ({ className, ...props }, ref) => (
     <CardContent
       ref={ref}
-      className={cn('flex-1 overflow-hidden px-3 pb-3 pt-0', className)}
+      className={cn('flex-1 overflow-hidden px-3 pt-0 pb-3', className)}
       {...props}
     />
   )

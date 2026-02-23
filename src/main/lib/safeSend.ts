@@ -10,11 +10,7 @@ import { BrowserWindow, WebContents } from 'electron';
  * Note: Electron logs "Error sending from webFrameMain" internally before
  * throwing - we can't prevent that log, but we handle the error gracefully.
  */
-export function safeSend(
-  wc: WebContents,
-  channel: string,
-  ...args: unknown[]
-): boolean {
+export function safeSend(wc: WebContents, channel: string, ...args: unknown[]): boolean {
   try {
     if (wc.isDestroyed()) return false;
     wc.send(channel, ...args);
@@ -34,10 +30,7 @@ export function safeSend(
  * @param channel - The IPC channel name
  * @param args - Arguments to send with the message
  */
-export function broadcastToAllWindows(
-  channel: string,
-  ...args: unknown[]
-): void {
+export function broadcastToAllWindows(channel: string, ...args: unknown[]): void {
   for (const win of BrowserWindow.getAllWindows()) {
     if (!win.isDestroyed()) {
       safeSend(win.webContents, channel, ...args);

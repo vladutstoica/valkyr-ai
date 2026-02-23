@@ -164,7 +164,7 @@ export function CommentsPopover({
         <div className="flex items-center justify-between border-b px-4 py-3">
           <div className="flex flex-col">
             <span className="text-sm font-semibold">Review comments</span>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-muted-foreground text-xs">
               {unsentComments.length} unsent • {selectedIds.size} selected
             </span>
           </div>
@@ -180,7 +180,7 @@ export function CommentsPopover({
             {Array.from(groupedComments.entries()).map(([filePath, fileComments]) => (
               <div key={filePath} className="py-2">
                 <div
-                  className="truncate px-4 pb-1 text-xs font-medium text-muted-foreground"
+                  className="text-muted-foreground truncate px-4 pb-1 text-xs font-medium"
                   title={filePath}
                 >
                   {filePath}
@@ -189,7 +189,7 @@ export function CommentsPopover({
                   {fileComments.map((comment) => (
                     <label
                       key={comment.id}
-                      className="flex cursor-pointer items-start gap-2 px-4 py-2 transition-colors hover:bg-muted/40"
+                      className="hover:bg-muted/40 flex cursor-pointer items-start gap-2 px-4 py-2 transition-colors"
                     >
                       <Checkbox
                         checked={selectedIds.has(comment.id)}
@@ -205,10 +205,10 @@ export function CommentsPopover({
                         className="mt-0.5"
                       />
                       <div className="min-w-0 flex-1">
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-muted-foreground text-xs">
                           Line {comment.lineNumber}
                         </div>
-                        <div className="line-clamp-2 break-words text-sm leading-snug">
+                        <div className="line-clamp-2 text-sm leading-snug break-words">
                           {comment.content}
                         </div>
                       </div>
@@ -218,7 +218,7 @@ export function CommentsPopover({
               </div>
             ))}
             {unsentComments.length === 0 && (
-              <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+              <div className="text-muted-foreground px-4 py-6 text-center text-sm">
                 No unsent comments.
               </div>
             )}

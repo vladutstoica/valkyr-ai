@@ -345,7 +345,9 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
             for (const conv of convResult.conversations) {
               const provider = conv.provider || 'claude-code';
               const acpKey = `${provider}-acp-${conv.id}`;
-              try { window.electronAPI.acpKill({ sessionKey: acpKey }); } catch {}
+              try {
+                window.electronAPI.acpKill({ sessionKey: acpKey });
+              } catch {}
             }
           }
         } catch {}
@@ -667,7 +669,9 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
               for (const conv of convResult.conversations) {
                 const provider = conv.provider || 'claude-code';
                 const acpKey = `${provider}-acp-${conv.id}`;
-                try { window.electronAPI.acpKill({ sessionKey: acpKey }); } catch {}
+                try {
+                  window.electronAPI.acpKill({ sessionKey: acpKey });
+                } catch {}
               }
             }
           } catch {}

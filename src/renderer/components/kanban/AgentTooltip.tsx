@@ -108,20 +108,20 @@ export const AgentTooltip: React.FC<AgentTooltipProps> = ({
         <TooltipTrigger asChild>{children}</TooltipTrigger>
         <TooltipContent
           side={side}
-          className="max-w-xs rounded-md border border-border bg-background p-2 text-xs shadow-xs"
+          className="border-border bg-background max-w-xs rounded-md border p-2 text-xs shadow-xs"
         >
           {taskName ? (
-            <div className="mb-1 flex items-center gap-1.5 text-code font-semibold leading-tight text-foreground">
-              <GitBranch className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <div className="text-code text-foreground mb-1 flex items-center gap-1.5 leading-tight font-semibold">
+              <GitBranch className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
               <span className="truncate" title={taskName}>
                 {taskName}
               </span>
             </div>
           ) : null}
-          <div className="mb-1 mt-0.5 font-medium text-foreground">Agents</div>
+          <div className="text-foreground mt-0.5 mb-1 font-medium">Agents</div>
           <div className="flex flex-col gap-1">
             {items.map((it) => (
-              <div key={it.id} className="flex items-center gap-2 text-foreground/90">
+              <div key={it.id} className="text-foreground/90 flex items-center gap-2">
                 {it.logo ? (
                   <img
                     src={it.logo}
@@ -129,28 +129,28 @@ export const AgentTooltip: React.FC<AgentTooltipProps> = ({
                     className={`h-3.5 w-3.5 shrink-0 rounded-xs ${it.invert ? 'dark:invert' : ''}`}
                   />
                 ) : (
-                  <span className="h-3.5 w-3.5 shrink-0 rounded-xs bg-muted" />
+                  <span className="bg-muted h-3.5 w-3.5 shrink-0 rounded-xs" />
                 )}
                 <span className="leading-none">{it.label}</span>
               </div>
             ))}
           </div>
           {adminLabel ? (
-            <div className="mt-2 border-t border-border/60 pt-1 text-muted-foreground">
+            <div className="border-border/60 text-muted-foreground mt-2 border-t pt-1">
               Admin: {adminLabel}
             </div>
           ) : null}
 
           {taskPath && diffSummary ? (
-            <div className="mt-2 border-t border-border/60 pt-1">
-              <div className="mb-1 font-medium text-foreground">Changes</div>
+            <div className="border-border/60 mt-2 border-t pt-1">
+              <div className="text-foreground mb-1 font-medium">Changes</div>
               {diffSummary.files > 0 ? (
                 <div className="flex flex-col gap-1 text-xs">
-                  <div className="flex items-center gap-2 text-foreground/90">
-                    <span className="inline-flex items-center rounded-md border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[11px]">
+                  <div className="text-foreground/90 flex items-center gap-2">
+                    <span className="border-border/70 bg-muted/40 inline-flex items-center rounded-md border px-1.5 py-0.5 text-[11px]">
                       +{diffSummary.additions}
                     </span>
-                    <span className="inline-flex items-center rounded-md border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[11px]">
+                    <span className="border-border/70 bg-muted/40 inline-flex items-center rounded-md border px-1.5 py-0.5 text-[11px]">
                       -{diffSummary.deletions}
                     </span>
                     <span className="text-muted-foreground">
@@ -159,10 +159,10 @@ export const AgentTooltip: React.FC<AgentTooltipProps> = ({
                   </div>
                   {diffSummary.top.map((t) => (
                     <div key={t.path} className="flex items-center justify-between gap-2">
-                      <div className="truncate text-foreground/90" title={t.path}>
+                      <div className="text-foreground/90 truncate" title={t.path}>
                         {t.path}
                       </div>
-                      <div className="shrink-0 text-muted-foreground">
+                      <div className="text-muted-foreground shrink-0">
                         +{t.additions} / -{t.deletions}
                       </div>
                     </div>

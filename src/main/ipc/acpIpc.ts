@@ -114,7 +114,7 @@ export function registerAcpIpc(): void {
         parsed.cwd,
         parsed.env,
         parsed.acpSessionId,
-        mcpServers,
+        mcpServers
       );
 
       if (result.success && result.sessionKey) {
@@ -143,7 +143,10 @@ export function registerAcpIpc(): void {
       return result;
     } catch (error: any) {
       if (error instanceof z.ZodError) {
-        return { success: false, error: `Validation error: ${error.errors.map(e => e.message).join(', ')}` };
+        return {
+          success: false,
+          error: `Validation error: ${error.errors.map((e) => e.message).join(', ')}`,
+        };
       }
       log.error('acp:start failed', error);
       return { success: false, error: error.message || 'Unknown error' };
@@ -159,7 +162,10 @@ export function registerAcpIpc(): void {
       return await acpSessionManager.sendPrompt(parsed.sessionKey, parsed.message, parsed.files);
     } catch (error: any) {
       if (error instanceof z.ZodError) {
-        return { success: false, error: `Validation error: ${error.errors.map(e => e.message).join(', ')}` };
+        return {
+          success: false,
+          error: `Validation error: ${error.errors.map((e) => e.message).join(', ')}`,
+        };
       }
       return { success: false, error: error.message || 'Unknown error' };
     }
@@ -174,7 +180,10 @@ export function registerAcpIpc(): void {
       return await acpSessionManager.cancelSession(parsed.sessionKey);
     } catch (error: any) {
       if (error instanceof z.ZodError) {
-        return { success: false, error: `Validation error: ${error.errors.map(e => e.message).join(', ')}` };
+        return {
+          success: false,
+          error: `Validation error: ${error.errors.map((e) => e.message).join(', ')}`,
+        };
       }
       return { success: false, error: error.message || 'Unknown error' };
     }
@@ -191,7 +200,10 @@ export function registerAcpIpc(): void {
       return { success: true };
     } catch (error: any) {
       if (error instanceof z.ZodError) {
-        return { success: false, error: `Validation error: ${error.errors.map(e => e.message).join(', ')}` };
+        return {
+          success: false,
+          error: `Validation error: ${error.errors.map((e) => e.message).join(', ')}`,
+        };
       }
       return { success: false, error: error.message || 'Unknown error' };
     }
@@ -208,7 +220,10 @@ export function registerAcpIpc(): void {
       return { success: true };
     } catch (error: any) {
       if (error instanceof z.ZodError) {
-        return { success: false, error: `Validation error: ${error.errors.map(e => e.message).join(', ')}` };
+        return {
+          success: false,
+          error: `Validation error: ${error.errors.map((e) => e.message).join(', ')}`,
+        };
       }
       return { success: false, error: error.message || 'Unknown error' };
     }
@@ -223,11 +238,14 @@ export function registerAcpIpc(): void {
       return await acpSessionManager.approvePermission(
         parsed.sessionKey,
         parsed.toolCallId,
-        parsed.approved,
+        parsed.approved
       );
     } catch (error: any) {
       if (error instanceof z.ZodError) {
-        return { success: false, error: `Validation error: ${error.errors.map(e => e.message).join(', ')}` };
+        return {
+          success: false,
+          error: `Validation error: ${error.errors.map((e) => e.message).join(', ')}`,
+        };
       }
       return { success: false, error: error.message || 'Unknown error' };
     }
@@ -242,7 +260,10 @@ export function registerAcpIpc(): void {
       return await acpSessionManager.setMode(parsed.sessionKey, parsed.mode);
     } catch (error: any) {
       if (error instanceof z.ZodError) {
-        return { success: false, error: `Validation error: ${error.errors.map(e => e.message).join(', ')}` };
+        return {
+          success: false,
+          error: `Validation error: ${error.errors.map((e) => e.message).join(', ')}`,
+        };
       }
       return { success: false, error: error.message || 'Unknown error' };
     }
@@ -254,10 +275,17 @@ export function registerAcpIpc(): void {
   ipcMain.handle('acp:setConfigOption', async (_event, args: unknown) => {
     try {
       const parsed = AcpSetConfigOptionSchema.parse(args);
-      return await acpSessionManager.setConfigOption(parsed.sessionKey, parsed.optionId, parsed.value);
+      return await acpSessionManager.setConfigOption(
+        parsed.sessionKey,
+        parsed.optionId,
+        parsed.value
+      );
     } catch (error: any) {
       if (error instanceof z.ZodError) {
-        return { success: false, error: `Validation error: ${error.errors.map(e => e.message).join(', ')}` };
+        return {
+          success: false,
+          error: `Validation error: ${error.errors.map((e) => e.message).join(', ')}`,
+        };
       }
       return { success: false, error: error.message || 'Unknown error' };
     }
@@ -272,7 +300,10 @@ export function registerAcpIpc(): void {
       return await acpSessionManager.setModel(parsed.sessionKey, parsed.modelId);
     } catch (error: any) {
       if (error instanceof z.ZodError) {
-        return { success: false, error: `Validation error: ${error.errors.map(e => e.message).join(', ')}` };
+        return {
+          success: false,
+          error: `Validation error: ${error.errors.map((e) => e.message).join(', ')}`,
+        };
       }
       return { success: false, error: error.message || 'Unknown error' };
     }
@@ -287,7 +318,10 @@ export function registerAcpIpc(): void {
       return await acpSessionManager.listSessions(parsed.sessionKey);
     } catch (error: any) {
       if (error instanceof z.ZodError) {
-        return { success: false, error: `Validation error: ${error.errors.map(e => e.message).join(', ')}` };
+        return {
+          success: false,
+          error: `Validation error: ${error.errors.map((e) => e.message).join(', ')}`,
+        };
       }
       return { success: false, error: error.message || 'Unknown error' };
     }
@@ -302,7 +336,10 @@ export function registerAcpIpc(): void {
       return await acpSessionManager.forkSession(parsed.sessionKey);
     } catch (error: any) {
       if (error instanceof z.ZodError) {
-        return { success: false, error: `Validation error: ${error.errors.map(e => e.message).join(', ')}` };
+        return {
+          success: false,
+          error: `Validation error: ${error.errors.map((e) => e.message).join(', ')}`,
+        };
       }
       return { success: false, error: error.message || 'Unknown error' };
     }
@@ -317,11 +354,14 @@ export function registerAcpIpc(): void {
       return await acpSessionManager.extMethod(
         parsed.sessionKey,
         parsed.method,
-        parsed.params || {},
+        parsed.params || {}
       );
     } catch (error: any) {
       if (error instanceof z.ZodError) {
-        return { success: false, error: `Validation error: ${error.errors.map(e => e.message).join(', ')}` };
+        return {
+          success: false,
+          error: `Validation error: ${error.errors.map((e) => e.message).join(', ')}`,
+        };
       }
       return { success: false, error: error.message || 'Unknown error' };
     }

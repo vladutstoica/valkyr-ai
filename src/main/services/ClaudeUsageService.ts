@@ -101,7 +101,7 @@ class ClaudeUsageService {
           } catch {
             resolve(null);
           }
-        },
+        }
       );
     });
   }

@@ -12,7 +12,7 @@ const RequirementsNotice: React.FC<Props> = ({
   needsGhAuth,
 }) => {
   return (
-    <div className="mx-auto max-w-2xl space-y-4 text-sm text-muted-foreground">
+    <div className="text-muted-foreground mx-auto max-w-2xl space-y-4 text-sm">
       {showGithubRequirement && (
         <div>
           <p className="mb-2">

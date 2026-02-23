@@ -61,12 +61,12 @@ const ProjectPrepSettingsCard: React.FC = () => {
 
   return (
     <div className="flex items-center justify-between gap-4">
-      <div className="space-y-1 text-xs text-muted-foreground">
-        <div className="text-sm text-foreground">Auto-install on “Open in …”</div>
+      <div className="text-muted-foreground space-y-1 text-xs">
+        <div className="text-foreground text-sm">Auto-install on “Open in …”</div>
         <div>
           For Node projects only: when opening a worktree in Cursor, VS Code, or Zed, install
           dependencies in the background (uses pnpm/yarn/bun/npm based on lockfile) if
-          <code className="mx-1 rounded bg-muted/60 px-1">node_modules</code> is missing.
+          <code className="bg-muted/60 mx-1 rounded px-1">node_modules</code> is missing.
         </div>
       </div>
       <Switch

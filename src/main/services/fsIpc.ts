@@ -72,7 +72,10 @@ export function registerFsIpc(): void {
   // Simple directory listing - no recursion, no limits (like IntelliJ/VS Code)
   ipcMain.handle(
     'fs:readdir',
-    async (_event, args: { dirPath: string }): Promise<{
+    async (
+      _event,
+      args: { dirPath: string }
+    ): Promise<{
       success: boolean;
       items?: Array<{ name: string; type: 'file' | 'dir' }>;
       error?: string;
@@ -91,7 +94,7 @@ export function registerFsIpc(): void {
         const entries = fs.readdirSync(dirPath, { withFileTypes: true });
         const items = entries.map((entry) => ({
           name: entry.name,
-          type: entry.isDirectory() ? 'dir' as const : 'file' as const,
+          type: entry.isDirectory() ? ('dir' as const) : ('file' as const),
         }));
 
         // Sort: directories first, then alphabetically
@@ -173,7 +176,10 @@ export function registerFsIpc(): void {
           }
 
           // For other git errors, fallback to DEFAULT_IGNORES
-          console.warn('git check-ignore failed, falling back to DEFAULT_IGNORES:', gitError.message);
+          console.warn(
+            'git check-ignore failed, falling back to DEFAULT_IGNORES:',
+            gitError.message
+          );
           const ignoredPaths = paths.filter((p) => {
             const name = path.basename(p);
             return DEFAULT_IGNORES.has(name);

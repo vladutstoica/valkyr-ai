@@ -50,7 +50,7 @@ export const ShortcutHint: React.FC<ShortcutHintProps> = ({ settingsKey, classNa
   }
 
   return (
-    <span className={`flex items-center gap-1 text-muted-foreground ${className || ''}`}>
+    <span className={`text-muted-foreground flex items-center gap-1 ${className || ''}`}>
       {modifierElements}
       <span>{displayKey}</span>
     </span>

@@ -83,7 +83,7 @@ export const SshConnectionTestButton: React.FC<Props> = ({
             <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-500" />
             <span>Connected</span>
             {result?.latency && (
-              <span className="ml-1 flex items-center text-xs text-muted-foreground">
+              <span className="text-muted-foreground ml-1 flex items-center text-xs">
                 <Zap className="mr-0.5 h-3 w-3" />
                 {result.latency}ms
               </span>

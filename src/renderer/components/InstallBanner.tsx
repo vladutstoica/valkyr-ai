@@ -71,7 +71,7 @@ export const InstallBanner: React.FC<Props> = ({
   }, []);
 
   return (
-    <div className="rounded-none border border-border bg-muted p-3 text-sm text-foreground dark:border-border dark:bg-background dark:text-foreground">
+    <div className="border-border bg-muted text-foreground dark:border-border dark:bg-background dark:text-foreground rounded-none border p-3 text-sm">
       <div className="space-y-2">
         <div className="text-foreground" aria-label={`${baseLabel} status`}>
           <span className="font-normal">
@@ -80,7 +80,7 @@ export const InstallBanner: React.FC<Props> = ({
                 variant="link"
                 size="sm"
                 onClick={() => onOpenExternal(helpUrl)}
-                className="inline-flex h-auto items-center gap-1 p-0 text-foreground no-underline hover:text-foreground/80"
+                className="text-foreground hover:text-foreground/80 inline-flex h-auto items-center gap-1 p-0 no-underline"
               >
                 {baseLabel}
                 <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -90,12 +90,12 @@ export const InstallBanner: React.FC<Props> = ({
             )}{' '}
             isn’t installed.
           </span>{' '}
-          <span className="font-normal text-foreground">Run this in the terminal to use it:</span>
+          <span className="text-foreground font-normal">Run this in the terminal to use it:</span>
         </div>
 
         {command ? (
           <div className="flex flex-wrap items-center gap-1.5">
-            <code className="inline-flex h-7 items-center rounded bg-muted px-2 font-mono text-xs leading-none">
+            <code className="bg-muted inline-flex h-7 items-center rounded px-2 font-mono text-xs leading-none">
               {command}
             </code>
             <Button

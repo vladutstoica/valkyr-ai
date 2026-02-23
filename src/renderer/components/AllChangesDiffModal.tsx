@@ -449,7 +449,8 @@ export const AllChangesDiffModal: React.FC<AllChangesDiffModalProps> = ({
             'diffEditor.insertedLineBackground': MONACO_DIFF_COLORS.dark.insertedLineBackground,
             'diffEditor.removedTextBackground': MONACO_DIFF_COLORS.dark.removedTextBackground,
             'diffEditor.removedLineBackground': MONACO_DIFF_COLORS.dark.removedLineBackground,
-            'diffEditor.unchangedRegionBackground': MONACO_DIFF_COLORS.dark.unchangedRegionBackground, // Slightly darker for collapsed regions
+            'diffEditor.unchangedRegionBackground':
+              MONACO_DIFF_COLORS.dark.unchangedRegionBackground, // Slightly darker for collapsed regions
           },
         });
 
@@ -469,7 +470,8 @@ export const AllChangesDiffModal: React.FC<AllChangesDiffModalProps> = ({
               MONACO_DIFF_COLORS['dark-black'].removedTextBackground,
             'diffEditor.removedLineBackground':
               MONACO_DIFF_COLORS['dark-black'].removedLineBackground,
-            'diffEditor.unchangedRegionBackground': MONACO_DIFF_COLORS['dark-black'].unchangedRegionBackground, // Very dark gray for collapsed regions
+            'diffEditor.unchangedRegionBackground':
+              MONACO_DIFF_COLORS['dark-black'].unchangedRegionBackground, // Very dark gray for collapsed regions
           },
         });
 
@@ -483,7 +485,8 @@ export const AllChangesDiffModal: React.FC<AllChangesDiffModalProps> = ({
             'diffEditor.insertedLineBackground': MONACO_DIFF_COLORS.light.insertedLineBackground,
             'diffEditor.removedTextBackground': MONACO_DIFF_COLORS.light.removedTextBackground,
             'diffEditor.removedLineBackground': MONACO_DIFF_COLORS.light.removedLineBackground,
-            'diffEditor.unchangedRegionBackground': MONACO_DIFF_COLORS.light.unchangedRegionBackground,
+            'diffEditor.unchangedRegionBackground':
+              MONACO_DIFF_COLORS.light.unchangedRegionBackground,
           },
         });
       } catch (error) {
@@ -623,7 +626,8 @@ export const AllChangesDiffModal: React.FC<AllChangesDiffModalProps> = ({
             MONACO_DIFF_COLORS['dark-black'].removedTextBackground,
           'diffEditor.removedLineBackground':
             MONACO_DIFF_COLORS['dark-black'].removedLineBackground,
-          'diffEditor.unchangedRegionBackground': MONACO_DIFF_COLORS['dark-black'].unchangedRegionBackground,
+          'diffEditor.unchangedRegionBackground':
+            MONACO_DIFF_COLORS['dark-black'].unchangedRegionBackground,
         },
       });
 
@@ -636,7 +640,8 @@ export const AllChangesDiffModal: React.FC<AllChangesDiffModalProps> = ({
           'diffEditor.insertedLineBackground': MONACO_DIFF_COLORS.light.insertedLineBackground,
           'diffEditor.removedTextBackground': MONACO_DIFF_COLORS.light.removedTextBackground,
           'diffEditor.removedLineBackground': MONACO_DIFF_COLORS.light.removedLineBackground,
-          'diffEditor.unchangedRegionBackground': MONACO_DIFF_COLORS.light.unchangedRegionBackground,
+          'diffEditor.unchangedRegionBackground':
+            MONACO_DIFF_COLORS.light.unchangedRegionBackground,
         },
       });
       // FORCE update theme based on current theme
@@ -691,15 +696,15 @@ export const AllChangesDiffModal: React.FC<AllChangesDiffModalProps> = ({
             transition={
               shouldReduceMotion ? { duration: 0 } : { duration: 0.2, ease: [0.22, 1, 0.36, 1] }
             }
-            className="flex h-[92vh] w-[96vw] max-w-[1600px] transform-gpu overflow-hidden rounded-xl border border-border bg-muted shadow-2xl will-change-transform dark:border-border dark:bg-background"
+            className="border-border bg-muted dark:border-border dark:bg-background flex h-[92vh] w-[96vw] max-w-[1600px] transform-gpu overflow-hidden rounded-xl border shadow-2xl will-change-transform"
             data-all-changes-modal="true"
           >
             <div className="flex min-w-0 flex-1 flex-col">
-              <div className="flex items-center justify-between border-b border-border bg-muted px-5 py-3 dark:border-border dark:bg-background">
+              <div className="border-border bg-muted dark:border-border dark:bg-background flex items-center justify-between border-b px-5 py-3">
                 <div className="flex items-center gap-4">
-                  <h2 className="text-lg font-semibold text-foreground">All Changes</h2>
+                  <h2 className="text-foreground text-lg font-semibold">All Changes</h2>
                   <div className="flex items-center gap-3 text-sm">
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground dark:bg-muted/50 dark:text-muted-foreground">
+                    <span className="bg-muted text-muted-foreground dark:bg-muted/50 dark:text-muted-foreground rounded-full px-2 py-0.5 text-xs font-medium">
                       {files.length} {files.length === 1 ? 'file' : 'files'}
                     </span>
                     <div className="flex items-center gap-2">
@@ -715,7 +720,7 @@ export const AllChangesDiffModal: React.FC<AllChangesDiffModalProps> = ({
                 </div>
                 <button
                   onClick={onClose}
-                  className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-muted-foreground dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-muted-foreground"
+                  className="text-muted-foreground hover:bg-muted hover:text-muted-foreground dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-muted-foreground rounded-md p-1 transition-colors"
                   aria-label="Close"
                 >
                   <X className="h-4 w-4" />
@@ -724,7 +729,7 @@ export const AllChangesDiffModal: React.FC<AllChangesDiffModalProps> = ({
 
               <div className="all-changes-scrollable min-h-0 flex-1 overflow-y-auto">
                 {files.length === 0 ? (
-                  <div className="flex h-full items-center justify-center text-muted-foreground">
+                  <div className="text-muted-foreground flex h-full items-center justify-center">
                     No changes to display
                   </div>
                 ) : (
@@ -740,21 +745,21 @@ export const AllChangesDiffModal: React.FC<AllChangesDiffModalProps> = ({
                       return (
                         <div
                           key={file.path}
-                          className={`${index === 0 ? '' : 'border-t border-border/50'} bg-muted`}
+                          className={`${index === 0 ? '' : 'border-border/50 border-t'} bg-muted`}
                         >
-                          <div className="group flex items-center border-b border-border bg-muted dark:border-border/50 dark:bg-card">
+                          <div className="group border-border bg-muted dark:border-border/50 dark:bg-card flex items-center border-b">
                             <button
                               onClick={() => toggleFileExpanded(file.path)}
-                              className="flex min-w-0 flex-1 items-center gap-3 px-5 py-2.5 text-left transition-colors hover:bg-accent/50"
+                              className="hover:bg-accent/50 flex min-w-0 flex-1 items-center gap-3 px-5 py-2.5 text-left transition-colors"
                             >
                               <div className="flex shrink-0 items-center">
                                 {isExpanded ? (
-                                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-muted-foreground dark:text-muted-foreground dark:group-hover:text-muted-foreground" />
+                                  <ChevronDown className="text-muted-foreground group-hover:text-muted-foreground dark:text-muted-foreground dark:group-hover:text-muted-foreground h-3.5 w-3.5 transition-colors" />
                                 ) : (
-                                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-muted-foreground dark:text-muted-foreground dark:group-hover:text-muted-foreground" />
+                                  <ChevronRight className="text-muted-foreground group-hover:text-muted-foreground dark:text-muted-foreground dark:group-hover:text-muted-foreground h-3.5 w-3.5 transition-colors" />
                                 )}
                               </div>
-                              <span className="truncate font-mono text-sm font-medium text-foreground">
+                              <span className="text-foreground truncate font-mono text-sm font-medium">
                                 {file.path}
                               </span>
                               <button
@@ -762,7 +767,7 @@ export const AllChangesDiffModal: React.FC<AllChangesDiffModalProps> = ({
                                   e.stopPropagation();
                                   void handleCopyFile(file.path);
                                 }}
-                                className="ml-2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-muted-foreground"
+                                className="text-muted-foreground hover:bg-muted hover:text-foreground dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-muted-foreground ml-2 rounded-md p-1 transition-colors"
                                 title="Copy file path"
                                 aria-label="Copy file path"
                               >
@@ -787,7 +792,7 @@ export const AllChangesDiffModal: React.FC<AllChangesDiffModalProps> = ({
                             </button>
                           </div>
                           {!hasError && (isDirty || isSaving) && (
-                            <div className="flex items-center justify-between px-5 py-2 text-xs text-muted-foreground">
+                            <div className="text-muted-foreground flex items-center justify-between px-5 py-2 text-xs">
                               <div className="flex items-center gap-2">
                                 <span>{isDirty ? 'Unsaved changes' : 'No unsaved changes'}</span>
                                 {data?.saveError ? (
@@ -801,8 +806,8 @@ export const AllChangesDiffModal: React.FC<AllChangesDiffModalProps> = ({
                                 disabled={!isDirty || isSaving}
                                 className={`inline-flex items-center rounded-md px-3 py-1 text-sm font-medium transition ${
                                   !isDirty || isSaving
-                                    ? 'cursor-not-allowed bg-muted text-muted-foreground dark:bg-muted dark:text-muted-foreground'
-                                    : 'dark:bg-muted0 bg-muted text-white hover:bg-accent dark:hover:bg-muted'
+                                    ? 'bg-muted text-muted-foreground dark:bg-muted dark:text-muted-foreground cursor-not-allowed'
+                                    : 'dark:bg-muted0 bg-muted hover:bg-accent dark:hover:bg-muted text-white'
                                 }`}
                               >
                                 {isSaving ? 'Saving…' : 'Save'}
@@ -811,16 +816,16 @@ export const AllChangesDiffModal: React.FC<AllChangesDiffModalProps> = ({
                           )}
 
                           {isExpanded && (
-                            <div className="border-b border-border bg-muted dark:border-border/50 dark:bg-background">
+                            <div className="border-border bg-muted dark:border-border/50 dark:bg-background border-b">
                               {isLoading ? (
-                                <div className="flex h-64 items-center justify-center text-muted-foreground">
+                                <div className="text-muted-foreground flex h-64 items-center justify-center">
                                   <div className="flex items-center gap-2">
-                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-border border-t-gray-600 dark:border-border dark:border-t-gray-400"></div>
+                                    <div className="border-border dark:border-border h-4 w-4 animate-spin rounded-full border-2 border-t-gray-600 dark:border-t-gray-400"></div>
                                     <span className="text-sm">Loading diff...</span>
                                   </div>
                                 </div>
                               ) : hasError ? (
-                                <div className="flex h-64 flex-col items-center justify-center gap-2 px-4 text-muted-foreground">
+                                <div className="text-muted-foreground flex h-64 flex-col items-center justify-center gap-2 px-4">
                                   <AlertCircle className="h-6 w-6 text-rose-500 dark:text-rose-400" />
                                   <span className="text-sm">
                                     {data?.error || 'Failed to load diff'}

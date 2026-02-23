@@ -29,14 +29,14 @@ export function CommitPanel({
   const canCommit = hasStagedChanges && commitMessage.trim().length > 0;
 
   return (
-    <div className={cn('border-t border-border bg-muted/30 p-3', className)}>
+    <div className={cn('border-border bg-muted/30 border-t p-3', className)}>
       {/* PR Link */}
       {prUrl && (
         <div className="mb-2 flex justify-end">
           <button
             type="button"
             onClick={() => window.electronAPI?.openExternal?.(prUrl)}
-            className="inline-flex items-center gap-1 rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            className="border-border bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium transition-colors"
           >
             View PR
             <ArrowUpRight className="h-3 w-3" />
@@ -96,8 +96,8 @@ export function CommitPanel({
       </div>
 
       {/* Keyboard Shortcut Hint */}
-      <div className="mt-1.5 text-[10px] text-muted-foreground">
-        <kbd className="rounded bg-muted px-1 py-0.5 font-mono">Cmd+Enter</kbd> commit & push
+      <div className="text-muted-foreground mt-1.5 text-[10px]">
+        <kbd className="bg-muted rounded px-1 py-0.5 font-mono">Cmd+Enter</kbd> commit & push
       </div>
     </div>
   );

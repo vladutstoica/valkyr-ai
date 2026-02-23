@@ -144,7 +144,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
     (value: string): string | null => {
       const normalized = normalizeTaskName(value);
       if (!normalized) return 'Please enter a session name.';
-      if (normalizedExisting.includes(normalized)) return 'A session with this name already exists.';
+      if (normalizedExisting.includes(normalized))
+        return 'A session with this name already exists.';
       if (normalized.length > MAX_TASK_NAME_LENGTH)
         return `Session name is too long (max ${MAX_TASK_NAME_LENGTH} characters).`;
       return null;
@@ -291,9 +292,9 @@ const TaskModal: React.FC<TaskModalProps> = ({
         <DialogHeader>
           <DialogTitle>New Session</DialogTitle>
           <div className="space-y-1 pt-1">
-            <p className="text-sm font-medium text-foreground">{projectName}</p>
+            <p className="text-foreground text-sm font-medium">{projectName}</p>
             <div className="flex items-center gap-1.5">
-              <span className="text-xs text-muted-foreground">from</span>
+              <span className="text-muted-foreground text-xs">from</span>
               {branchOptions.length > 0 ? (
                 <BranchSelect
                   value={selectedBranch}
@@ -303,7 +304,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
                   variant="ghost"
                 />
               ) : (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-muted-foreground text-xs">
                   {isLoadingBranches ? 'Loading...' : selectedBranch || defaultBranch}
                 </span>
               )}

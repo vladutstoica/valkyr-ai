@@ -1341,7 +1341,9 @@ export class WorktreeService {
             isWorktree: false,
           });
 
-          log.info(`Created symlink for sub-repo ${subRepo.name}: ${subRepo.path} -> ${targetPath}`);
+          log.info(
+            `Created symlink for sub-repo ${subRepo.name}: ${subRepo.path} -> ${targetPath}`
+          );
         } catch (error) {
           log.error(`Failed to create symlink for sub-repo ${subRepo.name}:`, error);
           // Clean up what we've created so far
@@ -1368,7 +1370,9 @@ export class WorktreeService {
     }>
   ): Promise<void> {
     if (!fs.existsSync(compositeWorktreePath)) {
-      log.info(`Composite worktree path does not exist, nothing to remove: ${compositeWorktreePath}`);
+      log.info(
+        `Composite worktree path does not exist, nothing to remove: ${compositeWorktreePath}`
+      );
       return;
     }
 
@@ -1407,7 +1411,10 @@ export class WorktreeService {
             });
             log.info(`Removed git worktree for sub-repo ${subRepo.name}`);
           } catch (gitError) {
-            log.warn(`git worktree remove failed for ${subRepo.name}, removing directory:`, gitError);
+            log.warn(
+              `git worktree remove failed for ${subRepo.name}, removing directory:`,
+              gitError
+            );
             await fs.promises.rm(targetPath, { recursive: true, force: true });
           }
 

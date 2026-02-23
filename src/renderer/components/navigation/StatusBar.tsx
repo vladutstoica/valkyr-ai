@@ -285,8 +285,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
       branch.name === effectiveCurrent || branch.name === `origin/${effectiveCurrent}`;
     const fullBranch = 'tracking' in branch ? (branch as BranchInfo) : { name: branch.name };
     const isBeingSwitched =
-      switchingBranch === branch.name ||
-      switchingBranch === branch.name.replace(/^origin\//, '');
+      switchingBranch === branch.name || switchingBranch === branch.name.replace(/^origin\//, '');
 
     return (
       <button
@@ -301,9 +300,9 @@ export const StatusBar: React.FC<StatusBarProps> = ({
       >
         <div className="flex items-center gap-1.5 truncate">
           {isBeingSwitched ? (
-            <Loader2 className="h-3 w-3 flex-shrink-0 animate-spin text-muted-foreground" />
+            <Loader2 className="text-muted-foreground h-3 w-3 flex-shrink-0 animate-spin" />
           ) : (
-            <GitBranch className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+            <GitBranch className="text-muted-foreground h-3 w-3 flex-shrink-0" />
           )}
           <span className="truncate">{branch.name}</span>
         </div>
@@ -319,7 +318,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
 
   return (
     <TooltipProvider>
-      <div className="flex h-6 items-center border-t bg-muted px-2 text-xs text-muted-foreground">
+      <div className="bg-muted text-muted-foreground flex h-6 items-center border-t px-2 text-xs">
         {/* Agent Status */}
         <Tooltip>
           <TooltipTrigger asChild>
@@ -327,7 +326,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
               onClick={onAgentClick}
               className={cn(
                 'flex items-center gap-1.5 px-1.5 py-0.5 transition-colors',
-                'hover:text-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-ring'
+                'hover:text-foreground focus-visible:ring-ring focus:outline-none focus-visible:ring-1'
               )}
             >
               <span className={cn('h-2 w-2 rounded-full', statusColors[agentStatus])} />
@@ -349,7 +348,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
             <button
               className={cn(
                 'flex items-center gap-1.5 px-1.5 py-0.5 transition-colors',
-                'hover:text-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-ring'
+                'hover:text-foreground focus-visible:ring-ring focus:outline-none focus-visible:ring-1'
               )}
             >
               <GitBranch className="h-3 w-3" />
@@ -372,7 +371,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
                       )}
                     >
                       <span className="truncate font-medium">{activeRepoName}</span>
-                      <ChevronDown className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+                      <ChevronDown className="text-muted-foreground h-3 w-3 flex-shrink-0" />
                     </button>
                   </PopoverTrigger>
                   <PopoverContent side="bottom" align="start" className="w-56 p-1">
@@ -404,7 +403,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
                   <div className="truncate text-xs font-medium">
                     {branchData?.current || currentBranch}
                   </div>
-                  <div className="text-[10px] text-muted-foreground">
+                  <div className="text-muted-foreground text-[10px]">
                     Base: {baseBranch}
                     {(commitsBehind > 0 || commitsAhead > 0) && (
                       <span className="ml-1.5">
@@ -434,14 +433,14 @@ export const StatusBar: React.FC<StatusBarProps> = ({
             {/* Search */}
             <div className="p-2">
               <div className="relative">
-                <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+                <Search className="text-muted-foreground absolute top-1/2 left-2 h-3 w-3 -translate-y-1/2" />
                 <input
                   ref={searchInputRef}
                   type="text"
                   placeholder="Search branches..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-7 w-full rounded-sm border bg-transparent pl-7 pr-2 text-xs outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring"
+                  className="placeholder:text-muted-foreground focus:ring-ring h-7 w-full rounded-sm border bg-transparent pr-2 pl-7 text-xs outline-none focus:ring-1"
                 />
               </div>
             </div>
@@ -451,7 +450,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
             {/* Loading state */}
             {isLoadingBranches && (
               <div className="flex items-center justify-center py-4">
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
               </div>
             )}
 
@@ -462,7 +461,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
                   {/* Recent */}
                   {filteredData.recent.length > 0 && (
                     <div className="space-y-0.5">
-                      <div className="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <div className="text-muted-foreground px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase">
                         Recent
                       </div>
                       {filteredData.recent.map((name) => {
@@ -479,7 +478,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
                     <>
                       {filteredData.recent.length > 0 && <Separator className="my-1" />}
                       <div className="space-y-0.5">
-                        <div className="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        <div className="text-muted-foreground px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase">
                           Local
                         </div>
                         {filteredData.local.map((branch) => renderBranchItem(branch, false))}
@@ -494,7 +493,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
                         <Separator className="my-1" />
                       )}
                       <div className="space-y-0.5">
-                        <div className="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        <div className="text-muted-foreground px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase">
                           Remote
                         </div>
                         {filteredData.remote.map((branch) => renderBranchItem(branch, true))}
@@ -506,7 +505,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
                   {filteredData.recent.length === 0 &&
                     filteredData.local.length === 0 &&
                     filteredData.remote.length === 0 && (
-                      <div className="py-4 text-center text-xs text-muted-foreground">
+                      <div className="text-muted-foreground py-4 text-center text-xs">
                         {searchQuery.trim() ? 'No branches found' : 'No branches available'}
                       </div>
                     )}
@@ -559,7 +558,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
               onClick={onChangesClick}
               className={cn(
                 'flex items-center gap-1.5 px-1.5 py-0.5 transition-colors',
-                'hover:text-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-ring'
+                'hover:text-foreground focus-visible:ring-ring focus:outline-none focus-visible:ring-1'
               )}
             >
               <FileCode className="h-3 w-3" />
@@ -584,7 +583,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
               onClick={handleCopyWorktreePath}
               className={cn(
                 'flex items-center gap-1.5 px-1.5 py-0.5 font-mono transition-colors',
-                'hover:text-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-ring'
+                'hover:text-foreground focus-visible:ring-ring focus:outline-none focus-visible:ring-1'
               )}
             >
               <span>{shortWorktreeId}</span>
@@ -592,7 +591,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
             </button>
           </TooltipTrigger>
           <TooltipContent side="top">
-            <p className="max-w-xs break-all font-mono text-xs">
+            <p className="max-w-xs font-mono text-xs break-all">
               {worktreePath}
               <br />
               <span className="text-muted-foreground">Click to copy path</span>

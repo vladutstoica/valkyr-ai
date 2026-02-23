@@ -235,13 +235,13 @@ export function GithubDeviceFlowModal({
   return (
     <Dialog.Root open={open} onOpenChange={handleClose}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-background/80 backdrop-blur-xs data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
-        <Dialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-[480px] translate-x-[-50%] translate-y-[-50%] gap-4 overflow-hidden border bg-background p-0 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg">
+        <Dialog.Overlay className="bg-background/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 backdrop-blur-xs" />
+        <Dialog.Content className="bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[480px] translate-x-[-50%] translate-y-[-50%] gap-4 overflow-hidden border p-0 shadow-lg duration-200 sm:rounded-lg">
           <Button
             variant="ghost"
             size="icon-sm"
             onClick={handleClose}
-            className="absolute right-4 top-4 z-10 opacity-70 hover:opacity-100"
+            className="absolute top-4 right-4 z-10 opacity-70 hover:opacity-100"
           >
             <X className="h-4 w-4" />
             <span className="sr-only">Close</span>
@@ -252,13 +252,13 @@ export function GithubDeviceFlowModal({
 
             {success ? (
               // Success State
-              <div className="flex flex-col items-center space-y-6 duration-300 animate-in fade-in zoom-in">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-500 duration-500 animate-in zoom-in">
+              <div className="animate-in fade-in zoom-in flex flex-col items-center space-y-6 duration-300">
+                <div className="animate-in zoom-in flex h-16 w-16 items-center justify-center rounded-full bg-green-500 duration-500">
                   <Check className="h-8 w-8 text-white" strokeWidth={3} />
                 </div>
                 <div className="space-y-2 text-center">
                   <h2 className="text-2xl font-semibold">Success!</h2>
-                  <p className="text-sm text-muted-foreground">You're connected to GitHub</p>
+                  <p className="text-muted-foreground text-sm">You're connected to GitHub</p>
                   {user && (
                     <div className="mt-4 flex items-center justify-center gap-2">
                       {user.avatar_url && (
@@ -270,7 +270,7 @@ export function GithubDeviceFlowModal({
                       )}
                       <div className="text-left">
                         <p className="text-sm font-medium">{user.name || user.login}</p>
-                        <p className="text-xs text-muted-foreground">@{user.login}</p>
+                        <p className="text-muted-foreground text-xs">@{user.login}</p>
                       </div>
                     </div>
                   )}
@@ -284,7 +284,7 @@ export function GithubDeviceFlowModal({
                 </div>
                 <div className="space-y-2 text-center">
                   <h2 className="text-xl font-semibold">Authentication Failed</h2>
-                  <p className="text-sm text-muted-foreground">{error}</p>
+                  <p className="text-muted-foreground text-sm">{error}</p>
                 </div>
                 <Button onClick={handleClose} variant="outline" className="w-full">
                   Close
@@ -295,18 +295,18 @@ export function GithubDeviceFlowModal({
               <div className="flex w-full flex-col items-center space-y-6">
                 <div className="space-y-2 text-center">
                   <h2 className="text-2xl font-semibold">Connect to GitHub</h2>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-muted-foreground text-sm">
                     Follow these steps to authorize Valkyr
                   </p>
                 </div>
 
                 {userCode && (
                   <>
-                    <div className="w-full space-y-3 rounded-lg bg-muted/30 p-6">
-                      <p className="text-center text-xs font-medium text-muted-foreground">
+                    <div className="bg-muted/30 w-full space-y-3 rounded-lg p-6">
+                      <p className="text-muted-foreground text-center text-xs font-medium">
                         Your code
                       </p>
-                      <p className="select-all text-center font-mono text-4xl font-bold tracking-wider">
+                      <p className="text-center font-mono text-4xl font-bold tracking-wider select-all">
                         {userCode}
                       </p>
                     </div>
@@ -334,16 +334,16 @@ export function GithubDeviceFlowModal({
 
                 <div className="w-full space-y-3 text-sm">
                   <div className="flex items-start gap-3">
-                    <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold">
+                    <div className="bg-primary/10 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold">
                       1
                     </div>
                     <p className="text-muted-foreground">
                       Paste the code in GitHub{' '}
-                      <span className="font-medium text-foreground">(already copied!)</span>
+                      <span className="text-foreground font-medium">(already copied!)</span>
                     </p>
                   </div>
                   <div className="flex items-start gap-3">
-                    <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold">
+                    <div className="bg-primary/10 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold">
                       2
                     </div>
                     <p className="text-muted-foreground">Click Authorize</p>
@@ -359,10 +359,10 @@ export function GithubDeviceFlowModal({
                 )}
 
                 <div className="flex flex-col items-center gap-2 text-center">
-                  <Spinner className="h-5 w-5 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">Waiting for authorization...</p>
+                  <Spinner className="text-muted-foreground h-5 w-5" />
+                  <p className="text-muted-foreground text-sm">Waiting for authorization...</p>
                   {timeRemaining > 0 && (
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-muted-foreground text-xs">
                       Code expires in {formatTime(timeRemaining)}
                     </p>
                   )}
@@ -376,10 +376,10 @@ export function GithubDeviceFlowModal({
                 )}
 
                 <div className="w-full border-t pt-4">
-                  <p className="text-center text-xs text-muted-foreground">Having trouble?</p>
+                  <p className="text-muted-foreground text-center text-xs">Having trouble?</p>
                 </div>
 
-                <div className="space-x-3 text-center text-xs text-muted-foreground">
+                <div className="text-muted-foreground space-x-3 text-center text-xs">
                   <span>⌘C to copy</span>
                   <span>•</span>
                   <span>⌘R to reopen</span>

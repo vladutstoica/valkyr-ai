@@ -36,12 +36,12 @@ test.beforeAll(async () => {
   page = await app.firstWindow();
 
   // Capture ALL console messages
-  page.on('console', msg => {
+  page.on('console', (msg) => {
     log(`[Console ${msg.type()}] ${msg.text()}`);
   });
 
   // Capture page errors
-  page.on('pageerror', error => {
+  page.on('pageerror', (error) => {
     log(`[Page Error] ${error.message}`);
     log(`[Stack] ${error.stack}`);
   });
@@ -75,10 +75,12 @@ test('Debug Git Expand All', async () => {
   // Get initial memory
   const initialMemory = await page.evaluate(() => {
     const perf = (performance as any).memory;
-    return perf ? {
-      usedJSHeapSize: Math.round(perf.usedJSHeapSize / 1024 / 1024),
-      totalJSHeapSize: Math.round(perf.totalJSHeapSize / 1024 / 1024),
-    } : null;
+    return perf
+      ? {
+          usedJSHeapSize: Math.round(perf.usedJSHeapSize / 1024 / 1024),
+          totalJSHeapSize: Math.round(perf.totalJSHeapSize / 1024 / 1024),
+        }
+      : null;
   });
   log(`Initial memory: ${JSON.stringify(initialMemory)}`);
 
@@ -107,13 +109,18 @@ test('Debug Git Expand All', async () => {
   await page.waitForTimeout(1000);
 
   // Get file count
-  const fileCount = await page.locator('[title="Modified"], [title="Added"], [title="Deleted"]').count();
+  const fileCount = await page
+    .locator('[title="Modified"], [title="Added"], [title="Deleted"]')
+    .count();
   log(`Files with changes: ${fileCount}`);
 
   // Get all file paths
   const filePaths = await page.evaluate(() => {
     const items = document.querySelectorAll('[class*="truncate"]');
-    return Array.from(items).map(el => el.textContent).filter(t => t?.includes('.')).slice(0, 30);
+    return Array.from(items)
+      .map((el) => el.textContent)
+      .filter((t) => t?.includes('.'))
+      .slice(0, 30);
   });
   log(`File paths: ${JSON.stringify(filePaths)}`);
 
@@ -134,7 +141,9 @@ test('Debug Git Expand All', async () => {
 
   // Try expanding ONE file first to test Monaco DiffEditor
   log('Testing single file expand...');
-  const firstFileRow = page.locator('div.border-b:has([title="Modified"], [title="Added"])').first();
+  const firstFileRow = page
+    .locator('div.border-b:has([title="Modified"], [title="Added"])')
+    .first();
   if (await firstFileRow.isVisible()) {
     await firstFileRow.click();
     await page.waitForTimeout(2000);
@@ -144,7 +153,9 @@ test('Debug Git Expand All', async () => {
     const errorMsg = await page.locator('text=Failed to render').count();
     const loading = await page.locator('text=Loading').count();
 
-    log(`After single expand - monaco-diff-editor: ${diffView}, errors: ${errorMsg}, loading: ${loading}`);
+    log(
+      `After single expand - monaco-diff-editor: ${diffView}, errors: ${errorMsg}, loading: ${loading}`
+    );
 
     await page.screenshot({ path: 'e2e/screenshots/debug-single-expand.png' });
 
@@ -175,23 +186,28 @@ test('Debug Git Expand All', async () => {
       const errors = await page.locator('text=Failed to render').count();
       const loading = await page.locator('text=Loading').count();
 
-      const mem = await page.evaluate(() => {
-        const perf = (performance as any).memory;
-        return perf ? Math.round(perf.usedJSHeapSize / 1024 / 1024) : null;
-      }).catch(() => null);
+      const mem = await page
+        .evaluate(() => {
+          const perf = (performance as any).memory;
+          return perf ? Math.round(perf.usedJSHeapSize / 1024 / 1024) : null;
+        })
+        .catch(() => null);
 
-      log(`[${i * 500}ms] expanded: ${expandedCount}, diffs: ${diffViews}, errors: ${errors}, loading: ${loading}, mem: ${mem}MB`);
+      log(
+        `[${i * 500}ms] expanded: ${expandedCount}, diffs: ${diffViews}, errors: ${errors}, loading: ${loading}, mem: ${mem}MB`
+      );
 
       // Take periodic screenshots
       if (i === 2 || i === 5 || i === 10) {
-        await page.screenshot({ path: `e2e/screenshots/debug-expand-${i * 500}ms.png` }).catch(() => {
-          log(`Screenshot failed at ${i * 500}ms`);
-        });
+        await page
+          .screenshot({ path: `e2e/screenshots/debug-expand-${i * 500}ms.png` })
+          .catch(() => {
+            log(`Screenshot failed at ${i * 500}ms`);
+          });
       }
     }
 
     log('Expand All completed without crash');
-
   } catch (error: any) {
     log(`[ERROR] Expand All failed: ${error.message}`);
     log(`[Stack] ${error.stack}`);
@@ -203,9 +219,11 @@ test('Debug Git Expand All', async () => {
   });
 
   // Final memory
-  const finalMemory = await page.evaluate(() => {
-    const perf = (performance as any).memory;
-    return perf ? Math.round(perf.usedJSHeapSize / 1024 / 1024) : null;
-  }).catch(() => null);
+  const finalMemory = await page
+    .evaluate(() => {
+      const perf = (performance as any).memory;
+      return perf ? Math.round(perf.usedJSHeapSize / 1024 / 1024) : null;
+    })
+    .catch(() => null);
   log(`Final memory: ${finalMemory}MB`);
 });

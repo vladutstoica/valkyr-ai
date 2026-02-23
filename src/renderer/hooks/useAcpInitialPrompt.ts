@@ -35,7 +35,9 @@ export function useAcpInitialPrompt(opts: {
 
     sentRef.current = true;
     localStorage.setItem(sentKey, '1');
-    try { window.electronAPI?.setTaskInitialPromptSent?.({ taskId, sent: true }); } catch {}
+    try {
+      window.electronAPI?.setTaskInitialPromptSent?.({ taskId, sent: true });
+    } catch {}
     appendFn({ content: trimmed }).catch(() => {});
   }, [enabled, taskId, providerId, prompt, appendFn, chatStatus]);
 }

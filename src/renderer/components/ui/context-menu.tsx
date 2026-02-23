@@ -15,7 +15,7 @@ const ContextMenuContent = React.forwardRef<
     <ContextMenuPrimitive.Content
       ref={ref}
       className={cn(
-        'z-[240] min-w-[6rem] overflow-hidden rounded-none border border-border bg-background p-0.5 text-foreground shadow-md',
+        'border-border bg-background text-foreground z-[240] min-w-[6rem] overflow-hidden rounded-none border p-0.5 shadow-md',
         'animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
         className
       )}
@@ -34,7 +34,7 @@ const ContextMenuItem = React.forwardRef<
   <ContextMenuPrimitive.Item
     ref={ref}
     className={cn(
-      'relative flex cursor-default select-none items-center rounded-none px-2 py-1 text-xs outline-hidden focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+      'focus:bg-accent focus:text-accent-foreground relative flex cursor-default items-center rounded-none px-2 py-1 text-xs outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
       inset && 'pl-6',
       className
     )}
@@ -54,7 +54,7 @@ const ContextMenuSubTrigger = React.forwardRef<
   <ContextMenuPrimitive.SubTrigger
     ref={ref}
     className={cn(
-      'flex cursor-default select-none items-center rounded-none px-2 py-1 text-xs outline-hidden focus:bg-accent data-[state=open]:bg-accent',
+      'focus:bg-accent data-[state=open]:bg-accent flex cursor-default items-center rounded-none px-2 py-1 text-xs outline-hidden select-none',
       inset && 'pl-6',
       className
     )}
@@ -73,7 +73,7 @@ const ContextMenuSubContent = React.forwardRef<
     <ContextMenuPrimitive.SubContent
       ref={ref}
       className={cn(
-        'z-[240] min-w-[6rem] overflow-hidden rounded-none border border-border bg-background p-0.5 text-foreground shadow-md',
+        'border-border bg-background text-foreground z-[240] min-w-[6rem] overflow-hidden rounded-none border p-0.5 shadow-md',
         'animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
         className
       )}
@@ -89,7 +89,7 @@ const ContextMenuSeparator = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ContextMenuPrimitive.Separator
     ref={ref}
-    className={cn('-mx-1 my-1 h-px bg-border', className)}
+    className={cn('bg-border -mx-1 my-1 h-px', className)}
     {...props}
   />
 ));

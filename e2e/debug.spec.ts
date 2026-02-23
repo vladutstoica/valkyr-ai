@@ -96,8 +96,10 @@ test('debug project rename via dropdown', async () => {
     await page.screenshot({ path: 'e2e/screenshots/hover-project.png' });
 
     // Click the menu button (MoreVertical icon)
-    const menuTrigger = projectCard.locator('xpath=ancestor::*[contains(@class,"Card")]//button[last()-1]');
-    if (await menuTrigger.count() > 0) {
+    const menuTrigger = projectCard.locator(
+      'xpath=ancestor::*[contains(@class,"Card")]//button[last()-1]'
+    );
+    if ((await menuTrigger.count()) > 0) {
       await menuTrigger.click();
       await page.waitForTimeout(300);
       await page.screenshot({ path: 'e2e/screenshots/dropdown-open.png' });

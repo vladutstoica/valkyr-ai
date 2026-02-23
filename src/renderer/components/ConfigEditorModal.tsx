@@ -122,7 +122,7 @@ export const ConfigEditorModal: React.FC<ConfigEditorModalProps> = ({
             <Spinner size="md" />
           </div>
         ) : error && !content ? (
-          <div className="rounded-md bg-destructive/10 p-4 text-sm text-destructive">{error}</div>
+          <div className="bg-destructive/10 text-destructive rounded-md p-4 text-sm">{error}</div>
         ) : (
           <>
             <div
@@ -149,13 +149,13 @@ export const ConfigEditorModal: React.FC<ConfigEditorModalProps> = ({
             </div>
 
             {jsonError && (
-              <div className="rounded-md bg-destructive/10 p-3 text-xs text-destructive">
+              <div className="bg-destructive/10 text-destructive rounded-md p-3 text-xs">
                 Invalid JSON: {jsonError}
               </div>
             )}
 
             {error && content && (
-              <div className="rounded-md bg-destructive/10 p-3 text-xs text-destructive">
+              <div className="bg-destructive/10 text-destructive rounded-md p-3 text-xs">
                 {error}
               </div>
             )}

@@ -15,7 +15,7 @@ function BucketIcon({ bucket }: { bucket: CheckRunBucket }) {
       return <span className="inline-block h-3.5 w-3.5 rounded-full bg-amber-500" />;
     case 'skipping':
     case 'cancel':
-      return <MinusCircle className="h-3.5 w-3.5 text-muted-foreground/60" />;
+      return <MinusCircle className="text-muted-foreground/60 h-3.5 w-3.5" />;
   }
 }
 
@@ -29,13 +29,13 @@ function CheckRunItem({ check }: { check: CheckRun }) {
       </span>
       <img src={githubIcon} alt="" className="h-3.5 w-3.5 shrink-0 dark:invert" />
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm text-foreground">{check.name}</div>
+        <div className="text-foreground truncate text-sm">{check.name}</div>
         {check.workflow && (
-          <div className="truncate text-xs text-muted-foreground">{check.workflow}</div>
+          <div className="text-muted-foreground truncate text-xs">{check.workflow}</div>
         )}
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        {duration && <span className="text-xs text-muted-foreground">{duration}</span>}
+        {duration && <span className="text-muted-foreground text-xs">{duration}</span>}
         {check.link && (
           <Button
             variant="ghost"
@@ -62,7 +62,7 @@ export function ChecksPanel({ status, isLoading, hasPr, hideSummary }: ChecksPan
   if (!hasPr) {
     return (
       <div className="flex flex-1 items-center justify-center p-6 text-center">
-        <p className="text-sm text-muted-foreground">No PR exists for this branch.</p>
+        <p className="text-muted-foreground text-sm">No PR exists for this branch.</p>
       </div>
     );
   }
@@ -70,7 +70,7 @@ export function ChecksPanel({ status, isLoading, hasPr, hideSummary }: ChecksPan
   if (isLoading && !status) {
     return (
       <div className="flex flex-1 items-center justify-center p-6">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
       </div>
     );
   }
@@ -79,7 +79,7 @@ export function ChecksPanel({ status, isLoading, hasPr, hideSummary }: ChecksPan
     return (
       <div className="flex flex-1 items-center justify-center p-6 text-center">
         <div>
-          <p className="text-sm text-muted-foreground">No CI checks found for this repository</p>
+          <p className="text-muted-foreground text-sm">No CI checks found for this repository</p>
         </div>
       </div>
     );
@@ -90,7 +90,7 @@ export function ChecksPanel({ status, isLoading, hasPr, hideSummary }: ChecksPan
   return (
     <div className="flex flex-col">
       {!hideSummary && (
-        <div className="flex items-center gap-1.5 border-b border-border px-4 py-2">
+        <div className="border-border flex items-center gap-1.5 border-b px-4 py-2">
           {summary.passed > 0 && (
             <Badge variant="outline">
               <CheckCircle2 className="h-3 w-3 text-emerald-500" />

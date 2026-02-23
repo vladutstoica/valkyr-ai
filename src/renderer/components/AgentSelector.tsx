@@ -83,9 +83,9 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({
                     className="flex cursor-not-allowed items-center gap-2 opacity-70"
                     aria-disabled
                   >
-                    <Workflow className="h-4 w-4 text-foreground/70" aria-hidden="true" />
+                    <Workflow className="text-foreground/70 h-4 w-4" aria-hidden="true" />
                     <span className="mr-2">Routing</span>
-                    <Badge className="ml-1 text-micro">Soon</Badge>
+                    <Badge className="text-micro ml-1">Soon</Badge>
                   </div>
                 </SelectItem>
               </RoutingTooltipRow>
@@ -112,7 +112,7 @@ const TooltipRow: React.FC<{ id: UiAgent; children: React.ReactElement }> = ({ i
       <TooltipContent
         side="right"
         align="start"
-        className="border-foreground/20 bg-background p-0 text-foreground"
+        className="border-foreground/20 bg-background text-foreground p-0"
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
         onPointerEnter={() => setOpen(true)}
@@ -141,7 +141,7 @@ export const RoutingTooltipRow: React.FC<{ children: React.ReactElement }> = ({ 
       <TooltipContent
         side="right"
         align="start"
-        className="border-foreground/20 bg-background p-0 text-foreground"
+        className="border-foreground/20 bg-background text-foreground p-0"
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
         onPointerEnter={() => setOpen(true)}

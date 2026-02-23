@@ -192,7 +192,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({ isOpen, onClos
               <Spinner size="sm" />
               <div className="flex-1">
                 <p className="text-sm font-medium">{progress}</p>
-                <p className="text-xs text-muted-foreground">This may take a few seconds...</p>
+                <p className="text-muted-foreground text-xs">This may take a few seconds...</p>
               </div>
             </div>
           </div>
@@ -220,7 +220,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({ isOpen, onClos
               />
               {touched && (validationError || error) && (
                 <div className="mt-1">
-                  <p className="text-xs text-destructive">{validationError || error}</p>
+                  <p className="text-destructive text-xs">{validationError || error}</p>
                 </div>
               )}
             </div>
@@ -262,7 +262,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({ isOpen, onClos
             </div>
 
             {error && !validationError && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              <div className="bg-destructive/10 text-destructive rounded-md p-3 text-sm">
                 {error.split('\n').map((line, i) => (
                   <p key={i}>{line}</p>
                 ))}

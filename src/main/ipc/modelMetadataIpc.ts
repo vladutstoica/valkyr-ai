@@ -21,31 +21,25 @@ export function registerModelMetadataIpc() {
     }
   );
 
-  ipcMain.handle(
-    'modelMetadata:getUptime',
-    async (_event, args: { providerId: string }) => {
-      try {
-        const data = await statusPageService.getUptimeData(args.providerId);
-        return { success: true, data };
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        log.error('[modelMetadata:getUptime]', msg);
-        return { success: false, error: msg };
-      }
+  ipcMain.handle('modelMetadata:getUptime', async (_event, args: { providerId: string }) => {
+    try {
+      const data = await statusPageService.getUptimeData(args.providerId);
+      return { success: true, data };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      log.error('[modelMetadata:getUptime]', msg);
+      return { success: false, error: msg };
     }
-  );
+  });
 
-  ipcMain.handle(
-    'modelMetadata:getStatus',
-    async (_event, args: { providerId: string }) => {
-      try {
-        const status = await statusPageService.getStatus(args.providerId);
-        return { success: true, data: status };
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        log.error('[modelMetadata:getStatus]', msg);
-        return { success: false, error: msg };
-      }
+  ipcMain.handle('modelMetadata:getStatus', async (_event, args: { providerId: string }) => {
+    try {
+      const status = await statusPageService.getStatus(args.providerId);
+      return { success: true, data: status };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      log.error('[modelMetadata:getStatus]', msg);
+      return { success: false, error: msg };
     }
-  );
+  });
 }

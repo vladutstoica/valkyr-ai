@@ -80,7 +80,7 @@ const TaskSettingsCard: React.FC = () => {
   };
 
   return (
-    <div className="rounded-xl border border-border/60 bg-muted/10 p-4">
+    <div className="border-border/60 bg-muted/10 rounded-xl border p-4">
       <div className="space-y-3">
         <label className="flex items-center justify-between gap-2">
           <span className="text-sm">Auto-generate session names</span>
@@ -93,19 +93,19 @@ const TaskSettingsCard: React.FC = () => {
         <label className="flex items-center justify-between gap-2">
           <div className="space-y-1">
             <div className="text-sm">Enable Auto-approve by default in new sessions</div>
-            <div className="text-xs text-muted-foreground">
+            <div className="text-muted-foreground text-xs">
               Skips permission prompts for file operations.{' '}
               <a
                 href="https://simonwillison.net/2025/Oct/22/living-dangerously-with-claude/"
                 target="_blank"
                 rel="noreferrer noopener"
-                className="inline-flex items-center gap-0.5 text-foreground underline"
+                className="text-foreground inline-flex items-center gap-0.5 underline"
               >
                 Learn more
                 <ExternalLink className="h-3 w-3" />
               </a>
               <br />
-              <span className="text-[11px] text-muted-foreground/70">
+              <span className="text-muted-foreground/70 text-[11px]">
                 Supported by: Claude Code, Cursor, Gemini, Qwen, Codex, Rovo, Mistral
               </span>
             </div>
@@ -116,7 +116,7 @@ const TaskSettingsCard: React.FC = () => {
             onCheckedChange={updateAutoApproveByDefault}
           />
         </label>
-        {error ? <p className="text-xs text-destructive">{error}</p> : null}
+        {error ? <p className="text-destructive text-xs">{error}</p> : null}
       </div>
     </div>
   );

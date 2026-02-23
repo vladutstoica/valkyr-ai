@@ -51,7 +51,7 @@ export function GithubStatus({
           <>
             <Download className="h-4 w-4 flex-shrink-0" />
             <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
-              <span className="w-full truncate text-xs font-medium leading-tight">
+              <span className="w-full truncate text-xs leading-tight font-medium">
                 Connect GitHub
               </span>
               <span className="w-full truncate text-[10px] leading-tight opacity-80">
@@ -85,7 +85,7 @@ export function GithubStatus({
           <>
             <Github className="h-4 w-4 flex-shrink-0" />
             <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
-              <span className="w-full truncate text-xs font-medium leading-tight">
+              <span className="w-full truncate text-xs leading-tight font-medium">
                 Connect GitHub
               </span>
               <span className="w-full truncate text-[10px] leading-tight opacity-80">
@@ -103,7 +103,7 @@ export function GithubStatus({
 
   return (
     <div
-      className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground ${className}`}
+      className={`text-muted-foreground flex items-center gap-2 rounded-md px-2 py-1.5 text-xs ${className}`}
     >
       <img
         src={githubLogo}

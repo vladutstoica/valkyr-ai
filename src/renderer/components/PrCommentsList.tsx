@@ -42,7 +42,7 @@ function CommentItem({ comment, prUrl }: { comment: PrComment; prUrl?: string })
 
   return (
     <div
-      className="min-w-0 cursor-pointer px-4 py-2.5 transition-colors hover:bg-muted/50"
+      className="hover:bg-muted/50 min-w-0 cursor-pointer px-4 py-2.5 transition-colors"
       onClick={() => prUrl && window.electronAPI?.openExternal?.(prUrl)}
     >
       <div className="flex items-center gap-2">
@@ -51,11 +51,11 @@ function CommentItem({ comment, prUrl }: { comment: PrComment; prUrl?: string })
           alt=""
           className="h-5 w-5 shrink-0 rounded-none"
         />
-        <span className="shrink-0 text-sm font-medium text-foreground">{comment.author.login}</span>
+        <span className="text-foreground shrink-0 text-sm font-medium">{comment.author.login}</span>
         {preview && (
-          <span className="min-w-0 truncate text-xs text-muted-foreground">{preview}</span>
+          <span className="text-muted-foreground min-w-0 truncate text-xs">{preview}</span>
         )}
-        <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+        <span className="text-muted-foreground ml-auto shrink-0 text-xs">
           {formatRelativeTime(comment.createdAt)}
         </span>
         {comment.type === 'review' && <ReviewBadge state={comment.reviewState} />}
@@ -81,7 +81,7 @@ export function PrCommentsList({ status, isLoading, hasPr, prUrl }: PrCommentsLi
   return (
     <div className="min-w-0">
       <div className="flex items-center gap-1.5 px-4 py-1.5">
-        <span className="text-sm font-medium text-foreground">Comments</span>
+        <span className="text-foreground text-sm font-medium">Comments</span>
       </div>
       {status.comments.map((comment) => (
         <CommentItem key={`${comment.type}-${comment.id}`} comment={comment} prUrl={prUrl} />

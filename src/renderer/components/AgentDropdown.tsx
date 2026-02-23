@@ -21,7 +21,7 @@ export const AgentDropdown: React.FC<AgentDropdownProps> = ({
   const installedSet = new Set(installedAgents);
   return (
     <Select value={value} onValueChange={(v) => onChange(v as Agent)}>
-      <SelectTrigger className={`h-9 w-full border-none bg-muted ${className}`}>
+      <SelectTrigger className={`bg-muted h-9 w-full border-none ${className}`}>
         <SelectValue placeholder="Select agent" />
       </SelectTrigger>
       <SelectContent side="top" className="z-[120]">

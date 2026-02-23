@@ -41,7 +41,7 @@ export const TaskList: React.FC<Props> = ({ tasks, activeTask, onSelectTask, onC
       </div>
 
       {tasks.length === 0 ? (
-        <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
+        <div className="text-muted-foreground flex h-full flex-col items-center justify-center">
           <Bot className="mb-4 h-12 w-12" />
           <p className="text-center">No tasks yet. Create one to get started!</p>
         </div>
@@ -62,12 +62,12 @@ export const TaskList: React.FC<Props> = ({ tasks, activeTask, onSelectTask, onC
                   {getStatusIcon(task.status)}
                   <span className="ml-2">{task.name}</span>
                 </CardTitle>
-                <CardDescription className="mt-1 flex items-center text-sm text-muted-foreground">
+                <CardDescription className="text-muted-foreground mt-1 flex items-center text-sm">
                   <GitBranch className="mr-1 h-3 w-3" />
                   <code className="font-mono text-xs">{task.branch}</code>
                 </CardDescription>
               </CardHeader>
-              <CardContent className="p-4 pt-0 text-xs text-muted-foreground">
+              <CardContent className="text-muted-foreground p-4 pt-0 text-xs">
                 <p className="capitalize">Status: {task.status}</p>
               </CardContent>
             </Card>

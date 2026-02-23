@@ -165,10 +165,7 @@ export function registerGitIpc() {
   // Git: Status (moved from Codex IPC)
   ipcMain.handle(
     'git:get-status',
-    async (
-      _,
-      arg: string | { taskPath: string; repoMappings?: RepoMapping[] }
-    ) => {
+    async (_, arg: string | { taskPath: string; repoMappings?: RepoMapping[] }) => {
       try {
         const taskPath = typeof arg === 'string' ? arg : arg.taskPath;
         validateTaskPath(taskPath);
@@ -343,7 +340,8 @@ export function registerGitIpc() {
           // Stage and commit any pending changes
           try {
             const { stdout: statusOut } = await execFileAsync(
-              GIT, ['status', '--porcelain', '--untracked-files=all'],
+              GIT,
+              ['status', '--porcelain', '--untracked-files=all'],
               { cwd: taskPath }
             );
             if (statusOut && statusOut.trim().length > 0) {
@@ -356,7 +354,8 @@ export function registerGitIpc() {
               const commitMsg = 'stagehand: prepare pull request';
               try {
                 const { stdout: commitOut, stderr: commitErr } = await execFileAsync(
-                  GIT, ['commit', '-m', commitMsg],
+                  GIT,
+                  ['commit', '-m', commitMsg],
                   { cwd: taskPath }
                 );
                 if (commitOut?.trim()) outputs.push(commitOut.trim());
@@ -381,9 +380,13 @@ export function registerGitIpc() {
             outputs.push('git push: success');
           } catch (pushErr) {
             try {
-              const { stdout: branchOut } = await execFileAsync(GIT, ['rev-parse', '--abbrev-ref', 'HEAD'], {
-                cwd: taskPath,
-              });
+              const { stdout: branchOut } = await execFileAsync(
+                GIT,
+                ['rev-parse', '--abbrev-ref', 'HEAD'],
+                {
+                  cwd: taskPath,
+                }
+              );
               const branch = branchOut.trim();
               await execFileAsync(GIT, ['push', '--set-upstream', 'origin', branch], {
                 cwd: taskPath,
@@ -408,7 +411,8 @@ export function registerGitIpc() {
         let repoNameWithOwner = '';
         try {
           const { stdout: repoOut } = await execFileAsync(
-            'gh', ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'],
+            'gh',
+            ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'],
             { cwd: taskPath }
           );
           repoNameWithOwner = (repoOut || '').trim();
@@ -433,13 +437,16 @@ export function registerGitIpc() {
         // Determine current branch and default base branch (fallback to main)
         let currentBranch = '';
         try {
-          const { stdout } = await execFileAsync(GIT, ['branch', '--show-current'], { cwd: taskPath });
+          const { stdout } = await execFileAsync(GIT, ['branch', '--show-current'], {
+            cwd: taskPath,
+          });
           currentBranch = (stdout || '').trim();
         } catch {}
         let defaultBranch = 'main';
         try {
           const { stdout } = await execFileAsync(
-            'gh', ['repo', 'view', '--json', 'defaultBranchRef', '-q', '.defaultBranchRef.name'],
+            'gh',
+            ['repo', 'view', '--json', 'defaultBranchRef', '-q', '.defaultBranchRef.name'],
             { cwd: taskPath }
           );
           const db = (stdout || '').trim();
@@ -447,7 +454,8 @@ export function registerGitIpc() {
         } catch {
           try {
             const { stdout } = await execFileAsync(
-              GIT, ['symbolic-ref', '--short', 'refs/remotes/origin/HEAD'],
+              GIT,
+              ['symbolic-ref', '--short', 'refs/remotes/origin/HEAD'],
               { cwd: taskPath }
             );
             const line = (stdout || '').trim();
@@ -460,7 +468,8 @@ export function registerGitIpc() {
         try {
           const baseRef = base || defaultBranch;
           const { stdout: aheadOut } = await execFileAsync(
-            GIT, ['rev-list', '--count', `origin/${baseRef}..HEAD`],
+            GIT,
+            ['rev-list', '--count', `origin/${baseRef}..HEAD`],
             { cwd: taskPath }
           );
           const aheadCount = parseInt((aheadOut || '0').trim(), 10) || 0;
@@ -595,7 +604,11 @@ current branch '${currentBranch}' ahead of base '${baseRef}'.`,
         'changedFiles',
       ];
       try {
-        const { stdout } = await execFileAsync('gh', ['pr', 'view', '--json', queryFields.join(','), '-q', '.'], { cwd: taskPath });
+        const { stdout } = await execFileAsync(
+          'gh',
+          ['pr', 'view', '--json', queryFields.join(','), '-q', '.'],
+          { cwd: taskPath }
+        );
         const json = (stdout || '').trim();
         const data = json ? JSON.parse(json) : null;
         if (!data) return { success: false, error: 'No PR data returned' };
@@ -851,16 +864,21 @@ current branch '${currentBranch}' ahead of base '${baseRef}'.`,
         await execFileAsync(GIT, ['rev-parse', '--is-inside-work-tree'], { cwd: taskPath });
 
         // Determine current branch
-        const { stdout: currentBranchOut } = await execFileAsync(GIT, ['branch', '--show-current'], {
-          cwd: taskPath,
-        });
+        const { stdout: currentBranchOut } = await execFileAsync(
+          GIT,
+          ['branch', '--show-current'],
+          {
+            cwd: taskPath,
+          }
+        );
         const currentBranch = (currentBranchOut || '').trim();
 
         // Determine default branch via gh, fallback to main/master
         let defaultBranch = 'main';
         try {
           const { stdout } = await execFileAsync(
-            'gh', ['repo', 'view', '--json', 'defaultBranchRef', '-q', '.defaultBranchRef.name'],
+            'gh',
+            ['repo', 'view', '--json', 'defaultBranchRef', '-q', '.defaultBranchRef.name'],
             { cwd: taskPath }
           );
           const db = (stdout || '').trim();
@@ -868,7 +886,8 @@ current branch '${currentBranch}' ahead of base '${baseRef}'.`,
         } catch {
           try {
             const { stdout } = await execFileAsync(
-              GIT, ['symbolic-ref', '--short', 'refs/remotes/origin/HEAD'],
+              GIT,
+              ['symbolic-ref', '--short', 'refs/remotes/origin/HEAD'],
               { cwd: taskPath }
             );
             const line = (stdout || '').trim();
@@ -891,7 +910,8 @@ current branch '${currentBranch}' ahead of base '${baseRef}'.`,
           // Stage (only if needed) and commit
           try {
             const { stdout: st } = await execFileAsync(
-              GIT, ['status', '--porcelain', '--untracked-files=all'],
+              GIT,
+              ['status', '--porcelain', '--untracked-files=all'],
               { cwd: taskPath }
             );
             const hasWorkingChanges = Boolean(st && st.trim().length > 0);
@@ -1080,7 +1100,8 @@ current branch '${currentBranch}' ahead of base '${baseRef}'.`,
         if (hasRemote) {
           // List remote branches
           const { stdout } = await execFileAsync(
-            GIT, ['for-each-ref', '--format=%(refname:short)', `refs/remotes/${remote}`],
+            GIT,
+            ['for-each-ref', '--format=%(refname:short)', `refs/remotes/${remote}`],
             { cwd: projectPath }
           );
 
@@ -1104,7 +1125,8 @@ current branch '${currentBranch}' ahead of base '${baseRef}'.`,
           // Also include local-only branches (not on remote)
           try {
             const { stdout: localStdout } = await execFileAsync(
-              GIT, ['for-each-ref', '--format=%(refname:short)', 'refs/heads/'],
+              GIT,
+              ['for-each-ref', '--format=%(refname:short)', 'refs/heads/'],
               { cwd: projectPath }
             );
 
@@ -1131,7 +1153,8 @@ current branch '${currentBranch}' ahead of base '${baseRef}'.`,
           // No remote - list local branches instead
           try {
             const { stdout } = await execFileAsync(
-              GIT, ['for-each-ref', '--format=%(refname:short)', 'refs/heads/'],
+              GIT,
+              ['for-each-ref', '--format=%(refname:short)', 'refs/heads/'],
               { cwd: projectPath }
             );
 
@@ -1174,7 +1197,8 @@ current branch '${currentBranch}' ahead of base '${baseRef}'.`,
       let defaultBranch = 'main';
       try {
         const { stdout } = await execFileAsync(
-          'gh', ['repo', 'view', '--json', 'defaultBranchRef', '-q', '.defaultBranchRef.name'],
+          'gh',
+          ['repo', 'view', '--json', 'defaultBranchRef', '-q', '.defaultBranchRef.name'],
           { cwd: taskPath }
         );
         if (stdout?.trim()) defaultBranch = stdout.trim();
@@ -1195,13 +1219,16 @@ current branch '${currentBranch}' ahead of base '${baseRef}'.`,
 
       // Stage and commit any pending changes
       const { stdout: statusOut } = await execFileAsync(
-        GIT, ['status', '--porcelain', '--untracked-files=all'],
+        GIT,
+        ['status', '--porcelain', '--untracked-files=all'],
         { cwd: taskPath }
       );
       if (statusOut?.trim()) {
         await execFileAsync(GIT, ['add', '-A'], { cwd: taskPath });
         try {
-          await execFileAsync(GIT, ['commit', '-m', 'chore: prepare for merge to main'], { cwd: taskPath });
+          await execFileAsync(GIT, ['commit', '-m', 'chore: prepare for merge to main'], {
+            cwd: taskPath,
+          });
         } catch (e) {
           const msg = String(e);
           if (!/nothing to commit/i.test(msg)) throw e;
@@ -1222,7 +1249,8 @@ current branch '${currentBranch}' ahead of base '${baseRef}'.`,
       let prUrl = '';
       try {
         const { stdout: prOut } = await execFileAsync(
-          'gh', ['pr', 'create', '--fill', '--base', defaultBranch],
+          'gh',
+          ['pr', 'create', '--fill', '--base', defaultBranch],
           { cwd: taskPath }
         );
         const urlMatch = prOut?.match(/https?:\/\/\S+/);

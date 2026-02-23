@@ -84,7 +84,7 @@ export const RemoteProjectIndicator: React.FC<Props> = ({
         {host && <span className="text-muted-foreground"> - {host}</span>}
       </p>
       {isDisconnected && onReconnect && (
-        <p className="text-xs text-muted-foreground">Click to reconnect</p>
+        <p className="text-muted-foreground text-xs">Click to reconnect</p>
       )}
     </div>
   );
@@ -113,7 +113,7 @@ export const RemoteProjectIndicator: React.FC<Props> = ({
             </span>
             {showLabel && <span className={cn('text-xs', config.color)}>{config.label}</span>}
             {isDisconnected && onReconnect && !disabled && (
-              <RefreshCw className="h-3 w-3 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100" />
+              <RefreshCw className="text-muted-foreground hover:text-foreground h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
             )}
           </span>
         </TooltipTrigger>

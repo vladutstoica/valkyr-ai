@@ -160,9 +160,7 @@ export const useEditorState = create<EditorState>()(
           // Check if active file is still valid
           const currentActive = state.activeFileByTask[taskPath];
           const newActive =
-            currentActive && validSet.has(currentActive)
-              ? currentActive
-              : filteredFiles[0] || null;
+            currentActive && validSet.has(currentActive) ? currentActive : filteredFiles[0] || null;
 
           // Clean up unsaved set
           const newUnsaved = new Set(state.unsavedFiles);

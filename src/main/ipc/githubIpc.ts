@@ -143,7 +143,10 @@ export function registerGithubIpc() {
       typeof repoUrl !== 'string' ||
       (!repoUrl.startsWith('https://') && !repoUrl.startsWith('git@'))
     ) {
-      return { success: false, error: 'Invalid repository URL: must use https:// or git@ protocol' };
+      return {
+        success: false,
+        error: 'Invalid repository URL: must use https:// or git@ protocol',
+      };
     }
 
     try {
@@ -170,7 +173,13 @@ export function registerGithubIpc() {
       const mirrorPath = path.join(cacheRoot, `${cacheKey}.mirror`);
 
       if (!fs.existsSync(mirrorPath)) {
-        await execFileAsync('git', ['clone', '--mirror', '--filter=blob:none', repoUrl, mirrorPath]);
+        await execFileAsync('git', [
+          'clone',
+          '--mirror',
+          '--filter=blob:none',
+          repoUrl,
+          mirrorPath,
+        ]);
       } else {
         try {
           await execFileAsync('git', ['-C', mirrorPath, 'remote', 'set-url', 'origin', repoUrl]);

@@ -2,33 +2,117 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { UIMessage } from 'ai';
 import { useChat } from '@ai-sdk/react';
 import * as SelectPrimitive from '@radix-ui/react-select';
-import { AlertCircle, ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon, CheckIcon, ChevronDownIcon, ClockIcon, CopyIcon, DownloadIcon, HistoryIcon, Loader2, MoreHorizontalIcon, PaperclipIcon, PlusIcon, RefreshCwIcon, SettingsIcon, Trash2Icon, WrenchIcon, XIcon } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  CheckCircleIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  ClockIcon,
+  CopyIcon,
+  DownloadIcon,
+  HistoryIcon,
+  Loader2,
+  MoreHorizontalIcon,
+  PaperclipIcon,
+  PlusIcon,
+  RefreshCwIcon,
+  SettingsIcon,
+  Trash2Icon,
+  WrenchIcon,
+  XIcon,
+} from 'lucide-react';
 import { useAcpSession } from '../hooks/useAcpSession';
-import { LazyAcpChatTransport, type AcpUsageData, type AcpPlanEntry, type AcpCommand, type AcpConfigOption } from '../lib/acpChatTransport';
+import {
+  LazyAcpChatTransport,
+  type AcpUsageData,
+  type AcpPlanEntry,
+  type AcpCommand,
+  type AcpConfigOption,
+} from '../lib/acpChatTransport';
 import { Button } from './ui/button';
-import { getToolDisplayLabel, getToolStepLabel, getToolIconComponent, normalizeToolName, getLanguageFromPath } from '../lib/toolRenderer';
-import type { AcpSessionStatus, AcpSessionModes, AcpSessionModels, AcpSessionModel } from '../types/electron-api';
+import {
+  getToolDisplayLabel,
+  getToolStepLabel,
+  getToolIconComponent,
+  normalizeToolName,
+  getLanguageFromPath,
+} from '../lib/toolRenderer';
+import type {
+  AcpSessionStatus,
+  AcpSessionModes,
+  AcpSessionModels,
+  AcpSessionModel,
+} from '../types/electron-api';
 import { acpStatusStore } from '../lib/acpStatusStore';
 import { unifiedStatusStore } from '../lib/unifiedStatusStore';
 import { agentConfig } from '../lib/agentConfig';
 import type { Agent } from '../types';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from './ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from './ui/dropdown-menu';
 import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
 import { Command } from './ui/command';
 import { ModelInfoCard } from './ModelInfoCard';
 
 // AI Elements
-import { Message, MessageContent, MessageResponse, MessageActions, MessageAction } from './ai-elements/message';
+import {
+  Message,
+  MessageContent,
+  MessageResponse,
+  MessageActions,
+  MessageAction,
+} from './ai-elements/message';
 import { Reasoning, ReasoningTrigger, ReasoningContent } from './ai-elements/reasoning';
-import { Tool, ToolHeader, ToolContent, ToolInput, ToolOutput, ToolInline, mapToolStateToStepStatus } from './ai-elements/tool';
-import { ChainOfThought, ChainOfThoughtHeader, ChainOfThoughtContent, ChainOfThoughtStep } from './ai-elements/chain-of-thought';
-import { Conversation, ConversationContent, ConversationEmptyState, ConversationScrollButton, messagesToMarkdown, type ConversationMessage } from './ai-elements/conversation';
+import {
+  Tool,
+  ToolHeader,
+  ToolContent,
+  ToolInput,
+  ToolOutput,
+  ToolInline,
+  mapToolStateToStepStatus,
+} from './ai-elements/tool';
+import {
+  ChainOfThought,
+  ChainOfThoughtHeader,
+  ChainOfThoughtContent,
+  ChainOfThoughtStep,
+} from './ai-elements/chain-of-thought';
+import {
+  Conversation,
+  ConversationContent,
+  ConversationEmptyState,
+  ConversationScrollButton,
+  messagesToMarkdown,
+  type ConversationMessage,
+} from './ai-elements/conversation';
 import { Loader } from './ai-elements/loader';
 import { Plan, PlanContent, PlanTrigger } from './ai-elements/plan';
 import { Sources, SourcesTrigger, SourcesContent, Source } from './ai-elements/sources';
 import { Checkpoint, CheckpointIcon, CheckpointTrigger } from './ai-elements/checkpoint';
-import { Context, ContextTrigger, ContextContent, ContextContentHeader, ContextContentBody, ContextContentFooter, ContextInputUsage, ContextOutputUsage, ContextReasoningUsage, ContextCacheUsage } from './ai-elements/context';
-import { PlanUsageHoverCard, PlanUsageContent, useClaudeUsageLimits } from './ai-elements/plan-usage';
+import {
+  Context,
+  ContextTrigger,
+  ContextContent,
+  ContextContentHeader,
+  ContextContentBody,
+  ContextContentFooter,
+  ContextInputUsage,
+  ContextOutputUsage,
+  ContextReasoningUsage,
+  ContextCacheUsage,
+} from './ai-elements/context';
+import {
+  PlanUsageHoverCard,
+  PlanUsageContent,
+  useClaudeUsageLimits,
+} from './ai-elements/plan-usage';
 import {
   PromptInput,
   PromptInputTextarea,
@@ -48,37 +132,83 @@ import {
   PromptInputSelectValue,
   type PromptInputMessage,
 } from './ai-elements/prompt-input';
-import { Confirmation, ConfirmationActions, ConfirmationAction, ConfirmationTitle, ConfirmationRequest, ConfirmationBody, ConfirmationAccepted, ConfirmationRejected } from './ai-elements/confirmation';
+import {
+  Confirmation,
+  ConfirmationActions,
+  ConfirmationAction,
+  ConfirmationTitle,
+  ConfirmationRequest,
+  ConfirmationBody,
+  ConfirmationAccepted,
+  ConfirmationRejected,
+} from './ai-elements/confirmation';
 import { Shimmer } from './ai-elements/shimmer';
 import { Suggestions, Suggestion } from './ai-elements/suggestion';
 import { Task, TaskTrigger, TaskContent, TaskItem, TaskItemFile } from './ai-elements/task';
 import {
-  InlineCitation, InlineCitationCard, InlineCitationCardTrigger,
-  InlineCitationCardBody, InlineCitationCarousel, InlineCitationCarouselContent,
-  InlineCitationCarouselItem, InlineCitationSource,
+  InlineCitation,
+  InlineCitationCard,
+  InlineCitationCardTrigger,
+  InlineCitationCardBody,
+  InlineCitationCarousel,
+  InlineCitationCarouselContent,
+  InlineCitationCarouselItem,
+  InlineCitationSource,
 } from './ai-elements/inline-citation';
 import {
-  ModelSelector, ModelSelectorTrigger, ModelSelectorInput,
-  ModelSelectorList, ModelSelectorEmpty, ModelSelectorGroup, ModelSelectorItem, ModelSelectorName,
+  ModelSelector,
+  ModelSelectorTrigger,
+  ModelSelectorInput,
+  ModelSelectorList,
+  ModelSelectorEmpty,
+  ModelSelectorGroup,
+  ModelSelectorItem,
+  ModelSelectorName,
 } from './ai-elements/model-selector';
 import {
-  Queue, QueueSection, QueueSectionTrigger, QueueSectionLabel,
-  QueueSectionContent, QueueList, QueueItem, QueueItemIndicator,
-  QueueItemContent, QueueItemActions, QueueItemAction,
+  Queue,
+  QueueSection,
+  QueueSectionTrigger,
+  QueueSectionLabel,
+  QueueSectionContent,
+  QueueList,
+  QueueItem,
+  QueueItemIndicator,
+  QueueItemContent,
+  QueueItemActions,
+  QueueItemAction,
 } from './ai-elements/queue';
 import {
-  Terminal, TerminalHeader, TerminalTitle, TerminalStatus,
-  TerminalActions, TerminalCopyButton, TerminalStopButton, TerminalContent,
+  Terminal,
+  TerminalHeader,
+  TerminalTitle,
+  TerminalStatus,
+  TerminalActions,
+  TerminalCopyButton,
+  TerminalStopButton,
+  TerminalContent,
 } from './ai-elements/terminal';
 import { useToolOutput } from '../lib/toolOutputStore';
 import {
-  StackTrace, StackTraceHeader, StackTraceError, StackTraceErrorType,
-  StackTraceErrorMessage, StackTraceActions, StackTraceCopyButton,
-  StackTraceExpandButton, StackTraceContent, StackTraceFrames,
+  StackTrace,
+  StackTraceHeader,
+  StackTraceError,
+  StackTraceErrorType,
+  StackTraceErrorMessage,
+  StackTraceActions,
+  StackTraceCopyButton,
+  StackTraceExpandButton,
+  StackTraceContent,
+  StackTraceFrames,
 } from './ai-elements/stack-trace';
 import {
-  CodeBlockContainer, CodeBlockHeader, CodeBlockTitle, CodeBlockFilename,
-  CodeBlockActions, CodeBlockContent, CodeBlockCopyButton,
+  CodeBlockContainer,
+  CodeBlockHeader,
+  CodeBlockTitle,
+  CodeBlockFilename,
+  CodeBlockActions,
+  CodeBlockContent,
+  CodeBlockCopyButton,
 } from './ai-elements/code-block';
 import type { BundledLanguage } from 'shiki';
 
@@ -130,7 +260,12 @@ function formatRelativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
-type AcpSessionInfo = { sessionId: string; title?: string | null; updatedAt?: string | null; cwd: string };
+type AcpSessionInfo = {
+  sessionId: string;
+  title?: string | null;
+  updatedAt?: string | null;
+  cwd: string;
+};
 
 function SessionHistoryPopover({
   sessionKey,
@@ -179,50 +314,52 @@ function SessionHistoryPopover({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+          className="text-muted-foreground hover:bg-accent hover:text-accent-foreground inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
           title="Session History"
         >
           <HistoryIcon className="size-3.5" />
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-72 p-0">
-        <div className="border-b border-border/50 px-3 py-2">
-          <p className="text-xs font-medium text-muted-foreground">Session History</p>
+        <div className="border-border/50 border-b px-3 py-2">
+          <p className="text-muted-foreground text-xs font-medium">Session History</p>
         </div>
         <div className="max-h-64 overflow-y-auto">
           {loading && (
             <div className="flex items-center justify-center py-6">
-              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+              <Loader2 className="text-muted-foreground size-4 animate-spin" />
             </div>
           )}
           {error && (
-            <div className="px-3 py-4 text-center text-xs text-muted-foreground">{error}</div>
+            <div className="text-muted-foreground px-3 py-4 text-center text-xs">{error}</div>
           )}
           {!loading && !error && sessions.length === 0 && (
-            <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+            <div className="text-muted-foreground px-3 py-4 text-center text-xs">
               No previous sessions found
             </div>
           )}
-          {!loading && !error && sessions.map((s) => (
-            <button
-              key={s.sessionId}
-              type="button"
-              className="flex w-full flex-col gap-0.5 px-3 py-2 text-left transition-colors hover:bg-accent"
-              onClick={() => {
-                onResumeSession(s.sessionId, s.title ?? undefined);
-                setOpen(false);
-              }}
-            >
-              <span className="truncate text-xs font-medium">
-                {s.title || s.sessionId.slice(0, 12) + '...'}
-              </span>
-              {s.updatedAt && (
-                <span className="text-[10px] text-muted-foreground">
-                  {formatRelativeTime(s.updatedAt)}
+          {!loading &&
+            !error &&
+            sessions.map((s) => (
+              <button
+                key={s.sessionId}
+                type="button"
+                className="hover:bg-accent flex w-full flex-col gap-0.5 px-3 py-2 text-left transition-colors"
+                onClick={() => {
+                  onResumeSession(s.sessionId, s.title ?? undefined);
+                  setOpen(false);
+                }}
+              >
+                <span className="truncate text-xs font-medium">
+                  {s.title || s.sessionId.slice(0, 12) + '...'}
                 </span>
-              )}
-            </button>
-          ))}
+                {s.updatedAt && (
+                  <span className="text-muted-foreground text-[10px]">
+                    {formatRelativeTime(s.updatedAt)}
+                  </span>
+                )}
+              </button>
+            ))}
         </div>
       </PopoverContent>
     </Popover>
@@ -240,7 +377,13 @@ const STACK_TRACE_PATTERN = /(?:^\s*at\s+.+$[\n\r]*){3,}/m;
  * Terminal that subscribes to streaming tool output from the side-channel store.
  * Used for in-progress bash commands so incremental output is visible.
  */
-function StreamingTerminal({ toolCallId, command, finalOutput, isStreaming, sessionKey }: {
+function StreamingTerminal({
+  toolCallId,
+  command,
+  finalOutput,
+  isStreaming,
+  sessionKey,
+}: {
   toolCallId: string;
   command: string;
   finalOutput: string;
@@ -278,7 +421,11 @@ function StreamingTerminal({ toolCallId, command, finalOutput, isStreaming, sess
  * Returns a React element if a rich match is found, or null to fall through
  * to the generic Tool rendering.
  */
-function renderRichToolPart(toolPart: any, i: number, sessionKey?: string | null): React.ReactNode | null {
+function renderRichToolPart(
+  toolPart: any,
+  i: number,
+  sessionKey?: string | null
+): React.ReactNode | null {
   const toolName = toolPart.toolName || toolPart.type?.replace(/^tool-/, '') || '';
   const normalized = normalizeToolName(toolName);
   const output = toolPart.output != null ? String(toolPart.output) : '';
@@ -331,14 +478,22 @@ function renderRichToolPart(toolPart: any, i: number, sessionKey?: string | null
   ) {
     const filePath = (inputObj.file_path || inputObj.path || inputObj.file || '') as string;
     const language = getLanguageFromPath(filePath) as BundledLanguage;
-    const filename = filePath ? filePath.split('/').pop() ?? '' : '';
+    const filename = filePath ? (filePath.split('/').pop() ?? '') : '';
 
     return (
       <CodeBlockContainer key={key} language={language}>
         <CodeBlockHeader>
           <CodeBlockTitle>
             {filename && <CodeBlockFilename>{filename}</CodeBlockFilename>}
-            {!filename && <span>{normalized === 'read_file' ? 'Read' : normalized === 'write_file' ? 'Write' : 'Edit'}</span>}
+            {!filename && (
+              <span>
+                {normalized === 'read_file'
+                  ? 'Read'
+                  : normalized === 'write_file'
+                    ? 'Write'
+                    : 'Edit'}
+              </span>
+            )}
           </CodeBlockTitle>
           <CodeBlockActions>
             <CodeBlockCopyButton />
@@ -374,29 +529,16 @@ function renderToolPart(toolPart: any, i: number, sessionKey?: string | null) {
   // Compact inline display for tools with no useful detail
   if (!hasContent) {
     return (
-      <ToolInline
-        key={toolPart.toolCallId || i}
-        title={title}
-        state={toolPart.state}
-        icon={Icon}
-      />
+      <ToolInline key={toolPart.toolCallId || i} title={title} state={toolPart.state} icon={Icon} />
     );
   }
 
   return (
     <Tool key={toolPart.toolCallId || i} defaultOpen={hasError}>
-      <ToolHeader
-        title={title}
-        type={toolPart.type}
-        state={toolPart.state}
-        icon={Icon}
-      />
+      <ToolHeader title={title} type={toolPart.type} state={toolPart.state} icon={Icon} />
       <ToolContent>
         <ToolInput input={inputObj} />
-        <ToolOutput
-          output={toolPart.output}
-          errorText={toolPart.errorText}
-        />
+        <ToolOutput output={toolPart.output} errorText={toolPart.errorText} />
       </ToolContent>
     </Tool>
   );
@@ -405,7 +547,7 @@ function renderToolPart(toolPart: any, i: number, sessionKey?: string | null) {
 /** Render text with inline citation pills when `[N]` markers and source parts exist */
 function renderTextWithCitations(
   text: string,
-  sources: Array<{ type: string; url?: string; title?: string; sourceId?: string }>,
+  sources: Array<{ type: string; url?: string; title?: string; sourceId?: string }>
 ) {
   // Match [1], [2], etc.
   const citationPattern = /\[(\d+)\]/g;
@@ -459,9 +601,13 @@ function renderTextWithCitations(
  * Extract a trailing "Sources:" section from markdown text.
  * Returns the text without the sources block and an array of parsed links.
  */
-function extractMarkdownSources(text: string): { text: string; sources: Array<{ title: string; url: string }> } | null {
+function extractMarkdownSources(
+  text: string
+): { text: string; sources: Array<{ title: string; url: string }> } | null {
   // Match a trailing "Sources:" or "**Sources:**" section followed by a markdown list of links
-  const sourcesMatch = text.match(/\n\n(?:\*{0,2}Sources:?\*{0,2})\s*\n((?:\s*[-*]\s+\[.+?\]\(.+?\)\s*\n?)+)\s*$/i);
+  const sourcesMatch = text.match(
+    /\n\n(?:\*{0,2}Sources:?\*{0,2})\s*\n((?:\s*[-*]\s+\[.+?\]\(.+?\)\s*\n?)+)\s*$/i
+  );
   if (!sourcesMatch) return null;
 
   const sources: Array<{ title: string; url: string }> = [];
@@ -477,7 +623,13 @@ function extractMarkdownSources(text: string): { text: string; sources: Array<{ 
   return { text: cleanedText, sources };
 }
 
-function StreamingToolGroup({ toolRun, sessionKey }: { toolRun: Array<{ part: any; index: number }>; sessionKey?: string | null }) {
+function StreamingToolGroup({
+  toolRun,
+  sessionKey,
+}: {
+  toolRun: Array<{ part: any; index: number }>;
+  sessionKey?: string | null;
+}) {
   const completed: Array<{ part: any; index: number }> = [];
   const active: Array<{ part: any; index: number }> = [];
   for (const t of toolRun) {
@@ -494,8 +646,7 @@ function StreamingToolGroup({ toolRun, sessionKey }: { toolRun: Array<{ part: an
         <ChainOfThoughtHeader>
           <span className="flex items-center gap-1.5">
             <Loader2 className="size-3.5 animate-spin" />
-            Running tools{' '}
-            <span className="tabular-nums">({completed.length} completed)</span>
+            Running tools <span className="tabular-nums">({completed.length} completed)</span>
           </span>
         </ChainOfThoughtHeader>
         <ChainOfThoughtContent>
@@ -520,7 +671,15 @@ function StreamingToolGroup({ toolRun, sessionKey }: { toolRun: Array<{ part: an
   );
 }
 
-function MessageParts({ message, chatStatus, sessionKey }: { message: UIMessage; chatStatus: string; sessionKey?: string | null }) {
+function MessageParts({
+  message,
+  chatStatus,
+  sessionKey,
+}: {
+  message: UIMessage;
+  chatStatus: string;
+  sessionKey?: string | null;
+}) {
   // Collect source parts for grouped rendering
   const sourceParts = message.parts.filter(
     (p) => p.type === 'source-url' || p.type === 'source-document'
@@ -536,7 +695,10 @@ function MessageParts({ message, chatStatus, sessionKey }: { message: UIMessage;
   const flushToolRun = () => {
     if (toolRun.length === 0) return;
     const allCompleted = toolRun.every(
-      (t) => t.part.state === 'output-available' || t.part.state === 'output-error' || t.part.state === 'output-denied'
+      (t) =>
+        t.part.state === 'output-available' ||
+        t.part.state === 'output-error' ||
+        t.part.state === 'output-denied'
     );
     if (allCompleted && toolRun.length >= 3) {
       elements.push(
@@ -562,7 +724,11 @@ function MessageParts({ message, chatStatus, sessionKey }: { message: UIMessage;
       );
     } else if (!allCompleted && toolRun.length >= 3) {
       elements.push(
-        <StreamingToolGroup key={`stg-${toolRun[0].index}`} toolRun={[...toolRun]} sessionKey={sessionKey} />
+        <StreamingToolGroup
+          key={`stg-${toolRun[0].index}`}
+          toolRun={[...toolRun]}
+          sessionKey={sessionKey}
+        />
       );
     } else {
       for (const t of toolRun) {
@@ -586,14 +752,20 @@ function MessageParts({ message, chatStatus, sessionKey }: { message: UIMessage;
       if ((toolName === 'TodoWrite' || toolName === 'TaskCreate') && toolPart.input) {
         flushToolRun();
         const input = toolPart.input;
-        const tasks: Array<{ subject: string; status?: string; description?: string }> = input.tasks || input.items || (input.subject ? [input] : []);
+        const tasks: Array<{ subject: string; status?: string; description?: string }> =
+          input.tasks || input.items || (input.subject ? [input] : []);
         if (tasks.length > 0) {
           elements.push(
             <Task key={toolPart.toolCallId || i} defaultOpen>
               <TaskTrigger title={input.title || `Tasks (${tasks.length})`} />
               <TaskContent>
                 {tasks.map((t, ti) => (
-                  <TaskItem key={ti} className={t.status === 'completed' ? 'line-through text-muted-foreground/60' : ''}>
+                  <TaskItem
+                    key={ti}
+                    className={
+                      t.status === 'completed' ? 'text-muted-foreground/60 line-through' : ''
+                    }
+                  >
                     {t.subject || t.description}
                     {input.file_path && <TaskItemFile>{input.file_path}</TaskItemFile>}
                   </TaskItem>
@@ -609,9 +781,10 @@ function MessageParts({ message, chatStatus, sessionKey }: { message: UIMessage;
         flushToolRun();
         const toolName = toolPart.toolName || toolPart.type?.replace(/^tool-/, '') || '';
         const title = getToolDisplayLabel(toolName, toolPart.input || {});
-        const approval = toolPart.state === 'output-denied'
-          ? { id: toolPart.toolCallId, approved: false as const }
-          : { id: toolPart.toolCallId };
+        const approval =
+          toolPart.state === 'output-denied'
+            ? { id: toolPart.toolCallId, approved: false as const }
+            : { id: toolPart.toolCallId };
 
         // For switch_mode, find the preceding plan file content to show inline
         let planPreviewContent: string | null = null;
@@ -621,7 +794,10 @@ function MessageParts({ message, chatStatus, sessionKey }: { message: UIMessage;
             const prevToolName = prev?.toolName || prev?.type?.replace(/^tool-/, '') || '';
             const prevNormalized = normalizeToolName(prevToolName);
             if (prevNormalized === 'edit_file' || prevNormalized === 'write_file') {
-              const filePath = (prev.input?.file_path || prev.input?.path || prev.input?.file || '') as string;
+              const filePath = (prev.input?.file_path ||
+                prev.input?.path ||
+                prev.input?.file ||
+                '') as string;
               if (filePath.endsWith('.md') && prev.output) {
                 planPreviewContent = String(prev.output);
                 break;
@@ -631,28 +807,46 @@ function MessageParts({ message, chatStatus, sessionKey }: { message: UIMessage;
         }
 
         elements.push(
-          <Confirmation
-            key={toolPart.toolCallId || i}
-            state={toolPart.state}
-            approval={approval}
-          >
+          <Confirmation key={toolPart.toolCallId || i} state={toolPart.state} approval={approval}>
             <ConfirmationTitle>
-              {planPreviewContent
-                ? <>Review plan before switching to <strong>{(toolPart.input?.mode_slug || toolPart.input?.mode || toolPart.input?.title || 'code') as string}</strong> mode</>
-                : <>Agent requests permission to run <strong>{title}</strong></>
-              }
+              {planPreviewContent ? (
+                <>
+                  Review plan before switching to{' '}
+                  <strong>
+                    {
+                      (toolPart.input?.mode_slug ||
+                        toolPart.input?.mode ||
+                        toolPart.input?.title ||
+                        'code') as string
+                    }
+                  </strong>{' '}
+                  mode
+                </>
+              ) : (
+                <>
+                  Agent requests permission to run <strong>{title}</strong>
+                </>
+              )}
             </ConfirmationTitle>
             {planPreviewContent && (
-              <ConfirmationBody className="max-h-72 overflow-y-auto rounded border border-border/50 bg-muted/30 p-3">
-                <pre className="whitespace-pre-wrap text-xs text-muted-foreground font-mono leading-relaxed">{planPreviewContent}</pre>
+              <ConfirmationBody className="border-border/50 bg-muted/30 max-h-72 overflow-y-auto rounded border p-3">
+                <pre className="text-muted-foreground font-mono text-xs leading-relaxed whitespace-pre-wrap">
+                  {planPreviewContent}
+                </pre>
               </ConfirmationBody>
             )}
             <ConfirmationRequest>
               <ConfirmationActions className="w-full justify-between">
-                <span className="text-xs text-muted-foreground/60">
-                  <kbd className="rounded border border-border/50 bg-muted/50 px-1.5 py-0.5 font-mono text-[10px]">Enter</kbd> to allow
+                <span className="text-muted-foreground/60 text-xs">
+                  <kbd className="border-border/50 bg-muted/50 rounded border px-1.5 py-0.5 font-mono text-[10px]">
+                    Enter
+                  </kbd>{' '}
+                  to allow
                   {' \u00b7 '}
-                  <kbd className="rounded border border-border/50 bg-muted/50 px-1.5 py-0.5 font-mono text-[10px]">Esc</kbd> to deny
+                  <kbd className="border-border/50 bg-muted/50 rounded border px-1.5 py-0.5 font-mono text-[10px]">
+                    Esc
+                  </kbd>{' '}
+                  to deny
                 </span>
                 <span className="flex items-center gap-2">
                   <ConfirmationAction
@@ -689,13 +883,15 @@ function MessageParts({ message, chatStatus, sessionKey }: { message: UIMessage;
         case 'text': {
           // Try to extract a trailing "Sources:" section from the last text part
           let textContent = part.text;
-          const extracted = message.role === 'assistant' ? extractMarkdownSources(textContent) : null;
+          const extracted =
+            message.role === 'assistant' ? extractMarkdownSources(textContent) : null;
           if (extracted) {
             textContent = extracted.text;
             extractedSources.push(...extracted.sources);
           }
 
-          const citationElements = sourceParts.length > 0 ? renderTextWithCitations(textContent, sourceParts) : null;
+          const citationElements =
+            sourceParts.length > 0 ? renderTextWithCitations(textContent, sourceParts) : null;
           if (citationElements) {
             // Render with inline citation pills embedded between markdown segments
             elements.push(
@@ -734,7 +930,10 @@ function MessageParts({ message, chatStatus, sessionKey }: { message: UIMessage;
 
   // Merge typed source parts with sources extracted from markdown
   const allSources = [
-    ...sourceParts.map((src) => ({ title: (src as any).title || (src as any).url || '', url: (src as any).url || '' })),
+    ...sourceParts.map((src) => ({
+      title: (src as any).title || (src as any).url || '',
+      url: (src as any).url || '',
+    })),
     ...extractedSources,
   ];
 
@@ -845,9 +1044,13 @@ function AcpChatInner({
           return next;
         });
       },
-      onSessionInfoUpdate: (info) => { if (info.title) setSessionTitle(info.title); },
+      onSessionInfoUpdate: (info) => {
+        if (info.title) setSessionTitle(info.title);
+      },
     };
-    return () => { transport.sideChannel = {}; };
+    return () => {
+      transport.sideChannel = {};
+    };
   }, [transport]);
 
   const agent = agentConfig[providerId as Agent];
@@ -866,13 +1069,17 @@ function AcpChatInner({
     experimental_throttle: 50,
     onFinish: async ({ message }) => {
       const textContent = getTextFromParts(message.parts);
-      window.electronAPI.saveMessage({
-        id: message.id,
-        conversationId,
-        content: textContent,
-        sender: 'assistant',
-        parts: JSON.stringify(message.parts),
-      }).catch(() => { /* non-fatal */ });
+      window.electronAPI
+        .saveMessage({
+          id: message.id,
+          conversationId,
+          content: textContent,
+          sender: 'assistant',
+          parts: JSON.stringify(message.parts),
+        })
+        .catch(() => {
+          /* non-fatal */
+        });
     },
   });
 
@@ -897,14 +1104,16 @@ function AcpChatInner({
     }
   }, [usage, messages, setMessages]);
 
-  const effectiveStatus: AcpSessionStatus = chatStatus === 'error'
-    ? 'error'
-    : chatStatus as AcpSessionStatus;
+  const effectiveStatus: AcpSessionStatus =
+    chatStatus === 'error' ? 'error' : (chatStatus as AcpSessionStatus);
 
   // Expose append for external callers
-  const appendFn = useCallback(async (msg: { content: string }) => {
-    sendMessage({ text: msg.content });
-  }, [sendMessage]);
+  const appendFn = useCallback(
+    async (msg: { content: string }) => {
+      sendMessage({ text: msg.content });
+    },
+    [sendMessage]
+  );
 
   useEffect(() => {
     onAppendRef?.(appendFn);
@@ -924,15 +1133,18 @@ function AcpChatInner({
   }, [effectiveStatus, messages, sessionKey]);
 
   // Handle approval clicks (delegated from Confirmation buttons)
-  const handleApprovalClick = useCallback((e: React.MouseEvent) => {
-    const target = (e.target as HTMLElement).closest('[data-tool-call-id]');
-    if (!target) return;
-    const toolCallId = target.getAttribute('data-tool-call-id');
-    const action = target.getAttribute('data-action');
-    if (toolCallId && action) {
-      transport.approve(toolCallId, action === 'approve');
-    }
-  }, [transport]);
+  const handleApprovalClick = useCallback(
+    (e: React.MouseEvent) => {
+      const target = (e.target as HTMLElement).closest('[data-tool-call-id]');
+      if (!target) return;
+      const toolCallId = target.getAttribute('data-tool-call-id');
+      const action = target.getAttribute('data-action');
+      if (toolCallId && action) {
+        transport.approve(toolCallId, action === 'approve');
+      }
+    },
+    [transport]
+  );
 
   // Keyboard shortcuts: Enter to approve, Escape to deny pending confirmations
   useEffect(() => {
@@ -943,7 +1155,9 @@ function AcpChatInner({
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
 
       const action = e.key === 'Enter' ? 'approve' : 'deny';
-      const btn = document.querySelector<HTMLElement>(`[data-action="${action}"][data-tool-call-id]`);
+      const btn = document.querySelector<HTMLElement>(
+        `[data-action="${action}"][data-tool-call-id]`
+      );
       if (!btn) return;
 
       e.preventDefault();
@@ -956,26 +1170,29 @@ function AcpChatInner({
     return () => document.removeEventListener('keydown', handler);
   }, [transport]);
 
-  const handleSubmit = useCallback((message: PromptInputMessage) => {
-    if (!message.text.trim() && message.files.length === 0) return;
-    // Track in history for arrow-up recall
-    if (message.text.trim()) {
-      setMessageHistory((prev) => [...prev, message.text.trim()]);
-      historyIndexRef.current = -1;
-    }
+  const handleSubmit = useCallback(
+    (message: PromptInputMessage) => {
+      if (!message.text.trim() && message.files.length === 0) return;
+      // Track in history for arrow-up recall
+      if (message.text.trim()) {
+        setMessageHistory((prev) => [...prev, message.text.trim()]);
+        historyIndexRef.current = -1;
+      }
 
-    const payload = {
-      text: message.text,
-      files: message.files.length > 0 ? message.files : undefined,
-    };
-    // Queue if the chat is busy processing a previous message
-    if (chatStatus !== 'ready') {
-      messageQueueRef.current.push(payload);
-      setQueuedMessages([...messageQueueRef.current]);
-      return;
-    }
-    sendMessage(payload);
-  }, [sendMessage, chatStatus]);
+      const payload = {
+        text: message.text,
+        files: message.files.length > 0 ? message.files : undefined,
+      };
+      // Queue if the chat is busy processing a previous message
+      if (chatStatus !== 'ready') {
+        messageQueueRef.current.push(payload);
+        setQueuedMessages([...messageQueueRef.current]);
+        return;
+      }
+      sendMessage(payload);
+    },
+    [sendMessage, chatStatus]
+  );
 
   // Drain queued messages when chat becomes ready
   useEffect(() => {
@@ -991,14 +1208,15 @@ function AcpChatInner({
   const [commandIndex, setCommandIndex] = useState(0);
   const textareaContainerRef = useRef<HTMLDivElement>(null);
 
-  const filteredCommands = commandFilter !== null
-    ? availableCommands.filter((c) =>
-        c.name.toLowerCase().startsWith(commandFilter.toLowerCase())
-      )
-    : [];
+  const filteredCommands =
+    commandFilter !== null
+      ? availableCommands.filter((c) =>
+          c.name.toLowerCase().startsWith(commandFilter.toLowerCase())
+        )
+      : [];
 
   const handleInputChange = useCallback((e: React.FormEvent) => {
-    const textarea = (e.target as HTMLTextAreaElement);
+    const textarea = e.target as HTMLTextAreaElement;
     if (textarea.tagName !== 'TEXTAREA') return;
     const val = textarea.value;
     if (val.startsWith('/')) {
@@ -1014,89 +1232,111 @@ function AcpChatInner({
     const textarea = textareaContainerRef.current?.querySelector('textarea');
     if (!textarea) return;
     // Replace textarea value with the command
-    const nativeSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+    const nativeSetter = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      'value'
+    )?.set;
     nativeSetter?.call(textarea, `/${cmdName} `);
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
     textarea.focus();
   }, []);
 
   // Arrow-up/down to cycle through sent messages + slash command navigation
-  const handleInputKeyDownCapture = useCallback((e: React.KeyboardEvent) => {
-    // Slash command navigation
-    if (filteredCommands.length > 0) {
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        e.stopPropagation();
-        setCommandIndex((prev) => (prev > 0 ? prev - 1 : filteredCommands.length - 1));
-        return;
+  const handleInputKeyDownCapture = useCallback(
+    (e: React.KeyboardEvent) => {
+      // Slash command navigation
+      if (filteredCommands.length > 0) {
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          e.stopPropagation();
+          setCommandIndex((prev) => (prev > 0 ? prev - 1 : filteredCommands.length - 1));
+          return;
+        }
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          e.stopPropagation();
+          setCommandIndex((prev) => (prev < filteredCommands.length - 1 ? prev + 1 : 0));
+          return;
+        }
+        if (e.key === 'Enter' || e.key === 'Tab') {
+          e.preventDefault();
+          e.stopPropagation();
+          selectCommand(filteredCommands[commandIndex].name);
+          return;
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          setCommandFilter(null);
+          return;
+        }
       }
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        e.stopPropagation();
-        setCommandIndex((prev) => (prev < filteredCommands.length - 1 ? prev + 1 : 0));
-        return;
-      }
-      if (e.key === 'Enter' || e.key === 'Tab') {
-        e.preventDefault();
-        e.stopPropagation();
-        selectCommand(filteredCommands[commandIndex].name);
-        return;
-      }
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        setCommandFilter(null);
-        return;
-      }
-    }
 
-    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
-    const textarea = e.currentTarget.querySelector('textarea') as HTMLTextAreaElement | null;
-    if (!textarea) return;
-    // Only activate when textarea is empty (ArrowUp) or navigating history (ArrowDown)
-    if (e.key === 'ArrowUp' && textarea.value === '' && messageHistory.length > 0) {
-      e.preventDefault();
-      e.stopPropagation();
-      const newIndex = historyIndexRef.current === -1
-        ? messageHistory.length - 1
-        : Math.max(0, historyIndexRef.current - 1);
-      historyIndexRef.current = newIndex;
-      // Set value via native setter to trigger React's controlled input
-      const nativeSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
-      nativeSetter?.call(textarea, messageHistory[newIndex]);
-      textarea.dispatchEvent(new Event('input', { bubbles: true }));
-    } else if (e.key === 'ArrowDown' && historyIndexRef.current >= 0) {
-      e.preventDefault();
-      e.stopPropagation();
-      const newIndex = historyIndexRef.current + 1;
-      if (newIndex >= messageHistory.length) {
-        historyIndexRef.current = -1;
-        const nativeSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
-        nativeSetter?.call(textarea, '');
-        textarea.dispatchEvent(new Event('input', { bubbles: true }));
-      } else {
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+      const textarea = e.currentTarget.querySelector('textarea') as HTMLTextAreaElement | null;
+      if (!textarea) return;
+      // Only activate when textarea is empty (ArrowUp) or navigating history (ArrowDown)
+      if (e.key === 'ArrowUp' && textarea.value === '' && messageHistory.length > 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        const newIndex =
+          historyIndexRef.current === -1
+            ? messageHistory.length - 1
+            : Math.max(0, historyIndexRef.current - 1);
         historyIndexRef.current = newIndex;
-        const nativeSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+        // Set value via native setter to trigger React's controlled input
+        const nativeSetter = Object.getOwnPropertyDescriptor(
+          HTMLTextAreaElement.prototype,
+          'value'
+        )?.set;
         nativeSetter?.call(textarea, messageHistory[newIndex]);
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      } else if (e.key === 'ArrowDown' && historyIndexRef.current >= 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        const newIndex = historyIndexRef.current + 1;
+        if (newIndex >= messageHistory.length) {
+          historyIndexRef.current = -1;
+          const nativeSetter = Object.getOwnPropertyDescriptor(
+            HTMLTextAreaElement.prototype,
+            'value'
+          )?.set;
+          nativeSetter?.call(textarea, '');
+          textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        } else {
+          historyIndexRef.current = newIndex;
+          const nativeSetter = Object.getOwnPropertyDescriptor(
+            HTMLTextAreaElement.prototype,
+            'value'
+          )?.set;
+          nativeSetter?.call(textarea, messageHistory[newIndex]);
+          textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        }
       }
-    }
-  }, [messageHistory, filteredCommands, commandIndex, selectCommand]);
+    },
+    [messageHistory, filteredCommands, commandIndex, selectCommand]
+  );
 
   const handleStop = useCallback(() => {
     stop();
   }, [stop]);
 
-  const handleModeChange = useCallback((modeId: string) => {
-    if (!sessionKey) return;
-    setCurrentModeId(modeId);
-    window.electronAPI.acpSetMode({ sessionKey, mode: modeId });
-  }, [sessionKey]);
+  const handleModeChange = useCallback(
+    (modeId: string) => {
+      if (!sessionKey) return;
+      setCurrentModeId(modeId);
+      window.electronAPI.acpSetMode({ sessionKey, mode: modeId });
+    },
+    [sessionKey]
+  );
 
-  const handleModelChange = useCallback((modelId: string) => {
-    if (!sessionKey) return;
-    setCurrentModelId(modelId);
-    window.electronAPI.acpSetModel({ sessionKey, modelId });
-  }, [sessionKey]);
+  const handleModelChange = useCallback(
+    (modelId: string) => {
+      if (!sessionKey) return;
+      setCurrentModelId(modelId);
+      window.electronAPI.acpSetModel({ sessionKey, modelId });
+    },
+    [sessionKey]
+  );
 
   const removeFromQueue = useCallback((index: number) => {
     messageQueueRef.current.splice(index, 1);
@@ -1111,21 +1351,25 @@ function AcpChatInner({
     <div className={`flex h-full flex-col ${className}`} onClick={handleApprovalClick}>
       {/* Session title */}
       {sessionTitle && (
-        <div className="shrink-0 border-b border-border/50 px-3 py-1.5 text-xs font-medium text-muted-foreground truncate">
+        <div className="border-border/50 text-muted-foreground shrink-0 truncate border-b px-3 py-1.5 text-xs font-medium">
           {sessionTitle}
         </div>
       )}
 
       {/* Toolbar */}
-      <div className="flex shrink-0 items-center justify-between border-b border-border/50 p-3">
+      <div className="border-border/50 flex shrink-0 items-center justify-between border-b p-3">
         {/* Left: model name */}
         <div className="flex items-center">
           {agent && initialModels && initialModels.availableModels.length > 1 && currentModelId ? (
-            <ModelSelector onOpenChange={(open) => { if (!open) setHoveredModel(null); }}>
+            <ModelSelector
+              onOpenChange={(open) => {
+                if (!open) setHoveredModel(null);
+              }}
+            >
               <ModelSelectorTrigger asChild>
                 <button
                   type="button"
-                  className="flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                  className="text-muted-foreground hover:bg-accent hover:text-accent-foreground flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-xs transition-colors"
                 >
                   <img
                     src={agent.logo}
@@ -1180,7 +1424,7 @@ function AcpChatInner({
               </PopoverContent>
             </ModelSelector>
           ) : agent ? (
-            <div className="flex h-7 shrink-0 items-center gap-1.5 px-1 text-xs text-muted-foreground">
+            <div className="text-muted-foreground flex h-7 shrink-0 items-center gap-1.5 px-1 text-xs">
               <img
                 src={agent.logo}
                 alt={agent.alt}
@@ -1199,7 +1443,7 @@ function AcpChatInner({
           <button
             type="button"
             onClick={onCreateNewChat}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            className="text-muted-foreground hover:bg-accent hover:text-accent-foreground inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
             title="New Chat"
           >
             <PlusIcon className="size-3.5" />
@@ -1213,7 +1457,7 @@ function AcpChatInner({
           )}
           <button
             type="button"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            className="text-muted-foreground hover:bg-accent hover:text-accent-foreground inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
             title="Settings"
           >
             <SettingsIcon className="size-3.5" />
@@ -1222,7 +1466,7 @@ function AcpChatInner({
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                className="text-muted-foreground hover:bg-accent hover:text-accent-foreground inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
                 title="More"
               >
                 <MoreHorizontalIcon className="size-3.5" />
@@ -1285,8 +1529,14 @@ function AcpChatInner({
                 description="Send a message to begin working with this agent"
               />
               <Suggestions className="justify-center px-4">
-                <Suggestion suggestion="Explain this codebase" onClick={(s) => sendMessage({ text: s })} />
-                <Suggestion suggestion="Find and fix bugs" onClick={(s) => sendMessage({ text: s })} />
+                <Suggestion
+                  suggestion="Explain this codebase"
+                  onClick={(s) => sendMessage({ text: s })}
+                />
+                <Suggestion
+                  suggestion="Find and fix bugs"
+                  onClick={(s) => sendMessage({ text: s })}
+                />
                 <Suggestion suggestion="Write tests" onClick={(s) => sendMessage({ text: s })} />
                 <Suggestion suggestion="Refactor code" onClick={(s) => sendMessage({ text: s })} />
               </Suggestions>
@@ -1309,61 +1559,76 @@ function AcpChatInner({
                   </CheckpointTrigger>
                 </Checkpoint>
               )}
-            <Message from={msg.role}>
-              <MessageContent>
-                {msg.role === 'user' ? (
-                  <>
-                    {msg.parts
-                      .filter((p): p is { type: 'file'; url: string; mediaType: string; filename?: string } => p.type === 'file')
-                      .map((filePart, i) =>
-                        filePart.mediaType.startsWith('image/') ? (
-                          <img
-                            key={i}
-                            src={filePart.url}
-                            alt={filePart.filename || 'Attached image'}
-                            className="max-h-64 max-w-full rounded-md border border-border/50"
-                          />
-                        ) : (
-                          <div key={i} className="flex items-center gap-1.5 rounded-md border border-border/50 px-2 py-1 text-xs text-muted-foreground">
-                            <PaperclipIcon className="size-3" />
-                            {filePart.filename || 'Attachment'}
-                          </div>
+              <Message from={msg.role}>
+                <MessageContent>
+                  {msg.role === 'user' ? (
+                    <>
+                      {msg.parts
+                        .filter(
+                          (
+                            p
+                          ): p is {
+                            type: 'file';
+                            url: string;
+                            mediaType: string;
+                            filename?: string;
+                          } => p.type === 'file'
                         )
-                      )}
-                    <p className="whitespace-pre-wrap">{getTextFromParts(msg.parts)}</p>
-                  </>
-                ) : (
-                  <MessageParts message={msg} chatStatus={chatStatus} sessionKey={sessionKey} />
+                        .map((filePart, i) =>
+                          filePart.mediaType.startsWith('image/') ? (
+                            <img
+                              key={i}
+                              src={filePart.url}
+                              alt={filePart.filename || 'Attached image'}
+                              className="border-border/50 max-h-64 max-w-full rounded-md border"
+                            />
+                          ) : (
+                            <div
+                              key={i}
+                              className="border-border/50 text-muted-foreground flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs"
+                            >
+                              <PaperclipIcon className="size-3" />
+                              {filePart.filename || 'Attachment'}
+                            </div>
+                          )
+                        )}
+                      <p className="whitespace-pre-wrap">{getTextFromParts(msg.parts)}</p>
+                    </>
+                  ) : (
+                    <MessageParts message={msg} chatStatus={chatStatus} sessionKey={sessionKey} />
+                  )}
+                </MessageContent>
+                {/* Message actions (visible on hover) */}
+                {msg.role === 'assistant' && chatStatus === 'ready' && (
+                  <MessageActions className="mt-1 opacity-0 transition-opacity group-hover:opacity-100">
+                    <MessageAction
+                      tooltip="Copy"
+                      onClick={() => {
+                        const text = getTextFromParts(msg.parts);
+                        navigator.clipboard.writeText(text);
+                      }}
+                    >
+                      <CopyIcon className="size-3" />
+                    </MessageAction>
+                    <MessageAction
+                      tooltip="Retry"
+                      onClick={() => {
+                        const msgIndex = messages.indexOf(msg);
+                        const prevUserMsg = messages
+                          .slice(0, msgIndex)
+                          .reverse()
+                          .find((m) => m.role === 'user');
+                        if (prevUserMsg) {
+                          const text = getTextFromParts(prevUserMsg.parts);
+                          if (text) sendMessage({ text });
+                        }
+                      }}
+                    >
+                      <RefreshCwIcon className="size-3" />
+                    </MessageAction>
+                  </MessageActions>
                 )}
-              </MessageContent>
-              {/* Message actions (visible on hover) */}
-              {msg.role === 'assistant' && chatStatus === 'ready' && (
-                <MessageActions className="mt-1 opacity-0 transition-opacity group-hover:opacity-100">
-                  <MessageAction
-                    tooltip="Copy"
-                    onClick={() => {
-                      const text = getTextFromParts(msg.parts);
-                      navigator.clipboard.writeText(text);
-                    }}
-                  >
-                    <CopyIcon className="size-3" />
-                  </MessageAction>
-                  <MessageAction
-                    tooltip="Retry"
-                    onClick={() => {
-                      const msgIndex = messages.indexOf(msg);
-                      const prevUserMsg = messages.slice(0, msgIndex).reverse().find((m) => m.role === 'user');
-                      if (prevUserMsg) {
-                        const text = getTextFromParts(prevUserMsg.parts);
-                        if (text) sendMessage({ text });
-                      }
-                    }}
-                  >
-                    <RefreshCwIcon className="size-3" />
-                  </MessageAction>
-                </MessageActions>
-              )}
-            </Message>
+              </Message>
             </div>
           ))}
 
@@ -1396,16 +1661,22 @@ function AcpChatInner({
                           {entry.status === 'completed' ? (
                             <CheckCircleIcon className="size-3.5 text-green-500" />
                           ) : entry.status === 'in_progress' ? (
-                            <Loader2 className="size-3.5 animate-spin text-primary" />
+                            <Loader2 className="text-primary size-3.5 animate-spin" />
                           ) : (
-                            <ClockIcon className="size-3.5 text-muted-foreground" />
+                            <ClockIcon className="text-muted-foreground size-3.5" />
                           )}
                         </span>
-                        <span className={entry.status === 'completed' ? 'text-muted-foreground line-through' : ''}>
+                        <span
+                          className={
+                            entry.status === 'completed' ? 'text-muted-foreground line-through' : ''
+                          }
+                        >
                           {entry.content}
                         </span>
                         {entry.priority === 'high' && (
-                          <span className="ml-auto shrink-0 rounded bg-red-500/15 px-1 text-[10px] text-red-400">high</span>
+                          <span className="ml-auto shrink-0 rounded bg-red-500/15 px-1 text-[10px] text-red-400">
+                            high
+                          </span>
                         )}
                       </li>
                     ))}
@@ -1427,7 +1698,7 @@ function AcpChatInner({
 
       {/* Queued messages */}
       {queuedMessages.length > 0 && (
-        <div className="shrink-0 border-t border-border/50 px-3 py-2">
+        <div className="border-border/50 shrink-0 border-t px-3 py-2">
           <Queue>
             <QueueSection defaultOpen>
               <QueueSectionTrigger>
@@ -1459,7 +1730,7 @@ function AcpChatInner({
 
       {/* Context usage + plan usage (hover card) */}
       {usage && usage.size && usage.used != null && (
-        <div className="flex items-center justify-end gap-1 border-t border-border/50 px-2 pt-1">
+        <div className="border-border/50 flex items-center justify-end gap-1 border-t px-2 pt-1">
           {claudeUsageLimits && (
             <PlanUsageHoverCard limits={claudeUsageLimits} side="top" align="end" />
           )}
@@ -1483,11 +1754,8 @@ function AcpChatInner({
       )}
 
       {/* Input area */}
-      <div className="shrink-0 border-t border-border/50 p-3 [&_[data-slot=input-group]]:items-stretch [&_[data-slot=input-group]]:!border-0 [&_[data-slot=input-group]]:!bg-transparent [&_[data-slot=input-group]]:dark:!bg-transparent [&_[data-slot=input-group]]:![box-shadow:none] [&_[data-slot=input-group]]:!ring-0 [&_textarea]:!py-1.5 [&_textarea]:!px-0 [&_textarea]:!ring-offset-0 [&_textarea]:!outline-none [&_[data-slot=input-group-addon]]:!px-0 [&_[data-slot=input-group-addon]]:!pb-0 [&_[data-slot=input-group-addon]]:!pt-0">
-        <PromptInput
-          onSubmit={handleSubmit}
-          multiple
-        >
+      <div className="border-border/50 shrink-0 border-t p-3 [&_[data-slot=input-group-addon]]:!px-0 [&_[data-slot=input-group-addon]]:!pt-0 [&_[data-slot=input-group-addon]]:!pb-0 [&_[data-slot=input-group]]:items-stretch [&_[data-slot=input-group]]:!border-0 [&_[data-slot=input-group]]:!bg-transparent [&_[data-slot=input-group]]:!ring-0 [&_[data-slot=input-group]]:![box-shadow:none] [&_[data-slot=input-group]]:dark:!bg-transparent [&_textarea]:!px-0 [&_textarea]:!py-1.5 [&_textarea]:!ring-offset-0 [&_textarea]:!outline-none">
+        <PromptInput onSubmit={handleSubmit} multiple>
           <PromptInputAttachments>
             {(attachment) => <PromptInputAttachment key={attachment.id} data={attachment} />}
           </PromptInputAttachments>
@@ -1500,13 +1768,15 @@ function AcpChatInner({
           >
             {/* Slash command autocomplete popup */}
             {filteredCommands.length > 0 && (
-              <div className="absolute bottom-full left-0 z-10 mb-1 max-h-48 w-full overflow-auto rounded-md border border-border bg-popover p-1 shadow-md">
+              <div className="border-border bg-popover absolute bottom-full left-0 z-10 mb-1 max-h-48 w-full overflow-auto rounded-md border p-1 shadow-md">
                 {filteredCommands.map((cmd, i) => (
                   <button
                     key={cmd.name}
                     type="button"
                     className={`flex w-full flex-col rounded-sm px-2 py-1.5 text-left text-xs ${
-                      i === commandIndex ? 'bg-accent text-accent-foreground' : 'text-popover-foreground hover:bg-accent/50'
+                      i === commandIndex
+                        ? 'bg-accent text-accent-foreground'
+                        : 'text-popover-foreground hover:bg-accent/50'
                     }`}
                     onMouseDown={(e) => {
                       e.preventDefault();
@@ -1515,7 +1785,7 @@ function AcpChatInner({
                   >
                     <span className="font-medium">/{cmd.name}</span>
                     {cmd.description && (
-                      <span className="text-[10px] text-muted-foreground">{cmd.description}</span>
+                      <span className="text-muted-foreground text-[10px]">{cmd.description}</span>
                     )}
                   </button>
                 ))}
@@ -1544,7 +1814,11 @@ function AcpChatInner({
 
               {/* Mode selector */}
               {initialModes && initialModes.availableModes.length > 1 && (
-                <PromptInputSelect value={currentModeId} onValueChange={handleModeChange} disabled={!sessionKey}>
+                <PromptInputSelect
+                  value={currentModeId}
+                  onValueChange={handleModeChange}
+                  disabled={!sessionKey}
+                >
                   <PromptInputSelectTrigger className="h-8 w-auto shrink-0 gap-1 px-2 text-xs whitespace-nowrap">
                     <PromptInputSelectValue />
                   </PromptInputSelectTrigger>
@@ -1553,7 +1827,7 @@ function AcpChatInner({
                       <SelectPrimitive.Item
                         key={mode.id}
                         value={mode.id}
-                        className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                        className="focus:bg-accent focus:text-accent-foreground relative flex w-full cursor-default items-center rounded-sm py-1.5 pr-2 pl-8 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
                       >
                         <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
                           <SelectPrimitive.ItemIndicator>
@@ -1563,7 +1837,9 @@ function AcpChatInner({
                         <div className="flex flex-col gap-0.5">
                           <SelectPrimitive.ItemText>{mode.name}</SelectPrimitive.ItemText>
                           {mode.description && (
-                            <span className="text-[10px] text-muted-foreground">{mode.description}</span>
+                            <span className="text-muted-foreground text-[10px]">
+                              {mode.description}
+                            </span>
                           )}
                         </div>
                       </SelectPrimitive.Item>
@@ -1574,14 +1850,25 @@ function AcpChatInner({
 
               {/* Config option selectors */}
               {Array.from(configOptions.values())
-                .filter((opt) => opt.type === 'enum' && opt.options && opt.options.length > 1 && opt.options.some((o) => o.value === opt.value))
+                .filter(
+                  (opt) =>
+                    opt.type === 'enum' &&
+                    opt.options &&
+                    opt.options.length > 1 &&
+                    opt.options.some((o) => o.value === opt.value)
+                )
                 .map((opt) => (
                   <PromptInputSelect
                     key={opt.optionId}
                     value={opt.value}
                     disabled={!sessionKey}
                     onValueChange={(val) => {
-                      if (sessionKey) window.electronAPI.acpSetConfigOption({ sessionKey, optionId: opt.optionId, value: val });
+                      if (sessionKey)
+                        window.electronAPI.acpSetConfigOption({
+                          sessionKey,
+                          optionId: opt.optionId,
+                          value: val,
+                        });
                       setConfigOptions((prev) => {
                         const next = new Map(prev);
                         next.set(opt.optionId, { ...opt, value: val });
@@ -1589,7 +1876,10 @@ function AcpChatInner({
                       });
                     }}
                   >
-                    <PromptInputSelectTrigger className="h-8 w-auto shrink-0 gap-1 px-2 text-xs whitespace-nowrap" title={opt.description}>
+                    <PromptInputSelectTrigger
+                      className="h-8 w-auto shrink-0 gap-1 px-2 text-xs whitespace-nowrap"
+                      title={opt.description}
+                    >
                       <PromptInputSelectValue />
                     </PromptInputSelectTrigger>
                     <PromptInputSelectContent>
@@ -1674,12 +1964,17 @@ export function AcpChatPane({
   }, [sessionStatus, onAppendRef]);
 
   // Agent unavailable error
-  if (sessionError && (sessionError.message === 'no_acp_support' || sessionError.message === 'acp_unavailable')) {
+  if (
+    sessionError &&
+    (sessionError.message === 'no_acp_support' || sessionError.message === 'acp_unavailable')
+  ) {
     return (
-      <div className={`flex h-full flex-col items-center justify-center gap-3 p-6 text-center ${className}`}>
-        <AlertCircle className="h-8 w-8 text-destructive" />
+      <div
+        className={`flex h-full flex-col items-center justify-center gap-3 p-6 text-center ${className}`}
+      >
+        <AlertCircle className="text-destructive h-8 w-8" />
         <h3 className="text-sm font-semibold">Agent Unavailable</h3>
-        <p className="max-w-md text-xs text-muted-foreground">
+        <p className="text-muted-foreground max-w-md text-xs">
           {sessionError.message === 'no_acp_support'
             ? 'This agent is not installed. Install it from Settings \u2192 Agents \u2192 ACP Agents.'
             : 'Could not start the ACP agent. Make sure it is installed correctly.'}
@@ -1694,12 +1989,18 @@ export function AcpChatPane({
   }
 
   // General session error with reconnect option
-  if (sessionError && sessionError.message !== 'no_acp_support' && sessionError.message !== 'acp_unavailable') {
+  if (
+    sessionError &&
+    sessionError.message !== 'no_acp_support' &&
+    sessionError.message !== 'acp_unavailable'
+  ) {
     return (
-      <div className={`flex h-full flex-col items-center justify-center gap-3 p-6 text-center ${className}`}>
-        <AlertCircle className="h-8 w-8 text-destructive" />
+      <div
+        className={`flex h-full flex-col items-center justify-center gap-3 p-6 text-center ${className}`}
+      >
+        <AlertCircle className="text-destructive h-8 w-8" />
         <h3 className="text-sm font-semibold">Session Error</h3>
-        <p className="max-w-md text-xs text-muted-foreground">{sessionError.message}</p>
+        <p className="text-muted-foreground max-w-md text-xs">{sessionError.message}</p>
         <Button variant="outline" size="sm" onClick={restartSession}>
           <RefreshCwIcon className="mr-1.5 h-3.5 w-3.5" />
           Reconnect
@@ -1712,7 +2013,7 @@ export function AcpChatPane({
   if (!transport) {
     return (
       <div className={`flex h-full items-center justify-center ${className}`}>
-        <Loader2 size={24} className="animate-spin text-muted-foreground" />
+        <Loader2 size={24} className="text-muted-foreground animate-spin" />
       </div>
     );
   }

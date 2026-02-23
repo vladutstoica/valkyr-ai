@@ -123,7 +123,7 @@ const OpenInMenu: React.FC<OpenInMenuProps> = ({
         variant="ghost"
         size="sm"
         className={[
-          'h-7 gap-1.5 px-2 text-[13px] font-medium leading-none text-muted-foreground hover:bg-background/70 hover:text-foreground',
+          'text-muted-foreground hover:bg-background/70 hover:text-foreground h-7 gap-1.5 px-2 text-[13px] leading-none font-medium',
           open ? 'bg-background/80 text-foreground' : '',
         ].join(' ')}
         onClick={async () => {
@@ -157,7 +157,7 @@ const OpenInMenu: React.FC<OpenInMenuProps> = ({
           <motion.div
             role="menu"
             className={[
-              'absolute z-50 mt-1 min-w-[180px] rounded-md border border-border bg-popover p-1 shadow-md',
+              'border-border bg-popover absolute z-50 mt-1 min-w-[180px] rounded-md border p-1 shadow-md',
               align === 'right' ? 'right-0' : 'left-0',
             ].join(' ')}
             style={{ transformOrigin: align === 'right' ? 'top right' : 'top left' }}
@@ -188,7 +188,7 @@ const OpenInMenu: React.FC<OpenInMenuProps> = ({
                   ) : null}
                   <span>{app.label}</span>
                   {app.id === defaultApp && (
-                    <span className="ml-auto text-xs text-muted-foreground">Default</span>
+                    <span className="text-muted-foreground ml-auto text-xs">Default</span>
                   )}
                 </button>
               );

@@ -69,7 +69,9 @@ test('debug with React DevTools state tracking', async () => {
   const domChanges = await page.evaluate(() => (window as any).__domChanges);
   console.log('=== DOM CHANGES ===');
   domChanges.forEach((change: any) => {
-    console.log(`${change.time - startTime}ms: ${change.type} - ${change.className.substring(0, 50)}`);
+    console.log(
+      `${change.time - startTime}ms: ${change.type} - ${change.className.substring(0, 50)}`
+    );
   });
 });
 

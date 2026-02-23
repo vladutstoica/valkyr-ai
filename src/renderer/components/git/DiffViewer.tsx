@@ -1,4 +1,12 @@
-import React, { useMemo, useRef, useEffect, useCallback, Component, type ErrorInfo, type ReactNode } from 'react';
+import React, {
+  useMemo,
+  useRef,
+  useEffect,
+  useCallback,
+  Component,
+  type ErrorInfo,
+  type ReactNode,
+} from 'react';
 import { DiffEditor } from '@monaco-editor/react';
 import type * as monaco from 'monaco-editor';
 import { MONACO_DIFF_COLORS } from '@/lib/monacoDiffColors';
@@ -60,7 +68,9 @@ function parseUnifiedDiff(patch: string): { original: string; modified: string }
  * We use the `monaco` instance passed by beforeMount instead of `loader.init()`.
  */
 let themesInitialized = false;
-function initializeMonacoThemes(m: Parameters<Exclude<React.ComponentProps<typeof DiffEditor>['beforeMount'], undefined>>[0]) {
+function initializeMonacoThemes(
+  m: Parameters<Exclude<React.ComponentProps<typeof DiffEditor>['beforeMount'], undefined>>[0]
+) {
   if (themesInitialized) return;
 
   m.editor.defineTheme('valkyr-diff-dark', {
@@ -87,14 +97,10 @@ function initializeMonacoThemes(m: Parameters<Exclude<React.ComponentProps<typeo
       'editor.background': MONACO_DIFF_COLORS['dark-black'].editorBackground,
       'editorGutter.background': MONACO_DIFF_COLORS['dark-black'].gutterBackground,
       'editorLineNumber.foreground': MONACO_DIFF_COLORS['dark-black'].lineNumberForeground,
-      'diffEditor.insertedTextBackground':
-        MONACO_DIFF_COLORS['dark-black'].insertedTextBackground,
-      'diffEditor.insertedLineBackground':
-        MONACO_DIFF_COLORS['dark-black'].insertedLineBackground,
-      'diffEditor.removedTextBackground':
-        MONACO_DIFF_COLORS['dark-black'].removedTextBackground,
-      'diffEditor.removedLineBackground':
-        MONACO_DIFF_COLORS['dark-black'].removedLineBackground,
+      'diffEditor.insertedTextBackground': MONACO_DIFF_COLORS['dark-black'].insertedTextBackground,
+      'diffEditor.insertedLineBackground': MONACO_DIFF_COLORS['dark-black'].insertedLineBackground,
+      'diffEditor.removedTextBackground': MONACO_DIFF_COLORS['dark-black'].removedTextBackground,
+      'diffEditor.removedLineBackground': MONACO_DIFF_COLORS['dark-black'].removedLineBackground,
       'diffEditor.unchangedRegionBackground':
         MONACO_DIFF_COLORS['dark-black'].unchangedRegionBackground,
     },
@@ -142,8 +148,8 @@ class DiffEditorErrorBoundary extends Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-4 text-muted-foreground">
-          <div className="text-sm font-medium text-destructive">Failed to render diff viewer</div>
+        <div className="text-muted-foreground flex h-full w-full flex-col items-center justify-center gap-2 p-4">
+          <div className="text-destructive text-sm font-medium">Failed to render diff viewer</div>
           <div className="text-xs">{this.state.error?.message || 'Unknown error'}</div>
         </div>
       );
@@ -216,8 +222,8 @@ export function DiffViewer({ filePath, diff, isLoading, theme, sideBySide }: Dif
   // Loading state
   if (isLoading) {
     return (
-      <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground">
-        <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+      <div className="text-muted-foreground flex h-full w-full flex-col items-center justify-center gap-2">
+        <div className="border-muted-foreground h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" />
         <div className="text-sm">Loading diff...</div>
       </div>
     );
@@ -226,7 +232,7 @@ export function DiffViewer({ filePath, diff, isLoading, theme, sideBySide }: Dif
   // No diff selected
   if (diff === null) {
     return (
-      <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
+      <div className="text-muted-foreground flex h-full w-full items-center justify-center text-sm">
         Select a file to view changes
       </div>
     );
@@ -235,7 +241,7 @@ export function DiffViewer({ filePath, diff, isLoading, theme, sideBySide }: Dif
   // Empty diff
   if (diff === '') {
     return (
-      <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
+      <div className="text-muted-foreground flex h-full w-full items-center justify-center text-sm">
         No changes in this file
       </div>
     );
@@ -244,7 +250,7 @@ export function DiffViewer({ filePath, diff, isLoading, theme, sideBySide }: Dif
   // No parsed data (shouldn't happen but defensive)
   if (!parsedDiff) {
     return (
-      <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
+      <div className="text-muted-foreground flex h-full w-full items-center justify-center text-sm">
         Unable to parse diff
       </div>
     );

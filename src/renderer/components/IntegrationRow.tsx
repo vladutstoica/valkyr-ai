@@ -81,7 +81,7 @@ const IntegrationRow: React.FC<IntegrationRowProps> = ({
 
   const defaultMiddle =
     status === 'connected' && accountLabel ? (
-      <span className="truncate text-sm text-muted-foreground">{accountLabel}</span>
+      <span className="text-muted-foreground truncate text-sm">{accountLabel}</span>
     ) : null;
 
   const avatar = (
@@ -126,7 +126,7 @@ const IntegrationRow: React.FC<IntegrationRowProps> = ({
   const showInstallCopy = !!installCommand && status !== 'connected';
 
   return (
-    <div className="group relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-muted/40">
+    <div className="group hover:bg-muted/40 relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-3 py-2 transition-colors">
       <div className="flex items-center gap-3">
         {avatar}
         {onNameClick ? (
@@ -134,19 +134,19 @@ const IntegrationRow: React.FC<IntegrationRowProps> = ({
             variant="ghost"
             size="sm"
             onClick={onNameClick}
-            className="group gap-1 px-0 text-sm font-medium text-foreground"
+            className="group text-foreground gap-1 px-0 text-sm font-medium"
           >
             <span>{name}</span>
-            <span className="text-xs text-muted-foreground transition group-hover:text-foreground/80">
+            <span className="text-muted-foreground group-hover:text-foreground/80 text-xs transition">
               ↗
             </span>
           </Button>
         ) : (
-          <span className="text-sm font-medium text-foreground">{name}</span>
+          <span className="text-foreground text-sm font-medium">{name}</span>
         )}
       </div>
 
-      <div className="flex items-center justify-end gap-2 text-sm text-muted-foreground">
+      <div className="text-muted-foreground flex items-center justify-end gap-2 text-sm">
         {showInstallCopy ? (
           <TooltipProvider>
             <Tooltip delayDuration={150}>
@@ -164,8 +164,8 @@ const IntegrationRow: React.FC<IntegrationRowProps> = ({
               </TooltipTrigger>
               <TooltipContent side="top">
                 <div className="max-w-[240px] space-y-1">
-                  <div className="text-xs font-medium text-foreground">Copy install command</div>
-                  <code className="block truncate font-mono text-tiny text-muted-foreground">
+                  <div className="text-foreground text-xs font-medium">Copy install command</div>
+                  <code className="text-tiny text-muted-foreground block truncate font-mono">
                     {installCommand}
                   </code>
                 </div>
@@ -208,12 +208,7 @@ const IntegrationRow: React.FC<IntegrationRowProps> = ({
         ) : null}
 
         {showConnect ? (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onConnect}
-            disabled={connectDisabled}
-          >
+          <Button variant="outline" size="sm" onClick={onConnect} disabled={connectDisabled}>
             {connectContent ?? 'Connect'}
           </Button>
         ) : null}

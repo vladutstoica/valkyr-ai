@@ -31,7 +31,7 @@ const BaseBranchControls: React.FC<BaseBranchControlsProps> = ({
   return (
     <div className="space-y-2">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-        <p className="text-xs font-medium text-foreground">Base branch</p>
+        <p className="text-foreground text-xs font-medium">Base branch</p>
         <BranchSelect
           value={baseBranch}
           onValueChange={onBaseBranchChange}
@@ -42,14 +42,14 @@ const BaseBranchControls: React.FC<BaseBranchControlsProps> = ({
           variant="default"
         />
       </div>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-muted-foreground text-xs">
         New sessions start from the latest code.
         {projectPath && onEditConfig && (
           <>
             {' · '}
             <button
               type="button"
-              className="text-muted-foreground underline hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground underline"
               onClick={onEditConfig}
               onMouseEnter={onPreloadConfig}
               onFocus={onPreloadConfig}

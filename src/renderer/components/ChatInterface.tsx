@@ -315,7 +315,6 @@ const ChatInterface: React.FC<Props> = ({
     [activeTerminalId]
   );
 
-
   // Chat management handlers
   const handleCreateChat = useCallback(
     async (title: string, newAgent: string) => {
@@ -363,39 +362,42 @@ const ChatInterface: React.FC<Props> = ({
     await handleCreateChat(title, agent);
   }, [agent, handleCreateChat]);
 
-  const handleResumeSession = useCallback(async (acpSessionId: string, title?: string) => {
-    try {
-      const config = agentConfig[agent as Agent];
-      const chatTitle = title || `Resumed: ${config?.name || agent}`;
+  const handleResumeSession = useCallback(
+    async (acpSessionId: string, title?: string) => {
+      try {
+        const config = agentConfig[agent as Agent];
+        const chatTitle = title || `Resumed: ${config?.name || agent}`;
 
-      const result = await window.electronAPI.createConversation({
-        taskId: task.id,
-        title: chatTitle,
-        provider: agent,
-        isMain: false,
-      });
-
-      if (result.success && result.conversation) {
-        await window.electronAPI.updateConversationAcpSessionId({
-          conversationId: result.conversation.id,
-          acpSessionId,
+        const result = await window.electronAPI.createConversation({
+          taskId: task.id,
+          title: chatTitle,
+          provider: agent,
+          isMain: false,
         });
 
-        const conversationsResult = await window.electronAPI.getConversations(task.id);
-        if (conversationsResult.success) {
-          setConversations(conversationsResult.conversations || []);
+        if (result.success && result.conversation) {
+          await window.electronAPI.updateConversationAcpSessionId({
+            conversationId: result.conversation.id,
+            acpSessionId,
+          });
+
+          const conversationsResult = await window.electronAPI.getConversations(task.id);
+          if (conversationsResult.success) {
+            setConversations(conversationsResult.conversations || []);
+          }
+          setActiveConversationId(result.conversation.id);
         }
-        setActiveConversationId(result.conversation.id);
+      } catch (error) {
+        console.error('Failed to resume session:', error);
+        toast({
+          title: 'Error',
+          description: error instanceof Error ? error.message : 'Failed to resume session',
+          variant: 'destructive',
+        });
       }
-    } catch (error) {
-      console.error('Failed to resume session:', error);
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to resume session',
-        variant: 'destructive',
-      });
-    }
-  }, [agent, task.id, toast]);
+    },
+    [agent, task.id, toast]
+  );
 
   const handleSwitchChat = useCallback(
     async (conversationId: string) => {
@@ -409,8 +411,8 @@ const ChatInterface: React.FC<Props> = ({
       setActiveConversationId(conversationId);
 
       // Use functional updater to read latest conversations state
-      setConversations(prev => {
-        const conv = prev.find(c => c.id === conversationId);
+      setConversations((prev) => {
+        const conv = prev.find((c) => c.id === conversationId);
         if (conv?.provider) setAgent(conv.provider as Agent);
         return prev; // Don't modify, just read
       });
@@ -543,8 +545,12 @@ const ChatInterface: React.FC<Props> = ({
 
   // Persist last-selected agent per task (including Droid)
   useEffect(() => {
-    try { window.localStorage.setItem(`agent:last:${task.id}`, agent); } catch {}
-    try { window.electronAPI?.setTaskAgent?.({ taskId: task.id, lastAgent: agent }); } catch {}
+    try {
+      window.localStorage.setItem(`agent:last:${task.id}`, agent);
+    } catch {}
+    try {
+      window.electronAPI?.setTaskAgent?.({ taskId: task.id, lastAgent: agent });
+    } catch {}
   }, [agent, task.id]);
 
   // Track agent switching
@@ -873,55 +879,69 @@ const ChatInterface: React.FC<Props> = ({
             return null;
           })()}
           <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto p-3 pt-3">
-            {conversationsLoaded && sortedConversations.map((conv, idx) => {
-              const convAgent = conv.provider || agent;
-              const agentBg =
-                convAgent === 'charm'
-                  ? effectiveTheme === 'dark-black'
-                    ? 'bg-black'
-                    : effectiveTheme === 'dark'
-                      ? 'bg-card'
-                      : 'bg-white'
-                  : convAgent === 'mistral'
-                    ? effectiveTheme === 'dark' || effectiveTheme === 'dark-black'
-                      ? effectiveTheme === 'dark-black'
-                        ? 'bg-[#141820]'
-                        : 'bg-[#202938]'
-                      : 'bg-white'
-                    : '';
-              return (
-                <div
-                  key={conv.id}
-                  className={`min-w-[400px] flex-1 overflow-hidden rounded-md border border-border/50 ${agentBg}`}
-                  onClick={() => setActiveConversationId(conv.id)}
-                >
-                  <AcpChatPane
-                    taskId={task.id}
-                    conversationId={conv.id}
-                    providerId={convAgent}
-                    cwd={terminalCwd || task.path || '.'}
-                    projectPath={projectPath || undefined}
-                    onStatusChange={(status) => {
-                      try { window.localStorage.setItem(`agent:locked:${task.id}`, convAgent); } catch {}
-                      try { window.electronAPI?.setTaskAgent?.({ taskId: task.id, lockedAgent: convAgent }); } catch {}
-                      if (conv.id === activeConversationId) {
-                        setAcpChatStatus(status);
+            {conversationsLoaded &&
+              sortedConversations.map((conv, idx) => {
+                const convAgent = conv.provider || agent;
+                const agentBg =
+                  convAgent === 'charm'
+                    ? effectiveTheme === 'dark-black'
+                      ? 'bg-black'
+                      : effectiveTheme === 'dark'
+                        ? 'bg-card'
+                        : 'bg-white'
+                    : convAgent === 'mistral'
+                      ? effectiveTheme === 'dark' || effectiveTheme === 'dark-black'
+                        ? effectiveTheme === 'dark-black'
+                          ? 'bg-[#141820]'
+                          : 'bg-[#202938]'
+                        : 'bg-white'
+                      : '';
+                return (
+                  <div
+                    key={conv.id}
+                    className={`border-border/50 min-w-[400px] flex-1 overflow-hidden rounded-md border ${agentBg}`}
+                    onClick={() => setActiveConversationId(conv.id)}
+                  >
+                    <AcpChatPane
+                      taskId={task.id}
+                      conversationId={conv.id}
+                      providerId={convAgent}
+                      cwd={terminalCwd || task.path || '.'}
+                      projectPath={projectPath || undefined}
+                      onStatusChange={(status) => {
+                        try {
+                          window.localStorage.setItem(`agent:locked:${task.id}`, convAgent);
+                        } catch {}
+                        try {
+                          window.electronAPI?.setTaskAgent?.({
+                            taskId: task.id,
+                            lockedAgent: convAgent,
+                          });
+                        } catch {}
+                        if (conv.id === activeConversationId) {
+                          setAcpChatStatus(status);
+                        }
+                      }}
+                      onAppendRef={
+                        conv.id === activeConversationId
+                          ? (fn) => {
+                              acpAppendRef.current = fn;
+                            }
+                          : undefined
                       }
-                    }}
-                    onAppendRef={conv.id === activeConversationId ? (fn) => { acpAppendRef.current = fn; } : undefined}
-                    onCreateNewChat={handleCreateNewChat}
-                    onResumeSession={handleResumeSession}
-                    onClearChat={() => handleClearChat(conv.id)}
-                    onDeleteChat={() => handleDeleteChatById(conv.id)}
-                    onMoveLeft={() => handleMoveChat(conv.id, 'left')}
-                    onMoveRight={() => handleMoveChat(conv.id, 'right')}
-                    canMoveLeft={idx > 0}
-                    canMoveRight={idx < sortedConversations.length - 1}
-                    className="h-full w-full"
-                  />
-                </div>
-              );
-            })}
+                      onCreateNewChat={handleCreateNewChat}
+                      onResumeSession={handleResumeSession}
+                      onClearChat={() => handleClearChat(conv.id)}
+                      onDeleteChat={() => handleDeleteChatById(conv.id)}
+                      onMoveLeft={() => handleMoveChat(conv.id, 'left')}
+                      onMoveRight={() => handleMoveChat(conv.id, 'right')}
+                      canMoveLeft={idx > 0}
+                      canMoveRight={idx < sortedConversations.length - 1}
+                      className="h-full w-full"
+                    />
+                  </div>
+                );
+              })}
           </div>
         </div>
       </div>

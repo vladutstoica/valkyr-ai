@@ -28,7 +28,7 @@ const MainContent: React.FC<MainContentProps> = ({
 
   if (!selectedRepo) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-background">
+      <div className="bg-background flex flex-1 items-center justify-center">
         <div className="text-center">
           <div className="mb-8">
             <h1
@@ -40,16 +40,16 @@ const MainContent: React.FC<MainContentProps> = ({
             >
               Valkyr
             </h1>
-            <h2 className="text-2xl text-muted-foreground">Codex</h2>
+            <h2 className="text-muted-foreground text-2xl">Codex</h2>
           </div>
 
           <div className="flex justify-center gap-6">
-            <div className="rounded-lg border border-border bg-card p-6 transition-colors hover:bg-accent">
+            <div className="border-border bg-card hover:bg-accent rounded-lg border p-6 transition-colors">
               <div className="mb-3 flex justify-center">
                 <FolderOpen className="h-12 w-12 text-blue-400" />
               </div>
               <h3 className="mb-2 text-lg font-semibold text-white">Open Project</h3>
-              <p className="text-sm text-muted-foreground">Select a repository to get started</p>
+              <p className="text-muted-foreground text-sm">Select a repository to get started</p>
             </div>
           </div>
         </div>
@@ -58,14 +58,14 @@ const MainContent: React.FC<MainContentProps> = ({
   }
 
   return (
-    <div className="flex flex-1 flex-col bg-background">
-      <div className="border-b border-border bg-card p-4">
+    <div className="bg-background flex flex-1 flex-col">
+      <div className="border-border bg-card border-b p-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-semibold text-white">
               {selectedRepo.path.split('/').pop()}
             </h2>
-            <p className="text-sm text-muted-foreground">{selectedRepo.origin}</p>
+            <p className="text-muted-foreground text-sm">{selectedRepo.origin}</p>
           </div>
           <div className="flex gap-2">
             <button
@@ -74,7 +74,7 @@ const MainContent: React.FC<MainContentProps> = ({
             >
               Start Run
             </button>
-            <button className="rounded bg-muted px-4 py-2 text-white transition-colors hover:bg-muted">
+            <button className="bg-muted hover:bg-muted rounded px-4 py-2 text-white transition-colors">
               Settings
             </button>
           </div>
@@ -87,7 +87,7 @@ const MainContent: React.FC<MainContentProps> = ({
             <div className="text-center">
               <div className="mb-4 text-6xl">🤖</div>
               <h3 className="mb-2 text-xl font-semibold text-white">No runs yet</h3>
-              <p className="mb-4 text-muted-foreground">Start your first coding agent run</p>
+              <p className="text-muted-foreground mb-4">Start your first coding agent run</p>
               <button
                 className="rounded-lg bg-blue-600 px-6 py-3 text-white transition-colors hover:bg-blue-700"
                 onClick={() => setShowRunLauncher(true)}
@@ -102,7 +102,7 @@ const MainContent: React.FC<MainContentProps> = ({
       </div>
 
       {showRunLauncher && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <div className="bg-opacity-50 absolute inset-0 z-50 flex items-center justify-center bg-black">
           <RunLauncher
             repo={selectedRepo}
             onCreateRun={handleCreateRun}

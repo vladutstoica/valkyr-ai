@@ -1,11 +1,7 @@
 import type { ClaudeUsageLimits, ClaudeUsageBucket } from '@/types/electron-api';
 import { type ComponentProps, forwardRef } from 'react';
 import { cn } from '@/lib/utils';
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from '@/components/ui/hover-card';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 // ── Helpers ──
@@ -47,15 +43,25 @@ function UsageRow({ label, bucket }: { label: string; bucket: ClaudeUsageBucket 
       <div className="flex items-center justify-between text-xs">
         <span className="text-muted-foreground">{label}</span>
         <div className="flex items-center gap-2">
-          <span className={cn('w-9 text-right tabular-nums font-medium', utilizationTextColor(bucket.utilization))}>
+          <span
+            className={cn(
+              'w-9 text-right font-medium tabular-nums',
+              utilizationTextColor(bucket.utilization)
+            )}
+          >
             {Math.round(bucket.utilization)}%
           </span>
-          <span className={cn('w-14 text-right text-[10px] tabular-nums text-muted-foreground/70', !bucket.resets_at && 'invisible')}>
+          <span
+            className={cn(
+              'text-muted-foreground/70 w-14 text-right text-[10px] tabular-nums',
+              !bucket.resets_at && 'invisible'
+            )}
+          >
             {bucket.resets_at ? formatTimeUntil(bucket.resets_at) : '—'}
           </span>
         </div>
       </div>
-      <div className="h-1 w-full overflow-hidden rounded-full bg-muted/60">
+      <div className="bg-muted/60 h-1 w-full overflow-hidden rounded-full">
         <div
           className={cn('h-full rounded-full transition-all', utilizationColor(bucket.utilization))}
           style={{ width: `${Math.min(bucket.utilization, 100)}%` }}
@@ -112,17 +118,29 @@ export const PlanUsageTrigger = forwardRef<HTMLButtonElement, PlanUsageTriggerPr
         type="button"
         title="Plan usage"
         className={cn(
-          'flex h-7 items-center gap-1.5 rounded-md px-2 text-[10px] text-muted-foreground hover:bg-accent transition-colors',
-          className,
+          'text-muted-foreground hover:bg-accent flex h-7 items-center gap-1.5 rounded-md px-2 text-[10px] transition-colors',
+          className
         )}
         {...props}
       >
         <div className="flex items-center gap-1">
           <div className="relative size-3.5">
             <svg viewBox="0 0 16 16" className="size-3.5">
-              <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.2" />
               <circle
-                cx="8" cy="8" r="6" fill="none" strokeWidth="2"
+                cx="8"
+                cy="8"
+                r="6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                opacity="0.2"
+              />
+              <circle
+                cx="8"
+                cy="8"
+                r="6"
+                fill="none"
+                strokeWidth="2"
                 stroke={utilizationStrokeColor(bucket.utilization)}
                 strokeDasharray={`${2 * Math.PI * 6} ${2 * Math.PI * 6}`}
                 strokeDashoffset={2 * Math.PI * 6 * (1 - bucket.utilization / 100)}
@@ -131,11 +149,11 @@ export const PlanUsageTrigger = forwardRef<HTMLButtonElement, PlanUsageTriggerPr
               />
             </svg>
           </div>
-          <span className="tabular-nums font-medium">{Math.round(bucket.utilization)}%</span>
+          <span className="font-medium tabular-nums">{Math.round(bucket.utilization)}%</span>
         </div>
       </button>
     );
-  },
+  }
 );
 
 // ── Popover content (full breakdown) ──
@@ -147,7 +165,7 @@ export type PlanUsageContentProps = ComponentProps<'div'> & {
 export function PlanUsageContent({ limits, className, ...props }: PlanUsageContentProps) {
   return (
     <div className={cn('w-56 space-y-2 p-3', className)} {...props}>
-      <p className="pb-2 border-b border-border text-xs font-medium">Plan usage</p>
+      <p className="border-border border-b pb-2 text-xs font-medium">Plan usage</p>
       {limits.fiveHour && <UsageRow label="Session" bucket={limits.fiveHour} />}
       {limits.sevenDay && <UsageRow label="Weekly" bucket={limits.sevenDay} />}
       {limits.sevenDaySonnet && <UsageRow label="Sonnet" bucket={limits.sevenDaySonnet} />}
@@ -173,7 +191,11 @@ export type PlanUsageHoverCardProps = {
   align?: 'start' | 'center' | 'end';
 };
 
-export function PlanUsageHoverCard({ limits, side = 'bottom', align = 'end' }: PlanUsageHoverCardProps) {
+export function PlanUsageHoverCard({
+  limits,
+  side = 'bottom',
+  align = 'end',
+}: PlanUsageHoverCardProps) {
   return (
     <HoverCard closeDelay={0} openDelay={200}>
       <HoverCardTrigger asChild>

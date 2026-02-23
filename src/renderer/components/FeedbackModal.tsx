@@ -253,12 +253,12 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, githubUs
             transition={
               shouldReduceMotion ? { duration: 0 } : { duration: 0.2, ease: [0.22, 1, 0.36, 1] }
             }
-            className="w-full max-w-lg transform-gpu rounded-xl border border-border bg-white shadow-2xl outline-hidden will-change-transform dark:border-border dark:bg-background"
+            className="border-border dark:border-border dark:bg-background w-full max-w-lg transform-gpu rounded-xl border bg-white shadow-2xl outline-hidden will-change-transform"
           >
-            <div className="flex items-start justify-between px-6 pb-2 pt-6">
+            <div className="flex items-start justify-between px-6 pt-6 pb-2">
               <div className="flex flex-col gap-1">
-                <h2 className="text-lg font-semibold text-foreground">Feedback</h2>
-                {blurb ? <p className="max-w-md text-xs text-muted-foreground">{blurb}</p> : null}
+                <h2 className="text-foreground text-lg font-semibold">Feedback</h2>
+                {blurb ? <p className="text-muted-foreground max-w-md text-xs">{blurb}</p> : null}
               </div>
               <Button
                 type="button"
@@ -333,7 +333,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, githubUs
                     {attachments.map((file, index) => (
                       <li
                         key={`${file.name}-${index}`}
-                        className="flex items-center justify-between rounded-md border border-dashed border-border px-3 py-2 text-foreground dark:border-border dark:text-foreground"
+                        className="border-border text-foreground dark:border-border dark:text-foreground flex items-center justify-between rounded-md border border-dashed px-3 py-2"
                       >
                         <span className="truncate">{file.name}</span>
                         <Button
@@ -342,7 +342,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, githubUs
                           size="sm"
                           onClick={() => handleRemoveAttachment(index)}
                           disabled={submitting}
-                          className="text-xs text-muted-foreground hover:text-foreground"
+                          className="text-muted-foreground hover:text-foreground text-xs"
                         >
                           Remove
                         </Button>
@@ -353,7 +353,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, githubUs
               </div>
 
               {errorMessage ? (
-                <p className="text-sm text-destructive" role="alert">
+                <p className="text-destructive text-sm" role="alert">
                   {errorMessage}
                 </p>
               ) : null}
@@ -384,7 +384,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, githubUs
                   ) : (
                     <>
                       <span>Send Feedback</span>
-                      <span className="flex items-center gap-1 rounded border border-white/40 bg-white/10 px-1.5 py-0.5 text-[11px] font-medium text-primary-foreground dark:border-white/20 dark:bg-white/5">
+                      <span className="text-primary-foreground flex items-center gap-1 rounded border border-white/40 bg-white/10 px-1.5 py-0.5 text-[11px] font-medium dark:border-white/20 dark:bg-white/5">
                         <span>⌘</span>
                         <CornerDownLeft className="h-3 w-3" aria-hidden="true" />
                       </span>

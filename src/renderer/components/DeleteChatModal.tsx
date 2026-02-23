@@ -54,7 +54,7 @@ export const DeleteChatModal: React.FC<DeleteChatModalProps> = ({
           <AlertDialogCancel onClick={handleCancel}>Cancel</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
-            className="bg-destructive px-4 py-2 text-destructive-foreground hover:bg-destructive/90"
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90 px-4 py-2"
           >
             <Trash2 className="mr-2 h-4 w-4" />
             Delete Chat

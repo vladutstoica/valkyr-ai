@@ -37,15 +37,15 @@ const RightSidebarSettingsCard: React.FC = () => {
   };
 
   return (
-    <div className="rounded-xl border border-border/60 bg-muted/10 p-4">
-      <div className="mb-4 text-sm text-muted-foreground">
+    <div className="border-border/60 bg-muted/10 rounded-xl border p-4">
+      <div className="text-muted-foreground mb-4 text-sm">
         Automatically manage the right sidebar based on the current view.
       </div>
       <div className="space-y-3">
         <label className="flex items-center justify-between gap-2">
           <div className="flex flex-col gap-0.5">
             <span className="text-sm">Auto-collapse on home pages</span>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-muted-foreground text-xs">
               Collapse sidebar on home/repo pages, expand on tasks
             </span>
           </div>

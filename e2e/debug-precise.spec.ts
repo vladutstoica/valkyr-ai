@@ -34,7 +34,9 @@ test('SESSION rename via dropdown - precise targeting', async () => {
     await page.screenshot({ path: 'e2e/screenshots/precise-hover.png' });
 
     // Find the menu button WITHIN the session row
-    const menuButton = sessionRow.locator('button').filter({ has: page.locator('svg.lucide-more-vertical') });
+    const menuButton = sessionRow
+      .locator('button')
+      .filter({ has: page.locator('svg.lucide-more-vertical') });
     const buttonCount = await menuButton.count();
     console.log(`Menu buttons in session row: ${buttonCount}`);
 
@@ -55,11 +57,16 @@ test('SESSION rename via dropdown - precise targeting', async () => {
           // Session input has class min-w-0
           const sessionInput = page.locator('input.min-w-0');
           const count = await sessionInput.count();
-          const focused = count > 0 ? await sessionInput.first().evaluate(el => document.activeElement === el) : false;
+          const focused =
+            count > 0
+              ? await sessionInput.first().evaluate((el) => document.activeElement === el)
+              : false;
           console.log(`${i * 100}ms: session inputs=${count}, focused=${focused}`);
 
           if (i % 5 === 0) {
-            await page.screenshot({ path: `e2e/screenshots/precise-session-rename-${i * 100}ms.png` });
+            await page.screenshot({
+              path: `e2e/screenshots/precise-session-rename-${i * 100}ms.png`,
+            });
           }
         }
       }
@@ -79,13 +86,18 @@ test('PROJECT rename via dropdown - precise targeting', async () => {
     console.log('Found project header');
 
     // The project card is a Card component - find its menu button
-    const projectCard = projectHeader.locator('xpath=ancestor::*[contains(@class,"cursor-pointer")]').first();
+    const projectCard = projectHeader
+      .locator('xpath=ancestor::*[contains(@class,"cursor-pointer")]')
+      .first();
     await projectCard.hover();
     await page.waitForTimeout(300);
     await page.screenshot({ path: 'e2e/screenshots/precise-project-hover.png' });
 
     // Find menu button - should be in the card header area
-    const menuButton = page.locator('button').filter({ has: page.locator('svg.lucide-more-vertical') }).first();
+    const menuButton = page
+      .locator('button')
+      .filter({ has: page.locator('svg.lucide-more-vertical') })
+      .first();
     await menuButton.click();
     await page.waitForTimeout(200);
     await page.screenshot({ path: 'e2e/screenshots/precise-project-menu.png' });
@@ -101,11 +113,16 @@ test('PROJECT rename via dropdown - precise targeting', async () => {
         await page.waitForTimeout(100);
         const projectInput = page.locator('input.w-full');
         const count = await projectInput.count();
-        const focused = count > 0 ? await projectInput.first().evaluate(el => document.activeElement === el) : false;
+        const focused =
+          count > 0
+            ? await projectInput.first().evaluate((el) => document.activeElement === el)
+            : false;
         console.log(`${i * 100}ms: project inputs=${count}, focused=${focused}`);
 
         if (i % 5 === 0) {
-          await page.screenshot({ path: `e2e/screenshots/precise-project-rename-${i * 100}ms.png` });
+          await page.screenshot({
+            path: `e2e/screenshots/precise-project-rename-${i * 100}ms.png`,
+          });
         }
       }
     }

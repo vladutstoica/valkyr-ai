@@ -17,19 +17,19 @@ const Context7Tooltip: React.FC<Props> = ({ enabled }) => {
         <img src={context7Logo} alt="Context7" className="h-4 w-4 rounded-[3px] object-contain" />
         <div className="font-medium">Context7 MCP</div>
       </div>
-      <div className="mt-2 border-t border-border/60" />
-      <div className="mt-2 text-muted-foreground">
+      <div className="border-border/60 mt-2 border-t" />
+      <div className="text-muted-foreground mt-2">
         Context7 lets coding agents fetch up‑to‑date, indexed library docs on demand, improving
         accuracy and reducing hallucinations.
       </div>
-      <div className="mt-1 flex items-center gap-1.5 text-tiny text-muted-foreground">
-        <span className="rounded-md border bg-muted/40 px-1.5 py-0.5 text-micro opacity-80">
+      <div className="text-tiny text-muted-foreground mt-1 flex items-center gap-1.5">
+        <span className="bg-muted/40 text-micro rounded-md border px-1.5 py-0.5 opacity-80">
           Requires setup in your used agent CLIs. Once configured, Valkyr auto‑invokes Context7 in
           prompts.
         </span>
       </div>
 
-      <div className="mt-2 border-t border-border/60 pt-2">
+      <div className="border-border/60 mt-2 border-t pt-2">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground">Status:</span>
@@ -49,7 +49,7 @@ const Context7Tooltip: React.FC<Props> = ({ enabled }) => {
             onClick={() =>
               (window as any).electronAPI?.openExternal?.(CONTEXT7_INTEGRATION.docsUrl)
             }
-            className="h-auto p-0 text-tiny text-muted-foreground"
+            className="text-tiny text-muted-foreground h-auto p-0"
           >
             Open Context7 docs ↗
           </Button>

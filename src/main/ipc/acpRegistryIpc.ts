@@ -39,7 +39,10 @@ export function registerAcpRegistryIpc(): void {
       return await acpRegistryService.installAgent(parsed.agentId, parsed.method);
     } catch (error: any) {
       if (error instanceof z.ZodError) {
-        return { success: false, error: `Validation error: ${error.errors.map((e) => e.message).join(', ')}` };
+        return {
+          success: false,
+          error: `Validation error: ${error.errors.map((e) => e.message).join(', ')}`,
+        };
       }
       log.error('acpRegistry:install failed', error);
       return { success: false, error: error.message };
@@ -52,7 +55,10 @@ export function registerAcpRegistryIpc(): void {
       return await acpRegistryService.uninstallAgent(parsed.agentId);
     } catch (error: any) {
       if (error instanceof z.ZodError) {
-        return { success: false, error: `Validation error: ${error.errors.map((e) => e.message).join(', ')}` };
+        return {
+          success: false,
+          error: `Validation error: ${error.errors.map((e) => e.message).join(', ')}`,
+        };
       }
       log.error('acpRegistry:uninstall failed', error);
       return { success: false, error: error.message };

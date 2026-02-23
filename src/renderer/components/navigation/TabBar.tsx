@@ -21,7 +21,7 @@ export function TabBar() {
   const { activeTab, setActiveTab, gitChangesCount, isAgentWorking } = useTabState();
 
   return (
-    <div className="flex h-11 items-center border-b border-border bg-muted/30">
+    <div className="border-border bg-muted/30 flex h-11 items-center border-b">
       {TABS.map((tab) => {
         const isActive = activeTab === tab.id;
         const Icon = tab.icon;
@@ -34,16 +34,14 @@ export function TabBar() {
             onClick={() => setActiveTab(tab.id)}
             className={cn(
               'group relative flex cursor-pointer items-center gap-2 px-3 py-2 text-sm font-medium transition-colors',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              isActive
-                ? 'text-foreground'
-                : 'text-muted-foreground hover:text-foreground'
+              'focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none',
+              isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
             )}
           >
             <span className="relative">
               <Icon className="h-4 w-4" />
               {showPulse && (
-                <span className="absolute -right-1 -top-1 h-2 w-2">
+                <span className="absolute -top-1 -right-1 h-2 w-2">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-75" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
                 </span>

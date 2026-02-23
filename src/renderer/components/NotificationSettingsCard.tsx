@@ -52,8 +52,8 @@ const NotificationSettingsCard: React.FC = () => {
   };
 
   return (
-    <div className="rounded-xl border border-border/60 bg-muted/10 p-4">
-      <div className="mb-4 text-sm text-muted-foreground">
+    <div className="border-border/60 bg-muted/10 rounded-xl border p-4">
+      <div className="text-muted-foreground mb-4 text-sm">
         Get notified when agents complete tasks.
       </div>
       <div className="space-y-3">

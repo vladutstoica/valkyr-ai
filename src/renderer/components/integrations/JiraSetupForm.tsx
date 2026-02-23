@@ -28,7 +28,7 @@ const JiraSetupForm: React.FC<Props> = ({
   return (
     <div className="w-full">
       <div className="flex items-center gap-2">
-        <span className="inline-flex items-center gap-1.5 rounded-md border border-border/70 bg-muted/40 px-2 py-0.5 text-xs font-medium">
+        <span className="border-border/70 bg-muted/40 inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium">
           <img src={jiraLogo} alt="Jira" className="h-3.5 w-3.5" />
           Jira
         </span>
@@ -54,7 +54,7 @@ const JiraSetupForm: React.FC<Props> = ({
           className="h-8 w-full"
         />
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">
+      <p className="text-muted-foreground mt-2 text-xs">
         <Info className="mr-1 inline h-3 w-3" aria-hidden="true" />
         Create an API token at{' '}
         <span className="font-medium">id.atlassian.com/manage-profile/security/api-tokens</span>

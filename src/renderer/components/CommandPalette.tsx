@@ -260,25 +260,25 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
             transition={
               shouldReduceMotion ? { duration: 0 } : { duration: 0.18, ease: [0.22, 1, 0.36, 1] }
             }
-            className="mx-4 w-full max-w-2xl overflow-hidden rounded-2xl border border-border/50 bg-background shadow-2xl"
+            className="border-border/50 bg-background mx-4 w-full max-w-2xl overflow-hidden rounded-2xl border shadow-2xl"
           >
             <Command
               shouldFilter={true}
-              className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]]:px-2 [&_[cmdk-group]]:pb-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-3 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-4 [&_[cmdk-item]_svg]:w-4"
+              className="[&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group]]:px-2 [&_[cmdk-group]]:pb-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-3 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-4 [&_[cmdk-item]_svg]:w-4"
             >
-              <div className="flex items-center border-b border-border/60 px-4">
-                <Search className="mr-3 h-4 w-4 shrink-0 text-muted-foreground" />
+              <div className="border-border/60 flex items-center border-b px-4">
+                <Search className="text-muted-foreground mr-3 h-4 w-4 shrink-0" />
                 <Command.Input
                   value={search}
                   onValueChange={setSearch}
                   placeholder="Search commands, projects, tasks..."
-                  className="flex h-12 w-full rounded-md bg-transparent text-sm text-foreground outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                  className="text-foreground placeholder:text-muted-foreground flex h-12 w-full rounded-md bg-transparent text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50"
                   autoFocus
                 />
               </div>
 
-              <Command.List className="max-h-[400px] overflow-y-auto overflow-x-hidden p-2">
-                <Command.Empty className="py-8 text-center text-sm text-muted-foreground">
+              <Command.List className="max-h-[400px] overflow-x-hidden overflow-y-auto p-2">
+                <Command.Empty className="text-muted-foreground py-8 text-center text-sm">
                   No results found.
                 </Command.Empty>
 
@@ -293,21 +293,21 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                           key={item.id}
                           value={`${item.label} ${item.description || ''} ${item.keywords?.join(' ') || ''}`}
                           onSelect={() => item.onSelect()}
-                          className="relative flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-3 text-sm outline-hidden transition-colors hover:bg-accent hover:text-accent-foreground aria-selected:bg-accent aria-selected:text-accent-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground"
+                          className="hover:bg-accent hover:text-accent-foreground aria-selected:bg-accent aria-selected:text-accent-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground relative flex cursor-pointer items-center gap-3 rounded-lg px-3 py-3 text-sm outline-hidden transition-colors select-none"
                         >
-                          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                          <div className="bg-muted text-muted-foreground flex h-8 w-8 items-center justify-center rounded-md">
                             {item.icon}
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="truncate font-medium">{item.label}</div>
                             {item.description && (
-                              <div className="truncate text-xs text-muted-foreground">
+                              <div className="text-muted-foreground truncate text-xs">
                                 {item.description}
                               </div>
                             )}
                           </div>
                           {item.shortcut && (
-                            <div className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
+                            <div className="text-muted-foreground ml-auto flex items-center gap-1 text-xs">
                               {item.shortcut.modifier === 'cmd' && (
                                 <CommandIcon className="h-3 w-3" />
                               )}
@@ -329,26 +329,26 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                 })}
               </Command.List>
 
-              <div className="flex items-center justify-between border-t border-border/60 bg-muted/20 px-4 py-3">
+              <div className="border-border/60 bg-muted/20 flex items-center justify-between border-t px-4 py-3">
                 <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="text-muted-foreground flex items-center gap-2 text-xs">
                     <span>Select</span>
-                    <div className="flex items-center gap-1 rounded border border-border/60 bg-background px-1.5 py-0.5">
+                    <div className="border-border/60 bg-background flex items-center gap-1 rounded border px-1.5 py-0.5">
                       <CornerDownLeft className="h-3 w-3" />
                     </div>
                   </div>
-                  <div className="h-4 w-px bg-border/60" />
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="bg-border/60 h-4 w-px" />
+                  <div className="text-muted-foreground flex items-center gap-2 text-xs">
                     <span>Close</span>
-                    <div className="flex items-center gap-1 rounded border border-border/60 bg-background px-1.5 py-0.5">
+                    <div className="border-border/60 bg-background flex items-center gap-1 rounded border px-1.5 py-0.5">
                       <span className="text-xs">ESC</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="text-muted-foreground flex items-center gap-2 text-xs">
                   <span>Navigate</span>
-                  <div className="flex items-center gap-1 rounded border border-border/60 bg-background px-1.5 py-0.5">
+                  <div className="border-border/60 bg-background flex items-center gap-1 rounded border px-1.5 py-0.5">
                     <ArrowUp className="h-3 w-3" />
                     <ArrowDown className="h-3 w-3" />
                   </div>

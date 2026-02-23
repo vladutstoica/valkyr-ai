@@ -22,7 +22,7 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
   onClose,
 }) => {
   return (
-    <div className="flex h-9 items-center justify-between border-b border-border bg-muted/30 px-3">
+    <div className="border-border bg-muted/30 flex h-9 items-center justify-between border-b px-3">
       <TaskInfo taskName={taskName} hasUnsavedChanges={hasUnsavedChanges} />
       <EditorControls
         hasUnsavedChanges={hasUnsavedChanges}
@@ -41,7 +41,7 @@ const TaskInfo: React.FC<{
   hasUnsavedChanges: boolean;
 }> = ({ taskName, hasUnsavedChanges }) => (
   <div className="flex items-center gap-2">
-    <FolderOpen className="h-4 w-4 text-muted-foreground" />
+    <FolderOpen className="text-muted-foreground h-4 w-4" />
     <span className="text-sm font-medium">{taskName}</span>
     {hasUnsavedChanges && <span className="text-xs text-amber-500">● Unsaved changes</span>}
   </div>

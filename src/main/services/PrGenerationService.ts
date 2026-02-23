@@ -126,7 +126,9 @@ export class PrGenerationService {
 
       // First try remote branch (most reliable - always up to date)
       try {
-        await execFileAsync('git', ['rev-parse', '--verify', `origin/${baseBranch}`], { cwd: taskPath });
+        await execFileAsync('git', ['rev-parse', '--verify', `origin/${baseBranch}`], {
+          cwd: taskPath,
+        });
         baseBranchExists = true;
         baseBranchRef = `origin/${baseBranch}`;
       } catch {
@@ -143,15 +145,20 @@ export class PrGenerationService {
       if (baseBranchExists) {
         // Get diff between base branch and current HEAD (committed changes)
         try {
-          const { stdout: diffOut } = await execFileAsync('git', ['diff', `${baseBranchRef}...HEAD`, '--stat'], {
-            cwd: taskPath,
-            maxBuffer: 10 * 1024 * 1024,
-          });
+          const { stdout: diffOut } = await execFileAsync(
+            'git',
+            ['diff', `${baseBranchRef}...HEAD`, '--stat'],
+            {
+              cwd: taskPath,
+              maxBuffer: 10 * 1024 * 1024,
+            }
+          );
           diff = diffOut || '';
 
           // Get list of changed files from commits
           const { stdout: filesOut } = await execFileAsync(
-            'git', ['diff', '--name-only', `${baseBranchRef}...HEAD`],
+            'git',
+            ['diff', '--name-only', `${baseBranchRef}...HEAD`],
             { cwd: taskPath }
           );
           const committedFiles = (filesOut || '')
@@ -162,7 +169,8 @@ export class PrGenerationService {
 
           // Get commit messages
           const { stdout: commitsOut } = await execFileAsync(
-            'git', ['log', `${baseBranchRef}..HEAD`, '--pretty=format:%s'],
+            'git',
+            ['log', `${baseBranchRef}..HEAD`, '--pretty=format:%s'],
             { cwd: taskPath }
           );
           commits = (commitsOut || '')
@@ -211,15 +219,23 @@ export class PrGenerationService {
       // Fallback: if we still have no diff or commits, try staged changes
       if (commits.length === 0 && diff.length === 0) {
         try {
-          const { stdout: stagedDiff } = await execFileAsync('git', ['diff', '--cached', '--stat'], {
-            cwd: taskPath,
-            maxBuffer: 10 * 1024 * 1024,
-          });
+          const { stdout: stagedDiff } = await execFileAsync(
+            'git',
+            ['diff', '--cached', '--stat'],
+            {
+              cwd: taskPath,
+              maxBuffer: 10 * 1024 * 1024,
+            }
+          );
           if (stagedDiff) {
             diff = stagedDiff;
-            const { stdout: filesOut } = await execFileAsync('git', ['diff', '--cached', '--name-only'], {
-              cwd: taskPath,
-            });
+            const { stdout: filesOut } = await execFileAsync(
+              'git',
+              ['diff', '--cached', '--name-only'],
+              {
+                cwd: taskPath,
+              }
+            );
             changedFiles = (filesOut || '')
               .split('\n')
               .map((f) => f.trim())
@@ -309,7 +325,9 @@ export class PrGenerationService {
           child.kill('SIGTERM');
           // SIGKILL fallback if process doesn't exit
           setTimeout(() => {
-            try { child.kill('SIGKILL'); } catch {}
+            try {
+              child.kill('SIGKILL');
+            } catch {}
           }, 5000);
         } catch {}
         log.debug(`Provider ${providerId} invocation timed out`);

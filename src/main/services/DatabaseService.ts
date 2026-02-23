@@ -665,7 +665,7 @@ export class DatabaseService {
     title: string,
     provider?: string,
     isMain?: boolean,
-    mode?: 'pty' | 'acp',
+    mode?: 'pty' | 'acp'
   ): Promise<Conversation> {
     if (this.disabled) {
       return {
@@ -782,7 +782,10 @@ export class DatabaseService {
     });
   }
 
-  async updateConversationAcpSessionId(conversationId: string, acpSessionId: string): Promise<void> {
+  async updateConversationAcpSessionId(
+    conversationId: string,
+    acpSessionId: string
+  ): Promise<void> {
     if (this.disabled) return;
     const { db } = await getDrizzleClient();
 
@@ -1018,10 +1021,7 @@ export class DatabaseService {
   async getWorkspaces(): Promise<Workspace[]> {
     if (this.disabled) return [];
     const { db } = await getDrizzleClient();
-    const rows = await db
-      .select()
-      .from(workspacesTable)
-      .orderBy(asc(workspacesTable.displayOrder));
+    const rows = await db.select().from(workspacesTable).orderBy(asc(workspacesTable.displayOrder));
     return rows.map((row) => this.mapDrizzleWorkspaceRow(row));
   }
 
@@ -1365,13 +1365,26 @@ export class DatabaseService {
 
   // App state methods
   async getAppState(): Promise<AppState> {
-    if (this.disabled) return { activeProjectId: null, activeTaskId: null, activeWorkspaceId: null, prMode: null, prDraft: false };
+    if (this.disabled)
+      return {
+        activeProjectId: null,
+        activeTaskId: null,
+        activeWorkspaceId: null,
+        prMode: null,
+        prDraft: false,
+      };
     const { db } = await getDrizzleClient();
     const rows = await db.select().from(appStateTable).where(eq(appStateTable.id, 1)).limit(1);
     if (rows.length === 0) {
       // Initialize default row
       await db.insert(appStateTable).values({ id: 1 }).onConflictDoNothing();
-      return { activeProjectId: null, activeTaskId: null, activeWorkspaceId: null, prMode: null, prDraft: false };
+      return {
+        activeProjectId: null,
+        activeTaskId: null,
+        activeWorkspaceId: null,
+        prMode: null,
+        prDraft: false,
+      };
     }
     const row = rows[0];
     return {
@@ -1394,27 +1407,39 @@ export class DatabaseService {
     if ('prDraft' in partial) set.prDraft = partial.prDraft ? 1 : 0;
     if (Object.keys(set).length === 0) return;
     // Upsert: insert if not exists, update if exists
-    await db.insert(appStateTable).values({ id: 1, ...set }).onConflictDoUpdate({
-      target: appStateTable.id,
-      set,
-    });
+    await db
+      .insert(appStateTable)
+      .values({ id: 1, ...set })
+      .onConflictDoUpdate({
+        target: appStateTable.id,
+        set,
+      });
   }
 
   // Task pinned/agent methods
   async setTaskPinned(taskId: string, pinned: boolean): Promise<void> {
     if (this.disabled) return;
     const { db } = await getDrizzleClient();
-    await db.update(tasksTable).set({ isPinned: pinned ? 1 : 0, updatedAt: new Date().toISOString() }).where(eq(tasksTable.id, taskId));
+    await db
+      .update(tasksTable)
+      .set({ isPinned: pinned ? 1 : 0, updatedAt: new Date().toISOString() })
+      .where(eq(tasksTable.id, taskId));
   }
 
   async getPinnedTaskIds(): Promise<string[]> {
     if (this.disabled) return [];
     const { db } = await getDrizzleClient();
-    const rows = await db.select({ id: tasksTable.id }).from(tasksTable).where(eq(tasksTable.isPinned, 1));
-    return rows.map(r => r.id);
+    const rows = await db
+      .select({ id: tasksTable.id })
+      .from(tasksTable)
+      .where(eq(tasksTable.isPinned, 1));
+    return rows.map((r) => r.id);
   }
 
-  async setTaskAgent(taskId: string, update: { lastAgent?: string | null; lockedAgent?: string | null }): Promise<void> {
+  async setTaskAgent(
+    taskId: string,
+    update: { lastAgent?: string | null; lockedAgent?: string | null }
+  ): Promise<void> {
     if (this.disabled) return;
     const { db } = await getDrizzleClient();
     const set: any = { updatedAt: new Date().toISOString() };
@@ -1426,15 +1451,22 @@ export class DatabaseService {
   async setTaskInitialPromptSent(taskId: string, sent: boolean): Promise<void> {
     if (this.disabled) return;
     const { db } = await getDrizzleClient();
-    await db.update(tasksTable).set({ initialPromptSent: sent ? 1 : 0, updatedAt: new Date().toISOString() }).where(eq(tasksTable.id, taskId));
+    await db
+      .update(tasksTable)
+      .set({ initialPromptSent: sent ? 1 : 0, updatedAt: new Date().toISOString() })
+      .where(eq(tasksTable.id, taskId));
   }
 
   // Terminal sessions methods
   async getTerminalSessions(taskKey: string): Promise<TerminalSession[]> {
     if (this.disabled) return [];
     const { db } = await getDrizzleClient();
-    const rows = await db.select().from(terminalSessionsTable).where(eq(terminalSessionsTable.taskKey, taskKey)).orderBy(asc(terminalSessionsTable.displayOrder));
-    return rows.map(row => ({
+    const rows = await db
+      .select()
+      .from(terminalSessionsTable)
+      .where(eq(terminalSessionsTable.taskKey, taskKey))
+      .orderBy(asc(terminalSessionsTable.displayOrder));
+    return rows.map((row) => ({
       id: row.id,
       taskKey: row.taskKey,
       terminalId: row.terminalId,
@@ -1478,7 +1510,7 @@ export class DatabaseService {
     if (this.disabled) return [];
     const { db } = await getDrizzleClient();
     const rows = await db.select().from(kanbanColumnsTable);
-    return rows.map(row => ({ taskId: row.taskId, status: row.status }));
+    return rows.map((row) => ({ taskId: row.taskId, status: row.status }));
   }
 
   async setKanbanStatus(taskId: string, status: string): Promise<void> {
@@ -1704,10 +1736,10 @@ export class DatabaseService {
 
     if (applied.has(hash)) return;
     const createdAt = typeof entry.when === 'number' ? entry.when : Date.now();
-    await this.runSql(
-      `INSERT INTO "__drizzle_migrations" ("hash", "created_at") VALUES(?, ?)`,
-      [hash, createdAt]
-    );
+    await this.runSql(`INSERT INTO "__drizzle_migrations" ("hash", "created_at") VALUES(?, ?)`, [
+      hash,
+      createdAt,
+    ]);
     applied.add(hash);
   }
 

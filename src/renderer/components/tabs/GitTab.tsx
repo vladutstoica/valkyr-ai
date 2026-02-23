@@ -1,7 +1,19 @@
 import * as React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMemo } from 'react';
-import { Plus, Minus, RefreshCw, ChevronDown, ChevronRight, Columns, AlignJustify, FolderTree, Check, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
+import {
+  Plus,
+  Minus,
+  RefreshCw,
+  ChevronDown,
+  ChevronRight,
+  Columns,
+  AlignJustify,
+  FolderTree,
+  Check,
+  ChevronsDownUp,
+  ChevronsUpDown,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
@@ -131,7 +143,13 @@ function buildRepoGroups(fileList: FileChange[]): Map<string, FileChange[]> {
   return groups;
 }
 
-export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject, className }: GitTabProps) {
+export function GitTab({
+  taskId: _taskId,
+  taskPath,
+  activeTask,
+  selectedProject,
+  className,
+}: GitTabProps) {
   const { toast } = useToast();
   const { effectiveTheme } = useTheme();
 
@@ -157,7 +175,11 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
   const isMultiRepo = Boolean(repoMappings?.length);
 
   // File changes from existing hook
-  const { fileChanges, refreshChanges, isLoading: isLoadingChanges } = useFileChanges(taskPath, { repoMappings });
+  const {
+    fileChanges,
+    refreshChanges,
+    isLoading: isLoadingChanges,
+  } = useFileChanges(taskPath, { repoMappings });
 
   // Local git state
   const {
@@ -312,7 +334,11 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
   // Fetch diff for a file
   const fetchDiff = useCallback(
     async (filePath: string) => {
-      if (!taskPath || fileDiffsRef.current.has(filePath) || loadingDiffsRef.current.has(filePath)) {
+      if (
+        !taskPath ||
+        fileDiffsRef.current.has(filePath) ||
+        loadingDiffsRef.current.has(filePath)
+      ) {
         return;
       }
 
@@ -324,7 +350,11 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
         const file = files.find((f) => f.path === filePath);
         const repoCwd = file?.repoCwd;
         const effectivePath = repoCwd ? stripRepoPrefix(filePath, file?.repoName) : filePath;
-        const result = await window.electronAPI.getFileDiff({ taskPath, filePath: effectivePath, repoCwd });
+        const result = await window.electronAPI.getFileDiff({
+          taskPath,
+          filePath: effectivePath,
+          repoCwd,
+        });
         if (result?.success && result.diff) {
           let patch: string;
           if (result.diff.rawPatch) {
@@ -388,9 +418,17 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
 
         let result;
         if (isCurrentlyStaged) {
-          result = await window.electronAPI.unstageFile({ taskPath, filePath: effectivePath, repoCwd });
+          result = await window.electronAPI.unstageFile({
+            taskPath,
+            filePath: effectivePath,
+            repoCwd,
+          });
         } else {
-          result = await window.electronAPI.stageFile({ taskPath, filePath: effectivePath, repoCwd });
+          result = await window.electronAPI.stageFile({
+            taskPath,
+            filePath: effectivePath,
+            repoCwd,
+          });
         }
 
         if (result.success) {
@@ -428,7 +466,7 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
     try {
       // For multi-repo, collect unique repoCwds and pass them
       const repoCwds = isMultiRepo
-        ? [...new Set(files.map((f) => f.repoCwd).filter(Boolean))] as string[]
+        ? ([...new Set(files.map((f) => f.repoCwd).filter(Boolean))] as string[])
         : undefined;
       const result = await window.electronAPI.stageAllFiles({ taskPath, repoCwds });
       if (result.success) {
@@ -489,7 +527,11 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
         const file = files.find((f) => f.path === path);
         const repoCwd = file?.repoCwd;
         const effectivePath = repoCwd ? stripRepoPrefix(path, file?.repoName) : path;
-        const result = await window.electronAPI.revertFile({ taskPath, filePath: effectivePath, repoCwd });
+        const result = await window.electronAPI.revertFile({
+          taskPath,
+          filePath: effectivePath,
+          repoCwd,
+        });
         if (result.success) {
           if (result.action !== 'unstaged') {
             toast({
@@ -540,14 +582,29 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
         setCommitMessage('');
         await refreshChangesAndClearCache();
       } else {
-        toast({ title: 'Commit Failed', description: result.error || 'Failed to commit.', variant: 'destructive' });
+        toast({
+          title: 'Commit Failed',
+          description: result.error || 'Failed to commit.',
+          variant: 'destructive',
+        });
       }
     } catch {
-      toast({ title: 'Error', description: 'An unexpected error occurred.', variant: 'destructive' });
+      toast({
+        title: 'Error',
+        description: 'An unexpected error occurred.',
+        variant: 'destructive',
+      });
     } finally {
       setCommitting(false);
     }
-  }, [taskPath, commitMessage, setCommitting, setCommitMessage, refreshChangesAndClearCache, toast]);
+  }, [
+    taskPath,
+    commitMessage,
+    setCommitting,
+    setCommitMessage,
+    refreshChangesAndClearCache,
+    toast,
+  ]);
 
   // Handle commit and push
   const handleCommitAndPush = useCallback(async () => {
@@ -567,14 +624,29 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
         setCommitMessage('');
         await refreshChangesAndClearCache();
       } else {
-        toast({ title: 'Commit Failed', description: result.error || 'Failed to commit and push.', variant: 'destructive' });
+        toast({
+          title: 'Commit Failed',
+          description: result.error || 'Failed to commit and push.',
+          variant: 'destructive',
+        });
       }
     } catch {
-      toast({ title: 'Error', description: 'An unexpected error occurred.', variant: 'destructive' });
+      toast({
+        title: 'Error',
+        description: 'An unexpected error occurred.',
+        variant: 'destructive',
+      });
     } finally {
       setCommitting(false);
     }
-  }, [taskPath, commitMessage, setCommitting, setCommitMessage, refreshChangesAndClearCache, toast]);
+  }, [
+    taskPath,
+    commitMessage,
+    setCommitting,
+    setCommitMessage,
+    refreshChangesAndClearCache,
+    toast,
+  ]);
 
   // Handle PR creation
   const handleCreatePR = useCallback(
@@ -661,7 +733,7 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
         <button
           key={`dir-${dirKey}`}
           type="button"
-          className="flex w-full items-center gap-1.5 px-3 py-1 text-xs text-muted-foreground hover:bg-muted/40"
+          className="text-muted-foreground hover:bg-muted/40 flex w-full items-center gap-1.5 px-3 py-1 text-xs"
           style={{ paddingLeft: `${12 + depth * 16}px` }}
           onClick={() => toggleDir(dirKey)}
         >
@@ -670,9 +742,9 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
           ) : (
             <ChevronDown className="h-3 w-3 flex-shrink-0" />
           )}
-          <FolderTree className="h-3 w-3 flex-shrink-0 text-muted-foreground/60" />
+          <FolderTree className="text-muted-foreground/60 h-3 w-3 flex-shrink-0" />
           <span className="truncate">{child.name}</span>
-          <span className="ml-auto text-[10px] text-muted-foreground/50">{child.fileCount}</span>
+          <span className="text-muted-foreground/50 ml-auto text-[10px]">{child.fileCount}</span>
         </button>
       );
 
@@ -720,7 +792,7 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
         <div key={repoKey}>
           <button
             type="button"
-            className="flex w-full items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted/40 bg-muted/20"
+            className="text-muted-foreground hover:bg-muted/40 bg-muted/20 flex w-full items-center gap-1.5 px-3 py-1.5 text-xs font-medium"
             onClick={() => toggleRepo(repoKey)}
           >
             {isCollapsed ? (
@@ -729,7 +801,7 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
               <ChevronDown className="h-3 w-3 flex-shrink-0" />
             )}
             <span className="truncate">{repoName}</span>
-            <span className="ml-auto rounded-full bg-muted px-1.5 text-[10px] font-medium text-muted-foreground/70">
+            <span className="bg-muted text-muted-foreground/70 ml-auto rounded-full px-1.5 text-[10px] font-medium">
               {repoFiles.length}
             </span>
           </button>
@@ -764,22 +836,22 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
   if (!taskPath) {
     return (
       <div className={cn('flex h-full items-center justify-center', className)}>
-        <p className="text-sm text-muted-foreground">Select a task to view changes</p>
+        <p className="text-muted-foreground text-sm">Select a task to view changes</p>
       </div>
     );
   }
 
   return (
-    <div className={cn('flex h-full bg-background', className)}>
+    <div className={cn('bg-background flex h-full', className)}>
       {/* ===== LEFT SIDEBAR: File Tree + Commit Panel ===== */}
-      <div className="flex h-full w-[280px] min-w-[220px] flex-col border-r border-border">
+      <div className="border-border flex h-full w-[280px] min-w-[220px] flex-col border-r">
         {/* Sidebar Header */}
-        <div className="flex items-center justify-between border-b border-border bg-muted/30 px-3 py-2">
+        <div className="border-border bg-muted/30 flex items-center justify-between border-b px-3 py-2">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-foreground">
+            <span className="text-foreground text-xs font-medium">
               Changes
               {files.length > 0 && (
-                <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+                <span className="bg-muted ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium">
                   {files.length}
                 </span>
               )}
@@ -844,29 +916,33 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
                 </Button>
               </PopoverTrigger>
               <PopoverContent align="end" className="w-44 p-1">
-                <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground px-2 py-1">
+                <div className="text-muted-foreground px-2 py-1 text-[10px] font-medium tracking-wide uppercase">
                   Group By
                 </div>
                 <button
                   type="button"
                   className={cn(
-                    'flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-accent',
+                    'hover:bg-accent flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm',
                     fileGrouping.has('directory') && 'bg-accent'
                   )}
                   onClick={() => toggleFileGrouping('directory')}
                 >
-                  <span className="w-4">{fileGrouping.has('directory') && <Check className="h-3.5 w-3.5" />}</span>
+                  <span className="w-4">
+                    {fileGrouping.has('directory') && <Check className="h-3.5 w-3.5" />}
+                  </span>
                   <span className="text-xs">Directory</span>
                 </button>
                 <button
                   type="button"
                   className={cn(
-                    'flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-accent',
+                    'hover:bg-accent flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm',
                     fileGrouping.has('repository') && 'bg-accent'
                   )}
                   onClick={() => toggleFileGrouping('repository')}
                 >
-                  <span className="w-4">{fileGrouping.has('repository') && <Check className="h-3.5 w-3.5" />}</span>
+                  <span className="w-4">
+                    {fileGrouping.has('repository') && <Check className="h-3.5 w-3.5" />}
+                  </span>
                   <span className="text-xs">Repository</span>
                 </button>
               </PopoverContent>
@@ -879,11 +955,7 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
               onClick={() => refreshChangesAndClearCache()}
               disabled={isLoadingChanges}
             >
-              {isLoadingChanges ? (
-                <Spinner size="sm" />
-              ) : (
-                <RefreshCw className="h-3 w-3" />
-              )}
+              {isLoadingChanges ? <Spinner size="sm" /> : <RefreshCw className="h-3 w-3" />}
             </Button>
           </div>
         </div>
@@ -892,28 +964,28 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
         <div className="min-h-0 flex-1 overflow-y-auto">
           {isLoadingChanges && files.length === 0 ? (
             <div className="flex items-center justify-center py-8">
-              <div className="flex items-center gap-2 text-muted-foreground">
+              <div className="text-muted-foreground flex items-center gap-2">
                 <Spinner size="sm" />
                 <span className="text-xs">Loading...</span>
               </div>
             </div>
           ) : files.length === 0 ? (
             <div className="flex items-center justify-center py-8">
-              <p className="text-xs text-muted-foreground">No changes detected</p>
+              <p className="text-muted-foreground text-xs">No changes detected</p>
             </div>
           ) : (
             <>
               {/* Staged Changes Section */}
               {stagedFilesList.length > 0 && (
                 <div>
-                  <div className="flex w-full items-center justify-between px-3 py-1.5 hover:bg-muted/40">
+                  <div className="hover:bg-muted/40 flex w-full items-center justify-between px-3 py-1.5">
                     <div className="flex items-center gap-1.5">
                       <div onClick={(e) => e.stopPropagation()}>
                         <Checkbox
                           checked={true}
                           onCheckedChange={() => handleUnstageAll()}
                           disabled={isStagingAll}
-                          className="h-3.5 w-3.5 border-muted-foreground/50 data-[state=checked]:border-blue-500 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white"
+                          className="border-muted-foreground/50 h-3.5 w-3.5 data-[state=checked]:border-blue-500 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white"
                         />
                       </div>
                       <button
@@ -922,11 +994,11 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
                         onClick={() => setStagedCollapsed((prev) => !prev)}
                       >
                         {stagedCollapsed ? (
-                          <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                          <ChevronRight className="text-muted-foreground h-3 w-3" />
                         ) : (
-                          <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                          <ChevronDown className="text-muted-foreground h-3 w-3" />
                         )}
-                        <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                        <span className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
                           Staged
                         </span>
                         <span className="rounded-full bg-emerald-500/10 px-1.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
@@ -937,11 +1009,17 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-5 gap-1 px-1 text-[10px] text-muted-foreground hover:text-foreground"
+                      className="text-muted-foreground hover:text-foreground h-5 gap-1 px-1 text-[10px]"
                       onClick={handleUnstageAll}
                       disabled={isStagingAll}
                     >
-                      {isStagingAll ? <Spinner size="sm" /> : <><Minus className="h-2.5 w-2.5" /> Unstage</>}
+                      {isStagingAll ? (
+                        <Spinner size="sm" />
+                      ) : (
+                        <>
+                          <Minus className="h-2.5 w-2.5" /> Unstage
+                        </>
+                      )}
                     </Button>
                   </div>
                   {!stagedCollapsed && (
@@ -974,14 +1052,14 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
               {/* Unstaged Changes Section */}
               {unstagedFilesList.length > 0 && (
                 <div>
-                  <div className="flex w-full items-center justify-between px-3 py-1.5 hover:bg-muted/40">
+                  <div className="hover:bg-muted/40 flex w-full items-center justify-between px-3 py-1.5">
                     <div className="flex items-center gap-1.5">
                       <div onClick={(e) => e.stopPropagation()}>
                         <Checkbox
                           checked={false}
                           onCheckedChange={() => handleStageAll()}
                           disabled={isStagingAll}
-                          className="h-3.5 w-3.5 border-muted-foreground/50 data-[state=checked]:border-blue-500 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white"
+                          className="border-muted-foreground/50 h-3.5 w-3.5 data-[state=checked]:border-blue-500 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white"
                         />
                       </div>
                       <button
@@ -990,14 +1068,14 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
                         onClick={() => setUnstagedCollapsed((prev) => !prev)}
                       >
                         {unstagedCollapsed ? (
-                          <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                          <ChevronRight className="text-muted-foreground h-3 w-3" />
                         ) : (
-                          <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                          <ChevronDown className="text-muted-foreground h-3 w-3" />
                         )}
-                        <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                        <span className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
                           Changes
                         </span>
-                        <span className="rounded-full bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">
+                        <span className="bg-muted text-muted-foreground rounded-full px-1.5 text-[10px] font-medium">
                           {unstagedFilesList.length}
                         </span>
                       </button>
@@ -1005,11 +1083,17 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-5 gap-1 px-1 text-[10px] text-muted-foreground hover:text-foreground"
+                      className="text-muted-foreground hover:text-foreground h-5 gap-1 px-1 text-[10px]"
                       onClick={handleStageAll}
                       disabled={isStagingAll}
                     >
-                      {isStagingAll ? <Spinner size="sm" /> : <><Plus className="h-2.5 w-2.5" /> Stage All</>}
+                      {isStagingAll ? (
+                        <Spinner size="sm" />
+                      ) : (
+                        <>
+                          <Plus className="h-2.5 w-2.5" /> Stage All
+                        </>
+                      )}
                     </Button>
                   </div>
                   {!unstagedCollapsed && (
@@ -1033,7 +1117,7 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
                                 isStaging={stagingFiles.has(file.path)}
                                 isDiscarding={discardingFiles.has(file.path)}
                               />
-                        ))}
+                            ))}
                     </div>
                   )}
                 </div>
@@ -1060,8 +1144,8 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
       <div ref={diffPanelRef} className="flex min-h-0 min-w-0 flex-1 flex-col">
         {/* Diff Toolbar */}
         {selectedFile && (
-          <div className="flex items-center justify-between border-b border-border bg-muted/20 px-3 py-1.5">
-            <span className="truncate text-xs text-muted-foreground">{selectedFile}</span>
+          <div className="border-border bg-muted/20 flex items-center justify-between border-b px-3 py-1.5">
+            <span className="text-muted-foreground truncate text-xs">{selectedFile}</span>
             {canSideBySide && (
               <div className="flex items-center gap-0.5">
                 <Button
@@ -1092,7 +1176,7 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
           {selectedFile ? (
             loadingDiffs.has(selectedFile) ? (
               <div className="flex h-full items-center justify-center">
-                <div className="flex items-center gap-2 text-muted-foreground">
+                <div className="text-muted-foreground flex items-center gap-2">
                   <Spinner size="sm" />
                   <span className="text-sm">Loading diff...</span>
                 </div>
@@ -1108,7 +1192,7 @@ export function GitTab({ taskId: _taskId, taskPath, activeTask, selectedProject,
             )
           ) : (
             <div className="flex h-full items-center justify-center">
-              <p className="text-sm text-muted-foreground">Select a file to view changes</p>
+              <p className="text-muted-foreground text-sm">Select a file to view changes</p>
             </div>
           )}
         </div>

@@ -418,7 +418,9 @@ export async function cleanupStaleLockFiles(): Promise<void> {
         const age = Date.now() - stat.mtimeMs;
         if (age > STALE_THRESHOLD_MS) {
           await fs.promises.unlink(lockPath);
-          console.warn(`Removed stale Git lock file: ${lockPath} (age: ${Math.round(age / 1000)}s)`);
+          console.warn(
+            `Removed stale Git lock file: ${lockPath} (age: ${Math.round(age / 1000)}s)`
+          );
         }
       } catch {
         // Lock doesn't exist or can't be removed — skip

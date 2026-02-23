@@ -256,13 +256,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('project:getRepoStatus', args),
   updateProjectRepos: (args: { projectId: string; repoPaths?: string[]; stashIfDirty?: boolean }) =>
     ipcRenderer.invoke('project:updateRepos', args),
-  getRepoBranches: (args: { repoPath: string }) =>
-    ipcRenderer.invoke('project:getBranches', args),
+  getRepoBranches: (args: { repoPath: string }) => ipcRenderer.invoke('project:getBranches', args),
   switchRepoBranch: (args: { repoPath: string; branch: string; stashIfDirty?: boolean }) =>
     ipcRenderer.invoke('project:switchBranch', args),
 
   getGitStatus: (
-    arg: string | { taskPath: string; repoMappings?: Array<{ relativePath: string; targetPath: string }> }
+    arg:
+      | string
+      | { taskPath: string; repoMappings?: Array<{ relativePath: string; targetPath: string }> }
   ) => ipcRenderer.invoke('git:get-status', arg),
   watchGitStatus: (taskPath: string) => ipcRenderer.invoke('git:watch-status', taskPath),
   unwatchGitStatus: (taskPath: string, watchId?: string) =>
@@ -426,7 +427,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Database methods
   getProjects: () => ipcRenderer.invoke('db:getProjects'),
   saveProject: (project: any) => ipcRenderer.invoke('db:saveProject', project),
-  updateProjectOrder: (projectIds: string[]) => ipcRenderer.invoke('db:updateProjectOrder', projectIds),
+  updateProjectOrder: (projectIds: string[]) =>
+    ipcRenderer.invoke('db:updateProjectOrder', projectIds),
   // Project groups
   getProjectGroups: () => ipcRenderer.invoke('db:getProjectGroups'),
   createProjectGroup: (name: string) => ipcRenderer.invoke('db:createProjectGroup', name),
@@ -493,17 +495,26 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppState: () => ipcRenderer.invoke('db:appState:get'),
   updateAppState: (partial: any) => ipcRenderer.invoke('db:appState:update', partial),
   // Task pinned/agent
-  setTaskPinned: (args: { taskId: string; pinned: boolean }) => ipcRenderer.invoke('db:task:setPinned', args),
+  setTaskPinned: (args: { taskId: string; pinned: boolean }) =>
+    ipcRenderer.invoke('db:task:setPinned', args),
   getPinnedTaskIds: () => ipcRenderer.invoke('db:task:getPinnedIds'),
-  setTaskAgent: (args: { taskId: string; lastAgent?: string | null; lockedAgent?: string | null }) => ipcRenderer.invoke('db:task:setAgent', args),
-  setTaskInitialPromptSent: (args: { taskId: string; sent: boolean }) => ipcRenderer.invoke('db:task:setInitialPromptSent', args),
+  setTaskAgent: (args: {
+    taskId: string;
+    lastAgent?: string | null;
+    lockedAgent?: string | null;
+  }) => ipcRenderer.invoke('db:task:setAgent', args),
+  setTaskInitialPromptSent: (args: { taskId: string; sent: boolean }) =>
+    ipcRenderer.invoke('db:task:setInitialPromptSent', args),
   // Terminal sessions
   getTerminalSessions: (taskKey: string) => ipcRenderer.invoke('db:terminalSessions:get', taskKey),
-  saveTerminalSessions: (args: { taskKey: string; sessions: any[] }) => ipcRenderer.invoke('db:terminalSessions:save', args),
-  deleteTerminalSessions: (taskKey: string) => ipcRenderer.invoke('db:terminalSessions:delete', taskKey),
+  saveTerminalSessions: (args: { taskKey: string; sessions: any[] }) =>
+    ipcRenderer.invoke('db:terminalSessions:save', args),
+  deleteTerminalSessions: (taskKey: string) =>
+    ipcRenderer.invoke('db:terminalSessions:delete', taskKey),
   // Kanban
   getKanbanStatuses: () => ipcRenderer.invoke('db:kanban:getStatuses'),
-  setKanbanStatus: (args: { taskId: string; status: string }) => ipcRenderer.invoke('db:kanban:setStatus', args),
+  setKanbanStatus: (args: { taskId: string; status: string }) =>
+    ipcRenderer.invoke('db:kanban:setStatus', args),
 
   // Line comments management
   lineCommentsCreate: (input: any) => ipcRenderer.invoke('lineComments:create', input),
@@ -699,7 +710,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on(channel, wrapped);
     return () => ipcRenderer.removeListener(channel, wrapped);
   },
-  onScriptExit: (ptyId: string, listener: (info: { exitCode: number; signal?: number }) => void) => {
+  onScriptExit: (
+    ptyId: string,
+    listener: (info: { exitCode: number; signal?: number }) => void
+  ) => {
     const channel = `scripts:exit:${ptyId}`;
     const wrapped = (_: Electron.IpcRendererEvent, info: { exitCode: number; signal?: number }) =>
       listener(info);
@@ -737,8 +751,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     env?: Record<string, string>;
     acpSessionId?: string;
   }) => ipcRenderer.invoke('acp:start', args),
-  acpPrompt: (args: { sessionKey: string; message: string; files?: Array<{ url: string; mediaType: string; filename?: string }> }) =>
-    ipcRenderer.invoke('acp:prompt', args),
+  acpPrompt: (args: {
+    sessionKey: string;
+    message: string;
+    files?: Array<{ url: string; mediaType: string; filename?: string }>;
+  }) => ipcRenderer.invoke('acp:prompt', args),
   acpCancel: (args: { sessionKey: string }) => ipcRenderer.invoke('acp:cancel', args),
   acpKill: (args: { sessionKey: string }) => ipcRenderer.invoke('acp:kill', args),
   acpDetach: (args: { sessionKey: string }) => ipcRenderer.invoke('acp:detach', args),
@@ -750,10 +767,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('acp:setModel', args),
   acpSetConfigOption: (args: { sessionKey: string; optionId: string; value: string }) =>
     ipcRenderer.invoke('acp:setConfigOption', args),
-  acpListSessions: (args: { sessionKey: string }) =>
-    ipcRenderer.invoke('acp:listSessions', args),
-  acpForkSession: (args: { sessionKey: string }) =>
-    ipcRenderer.invoke('acp:forkSession', args),
+  acpListSessions: (args: { sessionKey: string }) => ipcRenderer.invoke('acp:listSessions', args),
+  acpForkSession: (args: { sessionKey: string }) => ipcRenderer.invoke('acp:forkSession', args),
   acpExtMethod: (args: { sessionKey: string; method: string; params?: Record<string, unknown> }) =>
     ipcRenderer.invoke('acp:extMethod', args),
   acpGetClaudeUsageLimits: () => ipcRenderer.invoke('acp:getClaudeUsageLimits'),
@@ -941,7 +956,9 @@ export interface ElectronAPI {
     error?: string;
   }>;
   getGitStatus: (
-    arg: string | { taskPath: string; repoMappings?: Array<{ relativePath: string; targetPath: string }> }
+    arg:
+      | string
+      | { taskPath: string; repoMappings?: Array<{ relativePath: string; targetPath: string }> }
   ) => Promise<{
     success: boolean;
     changes?: Array<{

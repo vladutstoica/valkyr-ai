@@ -140,7 +140,10 @@ export function registerDatabaseIpc() {
     'db:updateConversationAcpSessionId',
     async (_, params: { conversationId: string; acpSessionId: string }) => {
       try {
-        await databaseService.updateConversationAcpSessionId(params.conversationId, params.acpSessionId);
+        await databaseService.updateConversationAcpSessionId(
+          params.conversationId,
+          params.acpSessionId
+        );
         return { success: true };
       } catch (error) {
         log.error('Failed to update conversation ACP session ID:', error);
@@ -260,18 +263,15 @@ export function registerDatabaseIpc() {
     }
   });
 
-  ipcMain.handle(
-    'db:renameProjectGroup',
-    async (_, { id, name }: { id: string; name: string }) => {
-      try {
-        await databaseService.renameProjectGroup(id, name);
-        return { success: true };
-      } catch (error) {
-        log.error('Failed to rename project group:', error);
-        return { success: false, error: (error as Error).message };
-      }
+  ipcMain.handle('db:renameProjectGroup', async (_, { id, name }: { id: string; name: string }) => {
+    try {
+      await databaseService.renameProjectGroup(id, name);
+      return { success: true };
+    } catch (error) {
+      log.error('Failed to rename project group:', error);
+      return { success: false, error: (error as Error).message };
     }
-  );
+  });
 
   ipcMain.handle('db:deleteProjectGroup', async (_, id: string) => {
     try {
@@ -343,18 +343,15 @@ export function registerDatabaseIpc() {
     }
   );
 
-  ipcMain.handle(
-    'db:renameWorkspace',
-    async (_, { id, name }: { id: string; name: string }) => {
-      try {
-        await databaseService.renameWorkspace(id, name);
-        return { success: true };
-      } catch (error) {
-        log.error('Failed to rename workspace:', error);
-        return { success: false, error: (error as Error).message };
-      }
+  ipcMain.handle('db:renameWorkspace', async (_, { id, name }: { id: string; name: string }) => {
+    try {
+      await databaseService.renameWorkspace(id, name);
+      return { success: true };
+    } catch (error) {
+      log.error('Failed to rename workspace:', error);
+      return { success: false, error: (error as Error).message };
     }
-  );
+  });
 
   ipcMain.handle('db:deleteWorkspace', async (_, id: string) => {
     try {
@@ -433,7 +430,7 @@ export function registerDatabaseIpc() {
           title,
           provider,
           isMain,
-          'acp',
+          'acp'
         );
         return { success: true, conversation };
       } catch (error) {
@@ -514,15 +511,18 @@ export function registerDatabaseIpc() {
   });
 
   // Task pinned/agent handlers
-  ipcMain.handle('db:task:setPinned', async (_, { taskId, pinned }: { taskId: string; pinned: boolean }) => {
-    try {
-      await databaseService.setTaskPinned(taskId, pinned);
-      return { success: true };
-    } catch (error) {
-      log.error('Failed to set task pinned:', error);
-      return { success: false, error: (error as Error).message };
+  ipcMain.handle(
+    'db:task:setPinned',
+    async (_, { taskId, pinned }: { taskId: string; pinned: boolean }) => {
+      try {
+        await databaseService.setTaskPinned(taskId, pinned);
+        return { success: true };
+      } catch (error) {
+        log.error('Failed to set task pinned:', error);
+        return { success: false, error: (error as Error).message };
+      }
     }
-  });
+  );
 
   ipcMain.handle('db:task:getPinnedIds', async () => {
     try {
@@ -534,25 +534,38 @@ export function registerDatabaseIpc() {
     }
   });
 
-  ipcMain.handle('db:task:setAgent', async (_, { taskId, lastAgent, lockedAgent }: { taskId: string; lastAgent?: string | null; lockedAgent?: string | null }) => {
-    try {
-      await databaseService.setTaskAgent(taskId, { lastAgent, lockedAgent });
-      return { success: true };
-    } catch (error) {
-      log.error('Failed to set task agent:', error);
-      return { success: false, error: (error as Error).message };
+  ipcMain.handle(
+    'db:task:setAgent',
+    async (
+      _,
+      {
+        taskId,
+        lastAgent,
+        lockedAgent,
+      }: { taskId: string; lastAgent?: string | null; lockedAgent?: string | null }
+    ) => {
+      try {
+        await databaseService.setTaskAgent(taskId, { lastAgent, lockedAgent });
+        return { success: true };
+      } catch (error) {
+        log.error('Failed to set task agent:', error);
+        return { success: false, error: (error as Error).message };
+      }
     }
-  });
+  );
 
-  ipcMain.handle('db:task:setInitialPromptSent', async (_, { taskId, sent }: { taskId: string; sent: boolean }) => {
-    try {
-      await databaseService.setTaskInitialPromptSent(taskId, sent);
-      return { success: true };
-    } catch (error) {
-      log.error('Failed to set initial prompt sent:', error);
-      return { success: false, error: (error as Error).message };
+  ipcMain.handle(
+    'db:task:setInitialPromptSent',
+    async (_, { taskId, sent }: { taskId: string; sent: boolean }) => {
+      try {
+        await databaseService.setTaskInitialPromptSent(taskId, sent);
+        return { success: true };
+      } catch (error) {
+        log.error('Failed to set initial prompt sent:', error);
+        return { success: false, error: (error as Error).message };
+      }
     }
-  });
+  );
 
   // Terminal sessions handlers
   ipcMain.handle('db:terminalSessions:get', async (_, taskKey: string) => {
@@ -565,15 +578,18 @@ export function registerDatabaseIpc() {
     }
   });
 
-  ipcMain.handle('db:terminalSessions:save', async (_, { taskKey, sessions }: { taskKey: string; sessions: any[] }) => {
-    try {
-      await databaseService.saveTerminalSessions(taskKey, sessions);
-      return { success: true };
-    } catch (error) {
-      log.error('Failed to save terminal sessions:', error);
-      return { success: false, error: (error as Error).message };
+  ipcMain.handle(
+    'db:terminalSessions:save',
+    async (_, { taskKey, sessions }: { taskKey: string; sessions: any[] }) => {
+      try {
+        await databaseService.saveTerminalSessions(taskKey, sessions);
+        return { success: true };
+      } catch (error) {
+        log.error('Failed to save terminal sessions:', error);
+        return { success: false, error: (error as Error).message };
+      }
     }
-  });
+  );
 
   ipcMain.handle('db:terminalSessions:delete', async (_, taskKey: string) => {
     try {
@@ -596,13 +612,16 @@ export function registerDatabaseIpc() {
     }
   });
 
-  ipcMain.handle('db:kanban:setStatus', async (_, { taskId, status }: { taskId: string; status: string }) => {
-    try {
-      await databaseService.setKanbanStatus(taskId, status);
-      return { success: true };
-    } catch (error) {
-      log.error('Failed to set kanban status:', error);
-      return { success: false, error: (error as Error).message };
+  ipcMain.handle(
+    'db:kanban:setStatus',
+    async (_, { taskId, status }: { taskId: string; status: string }) => {
+      try {
+        await databaseService.setKanbanStatus(taskId, status);
+        return { success: true };
+      } catch (error) {
+        log.error('Failed to set kanban status:', error);
+        return { success: false, error: (error as Error).message };
+      }
     }
-  });
+  );
 }

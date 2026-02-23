@@ -35,8 +35,8 @@ export function WelcomeScreen({ onGetStarted }: WelcomeScreenProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
-      <div className="absolute bottom-0 left-0 right-0 h-3/5">
+    <div className="bg-background fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute right-0 bottom-0 left-0 h-3/5">
         <div
           className="absolute inset-0 opacity-40"
           style={{
@@ -58,14 +58,14 @@ export function WelcomeScreen({ onGetStarted }: WelcomeScreenProps) {
         animate="visible"
       >
         <motion.div
-          className="rounded-md border border-border/40 bg-white p-1.5 shadow-lg shadow-black/5 ring-1 ring-black/5 dark:shadow-white/5 dark:ring-white/10"
+          className="border-border/40 rounded-md border bg-white p-1.5 shadow-lg ring-1 shadow-black/5 ring-black/5 dark:shadow-white/5 dark:ring-white/10"
           variants={itemVariants}
         >
           <img src={IconLight} alt="Valkyr" className="h-12 w-12 rounded-xs" />
         </motion.div>
 
         <motion.h1
-          className="text-lg font-semibold tracking-tight text-foreground"
+          className="text-foreground text-lg font-semibold tracking-tight"
           variants={itemVariants}
         >
           Welcome.

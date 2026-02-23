@@ -121,7 +121,7 @@ export const CommentWidget: React.FC<CommentWidgetProps> = ({ comment, onEdit, o
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      className="text-destructive hover:text-destructive h-8 w-8"
                       onClick={onDelete}
                     >
                       <Trash2 className="h-4 w-4" />

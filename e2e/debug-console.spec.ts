@@ -37,7 +37,9 @@ test('debug session rename with console logs', async () => {
   await page.waitForTimeout(300);
 
   // Find the menu button WITHIN the session row
-  const menuButton = sessionRow.locator('button').filter({ has: page.locator('svg.lucide-more-vertical') });
+  const menuButton = sessionRow
+    .locator('button')
+    .filter({ has: page.locator('svg.lucide-more-vertical') });
   await menuButton.first().click();
   await page.waitForTimeout(200);
 

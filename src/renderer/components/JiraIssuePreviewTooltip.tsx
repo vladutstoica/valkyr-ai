@@ -34,7 +34,7 @@ const StatusPill = ({ status }: { status?: { name?: string | null } | null }) =>
 
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-none border border-border px-2 py-0.5 text-[11px] ${getStatusColor(status.name)}`}
+      className={`border-border inline-flex items-center gap-1 rounded-none border px-2 py-0.5 text-[11px] ${getStatusColor(status.name)}`}
     >
       {status.name}
     </span>
@@ -60,14 +60,14 @@ export const JiraIssuePreviewTooltip: React.FC<Props> = ({ issue, children, side
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.98 }}
             transition={{ duration: 0.16, ease: 'easeOut' }}
-            className="min-w-[260px] max-w-sm rounded-none border border-border/70 bg-popover/95 p-3 shadow-xl backdrop-blur-xs"
+            className="border-border/70 bg-popover/95 max-w-sm min-w-[260px] rounded-none border p-3 shadow-xl backdrop-blur-xs"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              <div className="text-muted-foreground flex items-center gap-2 text-xs font-medium">
                 <img src={jiraLogo} alt="Jira" className="h-4 w-4" />
                 <span className="tracking-wide">Jira Issue</span>
-                <span className="font-semibold text-muted-foreground/80">{issue.key}</span>
+                <span className="text-muted-foreground/80 font-semibold">{issue.key}</span>
               </div>
               {issue.url && (
                 <a
@@ -88,17 +88,17 @@ export const JiraIssuePreviewTooltip: React.FC<Props> = ({ issue, children, side
               )}
             </div>
 
-            <div className="mt-1 line-clamp-2 text-sm font-semibold text-foreground">
+            <div className="text-foreground mt-1 line-clamp-2 text-sm font-semibold">
               {issue.summary || `Issue ${issue.key}`}
             </div>
 
             {issue.description && (
-              <div className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">
+              <div className="text-muted-foreground mt-1.5 line-clamp-2 text-xs">
                 {issue.description}
               </div>
             )}
 
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-2 text-xs">
               <StatusPill status={issue.status} />
 
               {issue.assignee?.displayName && (

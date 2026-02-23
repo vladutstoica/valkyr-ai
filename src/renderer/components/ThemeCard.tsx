@@ -15,8 +15,8 @@ const ThemeCard: React.FC = () => {
   return (
     <div className="grid gap-3">
       <div>
-        <div className="text-sm font-medium text-foreground">Appearance</div>
-        <div className="text-xs text-muted-foreground">Choose how Valkyr looks.</div>
+        <div className="text-foreground text-sm font-medium">Appearance</div>
+        <div className="text-muted-foreground text-xs">Choose how Valkyr looks.</div>
       </div>
       <div className="grid grid-cols-2 gap-2">
         {options.map(({ value, label, icon: Icon }) => (
@@ -31,7 +31,7 @@ const ThemeCard: React.FC = () => {
               }
               setTheme(value);
             }}
-            className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+            className={`focus-visible:ring-ring focus-visible:ring-offset-background flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden ${
               theme === value
                 ? 'border-primary bg-primary/10 text-foreground'
                 : 'border-border/60 bg-background text-muted-foreground hover:border-border hover:bg-muted/40'

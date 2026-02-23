@@ -110,7 +110,9 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
     async function init() {
       // Run message loading and session creation in parallel
       const [msgResult, sessionResult] = await Promise.all([
-        api().getMessages(conversationId).catch(() => ({ success: false as const })),
+        api()
+          .getMessages(conversationId)
+          .catch(() => ({ success: false as const })),
         api().acpStart({ conversationId, providerId, cwd, projectPath }),
       ]);
 
@@ -179,7 +181,9 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
   const restartSession = useCallback(() => {
     // Kill the dead session
     if (sessionKeyRef.current) {
-      api().acpKill({ sessionKey: sessionKeyRef.current }).catch(() => {});
+      api()
+        .acpKill({ sessionKey: sessionKeyRef.current })
+        .catch(() => {});
       sessionKeyRef.current = null;
     }
     innerTransportRef.current = null;
@@ -190,5 +194,15 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
     setRestartCount((c) => c + 1);
   }, []);
 
-  return { transport, sessionStatus, sessionError, initialMessages, sessionKey, acpSessionId, modes, models, restartSession };
+  return {
+    transport,
+    sessionStatus,
+    sessionError,
+    initialMessages,
+    sessionKey,
+    acpSessionId,
+    modes,
+    models,
+    restartSession,
+  };
 }

@@ -52,8 +52,11 @@ test('detailed session rename debug', async () => {
     await page.waitForTimeout(25);
     const inputs = await page.locator('input[type="text"]').all();
     const inputVisible = inputs.length > 0 ? await inputs[0].isVisible() : false;
-    const inputFocused = inputs.length > 0 ? await inputs[0].evaluate(el => document.activeElement === el) : false;
-    console.log(`${ms}ms: inputs=${inputs.length}, visible=${inputVisible}, focused=${inputFocused}`);
+    const inputFocused =
+      inputs.length > 0 ? await inputs[0].evaluate((el) => document.activeElement === el) : false;
+    console.log(
+      `${ms}ms: inputs=${inputs.length}, visible=${inputVisible}, focused=${inputFocused}`
+    );
 
     if (ms % 100 === 0) {
       await page.screenshot({ path: `e2e/screenshots/detailed-rename-${ms}ms.png` });
@@ -62,7 +65,7 @@ test('detailed session rename debug', async () => {
 
   // Check React state by looking at DOM
   const editingInput = page.locator('input.min-w-0');
-  if (await editingInput.count() > 0) {
+  if ((await editingInput.count()) > 0) {
     console.log('=== INPUT FOUND ===');
     const value = await editingInput.inputValue();
     console.log(`Input value: ${value}`);
@@ -77,21 +80,29 @@ test('check for competing blur events', async () => {
     (window as any).__blurLog = [];
     (window as any).__focusLog = [];
 
-    document.addEventListener('blur', (e) => {
-      (window as any).__blurLog.push({
-        time: Date.now(),
-        target: (e.target as HTMLElement).tagName,
-        className: (e.target as HTMLElement).className,
-      });
-    }, true);
+    document.addEventListener(
+      'blur',
+      (e) => {
+        (window as any).__blurLog.push({
+          time: Date.now(),
+          target: (e.target as HTMLElement).tagName,
+          className: (e.target as HTMLElement).className,
+        });
+      },
+      true
+    );
 
-    document.addEventListener('focus', (e) => {
-      (window as any).__focusLog.push({
-        time: Date.now(),
-        target: (e.target as HTMLElement).tagName,
-        className: (e.target as HTMLElement).className,
-      });
-    }, true);
+    document.addEventListener(
+      'focus',
+      (e) => {
+        (window as any).__focusLog.push({
+          time: Date.now(),
+          target: (e.target as HTMLElement).tagName,
+          className: (e.target as HTMLElement).className,
+        });
+      },
+      true
+    );
   });
 
   const sessionItem = page.locator('text=jolly-rabbits-hug').first();

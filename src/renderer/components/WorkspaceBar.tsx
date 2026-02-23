@@ -7,12 +7,7 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from './ui/context-menu';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from './ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Input } from './ui/input';
 import type { Workspace } from '../types/app';
@@ -69,7 +64,7 @@ const WorkspaceBar: React.FC<WorkspaceBarProps> = ({
         onSwitchWorkspace(workspaces[num - 1].id);
       }
     },
-    [workspaces, onSwitchWorkspace],
+    [workspaces, onSwitchWorkspace]
   );
 
   useEffect(() => {
@@ -139,12 +134,11 @@ const WorkspaceBar: React.FC<WorkspaceBarProps> = ({
   if (workspaces.length === 0) return null;
 
   return (
-    <div className="flex h-9 items-center justify-center px-3 border-t border-border/50 shrink-0">
+    <div className="border-border/50 flex h-9 shrink-0 items-center justify-center border-t px-3">
       <div className="flex items-center justify-center gap-0.5">
         <TooltipProvider delayDuration={300}>
           {workspaces.map((ws, index) => {
-            const isActive =
-              ws.id === activeWorkspaceId || (!activeWorkspaceId && ws.isDefault);
+            const isActive = ws.id === activeWorkspaceId || (!activeWorkspaceId && ws.isDefault);
 
             return (
               <ContextMenu key={ws.id}>
@@ -161,20 +155,16 @@ const WorkspaceBar: React.FC<WorkspaceBarProps> = ({
                         onDragEnd={handleDragEnd}
                         onClick={() => onSwitchWorkspace(ws.id)}
                         className={`h-6 w-6 cursor-pointer ${
-                          isActive
-                            ? 'bg-muted-foreground/20'
-                            : 'opacity-50 hover:opacity-80'
-                        } ${dragOverId === ws.id ? 'ring-1 ring-muted-foreground/40' : ''}`}
+                          isActive ? 'bg-muted-foreground/20' : 'opacity-50 hover:opacity-80'
+                        } ${dragOverId === ws.id ? 'ring-muted-foreground/40 ring-1' : ''}`}
                       >
-                        <div className="w-2.5 h-2.5 rounded-sm bg-muted-foreground/60" />
+                        <div className="bg-muted-foreground/60 h-2.5 w-2.5 rounded-sm" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="top" className="text-xs">
                       {ws.emoji ? `${ws.emoji} ` : ''}
                       {ws.name}
-                      <span className="ml-1.5 text-muted-foreground">
-                        Ctrl+{index + 1}
-                      </span>
+                      <span className="text-muted-foreground ml-1.5">Ctrl+{index + 1}</span>
                     </TooltipContent>
                   </Tooltip>
                 </ContextMenuTrigger>
@@ -194,9 +184,7 @@ const WorkspaceBar: React.FC<WorkspaceBarProps> = ({
                       />
                     </div>
                   ) : (
-                    <ContextMenuItem onClick={() => startRename(ws)}>
-                      Rename
-                    </ContextMenuItem>
+                    <ContextMenuItem onClick={() => startRename(ws)}>Rename</ContextMenuItem>
                   )}
                   <ContextMenuItem
                     disabled={ws.isDefault}
@@ -209,28 +197,28 @@ const WorkspaceBar: React.FC<WorkspaceBarProps> = ({
               </ContextMenu>
             );
           })}
-  
-        <Popover open={isCreating} onOpenChange={setIsCreating}>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-7 w-7 cursor-pointer">
-              <Plus className="h-4 w-4" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent side="top" className="w-56 p-3" align="center">
-          <Input
-            ref={newInputRef}
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleCreateSubmit();
-              if (e.key === 'Escape') setIsCreating(false);
-            }}
-            placeholder="Workspace name"
-            className="h-7 text-xs"
-          />
-        </PopoverContent>
-        </Popover>
-      </TooltipProvider>
+
+          <Popover open={isCreating} onOpenChange={setIsCreating}>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7 cursor-pointer">
+                <Plus className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="top" className="w-56 p-3" align="center">
+              <Input
+                ref={newInputRef}
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleCreateSubmit();
+                  if (e.key === 'Escape') setIsCreating(false);
+                }}
+                placeholder="Workspace name"
+                className="h-7 text-xs"
+              />
+            </PopoverContent>
+          </Popover>
+        </TooltipProvider>
       </div>
     </div>
   );

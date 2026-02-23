@@ -279,7 +279,7 @@ const IntegrationsCard: React.FC = () => {
     (label: string, tone: 'connected' | 'inactive' = 'inactive') => {
       const dotClass = tone === 'connected' ? 'bg-emerald-500' : 'bg-muted-foreground/50';
       return (
-        <span className="flex items-center gap-2 text-sm text-muted-foreground" aria-live="polite">
+        <span className="text-muted-foreground flex items-center gap-2 text-sm" aria-live="polite">
           <span className={`h-1.5 w-1.5 rounded-full ${dotClass}`} />
           {label}
         </span>
@@ -314,7 +314,7 @@ const IntegrationsCard: React.FC = () => {
           className="h-8 w-full max-w-[220px]"
         />
         {linearState.loading ? (
-          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden="true" />
+          <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" aria-hidden="true" />
         ) : null}
       </div>
     );
@@ -341,12 +341,12 @@ const IntegrationsCard: React.FC = () => {
 
     const label = githubDetail ?? 'Connected via GitHub CLI.';
     return (
-      <span className="flex items-center gap-2 text-sm text-muted-foreground">
+      <span className="text-muted-foreground flex items-center gap-2 text-sm">
         {githubAvatarUrl ? (
           <img
             src={githubAvatarUrl}
             alt="GitHub avatar"
-            className="h-6 w-6 rounded-full border border-border object-cover"
+            className="border-border h-6 w-6 rounded-full border object-cover"
             referrerPolicy="no-referrer"
           />
         ) : null}
@@ -429,7 +429,7 @@ const IntegrationsCard: React.FC = () => {
         middle={
           jiraStatus === 'connected' ? (
             <div className="flex w-full max-w-[540px] items-center gap-2">
-              <span className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="text-muted-foreground flex items-center gap-2 text-sm">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 Connected
               </span>
@@ -440,7 +440,7 @@ const IntegrationsCard: React.FC = () => {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/70 bg-background text-muted-foreground hover:text-foreground"
+                      className="border-border/70 bg-background text-muted-foreground hover:text-foreground inline-flex h-8 w-8 items-center justify-center rounded-md border"
                       title="How to get Jira credentials"
                     >
                       <Info className="h-4 w-4" aria-hidden="true" />
@@ -448,7 +448,7 @@ const IntegrationsCard: React.FC = () => {
                   </TooltipTrigger>
                   <TooltipContent
                     side="top"
-                    className="max-w-sm whitespace-pre-line text-xs leading-snug"
+                    className="max-w-sm text-xs leading-snug whitespace-pre-line"
                   >
                     {`Setup:
 1) Site URL: open your Jira in the browser and copy the base URL (e.g. https://your-domain.atlassian.net).
@@ -496,7 +496,7 @@ const IntegrationsCard: React.FC = () => {
                   <motion.div
                     role="dialog"
                     aria-label="Jira setup"
-                    className="absolute left-0 top-full z-50 mt-2 w-[360px] max-w-[calc(100vw-3rem)] rounded-xl border border-border/60 bg-background/95 p-3 shadow-2xl ring-1 ring-border/60 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+                    className="border-border/60 bg-background/95 ring-border/60 supports-[backdrop-filter]:bg-background/80 absolute top-full left-0 z-50 mt-2 w-[360px] max-w-[calc(100vw-3rem)] rounded-xl border p-3 shadow-2xl ring-1 backdrop-blur"
                     style={{ transformOrigin: 'top left' }}
                     {...(menuMotion(!!reduceMotion) as any)}
                   >

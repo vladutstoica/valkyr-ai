@@ -174,7 +174,7 @@ export const SshSettingsCard: React.FC<Props> = ({ onAddConnection, onManageKeys
             onAddNew={handleAddNew}
           />
         ) : (
-          <div className="rounded-lg border border-border bg-muted/20 p-6">
+          <div className="border-border bg-muted/20 rounded-lg border p-6">
             <h3 className="mb-4 text-sm font-medium">
               {viewState === 'edit' ? 'Edit Connection' : 'New SSH Connection'}
             </h3>

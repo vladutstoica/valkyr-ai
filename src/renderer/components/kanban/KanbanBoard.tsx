@@ -280,7 +280,7 @@ const KanbanBoard: React.FC<{
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 rounded-md border border-border/60 bg-muted text-foreground shadow-xs hover:bg-muted/80"
+                className="border-border/60 bg-muted text-foreground hover:bg-muted/80 h-8 w-8 rounded-md border shadow-xs"
                 onClick={onCreateTask}
                 aria-label="New Session"
               >
@@ -292,8 +292,8 @@ const KanbanBoard: React.FC<{
           {byStatus[s].length === 0 ? (
             s === 'todo' && !hasAny && onCreateTask ? (
               <div className="flex h-full flex-col">
-                <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 p-4 text-center text-sm text-muted-foreground">
-                  <div className="mx-auto mb-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-dashed border-border/60 bg-background/60">
+                <div className="border-border/70 bg-muted/20 text-muted-foreground rounded-lg border border-dashed p-4 text-center text-sm">
+                  <div className="border-border/60 bg-background/60 mx-auto mb-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-dashed">
                     <Inbox className="h-3.5 w-3.5" aria-hidden="true" />
                   </div>
                   <span className="ml-2">No items</span>
@@ -306,8 +306,8 @@ const KanbanBoard: React.FC<{
                 </div>
               </div>
             ) : (
-              <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 p-4 text-center text-sm text-muted-foreground">
-                <div className="mx-auto mb-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-dashed border-border/60 bg-background/60">
+              <div className="border-border/70 bg-muted/20 text-muted-foreground rounded-lg border border-dashed p-4 text-center text-sm">
+                <div className="border-border/60 bg-background/60 mx-auto mb-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-dashed">
                   <Inbox className="h-3.5 w-3.5" aria-hidden="true" />
                 </div>
                 <span className="ml-2">No items</span>

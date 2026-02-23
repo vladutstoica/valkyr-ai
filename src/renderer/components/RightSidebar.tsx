@@ -169,7 +169,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
         'group/right-sidebar relative z-[45] flex h-full w-full min-w-0 flex-shrink-0 flex-col overflow-hidden transition-all duration-200 ease-linear',
         forceBorder
           ? 'bg-background'
-          : 'border-l border-border bg-muted/10 data-[state=collapsed]:border-l-0',
+          : 'border-border bg-muted/10 border-l data-[state=collapsed]:border-l-0',
         'data-[state=collapsed]:pointer-events-none',
         className
       )}
@@ -198,9 +198,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
           {(projectName || (projectSubRepos && projectSubRepos.length > 0)) && (
             <RepoBranchesPanel
               mainRepo={
-                projectName
-                  ? { name: projectName, branch: projectBranch || undefined }
-                  : undefined
+                projectName ? { name: projectName, branch: projectBranch || undefined } : undefined
               }
               subRepos={projectSubRepos}
               sessionBranch={task?.branch}
@@ -212,7 +210,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
           )}
           {/* Scripts panel */}
           {projectPath && (
-            <div className="border-b border-border">
+            <div className="border-border border-b">
               <ScriptsPanel
                 projectPath={projectPath}
                 runningScripts={runningScripts}
@@ -232,18 +230,18 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
                     return (
                       <div
                         key={variantKey}
-                        className="mb-2 border-b border-border last:mb-0 last:border-b-0"
+                        className="border-border mb-2 border-b last:mb-0 last:border-b-0"
                       >
                         <button
                           type="button"
                           onClick={() => toggleVariantCollapsed(variantKey)}
-                          className="flex w-full min-w-0 cursor-pointer items-center justify-between bg-muted px-3 py-2 text-xs font-medium text-foreground hover:bg-muted/80 dark:bg-background dark:hover:bg-muted/20"
+                          className="bg-muted text-foreground hover:bg-muted/80 dark:bg-background dark:hover:bg-muted/20 flex w-full min-w-0 cursor-pointer items-center justify-between px-3 py-2 text-xs font-medium"
                         >
                           <span className="inline-flex min-w-0 items-center gap-2">
                             {isCollapsed ? (
-                              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                              <ChevronRight className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
                             ) : (
-                              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                              <ChevronDown className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
                             )}
                             {(() => {
                               const asset = (agentAssets as any)[v.agent] as
@@ -258,7 +256,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
                                 | { label?: string }
                                 | undefined;
                               return (
-                                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border/70 bg-muted/40 px-2 py-0.5 text-[10px] font-medium">
+                                <span className="border-border/70 bg-muted/40 inline-flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-0.5 text-[10px] font-medium">
                                   {asset?.logo ? (
                                     <img
                                       src={asset.logo}
@@ -322,7 +320,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
                       <VariantChangesIfAny
                         path={v.path}
                         taskId={task.id}
-                        className="min-h-0 flex-1 border-b border-border"
+                        className="border-border min-h-0 flex-1 border-b"
                       />
                       <TaskTerminalPanel
                         task={derived}
@@ -348,7 +346,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
                 })()
               ) : task ? (
                 <>
-                  <FileChangesPanel className="min-h-0 flex-1 border-b border-border" />
+                  <FileChangesPanel className="border-border min-h-0 flex-1 border-b" />
                   <TaskTerminalPanel
                     task={task}
                     agent={task.agentId as Agent}
@@ -370,11 +368,11 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
                 </>
               ) : (
                 <>
-                  <div className="flex h-1/2 flex-col border-b border-border bg-background">
-                    <div className="border-b border-border bg-muted px-3 py-2 text-sm font-medium text-foreground dark:bg-background">
+                  <div className="border-border bg-background flex h-1/2 flex-col border-b">
+                    <div className="border-border bg-muted text-foreground dark:bg-background border-b px-3 py-2 text-sm font-medium">
                       <span className="whitespace-nowrap">Changes</span>
                     </div>
-                    <div className="flex flex-1 items-center justify-center px-4 text-center text-sm text-muted-foreground">
+                    <div className="text-muted-foreground flex flex-1 items-center justify-center px-4 text-center text-sm">
                       <span className="overflow-hidden text-ellipsis whitespace-nowrap">
                         Select a session to review file changes.
                       </span>
@@ -402,9 +400,9 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
               )}
             </div>
           ) : (
-            <div className="flex h-full flex-col text-sm text-muted-foreground">
-              <div className="flex h-1/2 flex-col border-b border-border bg-background">
-                <div className="border-b border-border bg-muted px-3 py-2 text-sm font-medium text-foreground dark:bg-background">
+            <div className="text-muted-foreground flex h-full flex-col text-sm">
+              <div className="border-border bg-background flex h-1/2 flex-col border-b">
+                <div className="border-border bg-muted text-foreground dark:bg-background border-b px-3 py-2 text-sm font-medium">
                   <span className="whitespace-nowrap">Changes</span>
                 </div>
                 <div className="flex flex-1 items-center justify-center px-4 text-center">
@@ -413,8 +411,8 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
                   </span>
                 </div>
               </div>
-              <div className="flex h-1/2 flex-col bg-background">
-                <div className="border-b border-border bg-muted px-3 py-2 text-sm font-medium text-foreground dark:bg-background">
+              <div className="bg-background flex h-1/2 flex-col">
+                <div className="border-border bg-muted text-foreground dark:bg-background border-b px-3 py-2 text-sm font-medium">
                   <span className="whitespace-nowrap">Terminal</span>
                 </div>
                 <div className="flex flex-1 items-center justify-center px-4 text-center">

@@ -135,12 +135,12 @@ export const TaskDeleteButton: React.FC<Props> = ({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 6, scale: 0.99 }}
                 transition={{ duration: 0.18, ease: 'easeOut' }}
-                className="flex items-start gap-3 rounded-md border border-border/70 bg-muted/30 px-4 py-4"
+                className="border-border/70 bg-muted/30 flex items-start gap-3 rounded-md border px-4 py-4"
               >
-                <Spinner className="mt-0.5 h-5 w-5 flex-shrink-0 text-muted-foreground" size="sm" />
+                <Spinner className="text-muted-foreground mt-0.5 h-5 w-5 flex-shrink-0" size="sm" />
                 <div className="flex min-w-0 flex-col gap-1">
-                  <span className="text-sm font-semibold text-foreground">Please wait...</span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-foreground text-sm font-semibold">Please wait...</span>
+                  <span className="text-muted-foreground text-xs">
                     Scanning session for uncommitted changes and open pull requests
                   </span>
                 </div>
@@ -196,7 +196,7 @@ export const TaskDeleteButton: React.FC<Props> = ({
             {risky && !loading ? (
               <motion.label
                 key="ack-delete"
-                className="flex items-start gap-2 rounded-md border border-border/70 bg-muted/30 px-3 py-2"
+                className="border-border/70 bg-muted/30 flex items-start gap-2 rounded-md border px-3 py-2"
                 initial={{ opacity: 0, y: 6, scale: 0.99 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 6, scale: 0.99 }}
@@ -207,7 +207,7 @@ export const TaskDeleteButton: React.FC<Props> = ({
                   onCheckedChange={(checked) => setAcknowledge(checked === true)}
                   className="mt-0.5"
                 />
-                <span className="text-sm leading-tight text-foreground">Delete session anyway</span>
+                <span className="text-foreground text-sm leading-tight">Delete session anyway</span>
               </motion.label>
             ) : null}
           </AnimatePresence>

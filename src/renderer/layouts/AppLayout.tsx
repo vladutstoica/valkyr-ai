@@ -122,7 +122,7 @@ export function AppLayout({
   const editorContent = useMemo(() => {
     if (!taskPath) {
       return (
-        <div className="flex h-full items-center justify-center text-muted-foreground">
+        <div className="text-muted-foreground flex h-full items-center justify-center">
           <p className="text-sm">Select a task to view files</p>
         </div>
       );
@@ -132,7 +132,14 @@ export function AppLayout({
 
   // Render Git tab content
   const gitContent = useMemo(() => {
-    return <GitTab taskId={taskId} taskPath={taskPath} activeTask={activeTask} selectedProject={selectedProject} />;
+    return (
+      <GitTab
+        taskId={taskId}
+        taskPath={taskPath}
+        activeTask={activeTask}
+        selectedProject={selectedProject}
+      />
+    );
   }, [taskId, taskPath, activeTask, selectedProject]);
 
   // Render Preview tab content
@@ -142,7 +149,7 @@ export function AppLayout({
 
   return (
     <div
-      className="flex h-[100dvh] w-full flex-col bg-background text-foreground"
+      className="bg-background text-foreground flex h-[100dvh] w-full flex-col"
       style={
         {
           '--tb': TITLEBAR_HEIGHT,
@@ -154,13 +161,9 @@ export function AppLayout({
       {showTitlebar && titlebar}
 
       {/* Main content area */}
-      <div
-        className={`flex flex-1 overflow-hidden ${showTitlebar ? 'pt-[var(--tb)]' : ''}`}
-      >
+      <div className={`flex flex-1 overflow-hidden ${showTitlebar ? 'pt-[var(--tb)]' : ''}`}>
         {/* Left Sidebar - Fixed width */}
-        <div className="w-[280px] flex-shrink-0 overflow-hidden border-r">
-          {leftSidebar}
-        </div>
+        <div className="w-[280px] flex-shrink-0 overflow-hidden border-r">{leftSidebar}</div>
 
         {/* Main Panel with Tabs */}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -177,11 +180,7 @@ export function AppLayout({
           />
 
           {/* Bottom Terminal Panel */}
-          <TerminalPanel
-            taskPath={taskPath}
-            taskId={taskId}
-            projectPath={selectedProject?.path}
-          />
+          <TerminalPanel taskPath={taskPath} taskId={taskId} projectPath={selectedProject?.path} />
         </div>
       </div>
 

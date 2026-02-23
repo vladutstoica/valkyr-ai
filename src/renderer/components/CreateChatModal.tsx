@@ -59,7 +59,9 @@ export function CreateChatModal({
           setError(null);
         } else {
           // Pick first installed agent
-          const firstInstalled = Object.keys(agentConfig).find((k) => installedSet.has(k)) as Agent | undefined;
+          const firstInstalled = Object.keys(agentConfig).find((k) => installedSet.has(k)) as
+            | Agent
+            | undefined;
           if (firstInstalled) {
             setSelectedAgent(firstInstalled);
             setError(null);
@@ -123,7 +125,7 @@ export function CreateChatModal({
               installedAgents={installedAgents}
             />
           </div>
-          {error && <p className="text-xs text-destructive">{error}</p>}
+          {error && <p className="text-destructive text-xs">{error}</p>}
 
           <DialogFooter>
             <Button type="submit" disabled={!!error || isCreating}>

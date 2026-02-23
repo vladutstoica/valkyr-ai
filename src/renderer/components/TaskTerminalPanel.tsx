@@ -466,10 +466,10 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
 
   if (!task && !projectPath) {
     return (
-      <div className={`flex h-full flex-col bg-muted p-3 ${className}`}>
-        <Bot className="mb-2 h-8 w-8 text-muted-foreground" />
-        <h3 className="mb-1 text-sm text-muted-foreground">No Task Selected</h3>
-        <p className="text-xs text-muted-foreground dark:text-muted-foreground">
+      <div className={`bg-muted flex h-full flex-col p-3 ${className}`}>
+        <Bot className="text-muted-foreground mb-2 h-8 w-8" />
+        <h3 className="text-muted-foreground mb-1 text-sm">No Task Selected</h3>
+        <p className="text-muted-foreground dark:text-muted-foreground text-xs">
           Select a task to view its terminal
         </p>
       </div>
@@ -477,12 +477,12 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
   }
 
   return (
-    <div className={cn('flex h-full flex-col bg-card', className)}>
-      <div className="flex items-center gap-2 border-b border-border bg-muted px-2 py-1.5 dark:bg-background">
+    <div className={cn('bg-card flex h-full flex-col', className)}>
+      <div className="border-border bg-muted dark:bg-background flex items-center gap-2 border-b px-2 py-1.5">
         <Select value={selectedValue} onValueChange={handleSelectChange}>
           <SelectTrigger className="h-7 min-w-0 flex-1 justify-between border-none bg-transparent px-2 text-left text-xs shadow-none">
             <span className="flex min-w-0 flex-1 items-center">
-              <span className="mr-2 inline-flex w-4 shrink-0 justify-center text-[11px] leading-none text-muted-foreground/90">
+              <span className="text-muted-foreground/90 mr-2 inline-flex w-4 shrink-0 justify-center text-[11px] leading-none">
                 {'>_'}
               </span>
               <SelectValue placeholder="Select target" />
@@ -492,10 +492,10 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
             {task && (
               <SelectGroup>
                 <div className="flex items-center justify-between px-2 py-1.5">
-                  <span className="text-[10px] font-semibold text-muted-foreground">Session</span>
+                  <span className="text-muted-foreground text-[10px] font-semibold">Session</span>
                   <button
                     type="button"
-                    className="flex h-4 w-4 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    className="text-muted-foreground hover:bg-accent hover:text-accent-foreground flex h-4 w-4 items-center justify-center rounded"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -525,10 +525,10 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
             {projectPath && (
               <SelectGroup>
                 <div className="flex items-center justify-between px-2 py-1.5">
-                  <span className="text-[10px] font-semibold text-muted-foreground">Project</span>
+                  <span className="text-muted-foreground text-[10px] font-semibold">Project</span>
                   <button
                     type="button"
-                    className="flex h-4 w-4 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    className="text-muted-foreground hover:bg-accent hover:text-accent-foreground flex h-4 w-4 items-center justify-center rounded"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -558,7 +558,7 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
             {runningScripts.length > 0 && (
               <SelectGroup>
                 <div className="px-2 py-1.5">
-                  <span className="text-[10px] font-semibold text-muted-foreground">Scripts</span>
+                  <span className="text-muted-foreground text-[10px] font-semibold">Scripts</span>
                 </div>
                 {runningScripts.map((script) => (
                   <SelectItem
@@ -578,7 +578,7 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
             {task && (
               <SelectGroup>
                 <div className="px-2 py-1.5">
-                  <span className="text-[10px] font-semibold text-muted-foreground">Lifecycle</span>
+                  <span className="text-muted-foreground text-[10px] font-semibold">Lifecycle</span>
                 </div>
                 <SelectItem value="lifecycle::setup" className="text-xs">
                   Setup
@@ -594,7 +594,7 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
           </SelectContent>
         </Select>
         {selectedTerminalScope && (
-          <span className="shrink-0 rounded bg-zinc-500/15 px-1 py-0.5 text-[9px] font-medium uppercase tracking-wide text-zinc-600 dark:bg-zinc-400/15 dark:text-zinc-400">
+          <span className="shrink-0 rounded bg-zinc-500/15 px-1 py-0.5 text-[9px] font-medium tracking-wide text-zinc-600 uppercase dark:bg-zinc-400/15 dark:text-zinc-400">
             {selectedTerminalScope}
           </span>
         )}
@@ -676,7 +676,7 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
                         }
                       }
                     }}
-                    className="ml-auto text-muted-foreground hover:text-destructive"
+                    className="text-muted-foreground hover:text-destructive ml-auto"
                     disabled={!activeTerminalId || !canDelete}
                   >
                     <X className="h-3.5 w-3.5" />
@@ -695,14 +695,14 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
 
       {selectedLifecycle ? (
         <div className="flex h-full flex-1 flex-col overflow-hidden">
-          <div className="border-b border-border px-3 py-2 text-xs text-muted-foreground">
+          <div className="border-border text-muted-foreground border-b px-3 py-2 text-xs">
             {selectedLifecycle === 'setup'
               ? `Setup status: ${setupStatus}`
               : selectedLifecycle === 'teardown'
                 ? `Teardown status: ${teardownStatus}`
                 : `Run status: ${runStatus}`}
           </div>
-          <pre className="h-full overflow-auto p-3 text-xs leading-relaxed text-foreground">
+          <pre className="text-foreground h-full overflow-auto p-3 text-xs leading-relaxed">
             {lifecycleLogs[selectedLifecycle].join('') || 'No lifecycle output yet.'}
           </pre>
         </div>
@@ -793,7 +793,7 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
             );
           })}
           {totalTerminals === 0 && runningScripts.length === 0 ? (
-            <div className="p-3 text-xs text-muted-foreground">
+            <div className="text-muted-foreground p-3 text-xs">
               <p>No terminal found.</p>
             </div>
           ) : null}

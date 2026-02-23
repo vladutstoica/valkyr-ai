@@ -83,7 +83,13 @@ interface SettingsModalProps {
   projectPath?: string;
 }
 
-export type SettingsTab = 'general' | 'appearance' | 'agents' | 'connections' | 'repository' | 'about';
+export type SettingsTab =
+  | 'general'
+  | 'appearance'
+  | 'agents'
+  | 'connections'
+  | 'repository'
+  | 'about';
 
 interface SettingsSection {
   title: string;
@@ -92,9 +98,21 @@ interface SettingsSection {
   render?: () => React.ReactNode;
 }
 
-const ORDERED_TABS: SettingsTab[] = ['general', 'appearance', 'agents', 'connections', 'repository', 'about'];
+const ORDERED_TABS: SettingsTab[] = [
+  'general',
+  'appearance',
+  'agents',
+  'connections',
+  'repository',
+  'about',
+];
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialTab, projectPath }) => {
+const SettingsModal: React.FC<SettingsModalProps> = ({
+  isOpen,
+  onClose,
+  initialTab,
+  projectPath,
+}) => {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
   const [cliAgents, setCliAgents] = useState<CliAgentStatus[]>(() => createDefaultCliAgents());
   const [cliError, setCliError] = useState<string | null>(null);
@@ -257,9 +275,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
         label: 'Connections',
         title: 'Connections',
         description: '',
-        sections: [
-          { title: 'Integrations', render: () => <IntegrationsCard /> },
-        ],
+        sections: [{ title: 'Integrations', render: () => <IntegrationsCard /> }],
       },
       repository: {
         icon: GitBranch,
@@ -298,9 +314,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
                   variant="link"
                   size="sm"
                   className="h-auto justify-start px-0 text-xs"
-                  onClick={() =>
-                    window.electronAPI.openExternal('https://docs.emdash.sh')
-                  }
+                  onClick={() => window.electronAPI.openExternal('https://docs.emdash.sh')}
                 >
                   Documentation ↗
                 </Button>
@@ -328,7 +342,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
           if (typeof section.render === 'function') {
             renderedContent = section.render();
           } else if (!section.description) {
-            renderedContent = <p className="text-sm text-muted-foreground">Coming soon.</p>;
+            renderedContent = <p className="text-muted-foreground text-sm">Coming soon.</p>;
           }
 
           const isLast = index === sections.length - 1;
@@ -343,7 +357,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
                     {section.action ? <div>{section.action}</div> : null}
                   </div>
                   {section.description ? (
-                    <p className="text-sm text-muted-foreground">{section.description}</p>
+                    <p className="text-muted-foreground text-sm">{section.description}</p>
                   ) : null}
                 </div>
                 {renderedContent ? (
@@ -382,10 +396,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
             transition={
               shouldReduceMotion ? { duration: 0 } : { duration: 0.18, ease: [0.22, 1, 0.36, 1] }
             }
-            className="mx-4 w-full max-w-3xl overflow-hidden rounded-2xl border border-border/50 bg-background shadow-2xl"
+            className="border-border/50 bg-background mx-4 w-full max-w-3xl overflow-hidden rounded-2xl border shadow-2xl"
           >
             <div className="flex h-[520px]">
-              <aside className="w-60 border-r border-border/60 bg-muted/20 p-4">
+              <aside className="border-border/60 bg-muted/20 w-60 border-r p-4">
                 <nav className="space-y-1">
                   {ORDERED_TABS.map((tab) => {
                     const { icon: Icon, label } = tabDetails[tab];
@@ -395,7 +409,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
                         key={tab}
                         type="button"
                         onClick={() => setActiveTab(tab)}
-                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+                        className={`focus-visible:ring-ring focus-visible:ring-offset-background flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden ${
                           activeTab === tab
                             ? 'bg-primary/10 text-foreground'
                             : 'text-muted-foreground hover:bg-muted/60'
@@ -412,7 +426,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
               </aside>
 
               <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-                <header className="flex items-center justify-between border-b border-border/60 px-6 py-4">
+                <header className="border-border/60 flex items-center justify-between border-b px-6 py-4">
                   <div>
                     <h2 className="text-lg font-semibold">{activeTabDetails.title}</h2>
                   </div>
@@ -428,7 +442,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
                   </Button>
                 </header>
 
-                <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-6 py-6">
+                <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-6 py-6">
                   {renderContent()}
                 </div>
               </div>

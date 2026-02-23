@@ -153,7 +153,7 @@ const SidebarHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTML
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('flex flex-col gap-1 border-b border-border px-4 py-3', className)}
+      className={cn('border-border flex flex-col gap-1 border-b px-4 py-3', className)}
       {...props}
     />
   )
@@ -170,7 +170,7 @@ const SidebarContent = React.forwardRef<HTMLDivElement, SidebarContentProps>(
       ref={ref}
       className={cn(
         'flex-1 overflow-y-auto',
-        variant === 'default' ? 'p-3 text-sm text-muted-foreground' : '',
+        variant === 'default' ? 'text-muted-foreground p-3 text-sm' : '',
         className
       )}
       {...props}
@@ -183,7 +183,7 @@ const SidebarFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTML
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('mt-auto border-t border-border px-4 py-3', className)}
+      className={cn('border-border mt-auto border-t px-4 py-3', className)}
       {...props}
     />
   )
@@ -209,7 +209,7 @@ const SidebarGroupLabel = React.forwardRef<HTMLDivElement, React.HTMLAttributes<
     <div
       ref={ref}
       className={cn(
-        'px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground/70',
+        'text-muted-foreground/70 px-2 text-xs font-semibold tracking-wide uppercase',
         className
       )}
       {...props}
@@ -254,7 +254,7 @@ const SidebarMenuButton = React.forwardRef<HTMLButtonElement, SidebarMenuButtonP
         ref={ref as any}
         data-active={isActive ? 'true' : undefined}
         className={cn(
-          'flex w-full items-center gap-2 rounded-none px-2 py-1.5 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-[active=true]:bg-accent data-[active=true]:text-accent-foreground',
+          'hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring data-[active=true]:bg-accent data-[active=true]:text-accent-foreground flex w-full items-center gap-2 rounded-none px-2 py-1.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden',
           className
         )}
         {...props}
@@ -268,7 +268,7 @@ const SidebarMenuIcon = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HT
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('flex h-5 w-5 items-center justify-center text-muted-foreground', className)}
+      className={cn('text-muted-foreground flex h-5 w-5 items-center justify-center', className)}
       {...props}
     />
   )
@@ -280,7 +280,7 @@ const SidebarMenuBadge = React.forwardRef<HTMLDivElement, React.HTMLAttributes<H
     <div
       ref={ref}
       className={cn(
-        'ml-auto inline-flex rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground',
+        'bg-muted text-muted-foreground ml-auto inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium',
         className
       )}
       {...props}
@@ -300,7 +300,7 @@ const SidebarTrigger = React.forwardRef<
       type="button"
       onClick={() => toggle()}
       className={cn(
-        'inline-flex h-9 w-9 items-center justify-center rounded-none border border-border bg-background text-sm font-medium text-foreground shadow-xs transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:hidden',
+        'border-border bg-background text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring inline-flex h-9 w-9 items-center justify-center rounded-none border text-sm font-medium shadow-xs transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden lg:hidden',
         className
       )}
       {...props}

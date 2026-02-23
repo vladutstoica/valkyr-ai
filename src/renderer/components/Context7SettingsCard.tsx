@@ -41,9 +41,9 @@ const Context7SettingsCard: React.FC = () => {
           <img
             src={context7Logo}
             alt="Context7"
-            className="mt-0.5 h-6 w-6 rounded-xs border border-border/50 object-contain"
+            className="border-border/50 mt-0.5 h-6 w-6 rounded-xs border object-contain"
           />
-          <div className="space-y-1 text-xs text-muted-foreground">
+          <div className="text-muted-foreground space-y-1 text-xs">
             <p>
               Enable {CONTEXT7_INTEGRATION.label} to enrich prompts with up‑to‑date library docs.
             </p>
@@ -60,8 +60,8 @@ const Context7SettingsCard: React.FC = () => {
         />
       </div>
 
-      <div className="flex items-start gap-2 rounded-md border border-border/60 bg-muted/20 px-3 py-2">
-        <div className="text-tiny leading-snug text-muted-foreground">
+      <div className="border-border/60 bg-muted/20 flex items-start gap-2 rounded-md border px-3 py-2">
+        <div className="text-tiny text-muted-foreground leading-snug">
           <p>
             You must configure Context7 MCP in your coding agent (Codex, Claude Code, Cursor, etc.)
             before using it in Valkyr.
@@ -78,7 +78,7 @@ const Context7SettingsCard: React.FC = () => {
           type="button"
           variant="link"
           size="sm"
-          className="h-auto p-0 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+          className="text-muted-foreground hover:text-foreground h-auto p-0 text-xs underline-offset-2 hover:underline"
           onClick={() => window.electronAPI.openExternal(CONTEXT7_INTEGRATION.docsUrl)}
         >
           Docs ↗
@@ -87,7 +87,7 @@ const Context7SettingsCard: React.FC = () => {
           type="button"
           variant="link"
           size="sm"
-          className="h-auto p-0 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+          className="text-muted-foreground hover:text-foreground h-auto p-0 text-xs underline-offset-2 hover:underline"
           onClick={() => setShowMcpFeedback(true)}
         >
           Suggest an MCP ↗

@@ -8,11 +8,11 @@ const KanbanColumn: React.FC<{
   action?: React.ReactNode;
 }> = ({ title, count, onDropCard, children, action }) => {
   return (
-    <div className="flex min-h-0 flex-col rounded-xl border border-border bg-background shadow-xs">
-      <div className="flex items-center justify-between border-b border-border px-3 py-2 text-sm font-medium">
+    <div className="border-border bg-background flex min-h-0 flex-col rounded-xl border shadow-xs">
+      <div className="border-border flex items-center justify-between border-b px-3 py-2 text-sm font-medium">
         <div className="flex items-center gap-2">
           <span>{title}</span>
-          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted/50 px-1.5 text-[11px]">
+          <span className="bg-muted/50 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px]">
             {count}
           </span>
         </div>

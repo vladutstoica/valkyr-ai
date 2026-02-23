@@ -1,9 +1,9 @@
-import type { ComponentProps, HTMLAttributes } from "react";
+import type { ComponentProps, HTMLAttributes } from 'react';
 
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import Ansi from "ansi-to-react";
-import { CheckIcon, CopyIcon, SquareIcon, TerminalIcon, Trash2Icon } from "lucide-react";
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import Ansi from 'ansi-to-react';
+import { CheckIcon, CopyIcon, SquareIcon, TerminalIcon, Trash2Icon } from 'lucide-react';
 import {
   createContext,
   useCallback,
@@ -12,9 +12,9 @@ import {
   useMemo,
   useRef,
   useState,
-} from "react";
+} from 'react';
 
-import { Shimmer } from "./shimmer";
+import { Shimmer } from './shimmer';
 
 interface TerminalContextType {
   output: string;
@@ -26,7 +26,7 @@ interface TerminalContextType {
 const TerminalContext = createContext<TerminalContextType>({
   autoScroll: true,
   isStreaming: false,
-  output: "",
+  output: '',
 });
 
 export type TerminalProps = HTMLAttributes<HTMLDivElement> & {
@@ -54,7 +54,7 @@ export const Terminal = ({
     <TerminalContext.Provider value={contextValue}>
       <div
         className={cn(
-          "flex flex-col overflow-hidden rounded-lg border bg-zinc-950 text-zinc-100",
+          'flex flex-col overflow-hidden rounded-lg border bg-zinc-950 text-zinc-100',
           className
         )}
         {...props}
@@ -81,14 +81,10 @@ export const Terminal = ({
 
 export type TerminalHeaderProps = HTMLAttributes<HTMLDivElement>;
 
-export const TerminalHeader = ({
-  className,
-  children,
-  ...props
-}: TerminalHeaderProps) => (
+export const TerminalHeader = ({ className, children, ...props }: TerminalHeaderProps) => (
   <div
     className={cn(
-      "flex items-center justify-between border-zinc-800 border-b px-4 py-2",
+      'flex items-center justify-between border-b border-zinc-800 px-4 py-2',
       className
     )}
     {...props}
@@ -99,27 +95,16 @@ export const TerminalHeader = ({
 
 export type TerminalTitleProps = HTMLAttributes<HTMLDivElement>;
 
-export const TerminalTitle = ({
-  className,
-  children,
-  ...props
-}: TerminalTitleProps) => (
-  <div
-    className={cn("flex items-center gap-2 text-sm text-zinc-400", className)}
-    {...props}
-  >
+export const TerminalTitle = ({ className, children, ...props }: TerminalTitleProps) => (
+  <div className={cn('flex items-center gap-2 text-sm text-zinc-400', className)} {...props}>
     <TerminalIcon className="size-4" />
-    {children ?? "Terminal"}
+    {children ?? 'Terminal'}
   </div>
 );
 
 export type TerminalStatusProps = HTMLAttributes<HTMLDivElement>;
 
-export const TerminalStatus = ({
-  className,
-  children,
-  ...props
-}: TerminalStatusProps) => {
+export const TerminalStatus = ({ className, children, ...props }: TerminalStatusProps) => {
   const { isStreaming } = useContext(TerminalContext);
 
   if (!isStreaming) {
@@ -127,10 +112,7 @@ export const TerminalStatus = ({
   }
 
   return (
-    <div
-      className={cn("flex items-center gap-2 text-xs text-zinc-400", className)}
-      {...props}
-    >
+    <div className={cn('flex items-center gap-2 text-xs text-zinc-400', className)} {...props}>
       {children ?? <Shimmer className="w-16">Running...</Shimmer>}
     </div>
   );
@@ -138,12 +120,8 @@ export const TerminalStatus = ({
 
 export type TerminalActionsProps = HTMLAttributes<HTMLDivElement>;
 
-export const TerminalActions = ({
-  className,
-  children,
-  ...props
-}: TerminalActionsProps) => (
-  <div className={cn("flex items-center gap-1", className)} {...props}>
+export const TerminalActions = ({ className, children, ...props }: TerminalActionsProps) => (
+  <div className={cn('flex items-center gap-1', className)} {...props}>
     {children}
   </div>
 );
@@ -167,8 +145,8 @@ export const TerminalCopyButton = ({
   const { output } = useContext(TerminalContext);
 
   const copyToClipboard = useCallback(async () => {
-    if (typeof window === "undefined" || !navigator?.clipboard?.writeText) {
-      onError?.(new Error("Clipboard API not available"));
+    if (typeof window === 'undefined' || !navigator?.clipboard?.writeText) {
+      onError?.(new Error('Clipboard API not available'));
       return;
     }
 
@@ -194,7 +172,7 @@ export const TerminalCopyButton = ({
   return (
     <Button
       className={cn(
-        "size-7 shrink-0 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100",
+        'size-7 shrink-0 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100',
         className
       )}
       onClick={copyToClipboard}
@@ -223,7 +201,7 @@ export const TerminalClearButton = ({
   return (
     <Button
       className={cn(
-        "size-7 shrink-0 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100",
+        'size-7 shrink-0 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100',
         className
       )}
       onClick={onClear}
@@ -255,7 +233,7 @@ export const TerminalStopButton = ({
   return (
     <Button
       className={cn(
-        "size-7 shrink-0 text-zinc-400 hover:bg-red-900/50 hover:text-red-400",
+        'size-7 shrink-0 text-zinc-400 hover:bg-red-900/50 hover:text-red-400',
         className
       )}
       onClick={onStop}
@@ -271,11 +249,7 @@ export const TerminalStopButton = ({
 
 export type TerminalContentProps = HTMLAttributes<HTMLDivElement>;
 
-export const TerminalContent = ({
-  className,
-  children,
-  ...props
-}: TerminalContentProps) => {
+export const TerminalContent = ({ className, children, ...props }: TerminalContentProps) => {
   const { output, isStreaming, autoScroll } = useContext(TerminalContext);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -287,15 +261,12 @@ export const TerminalContent = ({
 
   return (
     <div
-      className={cn(
-        "max-h-96 overflow-auto p-4 font-mono text-sm leading-relaxed",
-        className
-      )}
+      className={cn('max-h-96 overflow-auto p-4 font-mono text-sm leading-relaxed', className)}
       ref={containerRef}
       {...props}
     >
       {children ?? (
-        <pre className="whitespace-pre-wrap break-words">
+        <pre className="break-words whitespace-pre-wrap">
           <Ansi>{output}</Ansi>
           {isStreaming && (
             <span className="ml-0.5 inline-block h-4 w-2 animate-pulse bg-zinc-100" />

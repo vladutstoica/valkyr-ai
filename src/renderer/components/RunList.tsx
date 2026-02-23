@@ -78,23 +78,23 @@ const RunList: React.FC<RunListProps> = ({ runs, selectedRun, onRunSelect }) => 
                     <span className={`font-medium ${getStatusColor(run.status)}`}>
                       {run.status.toUpperCase()}
                     </span>
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-muted-foreground text-sm">
                       {formatDuration(run.startedAt, run.finishedAt)}
                     </span>
                   </div>
-                  <div className="text-sm text-muted-foreground">
+                  <div className="text-muted-foreground text-sm">
                     {run.provider === 'claude-code' ? 'Claude' : 'OpenAI'}
                   </div>
                 </div>
 
-                <div className="mb-2 text-sm text-muted-foreground">
+                <div className="text-muted-foreground mb-2 text-sm">
                   <strong>Branch:</strong> {run.branch}
                 </div>
 
-                <div className="line-clamp-2 text-sm text-muted-foreground">{run.prompt}</div>
+                <div className="text-muted-foreground line-clamp-2 text-sm">{run.prompt}</div>
 
                 {run.tokenUsage > 0 && (
-                  <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
+                  <div className="text-muted-foreground mt-2 flex items-center gap-4 text-xs">
                     <span>Tokens: {run.tokenUsage.toLocaleString()}</span>
                     {run.cost > 0 && <span>Cost: ${run.cost.toFixed(4)}</span>}
                   </div>

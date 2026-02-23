@@ -45,7 +45,7 @@ const renderAgentRow = (agent: CliAgentStatus) => {
       logoSrc={logo}
       icon={
         logo ? undefined : (
-          <Sparkles className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+          <Sparkles className="text-muted-foreground h-3.5 w-3.5" aria-hidden="true" />
         )
       }
       name={agent.name}
@@ -55,7 +55,7 @@ const renderAgentRow = (agent: CliAgentStatus) => {
       showStatusPill={false}
       installCommand={agent.installCommand}
       middle={
-        <span className="flex items-center gap-2 text-sm text-muted-foreground">
+        <span className="text-muted-foreground flex items-center gap-2 text-sm">
           <span className={`h-1.5 w-1.5 rounded-full ${indicatorClass}`} />
           {statusLabel}
         </span>

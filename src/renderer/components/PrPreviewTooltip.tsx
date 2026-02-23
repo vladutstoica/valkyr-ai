@@ -25,7 +25,7 @@ const Pill = ({
         : 'bg-slate-100/70 text-slate-800 dark:bg-slate-500/10 dark:text-slate-200';
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-none border border-border px-2 py-0.5 text-[11px] ${palette}`}
+      className={`border-border inline-flex items-center gap-1 rounded-none border px-2 py-0.5 text-[11px] ${palette}`}
     >
       {children}
     </span>
@@ -57,22 +57,22 @@ export const PrPreviewTooltip: React.FC<Props> = ({ pr, children, side = 'top' }
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.98 }}
             transition={{ duration: 0.16, ease: 'easeOut' }}
-            className="min-w-[260px] max-w-sm rounded-lg border border-border/70 bg-popover/95 p-3 shadow-xl backdrop-blur-xs"
+            className="border-border/70 bg-popover/95 max-w-sm min-w-[260px] rounded-lg border p-3 shadow-xl backdrop-blur-xs"
           >
-            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <div className="text-muted-foreground flex items-center gap-2 text-xs font-medium">
               <img src={githubLogo} alt="GitHub" className="h-4 w-4" />
               <span className="tracking-wide">Pull Request</span>
-              <span className="font-semibold text-muted-foreground/80">#{pr.number}</span>
+              <span className="text-muted-foreground/80 font-semibold">#{pr.number}</span>
             </div>
-            <div className="mt-1 line-clamp-2 text-sm font-semibold text-foreground">
+            <div className="text-foreground mt-1 line-clamp-2 text-sm font-semibold">
               {pr.title || `PR #${pr.number}`}
             </div>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-2 text-xs">
               {additions !== null ? <Pill color="green">+{additions} added</Pill> : null}
               {deletions !== null ? <Pill color="red">-{deletions} deleted</Pill> : null}
               {changed !== null ? <Pill color="blue">{changed} files</Pill> : null}
               {additions === null && deletions === null && changed === null ? (
-                <span className="text-[11px] text-muted-foreground/80">Diff stats unavailable</span>
+                <span className="text-muted-foreground/80 text-[11px]">Diff stats unavailable</span>
               ) : null}
             </div>
           </motion.div>

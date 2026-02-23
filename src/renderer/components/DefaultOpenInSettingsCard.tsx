@@ -65,7 +65,7 @@ const DefaultOpenInSettingsCard: React.FC = () => {
 
   return (
     <div className="space-y-3">
-      <div className="text-xs text-muted-foreground">
+      <div className="text-muted-foreground text-xs">
         The application shown first when using "Open in".
       </div>
       <div className="w-full max-w-xs">

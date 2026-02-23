@@ -24,7 +24,9 @@ test('can type in session rename field after clicking Rename', async () => {
   await sessionRow.hover();
   await page.waitForTimeout(300);
 
-  const menuButton = sessionRow.locator('button').filter({ has: page.locator('svg.lucide-more-vertical') });
+  const menuButton = sessionRow
+    .locator('button')
+    .filter({ has: page.locator('svg.lucide-more-vertical') });
   await menuButton.first().click();
   await page.waitForTimeout(200);
 
@@ -52,11 +54,16 @@ test('can type in session rename field after clicking Rename', async () => {
 
 test('can type in project rename field after clicking Rename', async () => {
   const projectHeader = page.locator('text=simplu-workspace').first();
-  const projectCard = projectHeader.locator('xpath=ancestor::*[contains(@class,"cursor-pointer")]').first();
+  const projectCard = projectHeader
+    .locator('xpath=ancestor::*[contains(@class,"cursor-pointer")]')
+    .first();
   await projectCard.hover();
   await page.waitForTimeout(300);
 
-  const menuButton = page.locator('button').filter({ has: page.locator('svg.lucide-more-vertical') }).first();
+  const menuButton = page
+    .locator('button')
+    .filter({ has: page.locator('svg.lucide-more-vertical') })
+    .first();
   await menuButton.click();
   await page.waitForTimeout(200);
 

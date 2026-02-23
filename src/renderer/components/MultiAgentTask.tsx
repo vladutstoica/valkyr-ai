@@ -46,7 +46,9 @@ const MultiAgentTask: React.FC<Props> = ({
   const [prompt, setPrompt] = useState('');
   const [activeTabIndex, setActiveTabIndex] = useState(0);
   const [variantBusy, setVariantBusy] = useState<Record<string, boolean>>({});
-  const acpAppendRefs = useRef<Record<string, ((msg: { content: string }) => Promise<void>) | null>>({});
+  const acpAppendRefs = useRef<
+    Record<string, ((msg: { content: string }) => Promise<void>) | null>
+  >({});
   const multi = task.metadata?.multiAgent;
   const variants = (multi?.variants || []) as Variant[];
 
@@ -351,7 +353,7 @@ const MultiAgentTask: React.FC<Props> = ({
 
   if (!multi?.enabled) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+      <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
         Multi-agent config missing for this task.
       </div>
     );
@@ -362,7 +364,7 @@ const MultiAgentTask: React.FC<Props> = ({
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3">
         <Spinner size="lg" />
-        <p className="text-sm text-muted-foreground">Creating task...</p>
+        <p className="text-muted-foreground text-sm">Creating task...</p>
       </div>
     );
   }
@@ -400,8 +402,8 @@ const MultiAgentTask: React.FC<Props> = ({
                               onClick={() => setActiveTabIndex(tabIdx)}
                               className={`inline-flex h-8 items-center gap-2 rounded-md px-3 text-xs font-medium transition-all ${
                                 isTabActive
-                                  ? 'border-2 border-foreground/30 bg-background text-foreground shadow-xs'
-                                  : 'border border-border/50 bg-transparent text-muted-foreground hover:border-border/70 hover:bg-background/50 hover:text-foreground'
+                                  ? 'border-foreground/30 bg-background text-foreground border-2 shadow-xs'
+                                  : 'border-border/50 text-muted-foreground hover:border-border/70 hover:bg-background/50 hover:text-foreground border bg-transparent'
                               }`}
                             >
                               {asset?.logo ? (
@@ -448,7 +450,9 @@ const MultiAgentTask: React.FC<Props> = ({
                     agent={v.agent}
                     cwd={v.path}
                     projectPath={projectPath || undefined}
-                    onAppendRef={(fn) => { acpAppendRefs.current[v.worktreeId] = fn; }}
+                    onAppendRef={(fn) => {
+                      acpAppendRefs.current[v.worktreeId] = fn;
+                    }}
                   />
                 </div>
               </div>
@@ -457,12 +461,12 @@ const MultiAgentTask: React.FC<Props> = ({
         );
       })}
 
-      <div className="px-6 pb-6 pt-4">
+      <div className="px-6 pt-4 pb-6">
         <div className="mx-auto max-w-4xl">
-          <div className="relative rounded-md border border-border bg-white shadow-lg dark:border-border dark:bg-card">
+          <div className="border-border dark:border-border dark:bg-card relative rounded-md border bg-white shadow-lg">
             <div className="flex items-center gap-2 rounded-md px-4 py-3">
               <Input
-                className="h-9 flex-1 border-border bg-muted dark:border-border dark:bg-muted"
+                className="border-border bg-muted dark:border-border dark:bg-muted h-9 flex-1"
                 placeholder="Tell the agents what to do..."
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
@@ -478,7 +482,7 @@ const MultiAgentTask: React.FC<Props> = ({
               <Button
                 variant="outline"
                 size="sm"
-                className="h-9 border border-border bg-muted px-3 text-xs font-medium hover:bg-muted dark:border-border dark:bg-muted dark:hover:bg-muted"
+                className="border-border bg-muted hover:bg-muted dark:border-border dark:bg-muted dark:hover:bg-muted h-9 border px-3 text-xs font-medium"
                 onClick={handleRunAll}
                 disabled={!prompt.trim()}
                 title="Run in all panes (Enter)"

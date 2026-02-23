@@ -45,10 +45,8 @@ function TerminalTab({
       onClick={onClick}
       className={cn(
         'group relative flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        isActive
-          ? 'text-foreground'
-          : 'text-muted-foreground hover:text-foreground'
+        'focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none',
+        isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
       )}
     >
       {isRunning ? (
@@ -76,7 +74,7 @@ function TerminalTab({
             'flex h-4 w-4 items-center justify-center rounded transition-colors',
             isActive
               ? 'text-muted-foreground hover:bg-muted hover:text-foreground'
-              : 'text-muted-foreground/50 opacity-0 group-hover:opacity-100 hover:bg-muted hover:text-foreground'
+              : 'text-muted-foreground/50 hover:bg-muted hover:text-foreground opacity-0 group-hover:opacity-100'
           )}
         >
           <X className="h-3 w-3" />
@@ -113,13 +111,8 @@ export function TerminalPanel({
   const terminalCwd = taskPath || projectPath;
 
   // Use the task terminals store
-  const {
-    terminals,
-    activeTerminalId,
-    createTerminal,
-    setActiveTerminal,
-    closeTerminal,
-  } = useTaskTerminals(terminalKey, terminalCwd);
+  const { terminals, activeTerminalId, createTerminal, setActiveTerminal, closeTerminal } =
+    useTaskTerminals(terminalKey, terminalCwd);
 
   // Track focus state for visual indicator
   const [hasFocus, setHasFocus] = useState(false);
@@ -270,13 +263,13 @@ export function TerminalPanel({
     return (
       <div
         className={cn(
-          'relative flex shrink-0 flex-col border-t border-border bg-background transition-all duration-200',
+          'border-border bg-background relative flex shrink-0 flex-col border-t transition-all duration-200',
           isCollapsed ? 'h-9' : 'h-64',
           className
         )}
       >
         <div
-          className="flex h-9 shrink-0 cursor-pointer items-center justify-between border-b border-border bg-muted/30 px-3"
+          className="border-border bg-muted/30 flex h-9 shrink-0 cursor-pointer items-center justify-between border-b px-3"
           onClick={(e) => {
             const target = e.target as HTMLElement;
             if (target.closest('button')) return;
@@ -291,14 +284,14 @@ export function TerminalPanel({
             }
           }}
         >
-          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+          <div className="text-foreground flex items-center gap-2 text-sm font-medium">
             <Terminal className="h-4 w-4" />
             <span>Terminal</span>
           </div>
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground h-6 w-6"
             onClick={(e) => {
               e.stopPropagation();
               toggleCollapsed();
@@ -316,7 +309,7 @@ export function TerminalPanel({
   return (
     <div
       className={cn(
-        'relative flex shrink-0 flex-col border-t border-border bg-background transition-all duration-200',
+        'border-border bg-background relative flex shrink-0 flex-col border-t transition-all duration-200',
         isCollapsed ? 'h-9' : 'h-64',
         className
       )}
@@ -330,14 +323,14 @@ export function TerminalPanel({
       {/* Focus indicator ring */}
       {hasFocus && !isCollapsed && (
         <div
-          className="pointer-events-none absolute inset-0 z-50 ring-1 ring-inset ring-white/15"
+          className="pointer-events-none absolute inset-0 z-50 ring-1 ring-white/15 ring-inset"
           aria-hidden="true"
         />
       )}
 
       {/* Tab bar - styled like main TabBar */}
       <div
-        className="flex h-9 shrink-0 items-center justify-between border-b border-border bg-muted/30"
+        className="border-border bg-muted/30 flex h-9 shrink-0 items-center justify-between border-b"
         onClick={(e) => {
           const target = e.target as HTMLElement;
           if (target.closest('button') || target.closest('[role="button"]')) return;
@@ -377,7 +370,7 @@ export function TerminalPanel({
                 e.stopPropagation();
                 handleCreateTerminal();
               }}
-              className="flex items-center px-3 py-2 text-muted-foreground transition-colors hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground flex items-center px-3 py-2 transition-colors"
               title="New terminal"
             >
               <Plus className="h-4 w-4" />
@@ -390,7 +383,7 @@ export function TerminalPanel({
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground h-6 w-6"
             onClick={(e) => {
               e.stopPropagation();
               toggleCollapsed();
@@ -411,7 +404,7 @@ export function TerminalPanel({
           )}
         >
           {terminals.length === 0 || !terminalCwd ? (
-            <div className="flex h-full items-center justify-center bg-card text-muted-foreground">
+            <div className="bg-card text-muted-foreground flex h-full items-center justify-center">
               <div className="text-center">
                 <Terminal className="mx-auto mb-2 h-8 w-8 opacity-50" />
                 <p className="text-sm">
@@ -434,7 +427,9 @@ export function TerminalPanel({
                     id={terminal.id}
                     cwd={terminal.cwd || terminalCwd}
                     variant={
-                      effectiveTheme === 'dark' || effectiveTheme === 'dark-black' ? 'dark' : 'light'
+                      effectiveTheme === 'dark' || effectiveTheme === 'dark-black'
+                        ? 'dark'
+                        : 'light'
                     }
                     themeOverride={themeOverride}
                     className="h-full w-full"

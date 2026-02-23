@@ -125,15 +125,13 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
     window.electronAPI
       .detectSubRepos(project.path)
       .then(async (result) => {
-
         if (!result.success) return;
         const isGitRoot = project.gitInfo?.isGitRepo;
         let newSubRepos: Project['subRepos'];
 
         if (result.subRepos.length > 0) {
           if (isGitRoot) {
-            const projectName =
-              project.path.split(/[/\\]/).filter(Boolean).pop() || project.name;
+            const projectName = project.path.split(/[/\\]/).filter(Boolean).pop() || project.name;
             newSubRepos = [
               {
                 path: project.path,
@@ -159,20 +157,30 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
 
         setSelectedProject((prev) => {
           if (!prev || prev.id !== project.id) return prev;
-          const oldPaths = (prev.subRepos || []).map((r) => r.relativePath).sort().join(',');
-          const newPaths = (newSubRepos || []).map((r) => r.relativePath).sort().join(',');
+          const oldPaths = (prev.subRepos || [])
+            .map((r) => r.relativePath)
+            .sort()
+            .join(',');
+          const newPaths = (newSubRepos || [])
+            .map((r) => r.relativePath)
+            .sort()
+            .join(',');
           if (oldPaths === newPaths) return prev;
           return { ...prev, subRepos: newSubRepos };
         });
         setProjects((prev) => {
           const target = prev.find((p) => p.id === project.id);
           if (!target) return prev;
-          const oldPaths = (target.subRepos || []).map((r) => r.relativePath).sort().join(',');
-          const newPaths = (newSubRepos || []).map((r) => r.relativePath).sort().join(',');
+          const oldPaths = (target.subRepos || [])
+            .map((r) => r.relativePath)
+            .sort()
+            .join(',');
+          const newPaths = (newSubRepos || [])
+            .map((r) => r.relativePath)
+            .sort()
+            .join(',');
           if (oldPaths === newPaths) return prev;
-          return prev.map((p) =>
-            p.id === project.id ? { ...p, subRepos: newSubRepos } : p
-          );
+          return prev.map((p) => (p.id === project.id ? { ...p, subRepos: newSubRepos } : p));
         });
         // Persist to DB
         await window.electronAPI.saveProject({ ...project, subRepos: newSubRepos });
@@ -778,9 +786,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
       if (!res?.success) throw new Error(res?.error || 'Failed to rename project');
 
       // Update local state
-      setProjects((prev) =>
-        prev.map((p) => (p.id === project.id ? { ...p, name: trimmed } : p))
-      );
+      setProjects((prev) => prev.map((p) => (p.id === project.id ? { ...p, name: trimmed } : p)));
 
       // Update selectedProject if it's the one being renamed
       if (selectedProject?.id === project.id) {
@@ -935,9 +941,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
     try {
       const res = await window.electronAPI.renameWorkspace({ id: workspaceId, name });
       if (res.success) {
-        setWorkspaces((prev) =>
-          prev.map((ws) => (ws.id === workspaceId ? { ...ws, name } : ws))
-        );
+        setWorkspaces((prev) => prev.map((ws) => (ws.id === workspaceId ? { ...ws, name } : ws)));
       }
     } catch (err) {
       console.error('Failed to rename workspace:', err);
@@ -972,9 +976,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
     try {
       const res = await window.electronAPI.updateWorkspaceColor({ id: workspaceId, color });
       if (res.success) {
-        setWorkspaces((prev) =>
-          prev.map((ws) => (ws.id === workspaceId ? { ...ws, color } : ws))
-        );
+        setWorkspaces((prev) => prev.map((ws) => (ws.id === workspaceId ? { ...ws, color } : ws)));
       }
     } catch (err) {
       console.error('Failed to update workspace color:', err);
@@ -985,9 +987,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
     try {
       const res = await window.electronAPI.updateWorkspaceEmoji({ id: workspaceId, emoji });
       if (res.success) {
-        setWorkspaces((prev) =>
-          prev.map((ws) => (ws.id === workspaceId ? { ...ws, emoji } : ws))
-        );
+        setWorkspaces((prev) => prev.map((ws) => (ws.id === workspaceId ? { ...ws, emoji } : ws)));
       }
     } catch (err) {
       console.error('Failed to update workspace emoji:', err);
@@ -1010,9 +1010,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
     try {
       const res = await window.electronAPI.setProjectWorkspace({ projectId, workspaceId });
       if (res.success) {
-        setProjects((prev) =>
-          prev.map((p) => (p.id === projectId ? { ...p, workspaceId } : p))
-        );
+        setProjects((prev) => prev.map((p) => (p.id === projectId ? { ...p, workspaceId } : p)));
       }
     } catch (err) {
       console.error('Failed to move project to workspace:', err);
@@ -1032,16 +1030,17 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
         (isNewDefault && !selectedProject.workspaceId);
       if (!projectBelongs) {
         const wsProjects = projects.filter(
-          (p) =>
-            p.workspaceId === workspaceId || (isNewDefault && !p.workspaceId)
+          (p) => p.workspaceId === workspaceId || (isNewDefault && !p.workspaceId)
         );
         const firstProject = wsProjects[0];
         if (firstProject) {
           // Pick the most recent task instead of showing the project view
-          const lastTask = firstProject.tasks
-            ?.slice()
-            .sort((a, b) => (b.updatedAt ?? b.createdAt ?? '').localeCompare(a.updatedAt ?? a.createdAt ?? ''))
-            [0] ?? null;
+          const lastTask =
+            firstProject.tasks
+              ?.slice()
+              .sort((a, b) =>
+                (b.updatedAt ?? b.createdAt ?? '').localeCompare(a.updatedAt ?? a.createdAt ?? '')
+              )[0] ?? null;
           setSelectedProject(firstProject);
           setShowHomeView(false);
           setShowSkillsView(false);

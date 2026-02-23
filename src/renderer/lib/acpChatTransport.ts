@@ -221,8 +221,8 @@ class ChunkMapper {
 
 // Side-channel event types (not part of UIMessageChunk stream)
 export type AcpUsageData = {
-  size?: number;     // total context window size (tokens)
-  used?: number;     // tokens used
+  size?: number; // total context window size (tokens)
+  used?: number; // tokens used
   cost?: { amount: number; currency: string };
 };
 
@@ -313,7 +313,11 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
    * Dispatch a side-channel event to the appropriate callback.
    * Returns true if the event was handled, false if no callback was available.
    */
-  private dispatchSideChannelEvent(sc: AcpSideChannelEvents, updateType: string, update: any): boolean {
+  private dispatchSideChannelEvent(
+    sc: AcpSideChannelEvents,
+    updateType: string,
+    update: any
+  ): boolean {
     if (updateType === 'available_commands_update' && sc.onCommandsUpdate) {
       sc.onCommandsUpdate(update.availableCommands || update.commands || []);
       return true;
@@ -366,35 +370,42 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
 
     // Extract latest user message text and files
     const lastUserMsg = [...options.messages].reverse().find((m) => m.role === 'user');
-    const messageText = lastUserMsg?.parts
-      ?.filter((p): p is { type: 'text'; text: string } => p.type === 'text')
-      .map((p) => p.text)
-      .join('') || '';
+    const messageText =
+      lastUserMsg?.parts
+        ?.filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+        .map((p) => p.text)
+        .join('') || '';
 
     // Extract file parts (images and other files) from the user message
-    const fileParts = lastUserMsg?.parts
-      ?.filter((p): p is { type: 'file'; url: string; mediaType: string; filename?: string } =>
-        p.type === 'file'
+    const fileParts =
+      lastUserMsg?.parts?.filter(
+        (p): p is { type: 'file'; url: string; mediaType: string; filename?: string } =>
+          p.type === 'file'
       ) || [];
 
     // Persist user message to DB
     if (lastUserMsg) {
-      api().saveMessage({
-        id: lastUserMsg.id,
-        conversationId,
-        content: messageText,
-        sender: 'user',
-        parts: JSON.stringify(lastUserMsg.parts),
-      }).catch(() => { /* non-fatal */ });
+      api()
+        .saveMessage({
+          id: lastUserMsg.id,
+          conversationId,
+          content: messageText,
+          sender: 'user',
+          parts: JSON.stringify(lastUserMsg.parts),
+        })
+        .catch(() => {
+          /* non-fatal */
+        });
     }
 
     // Send prompt to ACP (include files if present)
     const result = await api().acpPrompt({
       sessionKey,
       message: messageText,
-      files: fileParts.length > 0
-        ? fileParts.map((f) => ({ url: f.url, mediaType: f.mediaType, filename: f.filename }))
-        : undefined,
+      files:
+        fileParts.length > 0
+          ? fileParts.map((f) => ({ url: f.url, mediaType: f.mediaType, filename: f.filename }))
+          : undefined,
     });
     if (!result.success) {
       return new ReadableStream<UIMessageChunk>({
@@ -432,11 +443,17 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
                 });
               } else if (updateType === 'plan' && sideChannel.onPlanUpdate) {
                 sideChannel.onPlanUpdate(update.entries || update.plan || []);
-              } else if (updateType === 'available_commands_update' && sideChannel.onCommandsUpdate) {
+              } else if (
+                updateType === 'available_commands_update' &&
+                sideChannel.onCommandsUpdate
+              ) {
                 sideChannel.onCommandsUpdate(update.availableCommands || update.commands || []);
               } else if (updateType === 'current_mode_update' && sideChannel.onModeUpdate) {
                 sideChannel.onModeUpdate(update.modeId || update.currentModeId || '');
-              } else if (updateType === 'config_option_update' && sideChannel.onConfigOptionUpdate) {
+              } else if (
+                updateType === 'config_option_update' &&
+                sideChannel.onConfigOptionUpdate
+              ) {
                 sideChannel.onConfigOptionUpdate(update);
               } else if (updateType === 'session_info_update' && sideChannel.onSessionInfoUpdate) {
                 sideChannel.onSessionInfoUpdate({
@@ -485,7 +502,11 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
               }
               const errorId = nextPartId();
               controller.enqueue({ type: 'text-start', id: errorId });
-              controller.enqueue({ type: 'text-delta', id: errorId, delta: `\n\n**Error:** ${event.error}` });
+              controller.enqueue({
+                type: 'text-delta',
+                id: errorId,
+                delta: `\n\n**Error:** ${event.error}`,
+              });
               controller.enqueue({ type: 'text-end', id: errorId });
               controller.enqueue({ type: 'finish', finishReason: 'error' });
               controller.close();
@@ -515,20 +536,24 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
         self.activeCleanup = cleanupUpdate;
 
         // Handle abort (user clicks stop)
-        options.abortSignal?.addEventListener('abort', () => {
-          api().acpCancel({ sessionKey });
-          cleanupUpdate();
-          try {
-            // Flush any open text/reasoning streams before finishing
-            for (const chunk of mapper.endAll()) {
-              controller.enqueue(chunk);
+        options.abortSignal?.addEventListener(
+          'abort',
+          () => {
+            api().acpCancel({ sessionKey });
+            cleanupUpdate();
+            try {
+              // Flush any open text/reasoning streams before finishing
+              for (const chunk of mapper.endAll()) {
+                controller.enqueue(chunk);
+              }
+              controller.enqueue({ type: 'finish', finishReason: 'stop' });
+              controller.close();
+            } catch {
+              // Stream may already be closed
             }
-            controller.enqueue({ type: 'finish', finishReason: 'stop' });
-            controller.close();
-          } catch {
-            // Stream may already be closed
-          }
-        }, { once: true });
+          },
+          { once: true }
+        );
       },
     });
   }
@@ -648,7 +673,9 @@ export class LazyAcpChatTransport implements ChatTransport<UIMessage> {
     }
   }
 
-  async sendMessages(options: Parameters<AcpChatTransport['sendMessages']>[0]): Promise<ReadableStream<UIMessageChunk>> {
+  async sendMessages(
+    options: Parameters<AcpChatTransport['sendMessages']>[0]
+  ): Promise<ReadableStream<UIMessageChunk>> {
     if (this.inner) {
       return this.inner.sendMessages(options);
     }
@@ -675,12 +702,16 @@ export class LazyAcpChatTransport implements ChatTransport<UIMessage> {
 
       // Respect abort signal — if the user cancels before session is ready,
       // reject the queued send instead of replaying it later
-      options.abortSignal?.addEventListener('abort', () => {
-        if (this.pendingSend?.options === options) {
-          this.pendingSend = null;
-          reject(new Error('Aborted'));
-        }
-      }, { once: true });
+      options.abortSignal?.addEventListener(
+        'abort',
+        () => {
+          if (this.pendingSend?.options === options) {
+            this.pendingSend = null;
+            reject(new Error('Aborted'));
+          }
+        },
+        { once: true }
+      );
     });
   }
 

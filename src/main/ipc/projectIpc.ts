@@ -655,10 +655,7 @@ export function registerProjectIpc() {
           if (match && match[1]) {
             const branchName = match[1];
             // Only add if it's a valid local branch and not already in list
-            if (
-              !recent.includes(branchName) &&
-              localBranches.some((b) => b.name === branchName)
-            ) {
+            if (!recent.includes(branchName) && localBranches.some((b) => b.name === branchName)) {
               recent.push(branchName);
               if (recent.length >= 5) break;
             }

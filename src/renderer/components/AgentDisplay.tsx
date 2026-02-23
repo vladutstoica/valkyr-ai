@@ -99,7 +99,7 @@ export const AgentDisplay: React.FC<Props> = ({
         <Tooltip>
           <TooltipTrigger asChild>
             <div
-              className="inline-flex h-7 cursor-default select-none items-center gap-1.5 rounded-md border border-border bg-muted px-2.5 text-xs font-medium text-foreground dark:border-border dark:bg-muted"
+              className="border-border bg-muted text-foreground dark:border-border dark:bg-muted inline-flex h-7 cursor-default items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium select-none"
               role="status"
               aria-label={`Current agent: ${config.name}`}
             >
@@ -113,7 +113,7 @@ export const AgentDisplay: React.FC<Props> = ({
                 />
               ) : (
                 <div
-                  className="flex h-3.5 w-3.5 flex-shrink-0 items-center justify-center rounded-[3px] bg-muted-foreground/20 text-micro font-semibold text-foreground"
+                  className="bg-muted-foreground/20 text-micro text-foreground flex h-3.5 w-3.5 flex-shrink-0 items-center justify-center rounded-[3px] font-semibold"
                   aria-hidden
                 >
                   {config.name.slice(0, 1)}
@@ -134,7 +134,7 @@ export const AgentDisplay: React.FC<Props> = ({
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-muted px-2 text-xs font-medium text-foreground hover:bg-muted/80 dark:border-border dark:bg-muted dark:hover:bg-muted/80"
+                className="border-border bg-muted text-foreground hover:bg-muted/80 dark:border-border dark:bg-muted dark:hover:bg-muted/80 inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-xs font-medium"
                 onClick={() => handleIssueClick(linearIssue.url || undefined)}
                 aria-label={`Linear issue ${linearIssue.identifier}: ${linearIssue.title || 'No title'}`}
               >
@@ -145,15 +145,15 @@ export const AgentDisplay: React.FC<Props> = ({
             <TooltipContent side="bottom" className="max-w-sm">
               <div className="text-xs">
                 <div className="mb-1.5 flex min-w-0 items-center gap-2">
-                  <span className="inline-flex shrink-0 items-center gap-1.5 rounded border border-border bg-muted px-1.5 py-0.5 dark:border-border dark:bg-card">
+                  <span className="border-border bg-muted dark:border-border dark:bg-card inline-flex shrink-0 items-center gap-1.5 rounded border px-1.5 py-0.5">
                     <img src={linearLogo} alt="Linear" className="h-3 w-3" />
                     <span className="text-[11px] font-medium">{linearIssue.identifier}</span>
                   </span>
                   {linearIssue.title && (
-                    <span className="truncate text-foreground">{linearIssue.title}</span>
+                    <span className="text-foreground truncate">{linearIssue.title}</span>
                   )}
                 </div>
-                <div className="space-y-0.5 text-muted-foreground">
+                <div className="text-muted-foreground space-y-0.5">
                   {linearIssue.state?.name && (
                     <div>
                       <span className="font-medium">State:</span> {linearIssue.state.name}
@@ -184,7 +184,7 @@ export const AgentDisplay: React.FC<Props> = ({
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-muted px-2 text-xs font-medium text-foreground hover:bg-muted/80 dark:border-border dark:bg-muted dark:hover:bg-muted/80"
+                className="border-border bg-muted text-foreground hover:bg-muted/80 dark:border-border dark:bg-muted dark:hover:bg-muted/80 inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-xs font-medium"
                 onClick={() => handleIssueClick(githubIssue.url || undefined)}
                 aria-label={`GitHub issue #${githubIssue.number}: ${githubIssue.title || 'No title'}`}
               >
@@ -195,16 +195,16 @@ export const AgentDisplay: React.FC<Props> = ({
             <TooltipContent side="bottom" className="max-w-sm">
               <div className="text-xs">
                 <div className="mb-1.5 flex min-w-0 items-center gap-2">
-                  <span className="inline-flex shrink-0 items-center gap-1.5 rounded border border-border bg-muted px-1.5 py-0.5 dark:border-border dark:bg-card">
+                  <span className="border-border bg-muted dark:border-border dark:bg-card inline-flex shrink-0 items-center gap-1.5 rounded border px-1.5 py-0.5">
                     <img src={githubLogo} alt="GitHub" className="h-3 w-3" />
                     <span className="text-[11px] font-medium">#{githubIssue.number}</span>
                   </span>
                   {githubIssue.title && (
-                    <span className="truncate text-foreground">{githubIssue.title}</span>
+                    <span className="text-foreground truncate">{githubIssue.title}</span>
                   )}
                 </div>
                 {githubIssue.url && (
-                  <div className="mt-1 flex items-center gap-1 text-muted-foreground">
+                  <div className="text-muted-foreground mt-1 flex items-center gap-1">
                     <ExternalLink className="h-3 w-3" aria-hidden="true" />
                     <span className="text-[11px]">Click to open on GitHub</span>
                   </div>
@@ -221,7 +221,7 @@ export const AgentDisplay: React.FC<Props> = ({
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-muted px-2 text-xs font-medium text-foreground hover:bg-muted/80 dark:border-border dark:bg-muted dark:hover:bg-muted/80"
+                className="border-border bg-muted text-foreground hover:bg-muted/80 dark:border-border dark:bg-muted dark:hover:bg-muted/80 inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-xs font-medium"
                 onClick={() => handleIssueClick(jiraIssue.url || undefined)}
                 aria-label={`Jira issue ${jiraIssue.key}: ${jiraIssue.summary || 'No summary'}`}
               >
@@ -232,15 +232,15 @@ export const AgentDisplay: React.FC<Props> = ({
             <TooltipContent side="bottom" className="max-w-sm">
               <div className="text-xs">
                 <div className="mb-1.5 flex min-w-0 items-center gap-2">
-                  <span className="inline-flex shrink-0 items-center gap-1.5 rounded border border-border bg-muted px-1.5 py-0.5 dark:border-border dark:bg-card">
+                  <span className="border-border bg-muted dark:border-border dark:bg-card inline-flex shrink-0 items-center gap-1.5 rounded border px-1.5 py-0.5">
                     <img src={jiraLogo} alt="Jira" className="h-3 w-3" />
                     <span className="text-[11px] font-medium">{jiraIssue.key}</span>
                   </span>
                   {jiraIssue.summary && (
-                    <span className="truncate text-foreground">{jiraIssue.summary}</span>
+                    <span className="text-foreground truncate">{jiraIssue.summary}</span>
                   )}
                 </div>
-                <div className="space-y-0.5 text-muted-foreground">
+                <div className="text-muted-foreground space-y-0.5">
                   {jiraIssue.status?.name && (
                     <div>
                       <span className="font-medium">Status:</span> {jiraIssue.status.name}
@@ -290,7 +290,7 @@ export const AgentDisplay: React.FC<Props> = ({
             <MessageSquare className="h-3.5 w-3.5 flex-shrink-0" />
             <span className="font-medium">Comments</span>
             {selectedCount > 0 && (
-              <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-500 px-1 text-[10px] font-semibold text-white">
+              <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-500 px-1 text-[10px] font-semibold text-white">
                 {selectedCount}
               </span>
             )}

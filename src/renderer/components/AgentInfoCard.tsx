@@ -163,7 +163,7 @@ export const AgentInfoCard: React.FC<Props> = ({ id }) => {
 
   const CopyIndicatorIcon = copied ? Check : Copy;
   return (
-    <div className="w-80 max-w-[20rem] rounded-lg bg-background p-3 text-foreground shadow-xs">
+    <div className="bg-background text-foreground w-80 max-w-[20rem] rounded-lg p-3 shadow-xs">
       <div className="mb-2 flex items-center gap-2">
         {logo ? (
           <img
@@ -175,11 +175,11 @@ export const AgentInfoCard: React.FC<Props> = ({ id }) => {
         <div className="flex items-baseline gap-1 text-sm leading-none">
           <span className="text-muted-foreground">{brand}</span>
           <span className="text-muted-foreground">/</span>
-          <strong className="font-semibold text-foreground">{info.title}</strong>
+          <strong className="text-foreground font-semibold">{info.title}</strong>
         </div>
       </div>
       {info.description ? (
-        <p className="mb-2 text-xs text-muted-foreground">{info.description}</p>
+        <p className="text-muted-foreground mb-2 text-xs">{info.description}</p>
       ) : null}
       {getDocUrlForProvider(id) ? (
         <div className="mb-2">
@@ -187,7 +187,7 @@ export const AgentInfoCard: React.FC<Props> = ({ id }) => {
             href={getDocUrlForProvider(id) ?? ''}
             target="_blank"
             rel="noreferrer noopener"
-            className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs text-foreground hover:underline"
+            className="text-foreground inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:underline"
           >
             <span>Docs</span>
             <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -199,14 +199,14 @@ export const AgentInfoCard: React.FC<Props> = ({ id }) => {
           href="https://artificialanalysis.ai/insights/coding-agents-comparison"
           target="_blank"
           rel="noreferrer noopener"
-          className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs text-foreground hover:underline"
+          className="text-foreground inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:underline"
         >
           <span>Compare agents</span>
           <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
         </a>
       </div>
-      <div className="mb-2 flex h-7 items-center justify-between rounded-md border px-2 text-xs text-foreground">
-        <code className="max-w-[calc(100%-2.5rem)] truncate font-mono text-tiny leading-none">
+      <div className="text-foreground mb-2 flex h-7 items-center justify-between rounded-md border px-2 text-xs">
+        <code className="text-tiny max-w-[calc(100%-2.5rem)] truncate font-mono leading-none">
           {installCommand}
         </code>
         <Button
@@ -215,7 +215,7 @@ export const AgentInfoCard: React.FC<Props> = ({ id }) => {
           onClick={() => {
             void handleCopyClick();
           }}
-          className="ml-2 text-muted-foreground"
+          className="text-muted-foreground ml-2"
           aria-label={`Copy install command for ${info.title}`}
           title={copied ? 'Copied' : 'Copy command'}
         >

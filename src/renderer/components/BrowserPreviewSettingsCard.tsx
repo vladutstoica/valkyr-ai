@@ -73,8 +73,8 @@ export default function BrowserPreviewSettingsCard() {
   };
 
   return (
-    <div className="rounded-xl border border-border/60 bg-muted/10 p-4">
-      <div className="mb-2 text-sm text-muted-foreground">
+    <div className="border-border/60 bg-muted/10 rounded-xl border p-4">
+      <div className="text-muted-foreground mb-2 text-sm">
         Preview UI changes using the built-in browser view.
       </div>
       <label className="flex items-center gap-2 text-sm">
@@ -85,7 +85,7 @@ export default function BrowserPreviewSettingsCard() {
         />
         Enable in‑app browser preview
       </label>
-      <div className="mt-3 text-xs text-muted-foreground">Engine</div>
+      <div className="text-muted-foreground mt-3 text-xs">Engine</div>
       <TooltipProvider delayDuration={150}>
         <div className="mt-1 flex flex-wrap items-center gap-2">
           <Badge label="Chromium" iconSrc={chromiumLogo} active />

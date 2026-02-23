@@ -48,9 +48,7 @@ export default function AcpAgentsList() {
   }, [load]);
 
   const handleInstall = useCallback(async (agentId: string) => {
-    setAgents((prev) =>
-      prev.map((a) => (a.id === agentId ? { ...a, installing: true } : a))
-    );
+    setAgents((prev) => prev.map((a) => (a.id === agentId ? { ...a, installing: true } : a)));
     try {
       const result = await window.electronAPI.acpRegistryInstall({ agentId });
       if (result.success) {
@@ -58,21 +56,15 @@ export default function AcpAgentsList() {
           prev.map((a) => (a.id === agentId ? { ...a, installed: true, installing: false } : a))
         );
       } else {
-        setAgents((prev) =>
-          prev.map((a) => (a.id === agentId ? { ...a, installing: false } : a))
-        );
+        setAgents((prev) => prev.map((a) => (a.id === agentId ? { ...a, installing: false } : a)));
       }
     } catch {
-      setAgents((prev) =>
-        prev.map((a) => (a.id === agentId ? { ...a, installing: false } : a))
-      );
+      setAgents((prev) => prev.map((a) => (a.id === agentId ? { ...a, installing: false } : a)));
     }
   }, []);
 
   const handleUninstall = useCallback(async (agentId: string) => {
-    setAgents((prev) =>
-      prev.map((a) => (a.id === agentId ? { ...a, installing: true } : a))
-    );
+    setAgents((prev) => prev.map((a) => (a.id === agentId ? { ...a, installing: true } : a)));
     try {
       const result = await window.electronAPI.acpRegistryUninstall({ agentId });
       if (result.success) {
@@ -80,20 +72,16 @@ export default function AcpAgentsList() {
           prev.map((a) => (a.id === agentId ? { ...a, installed: false, installing: false } : a))
         );
       } else {
-        setAgents((prev) =>
-          prev.map((a) => (a.id === agentId ? { ...a, installing: false } : a))
-        );
+        setAgents((prev) => prev.map((a) => (a.id === agentId ? { ...a, installing: false } : a)));
       }
     } catch {
-      setAgents((prev) =>
-        prev.map((a) => (a.id === agentId ? { ...a, installing: false } : a))
-      );
+      setAgents((prev) => prev.map((a) => (a.id === agentId ? { ...a, installing: false } : a)));
     }
   }, []);
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
+      <div className="text-muted-foreground flex items-center gap-2 py-4 text-sm">
         <Loader2 size={14} className="animate-spin" />
         Loading ACP agents...
       </div>
@@ -102,7 +90,7 @@ export default function AcpAgentsList() {
 
   if (error) {
     return (
-      <div className="py-2 text-sm text-destructive">
+      <div className="text-destructive py-2 text-sm">
         {error}
         <Button variant="link" size="sm" onClick={load} className="ml-2">
           Retry
@@ -112,17 +100,15 @@ export default function AcpAgentsList() {
   }
 
   if (agents.length === 0) {
-    return (
-      <p className="py-2 text-sm text-muted-foreground">No ACP agents found in registry.</p>
-    );
+    return <p className="text-muted-foreground py-2 text-sm">No ACP agents found in registry.</p>;
   }
 
   return (
-    <div className="min-w-0 w-full space-y-1">
+    <div className="w-full min-w-0 space-y-1">
       {agents.map((agent) => (
         <div
           key={agent.id}
-          className="flex w-full items-center gap-3 overflow-hidden rounded-md border border-border/50 px-3 py-2"
+          className="border-border/50 flex w-full items-center gap-3 overflow-hidden rounded-md border px-3 py-2"
         >
           {agent.icon ? (
             <img
@@ -131,30 +117,30 @@ export default function AcpAgentsList() {
               className="h-6 w-6 shrink-0 rounded object-contain"
             />
           ) : (
-            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-muted text-[10px] font-bold text-muted-foreground">
+            <div className="bg-muted text-muted-foreground flex h-6 w-6 shrink-0 items-center justify-center rounded text-[10px] font-bold">
               {agent.name.charAt(0).toUpperCase()}
             </div>
           )}
           <div className="min-w-0 flex-1 overflow-hidden">
             <div className="flex items-center gap-1.5">
               <span className="truncate text-sm font-medium">{agent.name}</span>
-              <span className="shrink-0 text-xs text-muted-foreground">v{agent.version}</span>
+              <span className="text-muted-foreground shrink-0 text-xs">v{agent.version}</span>
               {agent.installed && (
                 <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-green-500/10 px-1.5 py-0.5 text-[10px] font-medium text-green-500">
                   <Check size={10} /> Installed
                 </span>
               )}
             </div>
-            <p className="truncate text-xs text-muted-foreground">{agent.description}</p>
+            <p className="text-muted-foreground truncate text-xs">{agent.description}</p>
           </div>
           <div className="ml-2 shrink-0">
             {agent.installing ? (
-              <Loader2 size={14} className="animate-spin text-muted-foreground" />
+              <Loader2 size={14} className="text-muted-foreground animate-spin" />
             ) : agent.installed ? (
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                className="text-muted-foreground hover:text-destructive h-7 w-7"
                 onClick={() => handleUninstall(agent.id)}
                 title="Uninstall"
               >

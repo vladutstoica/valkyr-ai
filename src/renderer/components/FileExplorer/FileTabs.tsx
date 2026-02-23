@@ -22,7 +22,7 @@ export const FileTabs: React.FC<FileTabsProps> = ({
   }
 
   return (
-    <div className="flex h-8 items-center overflow-x-auto border-b border-border bg-muted/10">
+    <div className="border-border bg-muted/10 flex h-8 items-center overflow-x-auto border-b">
       {Array.from(openFiles.entries()).map(([path, file]) => (
         <FileTab
           key={path}
@@ -54,7 +54,7 @@ const FileTab: React.FC<FileTabProps> = ({ path, file, isActive, onClick, onClos
   return (
     <div
       className={cn(
-        'flex h-full cursor-pointer items-center gap-1.5 border-r border-border px-3 hover:bg-accent/50',
+        'border-border hover:bg-accent/50 flex h-full cursor-pointer items-center gap-1.5 border-r px-3',
         isActive && 'bg-background'
       )}
       onClick={onClick}
@@ -70,7 +70,7 @@ const FileTab: React.FC<FileTabProps> = ({ path, file, isActive, onClick, onClos
         </span>
       )}
       <button
-        className="ml-1 rounded p-0.5 hover:bg-accent"
+        className="hover:bg-accent ml-1 rounded p-0.5"
         onClick={onClose}
         aria-label={`Close ${fileName}`}
       >

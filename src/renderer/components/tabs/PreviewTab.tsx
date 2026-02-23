@@ -1,33 +1,32 @@
 import * as React from 'react';
-import {
-  RefreshCw,
-  ExternalLink,
-  ArrowLeft,
-  ArrowRight,
-} from 'lucide-react';
+import { RefreshCw, ExternalLink, ArrowLeft, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-  TooltipProvider,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { usePreviewState } from '@/hooks/usePreviewState';
 import { useTabState } from '@/hooks/useTabState';
 
 // Browser view IPC methods (not in typed interface)
-const browserAPI = () => (window as any).electronAPI as {
-  browserShow?: (bounds: { x: number; y: number; width: number; height: number }, url?: string) => Promise<any>;
-  browserHide?: () => Promise<any>;
-  browserSetBounds?: (bounds: { x: number; y: number; width: number; height: number }) => Promise<any>;
-  browserLoadURL?: (url: string, forceReload?: boolean) => Promise<any>;
-  browserGoBack?: () => Promise<any>;
-  browserGoForward?: () => Promise<any>;
-  browserReload?: () => Promise<any>;
-  openExternal?: (url: string) => void;
-};
+const browserAPI = () =>
+  (window as any).electronAPI as {
+    browserShow?: (
+      bounds: { x: number; y: number; width: number; height: number },
+      url?: string
+    ) => Promise<any>;
+    browserHide?: () => Promise<any>;
+    browserSetBounds?: (bounds: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }) => Promise<any>;
+    browserLoadURL?: (url: string, forceReload?: boolean) => Promise<any>;
+    browserGoBack?: () => Promise<any>;
+    browserGoForward?: () => Promise<any>;
+    browserReload?: () => Promise<any>;
+    openExternal?: (url: string) => void;
+  };
 
 interface PreviewTabProps {
   taskId?: string | null;
@@ -248,18 +247,13 @@ export function PreviewTab({ taskId, className }: PreviewTabProps) {
 
   return (
     <TooltipProvider>
-      <div className={cn('flex h-full flex-col bg-background', className)}>
+      <div className={cn('bg-background flex h-full flex-col', className)}>
         {/* Top toolbar with URL bar */}
-        <div className="flex h-10 flex-shrink-0 items-center gap-2 border-b border-border bg-muted/50 px-3">
+        <div className="border-border bg-muted/50 flex h-10 flex-shrink-0 items-center gap-2 border-b px-3">
           <div className="flex items-center gap-1">
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={handleGoBack}
-                  aria-label="Go back"
-                >
+                <Button variant="ghost" size="icon-sm" onClick={handleGoBack} aria-label="Go back">
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
@@ -295,10 +289,7 @@ export function PreviewTab({ taskId, className }: PreviewTabProps) {
             </Tooltip>
           </div>
 
-          <form
-            className="flex min-w-0 flex-1 items-center gap-2"
-            onSubmit={handleUrlSubmit}
-          >
+          <form className="flex min-w-0 flex-1 items-center gap-2" onSubmit={handleUrlSubmit}>
             <Input
               className="h-7 min-w-0 flex-1 px-2 text-xs"
               value={inputUrl}
@@ -323,12 +314,9 @@ export function PreviewTab({ taskId, className }: PreviewTabProps) {
         </div>
 
         {/* Browser view container - native WebContentsView renders here */}
-        <div
-          ref={containerRef}
-          className="relative flex-1 bg-white dark:bg-background"
-        >
+        <div ref={containerRef} className="dark:bg-background relative flex-1 bg-white">
           {!url && (
-            <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+            <div className="text-muted-foreground absolute inset-0 flex items-center justify-center">
               <p className="text-sm">Enter a URL to preview</p>
             </div>
           )}

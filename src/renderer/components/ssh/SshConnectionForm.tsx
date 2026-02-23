@@ -236,7 +236,7 @@ export const SshConnectionForm: React.FC<Props> = ({
             Host <span className="text-red-500">*</span>
           </Label>
           <div className="relative">
-            <Server className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Server className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
             <Input
               id="host"
               type="text"
@@ -251,8 +251,8 @@ export const SshConnectionForm: React.FC<Props> = ({
 
             {/* SSH Config suggestions dropdown */}
             {showConfigSuggestions && hostMatches.length > 0 && (
-              <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-border bg-popover shadow-md">
-                <div className="border-b border-border px-3 py-2 text-xs text-muted-foreground">
+              <div className="border-border bg-popover absolute top-full right-0 left-0 z-10 mt-1 max-h-48 overflow-y-auto rounded-md border shadow-md">
+                <div className="border-border text-muted-foreground border-b px-3 py-2 text-xs">
                   Found in ~/.ssh/config
                 </div>
                 {hostMatches.map((match) => (
@@ -261,17 +261,17 @@ export const SshConnectionForm: React.FC<Props> = ({
                     type="button"
                     onClick={() => applyConfigHost(match)}
                     disabled={isLoadingFromConfig}
-                    className="group flex w-full items-center justify-between px-3 py-2 text-left hover:bg-accent disabled:opacity-50"
+                    className="group hover:bg-accent flex w-full items-center justify-between px-3 py-2 text-left disabled:opacity-50"
                   >
                     <div className="flex flex-col gap-0.5">
                       <span className="text-sm font-medium">{match.host}</span>
                       {match.hostname && (
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-muted-foreground text-xs">
                           {match.hostname}:{match.port || 22} • {match.user || 'unknown'}
                         </span>
                       )}
                     </div>
-                    <Download className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100" />
+                    <Download className="text-muted-foreground h-3 w-3 opacity-0 group-hover:opacity-100" />
                   </button>
                 ))}
               </div>
@@ -301,7 +301,7 @@ export const SshConnectionForm: React.FC<Props> = ({
           Username <span className="text-red-500">*</span>
         </Label>
         <div className="relative">
-          <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <User className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
           <Input
             id="username"
             type="text"
@@ -322,44 +322,44 @@ export const SshConnectionForm: React.FC<Props> = ({
           onValueChange={(value: 'password' | 'key' | 'agent') => handleChange('authType', value)}
           className="flex flex-col gap-3"
         >
-          <div className="flex items-center space-x-2 rounded-lg border border-border p-3 hover:bg-muted/50">
+          <div className="border-border hover:bg-muted/50 flex items-center space-x-2 rounded-lg border p-3">
             <RadioGroupItem value="password" id="auth-password" />
             <Label
               htmlFor="auth-password"
               className="flex cursor-pointer items-center gap-2 font-normal"
             >
-              <Lock className="h-4 w-4 text-muted-foreground" />
+              <Lock className="text-muted-foreground h-4 w-4" />
               <div>
                 <span className="font-medium">Password</span>
-                <p className="text-xs text-muted-foreground">Authenticate using a password</p>
+                <p className="text-muted-foreground text-xs">Authenticate using a password</p>
               </div>
             </Label>
           </div>
 
-          <div className="flex items-center space-x-2 rounded-lg border border-border p-3 hover:bg-muted/50">
+          <div className="border-border hover:bg-muted/50 flex items-center space-x-2 rounded-lg border p-3">
             <RadioGroupItem value="key" id="auth-key" />
             <Label
               htmlFor="auth-key"
               className="flex cursor-pointer items-center gap-2 font-normal"
             >
-              <Key className="h-4 w-4 text-muted-foreground" />
+              <Key className="text-muted-foreground h-4 w-4" />
               <div>
                 <span className="font-medium">SSH Key</span>
-                <p className="text-xs text-muted-foreground">Use a private key file (PEM, KEY)</p>
+                <p className="text-muted-foreground text-xs">Use a private key file (PEM, KEY)</p>
               </div>
             </Label>
           </div>
 
-          <div className="flex items-center space-x-2 rounded-lg border border-border p-3 hover:bg-muted/50">
+          <div className="border-border hover:bg-muted/50 flex items-center space-x-2 rounded-lg border p-3">
             <RadioGroupItem value="agent" id="auth-agent" />
             <Label
               htmlFor="auth-agent"
               className="flex cursor-pointer items-center gap-2 font-normal"
             >
-              <Shield className="h-4 w-4 text-muted-foreground" />
+              <Shield className="text-muted-foreground h-4 w-4" />
               <div>
                 <span className="font-medium">SSH Agent</span>
-                <p className="text-xs text-muted-foreground">Use the system SSH agent</p>
+                <p className="text-muted-foreground text-xs">Use the system SSH agent</p>
               </div>
             </Label>
           </div>
@@ -371,7 +371,7 @@ export const SshConnectionForm: React.FC<Props> = ({
         <div className="space-y-2">
           <Label htmlFor="password">Password</Label>
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Lock className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
             <Input
               id="password"
               type={showPassword ? 'text' : 'password'}
@@ -379,14 +379,14 @@ export const SshConnectionForm: React.FC<Props> = ({
               value={formData.password || ''}
               onChange={(e) => handleChange('password', e.target.value)}
               className={cn(
-                'pl-10 pr-10',
+                'pr-10 pl-10',
                 errors.password && 'border-red-500 focus-visible:ring-red-500'
               )}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2"
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
@@ -401,7 +401,7 @@ export const SshConnectionForm: React.FC<Props> = ({
             <Label htmlFor="privateKeyPath">Private Key Path</Label>
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <Key className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Key className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
                 <Input
                   id="privateKeyPath"
                   type="text"
@@ -426,19 +426,19 @@ export const SshConnectionForm: React.FC<Props> = ({
           <div className="space-y-2">
             <Label htmlFor="passphrase">Key Passphrase (optional)</Label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Lock className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
               <Input
                 id="passphrase"
                 type={showPassphrase ? 'text' : 'password'}
                 placeholder="Enter passphrase if your key is encrypted"
                 value={formData.passphrase || ''}
                 onChange={(e) => handleChange('passphrase', e.target.value)}
-                className="pl-10 pr-10"
+                className="pr-10 pl-10"
               />
               <button
                 type="button"
                 onClick={() => setShowPassphrase(!showPassphrase)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2"
               >
                 {showPassphrase ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>

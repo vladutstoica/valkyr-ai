@@ -2,20 +2,10 @@ import React, { useState, useCallback } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Textarea } from '../ui/textarea';
 import { Plus, X } from 'lucide-react';
-import type {
-  McpServerConfig,
-  McpServerInput,
-  McpServerTransport,
-} from '@shared/mcp/types';
+import type { McpServerConfig, McpServerInput, McpServerTransport } from '@shared/mcp/types';
 
 interface Props {
   initialValues?: McpServerConfig;
@@ -74,23 +64,12 @@ const KeyValueEditor: React.FC<{
             placeholder={valuePlaceholder}
             className="h-8 flex-1 text-xs"
           />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => removeRow(idx)}
-          >
+          <Button type="button" variant="ghost" size="icon-sm" onClick={() => removeRow(idx)}>
             <X className="h-3.5 w-3.5" />
           </Button>
         </div>
       ))}
-      <Button
-        type="button"
-        variant="link"
-        size="sm"
-        className="w-fit p-0 text-xs"
-        onClick={addRow}
-      >
+      <Button type="button" variant="link" size="sm" className="w-fit p-0 text-xs" onClick={addRow}>
         <Plus className="mr-1 h-3 w-3" />
         Add
       </Button>
@@ -226,7 +205,7 @@ export const McpServerForm: React.FC<Props> = ({
               value={argsText}
               onChange={(e) => setArgsText(e.target.value)}
               placeholder={'-y\n@playwright/mcp@latest'}
-              className="min-h-[80px] resize-y text-xs font-mono"
+              className="min-h-[80px] resize-y font-mono text-xs"
               rows={3}
             />
           </div>

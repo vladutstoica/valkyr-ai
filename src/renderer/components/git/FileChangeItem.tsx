@@ -74,9 +74,9 @@ export const FileChangeItem = React.memo(function FileChangeItem({
   return (
     <div
       className={cn(
-        'group flex h-7 cursor-pointer items-center gap-1.5 px-2 py-1 transition-colors hover:bg-muted/50',
+        'group hover:bg-muted/50 flex h-7 cursor-pointer items-center gap-1.5 px-2 py-1 transition-colors',
         isStaged && 'bg-muted/30',
-        isSelected && 'border-l-2 border-l-primary bg-muted/60'
+        isSelected && 'border-l-primary bg-muted/60 border-l-2'
       )}
       style={filenameOnly && depth > 0 ? { paddingLeft: `${8 + depth * 16}px` } : undefined}
       onClick={handleClick}
@@ -88,34 +88,28 @@ export const FileChangeItem = React.memo(function FileChangeItem({
           checked={isStaged}
           onCheckedChange={() => onToggleStaged(path)}
           disabled={isStaging}
-          className="h-3.5 w-3.5 border-muted-foreground/50 data-[state=checked]:border-blue-500 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white"
+          className="border-muted-foreground/50 h-3.5 w-3.5 data-[state=checked]:border-blue-500 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white"
         />
       </div>
 
       {/* File Icon */}
-      <span className="flex-shrink-0 text-muted-foreground">
+      <span className="text-muted-foreground flex-shrink-0">
         <FileIcon filename={path} isDirectory={false} size={14} />
       </span>
 
       {/* File Path — colored by status */}
       <div className="min-w-0 flex-1 truncate text-xs" title={STATUS_LABELS[status]}>
-        {!filenameOnly && directory && (
-          <span className="text-muted-foreground">{directory}</span>
-        )}
+        {!filenameOnly && directory && <span className="text-muted-foreground">{directory}</span>}
         <span className={STATUS_FILENAME_COLORS[status]}>{fileName}</span>
       </div>
 
       {/* Change Stats (hover-only) */}
       <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
         {additions > 0 && (
-          <span className="text-[10px] font-medium text-emerald-500">
-            +{additions}
-          </span>
+          <span className="text-[10px] font-medium text-emerald-500">+{additions}</span>
         )}
         {deletions > 0 && (
-          <span className="text-[10px] font-medium text-rose-500">
-            -{deletions}
-          </span>
+          <span className="text-[10px] font-medium text-rose-500">-{deletions}</span>
         )}
       </div>
 
@@ -127,7 +121,7 @@ export const FileChangeItem = React.memo(function FileChangeItem({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-5 w-5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                className="text-muted-foreground hover:bg-accent hover:text-foreground h-5 w-5"
                 onClick={handleDiscard}
                 disabled={isDiscarding}
               >

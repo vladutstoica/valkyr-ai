@@ -270,13 +270,13 @@ const KeyboardSettingsCard: React.FC = () => {
   };
 
   return (
-    <div className="rounded-xl border border-border/60 bg-muted/10 p-4">
+    <div className="border-border/60 bg-muted/10 rounded-xl border p-4">
       <div className="space-y-4">
         {CONFIGURABLE_SHORTCUTS.map((shortcut) => (
           <div key={shortcut.id} className="flex items-center justify-between gap-2">
             <div className="space-y-1">
               <div className="text-sm">{shortcut.label}</div>
-              <div className="text-xs text-muted-foreground">{shortcut.description}</div>
+              <div className="text-muted-foreground text-xs">{shortcut.description}</div>
             </div>
             <div className="flex items-center gap-2">
               {capturingKey === shortcut.settingsKey ? (
@@ -340,7 +340,7 @@ const KeyboardSettingsCard: React.FC = () => {
             </div>
           </div>
         ))}
-        {error ? <p className="text-xs text-destructive">{error}</p> : null}
+        {error ? <p className="text-destructive text-xs">{error}</p> : null}
       </div>
     </div>
   );

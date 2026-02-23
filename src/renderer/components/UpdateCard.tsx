@@ -52,7 +52,7 @@ export function UpdateCard(): JSX.Element {
                 </Badge>
               )}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Auto-updates are enabled in production builds
             </p>
           </div>
@@ -61,7 +61,7 @@ export function UpdateCard(): JSX.Element {
         <div className="mt-2">
           <a
             href="https://github.com/generalaction/valkyr/releases"
-            className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground text-xs transition-colors"
           >
             View latest release →
           </a>
@@ -89,13 +89,13 @@ export function UpdateCard(): JSX.Element {
 
       {updater.state.status === 'downloading' && updater.state.progress && (
         <div className="space-y-2">
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+          <div className="bg-muted h-1.5 w-full overflow-hidden rounded-full">
             <div
-              className="h-full bg-primary transition-all duration-300 ease-out"
+              className="bg-primary h-full transition-all duration-300 ease-out"
               style={{ width: `${updater.state.progress.percent || 0}%` }}
             />
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-muted-foreground text-xs">
             {formatBytes(updater.state.progress.transferred || 0)} /{' '}
             {formatBytes(updater.state.progress.total || 0)}
           </p>
@@ -105,7 +105,7 @@ export function UpdateCard(): JSX.Element {
       <div className="mt-2">
         <a
           href="https://github.com/generalaction/valkyr/releases"
-          className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground text-xs transition-colors"
         >
           View latest release →
         </a>
@@ -117,7 +117,7 @@ export function UpdateCard(): JSX.Element {
     switch (updater.state.status) {
       case 'checking':
         return (
-          <p className="flex items-center gap-1 text-xs text-muted-foreground">
+          <p className="text-muted-foreground flex items-center gap-1 text-xs">
             <Loader2 className="h-3 w-3 animate-spin" />
             Checking for updates...
           </p>
@@ -126,16 +126,16 @@ export function UpdateCard(): JSX.Element {
       case 'available':
         if (updater.state.info?.version) {
           return (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Version {updater.state.info.version} is available
             </p>
           );
         }
-        return <p className="text-xs text-muted-foreground">An update is available</p>;
+        return <p className="text-muted-foreground text-xs">An update is available</p>;
 
       case 'downloading':
         return (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-muted-foreground text-xs">
             Downloading update{updater.progressLabel ? ` (${updater.progressLabel})` : '...'}
           </p>
         );
@@ -162,7 +162,7 @@ export function UpdateCard(): JSX.Element {
 
       default:
         return (
-          <p className="flex items-center gap-1 text-xs text-muted-foreground">
+          <p className="text-muted-foreground flex items-center gap-1 text-xs">
             <CheckCircle2 className="h-3 w-3 text-green-600 dark:text-green-500" />
             You're up to date
           </p>

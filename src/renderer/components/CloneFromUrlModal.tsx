@@ -193,7 +193,7 @@ export const CloneFromUrlModal: React.FC<CloneFromUrlModalProps> = ({
               <Spinner size="sm" />
               <div className="flex-1">
                 <p className="text-sm font-medium">{progress}</p>
-                <p className="text-xs text-muted-foreground">This may take a few moments...</p>
+                <p className="text-muted-foreground text-xs">This may take a few moments...</p>
               </div>
             </div>
           </div>
@@ -219,7 +219,7 @@ export const CloneFromUrlModal: React.FC<CloneFromUrlModalProps> = ({
                 autoFocus
               />
               {touched && error && !repoUrl.trim() && (
-                <p className="mt-1 text-xs text-destructive">{error}</p>
+                <p className="text-destructive mt-1 text-xs">{error}</p>
               )}
             </div>
 
@@ -235,13 +235,13 @@ export const CloneFromUrlModal: React.FC<CloneFromUrlModalProps> = ({
                 disabled={isCloning}
                 className="w-full"
               />
-              <p className="mt-1 pl-0.5 text-[10px] text-muted-foreground">
+              <p className="text-muted-foreground mt-1 pl-0.5 text-[10px]">
                 Local directory name (auto-detected from URL)
               </p>
             </div>
 
             {error && repoUrl.trim() && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              <div className="bg-destructive/10 text-destructive rounded-md p-3 text-sm">
                 {error.split('\n').map((line, i) => (
                   <p key={i}>{line}</p>
                 ))}

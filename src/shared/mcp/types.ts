@@ -28,10 +28,7 @@ export interface McpServerSseConfig {
   headers: Record<string, string>;
 }
 
-export type McpServerConfig =
-  | McpServerStdioConfig
-  | McpServerHttpConfig
-  | McpServerSseConfig;
+export type McpServerConfig = McpServerStdioConfig | McpServerHttpConfig | McpServerSseConfig;
 
 /** McpServerConfig without the `id` field — used for creating new servers. */
 export type McpServerInput =

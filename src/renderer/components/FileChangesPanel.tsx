@@ -76,7 +76,7 @@ function PrActionButton({ mode, onModeChange, onExecute, isLoading }: PrActionBu
             .map((m) => (
               <PopoverClose key={m} asChild>
                 <button
-                  className="w-full whitespace-nowrap rounded px-2 py-1 text-left text-xs hover:bg-accent"
+                  className="hover:bg-accent w-full rounded px-2 py-1 text-left text-xs whitespace-nowrap"
                   onClick={() => onModeChange(m)}
                 >
                   {PR_MODE_LABELS[m]}
@@ -103,7 +103,7 @@ function TabButton({
       type="button"
       className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${
         active
-          ? 'border-b-2 border-primary text-foreground'
+          ? 'border-primary text-foreground border-b-2'
           : 'text-muted-foreground hover:text-foreground'
       }`}
       onClick={onClick}
@@ -155,8 +155,12 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
 
   const selectPrMode = (mode: PrMode) => {
     setPrMode(mode);
-    try { localStorage.setItem('valkyr:prMode', mode); } catch {}
-    try { window.electronAPI?.updateAppState?.({ prMode: mode, prDraft: mode === 'draft' }); } catch {}
+    try {
+      localStorage.setItem('valkyr:prMode', mode);
+    } catch {}
+    try {
+      window.electronAPI?.updateAppState?.({ prMode: mode, prDraft: mode === 'draft' });
+    } catch {}
   };
 
   const { fileChanges, refreshChanges } = useFileChanges(safeTaskPath);
@@ -511,7 +515,7 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
     return (
       <span className="truncate">
         {dir && <span className="text-muted-foreground">{dir}</span>}
-        <span className="font-medium text-foreground">{base}</span>
+        <span className="text-foreground font-medium">{base}</span>
       </span>
     );
   };
@@ -531,7 +535,7 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
   const isActionLoading = isCreatingPR || isMergingToMain;
 
   return (
-    <div className={`flex h-full flex-col bg-card shadow-xs ${className}`}>
+    <div className={`bg-card flex h-full flex-col shadow-xs ${className}`}>
       <div className="bg-muted px-3 py-2">
         {hasChanges ? (
           <div className="space-y-3">
@@ -547,7 +551,7 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
                   </span>
                 </div>
                 {hasStagedChanges && (
-                  <span className="shrink-0 rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                  <span className="bg-muted text-muted-foreground shrink-0 rounded px-2 py-0.5 text-xs font-medium">
                     {fileChanges.filter((f) => f.isStaged).length} staged
                   </span>
                 )}
@@ -621,7 +625,7 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
         ) : (
           <div className="flex w-full items-center justify-between">
             <div className="flex items-center gap-2 p-2">
-              <span className="text-sm font-medium text-foreground">Changes</span>
+              <span className="text-foreground text-sm font-medium">Changes</span>
             </div>
             <div className="flex items-center gap-2">
               {pr ? (
@@ -631,7 +635,7 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
                     e.stopPropagation();
                     if (pr.url) window.electronAPI?.openExternal?.(pr.url);
                   }}
-                  className="inline-flex items-center gap-1 rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                  className="border-border bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium transition-colors"
                   title={`${pr.title || 'Pull Request'} (#${pr.number})`}
                 >
                   {pr.isDraft
@@ -649,7 +653,7 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
                   isLoading={isActionLoading || branchStatusLoading}
                 />
               ) : (
-                <span className="text-xs text-muted-foreground">No PR for this branch</span>
+                <span className="text-muted-foreground text-xs">No PR for this branch</span>
               )}
             </div>
           </div>
@@ -657,17 +661,17 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
       </div>
 
       {pr && hasChanges && (
-        <div className="flex border-b border-border">
+        <div className="border-border flex border-b">
           <TabButton active={activeTab === 'changes'} onClick={() => setActiveTab('changes')}>
             Changes
-            <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px]">
+            <span className="bg-muted ml-1.5 rounded-full px-1.5 py-0.5 text-[10px]">
               {fileChanges.length}
             </span>
           </TabButton>
           <TabButton active={activeTab === 'checks'} onClick={() => setActiveTab('checks')}>
             Checks
             {checkRunsStatus && !checkRunsStatus.allComplete && (
-              <Loader2 className="ml-1.5 inline h-3 w-3 animate-spin text-foreground" />
+              <Loader2 className="text-foreground ml-1.5 inline h-3 w-3 animate-spin" />
             )}
             {checkRunsStatus?.hasFailures && checkRunsStatus.allComplete && (
               <span className="ml-1.5 inline-block h-2 w-2 rounded-full bg-red-500" />
@@ -679,7 +683,7 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
         <div className="min-h-0 flex-1 overflow-y-auto">
           {!hasChanges && (
             <div className="flex items-center gap-1.5 px-4 py-1.5">
-              <span className="text-sm font-medium text-foreground">Checks</span>
+              <span className="text-foreground text-sm font-medium">Checks</span>
               {checkRunsStatus?.summary && (
                 <div className="flex items-center gap-1.5">
                   {checkRunsStatus.summary.passed > 0 && (
@@ -722,7 +726,7 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
           {fileChanges.map((change, index) => (
             <div
               key={index}
-              className={`flex cursor-pointer items-center justify-between border-b border-border/50 px-4 py-2.5 last:border-b-0 hover:bg-muted/50 ${
+              className={`border-border/50 hover:bg-muted/50 flex cursor-pointer items-center justify-between border-b px-4 py-2.5 last:border-b-0 ${
                 change.isStaged ? 'bg-muted/50' : ''
               }`}
               onClick={() => {
@@ -735,7 +739,7 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
               }}
             >
               <div className="flex min-w-0 flex-1 items-center gap-3">
-                <span className="inline-flex items-center justify-center text-muted-foreground">
+                <span className="text-muted-foreground inline-flex items-center justify-center">
                   <FileIcon filename={change.path} isDirectory={false} size={16} />
                 </span>
                 <div className="min-w-0 flex-1">
@@ -761,7 +765,7 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:bg-accent hover:text-foreground"
+                            className="text-muted-foreground hover:bg-accent hover:text-foreground h-8 w-8"
                             onClick={(e) => handleStageFile(change.path, e)}
                             disabled={stagingFiles.has(change.path)}
                           >
@@ -774,10 +778,10 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
                         </TooltipTrigger>
                         <TooltipContent
                           side="left"
-                          className="max-w-xs border border-border bg-popover px-3 py-2 text-sm text-popover-foreground shadow-lg"
+                          className="border-border bg-popover text-popover-foreground max-w-xs border px-3 py-2 text-sm shadow-lg"
                         >
                           <p className="font-medium">Stage file for commit</p>
-                          <p className="mt-0.5 text-xs text-muted-foreground">
+                          <p className="text-muted-foreground mt-0.5 text-xs">
                             Add this file to the staging area so it will be included in the next
                             commit
                           </p>
@@ -792,7 +796,7 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:bg-accent hover:text-foreground"
+                            className="text-muted-foreground hover:bg-accent hover:text-foreground h-8 w-8"
                             onClick={(e) => handleUnstageFile(change.path, e)}
                             disabled={unstagingFiles.has(change.path)}
                           >
@@ -805,10 +809,10 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
                         </TooltipTrigger>
                         <TooltipContent
                           side="left"
-                          className="max-w-xs border border-border bg-popover px-3 py-2 text-sm text-popover-foreground shadow-lg"
+                          className="border-border bg-popover text-popover-foreground max-w-xs border px-3 py-2 text-sm shadow-lg"
                         >
                           <p className="font-medium">Unstage file</p>
-                          <p className="mt-0.5 text-xs text-muted-foreground">
+                          <p className="text-muted-foreground mt-0.5 text-xs">
                             Remove this file from staging so it will not be included in the next
                             commit
                           </p>
@@ -822,7 +826,7 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:bg-accent hover:text-foreground"
+                          className="text-muted-foreground hover:bg-accent hover:text-foreground h-8 w-8"
                           onClick={(e) => handleRevertFile(change.path, e)}
                           disabled={revertingFiles.has(change.path)}
                         >
@@ -835,10 +839,10 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
                       </TooltipTrigger>
                       <TooltipContent
                         side="left"
-                        className="max-w-xs border border-border bg-popover px-3 py-2 text-sm text-popover-foreground shadow-lg"
+                        className="border-border bg-popover text-popover-foreground max-w-xs border px-3 py-2 text-sm shadow-lg"
                       >
                         <p className="font-medium">Revert file changes</p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
+                        <p className="text-muted-foreground mt-0.5 text-xs">
                           Discard all uncommitted changes to this file and restore it to the last
                           committed version
                         </p>

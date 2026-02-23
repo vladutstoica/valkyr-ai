@@ -1,17 +1,8 @@
 import * as React from 'react';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import Editor from '@monaco-editor/react';
-import {
-  ChevronRight,
-  ExternalLink,
-  X,
-  FolderOpen,
-} from 'lucide-react';
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from '@/components/ui/resizable';
+import { ChevronRight, ExternalLink, X, FolderOpen } from 'lucide-react';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -129,7 +120,16 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
     };
 
     validateAndLoadFiles();
-  }, [taskPath, openFiles, activeFile, storeCloseFile, storeSetActiveFile, loadFile, managedFiles, managerSetActiveFile]);
+  }, [
+    taskPath,
+    openFiles,
+    activeFile,
+    storeCloseFile,
+    storeSetActiveFile,
+    loadFile,
+    managedFiles,
+    managerSetActiveFile,
+  ]);
 
   // Sync editor state with file manager - load active file content
   useEffect(() => {
@@ -206,9 +206,7 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
   // Open in external app
   const handleOpenInApp = useCallback(
     async (appId: string) => {
-      const filePath = activeFile
-        ? `${taskPath}/${activeFile}`
-        : taskPath;
+      const filePath = activeFile ? `${taskPath}/${activeFile}` : taskPath;
       try {
         await window.electronAPI?.openIn?.({
           app: appId as any,
@@ -243,12 +241,7 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
     <div className={cn('flex h-full flex-col', className)}>
       <ResizablePanelGroup direction="horizontal" className="flex-1">
         {/* File Tree Panel */}
-        <ResizablePanel
-          defaultSize={20}
-          minSize={15}
-          maxSize={40}
-          className="flex flex-col"
-        >
+        <ResizablePanel defaultSize={20} minSize={15} maxSize={40} className="flex flex-col">
           {/* File Tree */}
           <FileTree
             rootPath={taskPath}
@@ -267,7 +260,7 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
           <div className="flex h-full flex-col">
             {/* File Tabs */}
             {openFiles.length > 0 && (
-              <div className="flex h-9 items-center overflow-x-auto border-b border-border bg-muted/10">
+              <div className="border-border bg-muted/10 flex h-9 items-center overflow-x-auto border-b">
                 {openFiles.map((filePath) => {
                   const fileName = filePath.split('/').pop() || 'Untitled';
                   const isActive = filePath === activeFile;
@@ -277,7 +270,7 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
                     <div
                       key={filePath}
                       className={cn(
-                        'group flex h-full cursor-pointer items-center gap-1.5 border-r border-border px-3 hover:bg-accent/50',
+                        'group border-border hover:bg-accent/50 flex h-full cursor-pointer items-center gap-1.5 border-r px-3',
                         isActive && 'bg-background'
                       )}
                       onClick={() => handleTabClick(filePath)}
@@ -286,16 +279,14 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
                       <span className="flex-shrink-0 [&>svg]:h-3.5 [&>svg]:w-3.5">
                         <FileIcon filename={fileName} isDirectory={false} />
                       </span>
-                      <span className="max-w-[120px] truncate text-xs">
-                        {fileName}
-                      </span>
+                      <span className="max-w-[120px] truncate text-xs">{fileName}</span>
                       {isDirty && (
                         <span className="text-amber-500" title="Unsaved changes">
                           *
                         </span>
                       )}
                       <button
-                        className="ml-1 rounded p-0.5 opacity-0 hover:bg-accent group-hover:opacity-100"
+                        className="hover:bg-accent ml-1 rounded p-0.5 opacity-0 group-hover:opacity-100"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleTabClose(filePath);
@@ -312,20 +303,15 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
 
             {/* Breadcrumb + Actions Bar */}
             {activeFile && (
-              <div className="flex h-8 items-center justify-between border-b border-border bg-muted/20 px-3">
+              <div className="border-border bg-muted/20 flex h-8 items-center justify-between border-b px-3">
                 {/* Breadcrumb */}
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <div className="text-muted-foreground flex items-center gap-1 text-xs">
                   <FolderOpen className="h-3 w-3" />
                   {breadcrumbPath.map((part, index) => (
                     <React.Fragment key={index}>
-                      {index > 0 && (
-                        <ChevronRight className="h-3 w-3" />
-                      )}
+                      {index > 0 && <ChevronRight className="h-3 w-3" />}
                       <span
-                        className={cn(
-                          index === breadcrumbPath.length - 1 &&
-                            'text-foreground'
-                        )}
+                        className={cn(index === breadcrumbPath.length - 1 && 'text-foreground')}
                       >
                         {part}
                       </span>
@@ -335,19 +321,13 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
 
                 {/* Actions */}
                 <div className="flex items-center gap-2">
-                  {hasUnsavedChanges && (
-                    <span className="text-xs text-amber-500">Unsaved</span>
-                  )}
+                  {hasUnsavedChanges && <span className="text-xs text-amber-500">Unsaved</span>}
 
                   {/* Open in IDE Dropdown */}
                   {ideApps.length > 0 && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 gap-1.5 px-2 text-xs"
-                        >
+                        <Button variant="ghost" size="sm" className="h-6 gap-1.5 px-2 text-xs">
                           <ExternalLink className="h-3 w-3" />
                           Open in IDE
                         </Button>
@@ -360,11 +340,7 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
                             className="gap-2"
                           >
                             {icons[app.id] && (
-                              <img
-                                src={icons[app.id]}
-                                alt={app.label}
-                                className="h-4 w-4"
-                              />
+                              <img src={icons[app.id]} alt={app.label} className="h-4 w-4" />
                             )}
                             {app.label}
                           </DropdownMenuItem>
@@ -381,7 +357,7 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
               {activeFile ? (
                 isImageFile ? (
                   // Image Preview
-                  <div className="flex h-full items-center justify-center bg-muted/10 p-4">
+                  <div className="bg-muted/10 flex h-full items-center justify-center p-4">
                     <img
                       src={fileContent}
                       alt={activeFile}
@@ -406,12 +382,10 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
                 )
               ) : (
                 // Empty State
-                <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
+                <div className="text-muted-foreground flex h-full flex-col items-center justify-center gap-2">
                   <FolderOpen className="h-12 w-12 opacity-20" />
                   <p className="text-sm">Select a file to open</p>
-                  <p className="text-xs opacity-60">
-                    {taskName || 'No project selected'}
-                  </p>
+                  <p className="text-xs opacity-60">{taskName || 'No project selected'}</p>
                 </div>
               )}
             </div>

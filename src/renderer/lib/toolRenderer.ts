@@ -190,7 +190,9 @@ export function getToolStepLabel(toolName: string, args: Record<string, unknown>
       if (url) {
         try {
           return `Fetch ${new URL(url).hostname}`;
-        } catch { /* fallthrough */ }
+        } catch {
+          /* fallthrough */
+        }
       }
       return 'Fetch URL';
     }
@@ -210,7 +212,7 @@ export function getToolStepLabel(toolName: string, args: Record<string, unknown>
       }
       // For MCP or unknown tools, humanize the tool name
       const humanized = toolName
-        .replace(/^mcp__[^_]+__/, '')  // strip MCP prefix
+        .replace(/^mcp__[^_]+__/, '') // strip MCP prefix
         .replace(/_/g, ' ')
         .replace(/([a-z])([A-Z])/g, '$1 $2')
         .toLowerCase();
@@ -225,15 +227,24 @@ export function getToolStepLabel(toolName: string, args: Record<string, unknown>
 export function getToolIconComponent(toolName: string): LucideIcon {
   const normalized = normalizeToolName(toolName);
   switch (normalized) {
-    case 'read_file': return FileTextIcon;
-    case 'write_file': return FilePlusIcon;
-    case 'edit_file': return FileEditIcon;
-    case 'bash': return TerminalIcon;
-    case 'list_files': return FolderTreeIcon;
-    case 'search': return SearchIcon;
-    case 'web_search': return GlobeIcon;
-    case 'web_fetch': return GlobeIcon;
-    case 'notebook_edit': return BookOpenIcon;
+    case 'read_file':
+      return FileTextIcon;
+    case 'write_file':
+      return FilePlusIcon;
+    case 'edit_file':
+      return FileEditIcon;
+    case 'bash':
+      return TerminalIcon;
+    case 'list_files':
+      return FolderTreeIcon;
+    case 'search':
+      return SearchIcon;
+    case 'web_search':
+      return GlobeIcon;
+    case 'web_fetch':
+      return GlobeIcon;
+    case 'notebook_edit':
+      return BookOpenIcon;
     default: {
       if (toolName === 'switch_mode') return ToggleRightIcon;
       return WrenchIcon;
@@ -247,16 +258,26 @@ export function getToolIconComponent(toolName: string): LucideIcon {
 export function getToolIcon(toolName: string): string {
   const normalized = normalizeToolName(toolName);
   switch (normalized) {
-    case 'read_file': return 'FileText';
-    case 'write_file': return 'FilePlus';
-    case 'edit_file': return 'FileEdit';
-    case 'bash': return 'Terminal';
-    case 'list_files': return 'FolderTree';
-    case 'search': return 'Search';
-    case 'web_search': return 'Globe';
-    case 'web_fetch': return 'Globe';
-    case 'notebook_edit': return 'BookOpen';
-    default: return 'Wrench';
+    case 'read_file':
+      return 'FileText';
+    case 'write_file':
+      return 'FilePlus';
+    case 'edit_file':
+      return 'FileEdit';
+    case 'bash':
+      return 'Terminal';
+    case 'list_files':
+      return 'FolderTree';
+    case 'search':
+      return 'Search';
+    case 'web_search':
+      return 'Globe';
+    case 'web_fetch':
+      return 'Globe';
+    case 'notebook_edit':
+      return 'BookOpen';
+    default:
+      return 'Wrench';
   }
 }
 
@@ -323,6 +344,6 @@ export function getLanguageFromPath(filePath: string): string {
   if (lower === 'dockerfile') return 'dockerfile';
   if (lower === 'makefile') return 'makefile';
 
-  const ext = lower.includes('.') ? lower.split('.').pop() ?? '' : '';
+  const ext = lower.includes('.') ? (lower.split('.').pop() ?? '') : '';
   return EXTENSION_TO_LANGUAGE[ext] || 'text';
 }

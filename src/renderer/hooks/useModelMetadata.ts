@@ -21,17 +21,21 @@ export function useModelMetadata(acpModelId: string | null, providerId: string) 
       window.electronAPI.modelMetadataGet({ acpModelId, providerId }),
       window.electronAPI.modelMetadataGetUptime({ providerId }),
       window.electronAPI.modelMetadataGetStatus({ providerId }),
-    ]).then(([metaRes, uptimeRes, statusRes]) => {
-      if (cancelled) return;
-      if (metaRes.success && metaRes.data) setMetadata(metaRes.data);
-      if (uptimeRes.success && uptimeRes.data) setUptimeData(uptimeRes.data);
-      if (statusRes.success && statusRes.data) setProviderStatus(statusRes.data);
-      setLoading(false);
-    }).catch(() => {
-      if (!cancelled) setLoading(false);
-    });
+    ])
+      .then(([metaRes, uptimeRes, statusRes]) => {
+        if (cancelled) return;
+        if (metaRes.success && metaRes.data) setMetadata(metaRes.data);
+        if (uptimeRes.success && uptimeRes.data) setUptimeData(uptimeRes.data);
+        if (statusRes.success && statusRes.data) setProviderStatus(statusRes.data);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [acpModelId, providerId]);
 
   return { metadata, uptimeData, providerStatus, loading };

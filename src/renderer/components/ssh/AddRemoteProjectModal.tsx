@@ -541,7 +541,7 @@ export const AddRemoteProjectModal: React.FC<AddRemoteProjectModalProps> = ({
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-muted-foreground text-xs">
                   Selecting a host auto-fills name, host, user, port, and key path when available.
                 </p>
               </div>
@@ -560,7 +560,7 @@ export const AddRemoteProjectModal: React.FC<AddRemoteProjectModalProps> = ({
                 className={cn(errors.name && touched.name && 'border-destructive')}
               />
               {errors.name && touched.name && (
-                <p className="text-xs text-destructive">{errors.name}</p>
+                <p className="text-destructive text-xs">{errors.name}</p>
               )}
             </div>
 
@@ -570,7 +570,7 @@ export const AddRemoteProjectModal: React.FC<AddRemoteProjectModalProps> = ({
                   Host <span className="text-destructive">*</span>
                 </Label>
                 <div className="relative">
-                  <Globe className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Globe className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
                   <Input
                     id="host"
                     value={formData.host}
@@ -581,7 +581,7 @@ export const AddRemoteProjectModal: React.FC<AddRemoteProjectModalProps> = ({
                   />
                 </div>
                 {errors.host && touched.host && (
-                  <p className="text-xs text-destructive">{errors.host}</p>
+                  <p className="text-destructive text-xs">{errors.host}</p>
                 )}
               </div>
 
@@ -604,7 +604,7 @@ export const AddRemoteProjectModal: React.FC<AddRemoteProjectModalProps> = ({
                 Username <span className="text-destructive">*</span>
               </Label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <User className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
                 <Input
                   id="username"
                   value={formData.username}
@@ -618,7 +618,7 @@ export const AddRemoteProjectModal: React.FC<AddRemoteProjectModalProps> = ({
                 />
               </div>
               {errors.username && touched.username && (
-                <p className="text-xs text-destructive">{errors.username}</p>
+                <p className="text-destructive text-xs">{errors.username}</p>
               )}
             </div>
           </div>
@@ -665,7 +665,7 @@ export const AddRemoteProjectModal: React.FC<AddRemoteProjectModalProps> = ({
                   <Label
                     htmlFor="auth-password"
                     className={cn(
-                      'flex cursor-pointer flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary',
+                      'border-muted bg-popover hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary flex cursor-pointer flex-col items-center justify-between rounded-md border-2 p-4',
                       formData.authType === 'password' && 'border-primary'
                     )}
                   >
@@ -679,7 +679,7 @@ export const AddRemoteProjectModal: React.FC<AddRemoteProjectModalProps> = ({
                   <Label
                     htmlFor="auth-key"
                     className={cn(
-                      'flex cursor-pointer flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary',
+                      'border-muted bg-popover hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary flex cursor-pointer flex-col items-center justify-between rounded-md border-2 p-4',
                       formData.authType === 'key' && 'border-primary'
                     )}
                   >
@@ -693,7 +693,7 @@ export const AddRemoteProjectModal: React.FC<AddRemoteProjectModalProps> = ({
                   <Label
                     htmlFor="auth-agent"
                     className={cn(
-                      'flex cursor-pointer flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary',
+                      'border-muted bg-popover hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary flex cursor-pointer flex-col items-center justify-between rounded-md border-2 p-4',
                       formData.authType === 'agent' && 'border-primary'
                     )}
                   >
@@ -721,9 +721,9 @@ export const AddRemoteProjectModal: React.FC<AddRemoteProjectModalProps> = ({
                   className={cn(errors.password && touched.password && 'border-destructive')}
                 />
                 {errors.password && touched.password && (
-                  <p className="text-xs text-destructive">{errors.password}</p>
+                  <p className="text-destructive text-xs">{errors.password}</p>
                 )}
-                <p className="text-xs text-muted-foreground">
+                <p className="text-muted-foreground text-xs">
                   Your password will be securely stored in the system keychain.
                 </p>
               </div>
@@ -764,7 +764,7 @@ export const AddRemoteProjectModal: React.FC<AddRemoteProjectModalProps> = ({
                     </Button>
                   </div>
                   {errors.privateKeyPath && touched.privateKeyPath && (
-                    <p className="text-xs text-destructive">{errors.privateKeyPath}</p>
+                    <p className="text-destructive text-xs">{errors.privateKeyPath}</p>
                   )}
                 </div>
 
@@ -777,7 +777,7 @@ export const AddRemoteProjectModal: React.FC<AddRemoteProjectModalProps> = ({
                     onChange={(e) => updateField('passphrase', e.target.value)}
                     placeholder="Leave empty if no passphrase"
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-muted-foreground text-xs">
                     If your key is encrypted, enter the passphrase here.
                   </p>
                 </div>
@@ -793,8 +793,8 @@ export const AddRemoteProjectModal: React.FC<AddRemoteProjectModalProps> = ({
                       SSH Agent authentication uses your system&apos;s SSH agent. Ensure your key is
                       loaded before connecting.
                     </p>
-                    <details className="text-xs text-muted-foreground">
-                      <summary className="cursor-pointer font-semibold text-foreground">
+                    <details className="text-muted-foreground text-xs">
+                      <summary className="text-foreground cursor-pointer font-semibold">
                         How to set up SSH agent
                       </summary>
                       <div className="mt-2 space-y-1 font-mono text-xs">
@@ -827,7 +827,7 @@ export const AddRemoteProjectModal: React.FC<AddRemoteProjectModalProps> = ({
                   <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-500" />
                 )}
                 {testStatus === 'error' && (
-                  <XCircle className="h-3 w-3 shrink-0 text-destructive" />
+                  <XCircle className="text-destructive h-3 w-3 shrink-0" />
                 )}
                 <span className="truncate">
                   {testStatus === 'testing' && 'Testing connection...'}
@@ -849,7 +849,7 @@ export const AddRemoteProjectModal: React.FC<AddRemoteProjectModalProps> = ({
               </Label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <FolderOpen className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <FolderOpen className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
                   <Input
                     id="remote-path"
                     value={formData.remotePath}
@@ -872,23 +872,23 @@ export const AddRemoteProjectModal: React.FC<AddRemoteProjectModalProps> = ({
                 </Button>
               </div>
               {errors.remotePath && touched.remotePath && (
-                <p className="text-xs text-destructive">{errors.remotePath}</p>
+                <p className="text-destructive text-xs">{errors.remotePath}</p>
               )}
             </div>
 
             {browseError && (
               <Badge
                 variant="outline"
-                className="w-full justify-start gap-2 border-destructive/40 bg-destructive/10 py-1.5"
+                className="border-destructive/40 bg-destructive/10 w-full justify-start gap-2 py-1.5"
               >
-                <XCircle className="h-3 w-3 shrink-0 text-destructive" />
+                <XCircle className="text-destructive h-3 w-3 shrink-0" />
                 <span className="truncate">{browseError}</span>
               </Badge>
             )}
 
             {/* Directory browser */}
             <div className="rounded-md border">
-              <div className="flex items-center gap-2 border-b bg-muted/50 px-3 py-2">
+              <div className="bg-muted/50 flex items-center gap-2 border-b px-3 py-2">
                 <Button
                   type="button"
                   variant="ghost"
@@ -909,7 +909,7 @@ export const AddRemoteProjectModal: React.FC<AddRemoteProjectModalProps> = ({
                     <Spinner size="md" />
                   </div>
                 ) : fileEntries.length === 0 ? (
-                  <div className="py-8 text-center text-sm text-muted-foreground">
+                  <div className="text-muted-foreground py-8 text-center text-sm">
                     Click refresh to browse directory
                   </div>
                 ) : (
@@ -920,18 +920,18 @@ export const AddRemoteProjectModal: React.FC<AddRemoteProjectModalProps> = ({
                         type="button"
                         onClick={() => navigateTo(entry)}
                         className={cn(
-                          'flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent',
+                          'hover:bg-accent flex w-full items-center gap-2 px-3 py-2 text-left text-sm',
                           entry.type === 'directory' && 'font-medium'
                         )}
                       >
                         {entry.type === 'directory' ? (
-                          <Folder className="h-4 w-4 text-muted-foreground" />
+                          <Folder className="text-muted-foreground h-4 w-4" />
                         ) : (
-                          <FileCode className="h-4 w-4 text-muted-foreground" />
+                          <FileCode className="text-muted-foreground h-4 w-4" />
                         )}
                         <span className="flex-1 truncate">{entry.name}</span>
                         {entry.type === 'file' && (
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-muted-foreground text-xs">
                             {(entry.size / 1024).toFixed(1)} KB
                           </span>
                         )}
@@ -942,7 +942,7 @@ export const AddRemoteProjectModal: React.FC<AddRemoteProjectModalProps> = ({
               </div>
             </div>
 
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Select the directory containing your project. Click on a folder to navigate into it.
             </p>
           </div>
@@ -960,22 +960,22 @@ export const AddRemoteProjectModal: React.FC<AddRemoteProjectModalProps> = ({
             </Badge>
 
             <div className="rounded-md border">
-              <div className="border-b bg-muted/50 px-4 py-2 text-sm font-medium">
+              <div className="bg-muted/50 border-b px-4 py-2 text-sm font-medium">
                 Connection Summary
               </div>
               <div className="divide-y">
                 <div className="flex px-4 py-3">
-                  <span className="w-32 text-sm text-muted-foreground">Name</span>
+                  <span className="text-muted-foreground w-32 text-sm">Name</span>
                   <span className="flex-1 text-sm font-medium">{formData.name}</span>
                 </div>
                 <div className="flex px-4 py-3">
-                  <span className="w-32 text-sm text-muted-foreground">Host</span>
+                  <span className="text-muted-foreground w-32 text-sm">Host</span>
                   <span className="flex-1 text-sm font-medium">
                     {formData.username}@{formData.host}:{formData.port}
                   </span>
                 </div>
                 <div className="flex px-4 py-3">
-                  <span className="w-32 text-sm text-muted-foreground">Authentication</span>
+                  <span className="text-muted-foreground w-32 text-sm">Authentication</span>
                   <span className="flex-1 text-sm font-medium">
                     {formData.authType === 'password' && 'Password'}
                     {formData.authType === 'key' && 'SSH Key'}
@@ -983,7 +983,7 @@ export const AddRemoteProjectModal: React.FC<AddRemoteProjectModalProps> = ({
                   </span>
                 </div>
                 <div className="flex px-4 py-3">
-                  <span className="w-32 text-sm text-muted-foreground">Project Path</span>
+                  <span className="text-muted-foreground w-32 text-sm">Project Path</span>
                   <span className="flex-1 font-mono text-sm font-medium">
                     {formData.remotePath}
                   </span>
@@ -991,7 +991,7 @@ export const AddRemoteProjectModal: React.FC<AddRemoteProjectModalProps> = ({
               </div>
             </div>
 
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               The connection will be saved and you&apos;ll be able to access this project from the
               workspace.
             </p>
@@ -1053,9 +1053,9 @@ export const AddRemoteProjectModal: React.FC<AddRemoteProjectModalProps> = ({
         {errors.general && (
           <Badge
             variant="outline"
-            className="w-full justify-start gap-2 border-destructive/40 bg-destructive/10 py-1.5"
+            className="border-destructive/40 bg-destructive/10 w-full justify-start gap-2 py-1.5"
           >
-            <XCircle className="h-3 w-3 shrink-0 text-destructive" />
+            <XCircle className="text-destructive h-3 w-3 shrink-0" />
             <span className="truncate">{errors.general}</span>
           </Badge>
         )}

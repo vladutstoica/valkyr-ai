@@ -110,7 +110,7 @@ const MainContentArea: React.FC<MainContentAreaProps> = ({
                     projectPath={project.path}
                     defaultBranch={isSelectedProject ? projectDefaultBranch : undefined}
                     className="h-full min-h-0"
-                    initialAgent={isActive ? (activeTaskAgent || undefined) : undefined}
+                    initialAgent={isActive ? activeTaskAgent || undefined : undefined}
                   />
                 )}
               </div>

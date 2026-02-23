@@ -226,7 +226,7 @@ export const LinearIssueSelector: React.FC<LinearIssueSelectorProps> = ({
     return (
       <div className={className}>
         <Input value="" placeholder="Linear integration unavailable" disabled />
-        <p className="mt-2 text-xs text-muted-foreground">
+        <p className="text-muted-foreground mt-2 text-xs">
           Connect Linear in Settings to browse issues.
         </p>
       </div>
@@ -234,7 +234,7 @@ export const LinearIssueSelector: React.FC<LinearIssueSelectorProps> = ({
   }
 
   return (
-    <div className={`min-w-0 max-w-full overflow-hidden ${className}`} style={{ maxWidth: '100%' }}>
+    <div className={`max-w-full min-w-0 overflow-hidden ${className}`} style={{ maxWidth: '100%' }}>
       <Select
         value={selectedIssue?.identifier || undefined}
         onValueChange={handleIssueSelect}
@@ -243,19 +243,19 @@ export const LinearIssueSelector: React.FC<LinearIssueSelectorProps> = ({
         onOpenChange={(open) => setDropdownOpen(open)}
       >
         <SelectTrigger
-          className="h-9 w-full overflow-hidden border-none bg-muted"
+          className="bg-muted h-9 w-full overflow-hidden border-none"
           style={{ maxWidth: '100%' }}
         >
-          <div className="flex w-full items-center gap-2 overflow-hidden text-left text-foreground">
+          <div className="text-foreground flex w-full items-center gap-2 overflow-hidden text-left">
             {selectedIssue ? (
               <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
                 <LinearIssuePreviewTooltip issue={selectedIssue}>
                   <span
-                    className="inline-flex items-center gap-1.5 rounded border border-border bg-muted px-1.5 py-0.5 dark:border-border dark:bg-card"
+                    className="border-border bg-muted dark:border-border dark:bg-card inline-flex items-center gap-1.5 rounded border px-1.5 py-0.5"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <img src={linearLogo} alt="Linear" className="h-3.5 w-3.5 dark:invert" />
-                    <span className="text-[11px] font-medium text-foreground">
+                    <span className="text-foreground text-[11px] font-medium">
                       {selectedIssue.identifier}
                     </span>
                   </span>
@@ -263,33 +263,33 @@ export const LinearIssueSelector: React.FC<LinearIssueSelectorProps> = ({
                 {selectedIssue.title ? (
                   <div className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
                     <span className="text-foreground">-</span>
-                    <span className="truncate text-muted-foreground">{selectedIssue.title}</span>
+                    <span className="text-muted-foreground truncate">{selectedIssue.title}</span>
                   </div>
                 ) : null}
               </div>
             ) : (
               <>
                 <img src={linearLogo} alt="Linear" className="h-3.5 w-3.5 dark:invert" />
-                <span className="truncate text-muted-foreground">{issuePlaceholder}</span>
+                <span className="text-muted-foreground truncate">{issuePlaceholder}</span>
               </>
             )}
           </div>
         </SelectTrigger>
         <SelectContent side="top" className="z-[120] w-full max-w-[480px]">
           <div className="relative px-3 py-2">
-            <Search className="absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="text-muted-foreground absolute top-1/2 left-3 z-10 h-4 w-4 -translate-y-1/2" />
             <Input
               placeholder="Search by name, ID, or assignee..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               disabled={disabled}
-              className="h-7 w-full border-none bg-transparent pl-9 pr-3 focus:outline-hidden focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+              className="h-7 w-full border-none bg-transparent pr-3 pl-9 focus:ring-0 focus:ring-offset-0 focus:outline-hidden focus-visible:ring-0 focus-visible:ring-offset-0"
             />
           </div>
           <Separator />
-          <div className="max-h-80 overflow-y-auto overflow-x-hidden py-1" onScroll={handleScroll}>
+          <div className="max-h-80 overflow-x-hidden overflow-y-auto py-1" onScroll={handleScroll}>
             <SelectItem value="__clear__">
-              <span className="text-sm text-muted-foreground">None</span>
+              <span className="text-muted-foreground text-sm">None</span>
             </SelectItem>
             <Separator className="my-1" />
             {showIssues.length > 0 ? (
@@ -301,21 +301,21 @@ export const LinearIssueSelector: React.FC<LinearIssueSelectorProps> = ({
                 >
                   <SelectItem value={issue.identifier}>
                     <span className="flex min-w-0 items-center gap-2">
-                      <span className="inline-flex shrink-0 items-center gap-1.5 rounded border border-border bg-muted px-1.5 py-0.5 dark:border-border dark:bg-card">
+                      <span className="border-border bg-muted dark:border-border dark:bg-card inline-flex shrink-0 items-center gap-1.5 rounded border px-1.5 py-0.5">
                         <img src={linearLogo} alt="Linear" className="h-3.5 w-3.5 dark:invert" />
-                        <span className="text-[11px] font-medium text-foreground">
+                        <span className="text-foreground text-[11px] font-medium">
                           {issue.identifier}
                         </span>
                       </span>
                       {issue.title ? (
-                        <span className="ml-2 truncate text-muted-foreground">{issue.title}</span>
+                        <span className="text-muted-foreground ml-2 truncate">{issue.title}</span>
                       ) : null}
                     </span>
                   </SelectItem>
                 </LinearIssuePreviewTooltip>
               ))
             ) : searchTerm.trim() ? (
-              <div className="px-3 py-2 text-sm text-muted-foreground">
+              <div className="text-muted-foreground px-3 py-2 text-sm">
                 {isSearching ? (
                   <div className="flex items-center gap-2">
                     <Spinner size="sm" />
@@ -326,13 +326,13 @@ export const LinearIssueSelector: React.FC<LinearIssueSelectorProps> = ({
                 )}
               </div>
             ) : (
-              <div className="px-3 py-2 text-sm text-muted-foreground">No issues available</div>
+              <div className="text-muted-foreground px-3 py-2 text-sm">No issues available</div>
             )}
           </div>
         </SelectContent>
       </Select>
       {issueHelperText ? (
-        <p className="mt-2 text-xs text-muted-foreground">{issueHelperText}</p>
+        <p className="text-muted-foreground mt-2 text-xs">{issueHelperText}</p>
       ) : null}
     </div>
   );

@@ -1,15 +1,11 @@
-"use client";
+'use client';
 
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { cn } from "@/lib/utils";
-import { ListTodoIcon, ChevronDownIcon } from "lucide-react";
-import type { ComponentProps, ReactNode } from "react";
-import { createContext, useContext } from "react";
-import { Shimmer } from "./shimmer";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { cn } from '@/lib/utils';
+import { ListTodoIcon, ChevronDownIcon } from 'lucide-react';
+import type { ComponentProps, ReactNode } from 'react';
+import { createContext, useContext } from 'react';
+import { Shimmer } from './shimmer';
 
 type PlanContextValue = {
   isStreaming: boolean;
@@ -20,7 +16,7 @@ const PlanContext = createContext<PlanContextValue | null>(null);
 const usePlan = () => {
   const context = useContext(PlanContext);
   if (!context) {
-    throw new Error("Plan components must be used within Plan");
+    throw new Error('Plan components must be used within Plan');
   }
   return context;
 };
@@ -29,18 +25,9 @@ export type PlanProps = ComponentProps<typeof Collapsible> & {
   isStreaming?: boolean;
 };
 
-export const Plan = ({
-  className,
-  isStreaming = false,
-  children,
-  ...props
-}: PlanProps) => (
+export const Plan = ({ className, isStreaming = false, children, ...props }: PlanProps) => (
   <PlanContext.Provider value={{ isStreaming }}>
-    <Collapsible
-      className={cn("not-prose mb-2", className)}
-      data-slot="plan"
-      {...props}
-    >
+    <Collapsible className={cn('not-prose mb-2', className)} data-slot="plan" {...props}>
       {children}
     </Collapsible>
   </PlanContext.Provider>
@@ -51,19 +38,14 @@ export type PlanTriggerProps = ComponentProps<typeof CollapsibleTrigger> & {
   total?: number;
 };
 
-export const PlanTrigger = ({
-  className,
-  completed,
-  total,
-  ...props
-}: PlanTriggerProps) => {
+export const PlanTrigger = ({ className, completed, total, ...props }: PlanTriggerProps) => {
   const { isStreaming } = usePlan();
-  const hasProgress = typeof completed === "number" && typeof total === "number";
+  const hasProgress = typeof completed === 'number' && typeof total === 'number';
 
   return (
     <CollapsibleTrigger
       className={cn(
-        "group flex w-full items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground",
+        'group text-muted-foreground hover:text-foreground flex w-full items-center gap-2 text-sm transition-colors',
         className
       )}
       data-slot="plan-trigger"
@@ -71,13 +53,9 @@ export const PlanTrigger = ({
     >
       <ListTodoIcon className="size-4 shrink-0" />
       <span className="flex items-center gap-1.5">
-        {isStreaming ? (
-          <Shimmer duration={1}>Planning...</Shimmer>
-        ) : (
-          "Plan"
-        )}
+        {isStreaming ? <Shimmer duration={1}>Planning...</Shimmer> : 'Plan'}
         {hasProgress && (
-          <span className="text-xs text-muted-foreground/70">
+          <span className="text-muted-foreground/70 text-xs">
             ({completed}/{total})
           </span>
         )}
@@ -92,8 +70,8 @@ export type PlanContentProps = ComponentProps<typeof CollapsibleContent>;
 export const PlanContent = ({ className, ...props }: PlanContentProps) => (
   <CollapsibleContent
     className={cn(
-      "mt-2 ml-6 border-l border-border pl-3",
-      "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",
+      'border-border mt-2 ml-6 border-l pl-3',
+      'data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 data-[state=closed]:animate-out data-[state=open]:animate-in outline-none',
       className
     )}
     data-slot="plan-content"

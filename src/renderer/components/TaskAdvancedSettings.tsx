@@ -213,7 +213,7 @@ export const TaskAdvancedSettings: React.FC<TaskAdvancedSettingsProps> = ({
       >
         <AccordionItem value="advanced" className="border-none">
           <AccordionTrigger
-            className="flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border-none bg-muted px-3 text-sm font-medium text-foreground hover:bg-accent hover:no-underline [&>svg]:h-4 [&>svg]:w-4 [&>svg]:shrink-0"
+            className="bg-muted text-foreground hover:bg-accent flex h-9 w-full items-center justify-between rounded-md border-none px-3 text-sm font-medium whitespace-nowrap hover:no-underline [&>svg]:h-4 [&>svg]:w-4 [&>svg]:shrink-0"
             onPointerDown={(e) => {
               e.preventDefault();
               const wasClosed = !showAdvanced;
@@ -240,7 +240,7 @@ export const TaskAdvancedSettings: React.FC<TaskAdvancedSettingsProps> = ({
             }}
           >
             <span className="inline-flex items-center gap-2">
-              <Settings className="h-4 w-4 text-muted-foreground" />
+              <Settings className="text-muted-foreground h-4 w-4" />
               <span>Advanced options</span>
             </span>
           </AccordionTrigger>
@@ -249,7 +249,9 @@ export const TaskAdvancedSettings: React.FC<TaskAdvancedSettingsProps> = ({
               <div className="flex items-center gap-4">
                 <Label className="w-32 shrink-0">Run in worktree</Label>
                 <div className="min-w-0 flex-1">
-                  <label className={`inline-flex items-start gap-2 text-sm leading-tight ${hasExistingNonWorktreeTask ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                  <label
+                    className={`inline-flex items-start gap-2 text-sm leading-tight ${hasExistingNonWorktreeTask ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                  >
                     <Checkbox
                       checked={useWorktree || hasExistingNonWorktreeTask}
                       onCheckedChange={(checked) => {
@@ -266,12 +268,12 @@ export const TaskAdvancedSettings: React.FC<TaskAdvancedSettingsProps> = ({
                           : 'Work directly on current branch'}
                       </span>
                       {hasExistingNonWorktreeTask && (
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-muted-foreground text-xs">
                           Required: another session already uses the project directory
                         </p>
                       )}
                       {!useWorktree && !hasExistingNonWorktreeTask && (
-                        <p className="text-xs text-destructive">
+                        <p className="text-destructive text-xs">
                           ⚠️ Changes will affect your current working directory
                         </p>
                       )}
@@ -285,7 +287,7 @@ export const TaskAdvancedSettings: React.FC<TaskAdvancedSettingsProps> = ({
                 <div className="flex items-start gap-4">
                   <Label className="w-32 shrink-0 pt-1">Repositories</Label>
                   <div className="min-w-0 flex-1 space-y-2">
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-muted-foreground text-xs">
                       {useWorktree
                         ? 'Select which repositories to create worktrees for. Unselected repos will be symlinked (read-only changes).'
                         : 'Select which repositories to track changes for.'}
@@ -301,7 +303,10 @@ export const TaskAdvancedSettings: React.FC<TaskAdvancedSettingsProps> = ({
                             onCheckedChange={(checked) => {
                               if (onSelectedSubReposChange) {
                                 if (checked) {
-                                  onSelectedSubReposChange([...selectedSubRepos, repo.relativePath]);
+                                  onSelectedSubReposChange([
+                                    ...selectedSubRepos,
+                                    repo.relativePath,
+                                  ]);
                                 } else {
                                   onSelectedSubReposChange(
                                     selectedSubRepos.filter((p) => p !== repo.relativePath)
@@ -312,7 +317,7 @@ export const TaskAdvancedSettings: React.FC<TaskAdvancedSettingsProps> = ({
                           />
                           <span className="font-mono text-xs">{repo.name}</span>
                           {repo.gitInfo.branch && (
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-muted-foreground text-xs">
                               ({repo.gitInfo.branch})
                             </span>
                           )}
@@ -341,7 +346,7 @@ export const TaskAdvancedSettings: React.FC<TaskAdvancedSettingsProps> = ({
                           href="https://simonwillison.net/2025/Oct/22/living-dangerously-with-claude/"
                           target="_blank"
                           rel="noreferrer noopener"
-                          className="ml-1 inline-flex items-center gap-1 text-foreground underline"
+                          className="text-foreground ml-1 inline-flex items-center gap-1 underline"
                         >
                           Explanation
                           <ExternalLink className="h-3 w-3" aria-hidden="true" />
@@ -379,7 +384,7 @@ export const TaskAdvancedSettings: React.FC<TaskAdvancedSettingsProps> = ({
                       type="button"
                       size="sm"
                       variant="outline"
-                      className="h-9 shrink-0 whitespace-nowrap border-border/50 bg-transparent text-muted-foreground hover:border-border hover:bg-muted/50 hover:text-foreground"
+                      className="border-border/50 text-muted-foreground hover:border-border hover:bg-muted/50 hover:text-foreground h-9 shrink-0 bg-transparent whitespace-nowrap"
                       onClick={() => setLinearSetupOpen(true)}
                     >
                       Connect
@@ -415,7 +420,7 @@ export const TaskAdvancedSettings: React.FC<TaskAdvancedSettingsProps> = ({
                       type="button"
                       size="sm"
                       variant="outline"
-                      className="h-9 shrink-0 whitespace-nowrap border-border/50 bg-transparent text-muted-foreground hover:border-border hover:bg-muted/50 hover:text-foreground"
+                      className="border-border/50 text-muted-foreground hover:border-border hover:bg-muted/50 hover:text-foreground h-9 shrink-0 bg-transparent whitespace-nowrap"
                       onClick={() => void onGithubConnect()}
                       disabled={githubLoading}
                     >
@@ -459,7 +464,7 @@ export const TaskAdvancedSettings: React.FC<TaskAdvancedSettingsProps> = ({
                       type="button"
                       size="sm"
                       variant="outline"
-                      className="h-9 shrink-0 whitespace-nowrap border-border/50 bg-transparent text-muted-foreground hover:border-border hover:bg-muted/50 hover:text-foreground"
+                      className="border-border/50 text-muted-foreground hover:border-border hover:bg-muted/50 hover:text-foreground h-9 shrink-0 bg-transparent whitespace-nowrap"
                       onClick={() => setJiraSetupOpen(true)}
                     >
                       Connect
@@ -500,7 +505,7 @@ export const TaskAdvancedSettings: React.FC<TaskAdvancedSettingsProps> = ({
           >
             <div className="absolute inset-0 bg-black/60 backdrop-blur-xs" />
             <motion.div
-              className="relative z-10 w-full max-w-md rounded-xl border border-border/70 bg-background/95 p-4 shadow-2xl backdrop-blur-xs"
+              className="border-border/70 bg-background/95 relative z-10 w-full max-w-md rounded-xl border p-4 shadow-2xl backdrop-blur-xs"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -531,7 +536,7 @@ export const TaskAdvancedSettings: React.FC<TaskAdvancedSettingsProps> = ({
           >
             <div className="absolute inset-0 bg-black/60 backdrop-blur-xs" />
             <motion.div
-              className="relative z-10 w-full max-w-md rounded-xl border border-border/70 bg-background/95 p-4 shadow-2xl backdrop-blur-xs"
+              className="border-border/70 bg-background/95 relative z-10 w-full max-w-md rounded-xl border p-4 shadow-2xl backdrop-blur-xs"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}

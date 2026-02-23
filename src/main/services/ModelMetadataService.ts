@@ -58,10 +58,7 @@ export class ModelMetadataService {
     }
   }
 
-  async getModelMetadata(
-    acpModelId: string,
-    providerId: string
-  ): Promise<ModelMetadata | null> {
+  async getModelMetadata(acpModelId: string, providerId: string): Promise<ModelMetadata | null> {
     await this.ensureCache();
 
     const prefix = PROVIDER_TO_OPENROUTER[providerId];

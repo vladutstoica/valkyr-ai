@@ -3,11 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import { execFile } from 'child_process';
 import { log } from '../lib/logger';
-import type {
-  AcpRegistry,
-  AcpRegistryEntry,
-  InstalledAcpAgent,
-} from '../../shared/acpRegistry';
+import type { AcpRegistry, AcpRegistryEntry, InstalledAcpAgent } from '../../shared/acpRegistry';
 
 const REGISTRY_URL = 'https://cdn.agentclientprotocol.com/registry/v1/latest/registry.json';
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes

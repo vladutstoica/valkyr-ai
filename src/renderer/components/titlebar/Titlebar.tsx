@@ -29,7 +29,7 @@ const Titlebar: React.FC<TitlebarProps> = ({
   onSelectTask,
 }) => {
   return (
-    <header className="fixed inset-x-0 top-0 z-[80] flex h-[var(--tb,36px)] items-center justify-end border-b border-border bg-muted pr-2 [-webkit-app-region:drag] dark:bg-background">
+    <header className="border-border bg-muted dark:bg-background fixed inset-x-0 top-0 z-[80] flex h-[var(--tb,36px)] items-center justify-end border-b pr-2 [-webkit-app-region:drag]">
       <div className="pointer-events-none absolute inset-x-0 flex justify-center">
         <div className="w-[min(60vw,720px)]">
           <TitlebarContext
@@ -65,7 +65,7 @@ const Titlebar: React.FC<TitlebarProps> = ({
                   });
                   onToggleSettings();
                 }}
-                className="h-8 w-8 text-muted-foreground hover:bg-background/80"
+                className="text-muted-foreground hover:bg-background/80 h-8 w-8"
               >
                 <SettingsIcon className="h-4 w-4" />
               </Button>

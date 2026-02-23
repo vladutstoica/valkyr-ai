@@ -138,9 +138,7 @@ export class StatusPageService {
         const incStart = new Date(inc.started_at).getTime();
         // For unresolved incidents, only count them on their start day —
         // don't paint every subsequent day as an outage
-        const incEnd = inc.resolved_at
-          ? new Date(inc.resolved_at).getTime()
-          : incStart + 86400000;
+        const incEnd = inc.resolved_at ? new Date(inc.resolved_at).getTime() : incStart + 86400000;
 
         if (incStart < dayEnd && incEnd > dayStart) {
           count++;
@@ -162,9 +160,7 @@ export class StatusPageService {
     return days;
   }
 
-  private deriveOverallStatus(
-    components: Array<{ status: string }>
-  ): ProviderStatus['status'] {
+  private deriveOverallStatus(components: Array<{ status: string }>): ProviderStatus['status'] {
     const statuses = components.map((c) => c.status);
     if (statuses.includes('major_outage')) return 'major_outage';
     if (statuses.includes('partial_outage')) return 'partial_outage';

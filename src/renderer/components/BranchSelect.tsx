@@ -124,7 +124,7 @@ const BranchSelect: React.FC<BranchSelectProps> = ({
         className="[&>[data-radix-select-scroll-down-button]]:hidden [&>[data-radix-select-scroll-up-button]]:hidden"
         style={{ minWidth: variant === 'ghost' ? '200px' : 'var(--radix-select-trigger-width)' }}
       >
-        <div className="px-2 pb-2 pt-2" onPointerDown={(event) => event.stopPropagation()}>
+        <div className="px-2 pt-2 pb-2" onPointerDown={(event) => event.stopPropagation()}>
           <Input
             ref={searchInputRef}
             value={searchTerm}
@@ -135,7 +135,7 @@ const BranchSelect: React.FC<BranchSelectProps> = ({
               }
             }}
             placeholder="Search branches"
-            className="h-7 bg-popover px-2 py-1 text-xs"
+            className="bg-popover h-7 px-2 py-1 text-xs"
           />
         </div>
         <ScrollArea
@@ -153,7 +153,7 @@ const BranchSelect: React.FC<BranchSelectProps> = ({
                 </SelectItem>
               ))
             ) : (
-              <div className="px-3 py-2 text-xs text-muted-foreground">No matching branches</div>
+              <div className="text-muted-foreground px-3 py-2 text-xs">No matching branches</div>
             )}
           </div>
         </ScrollArea>

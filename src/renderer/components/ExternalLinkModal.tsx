@@ -71,7 +71,7 @@ export const ExternalLinkModal: React.FC<ExternalLinkModalProps> = ({
           <AlertDialogCancel onClick={handleCancel}>Cancel</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
-            className="bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2"
           >
             <ExternalLink className="mr-2 h-4 w-4" />
             Open Link

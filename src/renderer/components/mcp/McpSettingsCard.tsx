@@ -22,22 +22,18 @@ const McpScopeTab: React.FC<{
   editingServer: McpServerConfig | null;
   setEditingServer: (s: McpServerConfig | null) => void;
 }> = ({ scope, projectPath, viewState, setViewState, editingServer, setEditingServer }) => {
-  const {
-    servers,
-    isLoading,
-    error,
-    addServer,
-    updateServer,
-    deleteServer,
-    toggleServer,
-  } = useMcpServers(scope, projectPath);
+  const { servers, isLoading, error, addServer, updateServer, deleteServer, toggleServer } =
+    useMcpServers(scope, projectPath);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleEdit = useCallback((server: McpServerConfig) => {
-    setEditingServer(server);
-    setViewState('edit');
-  }, [setEditingServer, setViewState]);
+  const handleEdit = useCallback(
+    (server: McpServerConfig) => {
+      setEditingServer(server);
+      setViewState('edit');
+    },
+    [setEditingServer, setViewState]
+  );
 
   const handleDelete = useCallback(
     async (server: McpServerConfig) => {
@@ -80,7 +76,7 @@ const McpScopeTab: React.FC<{
 
   if (scope === 'project' && !projectPath) {
     return (
-      <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
+      <div className="text-muted-foreground flex items-center justify-center py-8 text-sm">
         Open a project to configure project-level MCP servers
       </div>
     );
@@ -96,7 +92,7 @@ const McpScopeTab: React.FC<{
 
   if (viewState !== 'list') {
     return (
-      <div className="rounded-lg border border-border bg-muted/20 p-6">
+      <div className="border-border bg-muted/20 rounded-lg border p-6">
         <h3 className="mb-4 text-sm font-medium">
           {viewState === 'edit' ? 'Edit Server' : 'New MCP Server'}
         </h3>
@@ -180,11 +176,7 @@ export const McpSettingsCard: React.FC<Props> = ({ projectPath }) => {
             <TabsTrigger value="global" className="text-xs">
               Global
             </TabsTrigger>
-            <TabsTrigger
-              value="project"
-              className="text-xs"
-              disabled={!projectPath}
-            >
+            <TabsTrigger value="project" className="text-xs" disabled={!projectPath}>
               Project
             </TabsTrigger>
           </TabsList>

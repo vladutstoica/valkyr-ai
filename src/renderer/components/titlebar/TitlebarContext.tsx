@@ -47,7 +47,7 @@ const TitlebarContext: React.FC<TitlebarContextProps> = ({
       <div className="flex items-center justify-end">
         <Select value={projectValue} onValueChange={handleProjectChange}>
           <SelectTrigger
-            className="pointer-events-auto h-7 w-auto justify-start gap-1 border-none bg-transparent px-1 py-0.5 text-[13px] font-medium leading-none text-muted-foreground shadow-none [-webkit-app-region:no-drag] hover:bg-background/70 hover:text-foreground data-[state=open]:bg-background/80 data-[state=open]:text-foreground [&>span]:block [&>span]:max-w-[218px] [&>span]:truncate [&>svg]:hidden"
+            className="text-muted-foreground hover:bg-background/70 hover:text-foreground data-[state=open]:bg-background/80 data-[state=open]:text-foreground pointer-events-auto h-7 w-auto justify-start gap-1 border-none bg-transparent px-1 py-0.5 text-[13px] leading-none font-medium shadow-none [-webkit-app-region:no-drag] [&>span]:block [&>span]:max-w-[218px] [&>span]:truncate [&>svg]:hidden"
             aria-label="Select project"
             title={projectLabel}
           >
@@ -72,11 +72,11 @@ const TitlebarContext: React.FC<TitlebarContextProps> = ({
           </SelectContent>
         </Select>
       </div>
-      <span className="px-2 text-center text-[11px] text-muted-foreground/60">/</span>
+      <span className="text-muted-foreground/60 px-2 text-center text-[11px]">/</span>
       <div className="flex items-center justify-start">
         <Select value={taskValue} onValueChange={handleTaskChange} disabled={!selectedProject}>
           <SelectTrigger
-            className="pointer-events-auto h-7 w-auto min-w-[60px] justify-start gap-1 border-none bg-transparent px-1 py-0.5 text-[13px] font-medium leading-none text-muted-foreground shadow-none [-webkit-app-region:no-drag] hover:bg-background/70 hover:text-foreground data-[state=open]:bg-background/80 data-[placeholder]:text-muted-foreground/70 data-[state=open]:text-foreground [&>span]:block [&>span]:max-w-[218px] [&>span]:truncate [&>svg]:hidden"
+            className="text-muted-foreground hover:bg-background/70 hover:text-foreground data-[state=open]:bg-background/80 data-[placeholder]:text-muted-foreground/70 data-[state=open]:text-foreground pointer-events-auto h-7 w-auto min-w-[60px] justify-start gap-1 border-none bg-transparent px-1 py-0.5 text-[13px] leading-none font-medium shadow-none [-webkit-app-region:no-drag] [&>span]:block [&>span]:max-w-[218px] [&>span]:truncate [&>svg]:hidden"
             aria-label="Select task"
             title={taskLabel}
           >

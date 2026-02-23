@@ -26,11 +26,11 @@ test.beforeAll(async () => {
   await page.waitForTimeout(5000);
 
   // Enable console logging
-  page.on('console', msg => {
+  page.on('console', (msg) => {
     console.log(`[Browser Console] ${msg.type()}: ${msg.text()}`);
   });
 
-  page.on('pageerror', error => {
+  page.on('pageerror', (error) => {
     console.log(`[Browser Error] ${error.message}`);
   });
 });
@@ -90,7 +90,9 @@ test('Git Tab - Expand All with Monaco DiffEditor', async () => {
   console.log(`Changes header: ${changesText}`);
 
   // Look for file items with status badges
-  const statusBadges = await page.locator('[title="Modified"], [title="Added"], [title="Deleted"]').count();
+  const statusBadges = await page
+    .locator('[title="Modified"], [title="Added"], [title="Deleted"]')
+    .count();
   console.log(`Found ${statusBadges} files with changes`);
 
   // Check for "No changes detected" or "Select a task"
@@ -165,7 +167,10 @@ test('Inspect DOM structure', async () => {
   // Check what's in the sidebar
   const sidebarItems = await page.evaluate(() => {
     const items = document.querySelectorAll('[class*="sidebar"] button, nav button');
-    return Array.from(items).map(el => el.textContent?.trim()).filter(Boolean).slice(0, 20);
+    return Array.from(items)
+      .map((el) => el.textContent?.trim())
+      .filter(Boolean)
+      .slice(0, 20);
   });
   console.log('Sidebar items:', sidebarItems);
 
@@ -173,8 +178,10 @@ test('Inspect DOM structure', async () => {
   const tabs = await page.evaluate(() => {
     const tabButtons = document.querySelectorAll('button');
     return Array.from(tabButtons)
-      .map(el => el.textContent?.trim())
-      .filter(text => text && ['Git', 'Editor', 'AI Agents', 'Preview'].some(t => text.includes(t)));
+      .map((el) => el.textContent?.trim())
+      .filter(
+        (text) => text && ['Git', 'Editor', 'AI Agents', 'Preview'].some((t) => text.includes(t))
+      );
   });
   console.log('Tab buttons:', tabs);
 });

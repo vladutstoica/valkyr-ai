@@ -82,7 +82,7 @@ function TaskRow({
   return (
     <div
       className={[
-        'overflow-hidden rounded-xl border bg-background',
+        'bg-background overflow-hidden rounded-xl border',
         active && !isSelectMode ? 'border-primary' : 'border-border',
       ].join(' ')}
     >
@@ -92,15 +92,15 @@ function TaskRow({
         tabIndex={0}
         className={[
           'group flex items-start justify-between gap-3 rounded-t-xl',
-          'px-4 py-3 transition-all hover:bg-muted/40 hover:shadow-xs',
-          'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary',
+          'hover:bg-muted/40 px-4 py-3 transition-all hover:shadow-xs',
+          'focus-visible:ring-primary focus-visible:ring-2 focus-visible:outline-hidden',
         ].join(' ')}
       >
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <div className="text-base font-medium leading-tight tracking-tight">{ws.name}</div>
+            <div className="text-base leading-tight font-medium tracking-tight">{ws.name}</div>
           </div>
-          <div className="mt-1 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+          <div className="text-muted-foreground mt-1 flex min-w-0 items-center gap-2 text-xs">
             {isRunning || ws.status === 'running' ? <Spinner size="sm" className="size-3" /> : null}
             <GitBranch className="size-3" />
             <span className="max-w-[24rem] truncate font-mono" title={`origin/${ws.branch}`}>
@@ -122,7 +122,7 @@ function TaskRow({
                   e.stopPropagation();
                   if (pr.url) window.electronAPI.openExternal(pr.url);
                 }}
-                className="inline-flex items-center gap-1 rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                className="border-border bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium transition-colors"
                 title={`${pr.title || 'Pull Request'} (#${pr.number})`}
               >
                 {pr.isDraft
@@ -140,7 +140,7 @@ function TaskRow({
               checked={isSelected}
               onCheckedChange={() => onToggleSelect?.()}
               aria-label={`Select ${ws.name}`}
-              className="h-4 w-4 rounded border-muted-foreground/50 data-[state=checked]:border-muted-foreground data-[state=checked]:bg-muted-foreground"
+              className="border-muted-foreground/50 data-[state=checked]:border-muted-foreground data-[state=checked]:bg-muted-foreground h-4 w-4 rounded"
             />
           ) : (
             <>
@@ -151,7 +151,7 @@ function TaskRow({
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        className="inline-flex items-center justify-center rounded p-2 text-muted-foreground hover:bg-transparent focus-visible:ring-0"
+                        className="text-muted-foreground inline-flex items-center justify-center rounded p-2 hover:bg-transparent focus-visible:ring-0"
                         onClick={(e) => {
                           e.stopPropagation();
                           onArchive();
@@ -182,7 +182,7 @@ function TaskRow({
                 }}
                 isDeleting={isDeleting}
                 aria-label={`Delete task ${ws.name}`}
-                className="inline-flex items-center justify-center rounded p-2 text-muted-foreground hover:bg-transparent focus-visible:ring-0"
+                className="text-muted-foreground inline-flex items-center justify-center rounded p-2 hover:bg-transparent focus-visible:ring-0"
               />
             </>
           )}
@@ -547,7 +547,7 @@ const ProjectMainView: React.FC<ProjectMainViewProps> = ({
   }, [project.path]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-background">
+    <div className="bg-background flex min-h-0 flex-1 flex-col">
       <div className="flex-1 overflow-y-auto">
         <div className="container mx-auto max-w-6xl p-6">
           <div className="mx-auto w-full max-w-6xl space-y-4">
@@ -580,7 +580,7 @@ const ProjectMainView: React.FC<ProjectMainViewProps> = ({
                         <motion.button
                           whileTap={{ scale: 0.97 }}
                           transition={{ duration: 0.1, ease: 'easeInOut' }}
-                          className="inline-flex h-8 items-center justify-center gap-1 rounded-md border border-input bg-background px-3 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          className="border-input bg-background hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center gap-1 rounded-md border px-3 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden"
                           onClick={() =>
                             window.electronAPI.openExternal(
                               `https://github.com/${project.githubInfo?.repository}`
@@ -593,7 +593,7 @@ const ProjectMainView: React.FC<ProjectMainViewProps> = ({
                       ) : null}
                     </div>
                   </div>
-                  <p className="break-all font-mono text-xs text-muted-foreground sm:text-sm">
+                  <p className="text-muted-foreground font-mono text-xs break-all sm:text-sm">
                     {project.path}
                   </p>
                 </div>
@@ -614,7 +614,7 @@ const ProjectMainView: React.FC<ProjectMainViewProps> = ({
                       setShowConfigEditor(true);
                     }}
                     onMouseEnter={preloadProjectConfig}
-                    className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+                    className="text-muted-foreground text-xs underline-offset-4 hover:underline"
                   >
                     Edit config
                   </button>
@@ -622,18 +622,18 @@ const ProjectMainView: React.FC<ProjectMainViewProps> = ({
                 {/* Show sub-repos info for multi-repo projects */}
                 {project.subRepos && project.subRepos.length > 0 && (
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <div className="text-muted-foreground flex items-center gap-2 text-sm">
                       <Folder className="h-4 w-4" />
                       <span>Multi-repo project with {project.subRepos.length} repositories</span>
                     </div>
-                    <div className="space-y-1 rounded-md border border-border bg-muted/30 p-3">
+                    <div className="border-border bg-muted/30 space-y-1 rounded-md border p-3">
                       {project.subRepos.map((repo) => (
                         <div
                           key={repo.relativePath}
                           className="flex items-center justify-between gap-2 text-sm"
                         >
                           <span className="font-mono text-xs">{repo.name}</span>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <div className="text-muted-foreground flex items-center gap-2 text-xs">
                             <GitBranch className="h-3 w-3" />
                             <span>{repo.gitInfo.branch || 'main'}</span>
                           </div>
@@ -656,19 +656,19 @@ const ProjectMainView: React.FC<ProjectMainViewProps> = ({
 
               return (
                 <Alert className="border-border bg-muted/50">
-                  <AlertCircle className="h-3.5 w-3.5 text-muted-foreground" />
-                  <AlertTitle className="text-sm font-medium text-foreground">
+                  <AlertCircle className="text-muted-foreground h-3.5 w-3.5" />
+                  <AlertTitle className="text-foreground text-sm font-medium">
                     Direct branch mode
                   </AlertTitle>
-                  <AlertDescription className="text-xs text-muted-foreground">
+                  <AlertDescription className="text-muted-foreground text-xs">
                     {directTasks.length === 1 ? (
                       <>
-                        <span className="font-medium text-foreground">{directTasks[0].name}</span>{' '}
+                        <span className="text-foreground font-medium">{directTasks[0].name}</span>{' '}
                         is running directly on your current branch.
                       </>
                     ) : (
                       <>
-                        <span className="font-medium text-foreground">
+                        <span className="text-foreground font-medium">
                           {directTasks.map((t) => t.name).join(', ')}
                         </span>{' '}
                         are running directly on your current branch.
@@ -684,7 +684,7 @@ const ProjectMainView: React.FC<ProjectMainViewProps> = ({
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-1">
                   <h2 className="text-lg font-semibold">Tasks</h2>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-muted-foreground text-xs">
                     Spin up a fresh, isolated task for this project.
                   </p>
                 </div>
@@ -693,7 +693,7 @@ const ProjectMainView: React.FC<ProjectMainViewProps> = ({
                     <motion.button
                       whileTap={{ scale: 0.97 }}
                       transition={{ duration: 0.1, ease: 'easeInOut' }}
-                      className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+                      className="bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring inline-flex h-9 items-center justify-center rounded-md px-4 text-sm font-semibold shadow-xs transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50"
                       onClick={onCreateTask}
                     >
                       <Plus className="mr-2 size-4" />
@@ -798,15 +798,15 @@ const ProjectMainView: React.FC<ProjectMainViewProps> = ({
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 6, scale: 0.99 }}
                   transition={{ duration: 0.18, ease: 'easeOut' }}
-                  className="flex items-start gap-3 rounded-md border border-border/70 bg-muted/30 px-4 py-4"
+                  className="border-border/70 bg-muted/30 flex items-start gap-3 rounded-md border px-4 py-4"
                 >
                   <Spinner
-                    className="mt-0.5 h-5 w-5 flex-shrink-0 text-muted-foreground"
+                    className="text-muted-foreground mt-0.5 h-5 w-5 flex-shrink-0"
                     size="sm"
                   />
                   <div className="flex min-w-0 flex-col gap-1">
-                    <span className="text-sm font-semibold text-foreground">Please wait...</span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-foreground text-sm font-semibold">Please wait...</span>
+                    <span className="text-muted-foreground text-xs">
                       Scanning tasks for uncommitted changes and open pull requests
                     </span>
                   </div>
@@ -878,7 +878,7 @@ const ProjectMainView: React.FC<ProjectMainViewProps> = ({
               {deleteRisks.riskyIds.size > 0 && !deleteStatusLoading ? (
                 <motion.label
                   key="bulk-ack"
-                  className="flex items-start gap-2 rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-sm"
+                  className="border-border/70 bg-muted/30 flex items-start gap-2 rounded-md border px-3 py-2 text-sm"
                   initial={{ opacity: 0, y: 6, scale: 0.99 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 6, scale: 0.99 }}
@@ -897,7 +897,7 @@ const ProjectMainView: React.FC<ProjectMainViewProps> = ({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive px-4 text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 px-4"
               onClick={handleBulkDelete}
               disabled={deleteDisabled}
             >

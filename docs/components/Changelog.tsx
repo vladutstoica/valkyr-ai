@@ -74,7 +74,7 @@ export async function Changelog() {
   return (
     <div className="space-y-12">
       {releases.slice(0, 20).map((release) => (
-        <div key={release.id} className="border-b border-border pb-8 last:border-0">
+        <div key={release.id} className="border-border border-b pb-8 last:border-0">
           <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-2xl font-bold">
               <a
@@ -86,7 +86,7 @@ export async function Changelog() {
                 v{formatVersion(release.tag_name)}
               </a>
             </h2>
-            <time className="text-sm text-muted-foreground">
+            <time className="text-muted-foreground text-sm">
               {formatDate(release.published_at)}
             </time>
           </div>
@@ -96,7 +96,7 @@ export async function Changelog() {
               <ReleaseNotes content={release.body} />
             </div>
           ) : (
-            <p className="italic text-muted-foreground">No release notes available.</p>
+            <p className="text-muted-foreground italic">No release notes available.</p>
           )}
         </div>
       ))}
@@ -195,7 +195,7 @@ function ReleaseNotes({ content }: { content: string }) {
                 alt={altMatch ? altMatch[1] : 'Release image'}
                 width={widthMatch ? widthMatch[1] : undefined}
                 height={heightMatch ? heightMatch[1] : undefined}
-                className="h-auto max-w-full rounded-lg border border-border"
+                className="border-border h-auto max-w-full rounded-lg border"
               />
             </div>
           );
@@ -208,7 +208,7 @@ function ReleaseNotes({ content }: { content: string }) {
     if (line.startsWith('## ')) {
       flushListItems(); // Flush any pending list items
       elements.push(
-        <h3 key={i} className="mb-2 mt-4 text-lg font-semibold">
+        <h3 key={i} className="mt-4 mb-2 text-lg font-semibold">
           {line.substring(3)}
         </h3>
       );
@@ -217,7 +217,7 @@ function ReleaseNotes({ content }: { content: string }) {
     if (line.startsWith('### ')) {
       flushListItems(); // Flush any pending list items
       elements.push(
-        <h4 key={i} className="mb-1 mt-3 font-semibold">
+        <h4 key={i} className="mt-3 mb-1 font-semibold">
           {line.substring(4)}
         </h4>
       );

@@ -14,18 +14,16 @@ import type {
   WriteTextFileResponse,
 } from '@agentclientprotocol/sdk';
 import { log } from '../lib/logger';
-import {
-  getProvider,
-  type ProviderId,
-} from '../../shared/providers/registry';
+import { getProvider, type ProviderId } from '../../shared/providers/registry';
 import { acpRegistryService } from './AcpRegistryService';
 import { PROVIDER_TO_ACP_ID } from '../../shared/acpRegistry';
 import { databaseService } from './DatabaseService';
 
 // Cached dynamic import for ESM-only ACP SDK
 // Use indirect eval to prevent TypeScript from converting import() to require()
-const dynamicImport = new Function('specifier', 'return import(specifier)') as
-  (specifier: string) => Promise<typeof import('@agentclientprotocol/sdk')>;
+const dynamicImport = new Function('specifier', 'return import(specifier)') as (
+  specifier: string
+) => Promise<typeof import('@agentclientprotocol/sdk')>;
 
 let _acpSdk: typeof import('@agentclientprotocol/sdk') | null = null;
 async function getAcpSdk() {
@@ -37,40 +35,43 @@ async function getAcpSdk() {
 
 /** Pre-warm the ACP SDK import so the first session doesn't pay the ESM load cost. */
 export function warmAcpSdk(): void {
-  getAcpSdk().catch(() => { /* best-effort */ });
+  getAcpSdk().catch(() => {
+    /* best-effort */
+  });
 }
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export type AcpSessionStatus =
-  | 'initializing'
-  | 'ready'
-  | 'submitted'
-  | 'streaming'
-  | 'error';
+export type AcpSessionStatus = 'initializing' | 'ready' | 'submitted' | 'streaming' | 'error';
 
-export type AcpUpdateEvent = {
-  type: 'session_update';
-  data: SessionNotification;
-} | {
-  type: 'permission_request';
-  data: RequestPermissionRequest;
-  toolCallId: string;
-} | {
-  type: 'status_change';
-  status: AcpSessionStatus;
-} | {
-  type: 'session_error';
-  error: string;
-} | {
-  type: 'prompt_error';
-  error: string;
-} | {
-  type: 'prompt_complete';
-  stopReason: string;
-};
+export type AcpUpdateEvent =
+  | {
+      type: 'session_update';
+      data: SessionNotification;
+    }
+  | {
+      type: 'permission_request';
+      data: RequestPermissionRequest;
+      toolCallId: string;
+    }
+  | {
+      type: 'status_change';
+      status: AcpSessionStatus;
+    }
+  | {
+      type: 'session_error';
+      error: string;
+    }
+  | {
+      type: 'prompt_error';
+      error: string;
+    }
+  | {
+      type: 'prompt_complete';
+      stopReason: string;
+    };
 
 export type AcpSessionMode = {
   id: string;
@@ -105,11 +106,14 @@ type AcpSession = {
   acpSessionId: string | null;
   modes: AcpSessionModes;
   models: AcpSessionModels;
-  pendingPermissions: Map<string, {
-    resolve: (resp: RequestPermissionResponse) => void;
-    reject: (err: Error) => void;
-    options: Array<{ optionId: string; kind: string; name: string }>;
-  }>;
+  pendingPermissions: Map<
+    string,
+    {
+      resolve: (resp: RequestPermissionResponse) => void;
+      reject: (err: Error) => void;
+      options: Array<{ optionId: string; kind: string; name: string }>;
+    }
+  >;
 };
 
 type SessionCreateResult = {
@@ -198,7 +202,7 @@ export class AcpSessionManager {
     conversationId: string,
     providerId: string,
     cwd: string,
-    env?: Record<string, string>,
+    env?: Record<string, string>
   ): Promise<SpawnInitResult> {
     // Start SDK load immediately in parallel with command resolution
     // (no-op if already warm, but overlaps with resolveCommand if not)
@@ -210,7 +214,11 @@ export class AcpSessionManager {
     const provider = getProvider(providerId as any);
 
     const fallback = provider?.acpSupport
-      ? { command: provider.acpSupport.command, args: provider.acpSupport.args ?? [], env: {} as Record<string, string> }
+      ? {
+          command: provider.acpSupport.command,
+          args: provider.acpSupport.args ?? [],
+          env: {} as Record<string, string>,
+        }
       : null;
 
     const acpCommand = resolved ?? fallback;
@@ -271,10 +279,18 @@ export class AcpSessionManager {
           controller.enqueue(new Uint8Array(chunk));
         });
         childProcess.stdout!.on('end', () => {
-          try { controller.close(); } catch { /* already closed */ }
+          try {
+            controller.close();
+          } catch {
+            /* already closed */
+          }
         });
         childProcess.stdout!.on('error', (err) => {
-          try { controller.error(err); } catch { /* already errored */ }
+          try {
+            controller.error(err);
+          } catch {
+            /* already errored */
+          }
         });
       },
     });
@@ -317,7 +333,7 @@ export class AcpSessionManager {
     // Create the client-side connection
     const connection = new acpSdk.ClientSideConnection(
       (_agent) => this.createClient(sessionKey),
-      stream,
+      stream
     );
 
     session.connection = connection;
@@ -390,7 +406,7 @@ export class AcpSessionManager {
     cwd: string,
     env?: Record<string, string>,
     resumeAcpSessionId?: string,
-    mcpServers?: any[],
+    mcpServers?: any[]
   ): Promise<SessionCreateResult> {
     const sessionKey = `${providerId}-acp-${conversationId}`;
 
@@ -398,7 +414,13 @@ export class AcpSessionManager {
     const existing = this.sessions.get(sessionKey);
     if (existing && !this.finalizedSessions.has(sessionKey) && existing.status !== 'error') {
       log.info(`Reusing existing ACP session: ${sessionKey}`);
-      return { success: true, sessionKey, acpSessionId: existing.acpSessionId ?? undefined, modes: existing.modes, models: existing.models };
+      return {
+        success: true,
+        sessionKey,
+        acpSessionId: existing.acpSessionId ?? undefined,
+        modes: existing.modes,
+        models: existing.models,
+      };
     }
 
     // If a stale/errored session exists (e.g. after Ctrl+R reload), kill it first
@@ -427,7 +449,12 @@ export class AcpSessionManager {
       const mcpServerList = mcpServers ?? [];
       if (storedSessionId) {
         const result = await this.tryResumeOrCreate(
-          connection, spawnError, storedSessionId, cwd, initResp, mcpServerList,
+          connection,
+          spawnError,
+          storedSessionId,
+          cwd,
+          initResp,
+          mcpServerList
         );
         acpSessionId = result.sessionId;
         sessionResp = result.sessionResp;
@@ -442,7 +469,10 @@ export class AcpSessionManager {
 
       // Capture modes/models from session response
       const modes: AcpSessionModes = sessionResp?.modes
-        ? { availableModes: sessionResp.modes.availableModes || [], currentModeId: sessionResp.modes.currentModeId || '' }
+        ? {
+            availableModes: sessionResp.modes.availableModes || [],
+            currentModeId: sessionResp.modes.currentModeId || '',
+          }
         : null;
       const models: AcpSessionModels = sessionResp?.models
         ? {
@@ -470,15 +500,21 @@ export class AcpSessionManager {
       // Cleanup on failure
       const session = this.sessions.get(sessionKey);
       if (session?.childProcess) {
-        try { session.childProcess.kill(); } catch { /* ignore */ }
+        try {
+          session.childProcess.kill();
+        } catch {
+          /* ignore */
+        }
       }
       this.sessions.delete(sessionKey);
       log.error(`ACP session creation failed: ${sessionKey}`, error);
 
       const errorCode =
-        error.code === 'NO_ACP_SUPPORT' ? 'no_acp_support'
-        : error.code === 'ENOENT' ? 'acp_unavailable'
-        : (error.message || 'acp_unavailable');
+        error.code === 'NO_ACP_SUPPORT'
+          ? 'no_acp_support'
+          : error.code === 'ENOENT'
+            ? 'acp_unavailable'
+            : error.message || 'acp_unavailable';
       return { success: false, error: errorCode };
     }
   }
@@ -492,7 +528,7 @@ export class AcpSessionManager {
     acpSessionId: string,
     cwd: string,
     initResp: any,
-    mcpServers: any[],
+    mcpServers: any[]
   ): Promise<{ sessionId: string; sessionResp: any }> {
     const supportsLoadSession = initResp.agentCapabilities?.loadSession === true;
 
@@ -506,7 +542,9 @@ export class AcpSessionManager {
         log.info(`loadSession succeeded for sessionId=${acpSessionId}`);
         return { sessionId: acpSessionId, sessionResp: loadResp };
       } catch (loadErr: any) {
-        log.info(`loadSession failed for sessionId=${acpSessionId}: ${loadErr.message}, falling back to newSession`);
+        log.info(
+          `loadSession failed for sessionId=${acpSessionId}: ${loadErr.message}, falling back to newSession`
+        );
       }
     } else {
       log.info(`Agent does not support loadSession, creating new session`);
@@ -523,7 +561,7 @@ export class AcpSessionManager {
   async sendPrompt(
     sessionKey: string,
     message: string,
-    files?: Array<{ url: string; mediaType: string; filename?: string }>,
+    files?: Array<{ url: string; mediaType: string; filename?: string }>
   ): Promise<{ success: boolean; error?: string }> {
     const session = this.sessions.get(sessionKey);
     if (!session) {
@@ -576,34 +614,37 @@ export class AcpSessionManager {
     }
 
     // Fire and forget — the prompt response comes async via the connection
-    session.connection.prompt({
-      sessionId: session.acpSessionId,
-      prompt: promptBlocks,
-    }).then((resp) => {
-      // Prompt turn completed — only transition if still streaming/submitted
-      // (cancel may have already set status to 'ready')
-      const s = this.sessions.get(sessionKey);
-      if (s && (s.status === 'streaming' || s.status === 'submitted')) {
-        this.bufferEvent(sessionKey, {
-          type: 'prompt_complete',
-          stopReason: (resp as any).stopReason || 'end_turn',
-        });
-        this.setStatus(sessionKey, 'ready');
-      }
-    }).catch((err) => {
-      log.error(`ACP prompt failed: ${sessionKey}`, err);
-      const s = this.sessions.get(sessionKey);
-      // If already reset to 'ready' by cancel, don't transition
-      if (s && s.status !== 'ready') {
-        // Emit as prompt_error (recoverable) so the stream closes cleanly
-        // and the user can keep sending messages.
-        this.bufferEvent(sessionKey, {
-          type: 'prompt_error',
-          error: err.message || 'Prompt failed',
-        });
-        this.setStatus(sessionKey, 'ready');
-      }
-    });
+    session.connection
+      .prompt({
+        sessionId: session.acpSessionId,
+        prompt: promptBlocks,
+      })
+      .then((resp) => {
+        // Prompt turn completed — only transition if still streaming/submitted
+        // (cancel may have already set status to 'ready')
+        const s = this.sessions.get(sessionKey);
+        if (s && (s.status === 'streaming' || s.status === 'submitted')) {
+          this.bufferEvent(sessionKey, {
+            type: 'prompt_complete',
+            stopReason: (resp as any).stopReason || 'end_turn',
+          });
+          this.setStatus(sessionKey, 'ready');
+        }
+      })
+      .catch((err) => {
+        log.error(`ACP prompt failed: ${sessionKey}`, err);
+        const s = this.sessions.get(sessionKey);
+        // If already reset to 'ready' by cancel, don't transition
+        if (s && s.status !== 'ready') {
+          // Emit as prompt_error (recoverable) so the stream closes cleanly
+          // and the user can keep sending messages.
+          this.bufferEvent(sessionKey, {
+            type: 'prompt_error',
+            error: err.message || 'Prompt failed',
+          });
+          this.setStatus(sessionKey, 'ready');
+        }
+      });
 
     return { success: true };
   }
@@ -611,7 +652,7 @@ export class AcpSessionManager {
   async approvePermission(
     sessionKey: string,
     toolCallId: string,
-    approved: boolean,
+    approved: boolean
   ): Promise<{ success: boolean; error?: string }> {
     const session = this.sessions.get(sessionKey);
     if (!session) {
@@ -649,9 +690,7 @@ export class AcpSessionManager {
     return { success: true };
   }
 
-  async cancelSession(
-    sessionKey: string,
-  ): Promise<{ success: boolean; error?: string }> {
+  async cancelSession(sessionKey: string): Promise<{ success: boolean; error?: string }> {
     const session = this.sessions.get(sessionKey);
     if (!session) {
       return { success: false, error: 'Session not found' };
@@ -676,10 +715,7 @@ export class AcpSessionManager {
     }
   }
 
-  async setMode(
-    sessionKey: string,
-    mode: string,
-  ): Promise<{ success: boolean; error?: string }> {
+  async setMode(sessionKey: string, mode: string): Promise<{ success: boolean; error?: string }> {
     const session = this.sessions.get(sessionKey);
     if (!session) {
       return { success: false, error: 'Session not found' };
@@ -702,7 +738,7 @@ export class AcpSessionManager {
   async setConfigOption(
     sessionKey: string,
     optionId: string,
-    value: string,
+    value: string
   ): Promise<{ success: boolean; error?: string }> {
     const session = this.sessions.get(sessionKey);
     if (!session) {
@@ -726,7 +762,7 @@ export class AcpSessionManager {
 
   async setModel(
     sessionKey: string,
-    modelId: string,
+    modelId: string
   ): Promise<{ success: boolean; error?: string }> {
     const session = this.sessions.get(sessionKey);
     if (!session) {
@@ -748,7 +784,7 @@ export class AcpSessionManager {
   }
 
   async listSessions(
-    sessionKey: string,
+    sessionKey: string
   ): Promise<{ success: boolean; sessions?: any[]; error?: string }> {
     const session = this.sessions.get(sessionKey);
     if (!session) {
@@ -764,7 +800,7 @@ export class AcpSessionManager {
   }
 
   async forkSession(
-    sessionKey: string,
+    sessionKey: string
   ): Promise<{ success: boolean; newSessionId?: string; error?: string }> {
     const session = this.sessions.get(sessionKey);
     if (!session) {
@@ -787,7 +823,7 @@ export class AcpSessionManager {
   async extMethod(
     sessionKey: string,
     method: string,
-    params: Record<string, unknown>,
+    params: Record<string, unknown>
   ): Promise<{ success: boolean; result?: Record<string, unknown>; error?: string }> {
     const session = this.sessions.get(sessionKey);
     if (!session) {
@@ -887,7 +923,9 @@ export class AcpSessionManager {
         });
       },
 
-      requestPermission: async (params: RequestPermissionRequest): Promise<RequestPermissionResponse> => {
+      requestPermission: async (
+        params: RequestPermissionRequest
+      ): Promise<RequestPermissionResponse> => {
         const session = this.sessions.get(sessionKey);
         if (!session) {
           return { outcome: { outcome: 'cancelled' } };

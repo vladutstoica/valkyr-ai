@@ -210,7 +210,7 @@ export default function CodeEditor({ taskPath, taskName, projectName, onClose }:
   );
 
   return (
-    <div className="fixed inset-0 z-30 flex flex-col bg-background">
+    <div className="bg-background fixed inset-0 z-30 flex flex-col">
       <EditorHeader
         taskName={taskName}
         hasUnsavedChanges={hasUnsavedChanges}
@@ -280,16 +280,13 @@ const FileExplorer: React.FC<FileExplorerProps> = ({
   onMouseDown,
   fileChanges,
 }) => (
-  <div
-    className="relative flex flex-col bg-muted/5"
-    style={{ width: explorerWidth }}
-  >
+  <div className="bg-muted/5 relative flex flex-col" style={{ width: explorerWidth }}>
     <div className="flex flex-1 flex-col overflow-hidden">
-      <div className="flex h-8 items-center border-b border-border bg-muted/10 px-3">
-        <span className="text-xs font-medium text-foreground">{projectName}</span>
+      <div className="border-border bg-muted/10 flex h-8 items-center border-b px-3">
+        <span className="text-foreground text-xs font-medium">{projectName}</span>
       </div>
-      <div className="flex h-8 items-center border-b border-border bg-muted/20 px-3">
-        <span className="text-xs font-medium text-foreground">{taskName}</span>
+      <div className="border-border bg-muted/20 flex h-8 items-center border-b px-3">
+        <span className="text-foreground text-xs font-medium">{taskName}</span>
       </div>
 
       <div className="flex flex-1 flex-col overflow-hidden">
@@ -315,9 +312,9 @@ const ResizeHandle: React.FC<{
 }> = ({ isResizing, onMouseDown }) => (
   <div
     className={cn(
-      'absolute -right-0.5 top-0 h-full w-1 cursor-col-resize',
-      'transition-colors hover:bg-border/80',
-      "after:absolute after:left-1/2 after:top-0 after:h-full after:w-px after:-translate-x-1/2 after:content-['']",
+      'absolute top-0 -right-0.5 h-full w-1 cursor-col-resize',
+      'hover:bg-border/80 transition-colors',
+      "after:absolute after:top-0 after:left-1/2 after:h-full after:w-px after:-translate-x-1/2 after:content-['']",
       'after:bg-border',
       isResizing && 'bg-border/80'
     )}
@@ -368,7 +365,7 @@ const EditorContent: React.FC<EditorContentProps> = ({
 };
 
 const NoFileOpen: React.FC = () => (
-  <div className="flex flex-1 items-center justify-center text-muted-foreground">
+  <div className="text-muted-foreground flex flex-1 items-center justify-center">
     <div className="text-center">
       {/** 
       <p className="text-sm">No file open</p>
@@ -379,9 +376,9 @@ const NoFileOpen: React.FC = () => (
 );
 
 const ImagePreview: React.FC<{ file: any }> = ({ file }) => (
-  <div className="flex flex-1 items-center justify-center overflow-auto bg-background p-8">
+  <div className="bg-background flex flex-1 items-center justify-center overflow-auto p-8">
     <div className="flex flex-col items-center">
-      <div className="relative flex h-[400px] w-[600px] items-center justify-center rounded-lg border border-border bg-muted/20 p-4">
+      <div className="border-border bg-muted/20 relative flex h-[400px] w-[600px] items-center justify-center rounded-lg border p-4">
         <img
           src={file.content}
           alt={file.path}
@@ -390,16 +387,16 @@ const ImagePreview: React.FC<{ file: any }> = ({ file }) => (
         />
       </div>
       <div className="mt-4 text-center">
-        <div className="text-sm font-medium text-foreground">{file.path.split('/').pop()}</div>
-        <div className="mt-1 text-xs text-muted-foreground">{file.path}</div>
+        <div className="text-foreground text-sm font-medium">{file.path.split('/').pop()}</div>
+        <div className="text-muted-foreground mt-1 text-xs">{file.path}</div>
       </div>
     </div>
   </div>
 );
 
 const ImageError: React.FC<{ file: any }> = ({ file }) => (
-  <div className="flex flex-1 items-center justify-center overflow-auto bg-background p-8">
-    <div className="text-center text-muted-foreground">
+  <div className="bg-background flex flex-1 items-center justify-center overflow-auto p-8">
+    <div className="text-muted-foreground text-center">
       <p className="mb-2 text-sm">Failed to load image</p>
       <p className="text-xs opacity-70">{file.path}</p>
       <p className="mt-2 text-xs opacity-50">The image file could not be read</p>

@@ -30,7 +30,9 @@ export function useInitialPromptInjection(opts: {
         if (sent) return;
         (window as any).electronAPI?.ptyInput?.({ id: ptyId, data: trimmed + '\n' });
         localStorage.setItem(sentKey, '1');
-        try { window.electronAPI?.setTaskInitialPromptSent?.({ taskId, sent: true }); } catch {}
+        try {
+          window.electronAPI?.setTaskInitialPromptSent?.({ taskId, sent: true });
+        } catch {}
         sent = true;
       } catch {}
     };

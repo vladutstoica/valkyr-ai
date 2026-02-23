@@ -74,14 +74,14 @@ const RepositorySettingsCard: React.FC = () => {
           aria-label="Branch prefix"
           disabled={loading}
         />
-        <div className="text-[11px] text-muted-foreground">
-          Example: <code className="rounded bg-muted/60 px-1">{example}</code>
+        <div className="text-muted-foreground text-[11px]">
+          Example: <code className="bg-muted/60 rounded px-1">{example}</code>
         </div>
       </div>
 
       <div className="flex items-center justify-between gap-4">
-        <div className="space-y-1 text-xs text-muted-foreground">
-          <div className="text-sm text-foreground">Auto-push to origin</div>
+        <div className="text-muted-foreground space-y-1 text-xs">
+          <div className="text-foreground text-sm">Auto-push to origin</div>
           <div>Push the new branch to origin and set upstream after creation.</div>
         </div>
         <Switch

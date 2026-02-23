@@ -71,9 +71,10 @@ test.describe('Git Tab', () => {
 
     // First, select a session from the sidebar that might have changes
     // Look for sessions with the worktree icon (indicates they have a worktree)
-    const sessionWithWorktree = page.locator('text=thirty-flies-beg').or(
-      page.locator('text=jolly-rabbits-hug')
-    ).first();
+    const sessionWithWorktree = page
+      .locator('text=thirty-flies-beg')
+      .or(page.locator('text=jolly-rabbits-hug'))
+      .first();
 
     if (await sessionWithWorktree.isVisible().catch(() => false)) {
       await sessionWithWorktree.click();
@@ -81,9 +82,10 @@ test.describe('Git Tab', () => {
     }
 
     // Now click on the Git tab
-    const gitTab = page.locator('button:has-text("Git")').or(
-      page.locator('[role="tab"]:has-text("Git")')
-    ).first();
+    const gitTab = page
+      .locator('button:has-text("Git")')
+      .or(page.locator('[role="tab"]:has-text("Git")'))
+      .first();
 
     if (await gitTab.isVisible().catch(() => false)) {
       await gitTab.click({ force: true }); // Force click to bypass any intercepting elements
@@ -94,18 +96,22 @@ test.describe('Git Tab', () => {
   test.describe('Tab Navigation', () => {
     test('should display Git tab in the tab bar', async () => {
       // Look for Git tab button - may be visible as "Changes" tab
-      const gitTab = page.locator('[data-testid="git-tab"]').or(
-        page.locator('button:has-text("Git")').or(
-          page.locator('[role="tab"]:has-text("Git")').or(
-            page.locator('button:has-text("Changes")')
-          )
-        )
-      );
+      const gitTab = page
+        .locator('[data-testid="git-tab"]')
+        .or(
+          page
+            .locator('button:has-text("Git")')
+            .or(
+              page
+                .locator('[role="tab"]:has-text("Git")')
+                .or(page.locator('button:has-text("Changes")'))
+            )
+        );
 
       // Take screenshot for debugging
       await page.screenshot({ path: 'e2e/screenshots/git-tab-search.png' });
 
-      const tabExists = await gitTab.count() > 0;
+      const tabExists = (await gitTab.count()) > 0;
       console.log(`Git/Changes tab found: ${tabExists}`);
     });
 
@@ -143,9 +149,9 @@ test.describe('Git Tab', () => {
     });
 
     test('should display Expand/Collapse All button', async () => {
-      const expandAllButton = page.locator('button:has-text("Expand All")').or(
-        page.locator('button:has-text("Collapse All")')
-      );
+      const expandAllButton = page
+        .locator('button:has-text("Expand All")')
+        .or(page.locator('button:has-text("Collapse All")'));
 
       const count = await expandAllButton.count();
       console.log(`Expand/Collapse All buttons found: ${count}`);
@@ -164,7 +170,9 @@ test.describe('Git Tab', () => {
 
     test('should display file change items with status badges', async () => {
       // Status badges: M (Modified), A (Added), D (Deleted), R (Renamed)
-      const statusBadges = page.locator('[title="Modified"], [title="Added"], [title="Deleted"], [title="Renamed"]');
+      const statusBadges = page.locator(
+        '[title="Modified"], [title="Added"], [title="Deleted"], [title="Renamed"]'
+      );
 
       await page.screenshot({ path: 'e2e/screenshots/git-file-items.png' });
 
@@ -173,9 +181,9 @@ test.describe('Git Tab', () => {
     });
 
     test('should display checkboxes for staging files', async () => {
-      const checkboxes = page.locator('[role="checkbox"]').or(
-        page.locator('button[role="checkbox"]')
-      );
+      const checkboxes = page
+        .locator('[role="checkbox"]')
+        .or(page.locator('button[role="checkbox"]'));
 
       const count = await checkboxes.count();
       console.log(`Found ${count} staging checkboxes`);
@@ -233,7 +241,7 @@ test.describe('Git Tab', () => {
         // Look for diff content - Monaco DiffEditor renders with .monaco-diff-editor class
         const diffContent = page.locator('.monaco-diff-editor, [class*="monaco-editor"]');
 
-        const hasDiff = await diffContent.count() > 0;
+        const hasDiff = (await diffContent.count()) > 0;
         console.log(`Diff content visible: ${hasDiff}`);
         await page.screenshot({ path: 'e2e/screenshots/git-diff-view.png' });
       } else {
@@ -268,13 +276,13 @@ test.describe('Git Tab', () => {
 
         // Monaco DiffEditor renders with .monaco-diff-editor class
         const monacoEditor = page.locator('.monaco-diff-editor');
-        const hasMonacoEditor = await monacoEditor.count() > 0;
+        const hasMonacoEditor = (await monacoEditor.count()) > 0;
         console.log(`Monaco DiffEditor component rendered: ${hasMonacoEditor}`);
 
         // Verify no SimpleDiffView fallback is shown
         // SimpleDiffView was using "overflow-x-auto p-2 font-mono" classes - now removed
         const simpleDiffFallback = page.locator('pre.overflow-x-auto.p-2.font-mono');
-        const hasFallback = await simpleDiffFallback.count() > 0;
+        const hasFallback = (await simpleDiffFallback.count()) > 0;
         console.log(`SimpleDiffView fallback present: ${hasFallback}`);
 
         // No fallback should be present
@@ -323,13 +331,11 @@ test.describe('Git Tab', () => {
     });
 
     test('should display commit type selector', async () => {
-      const commitTypeButton = page.locator('button:has-text("feat")').or(
-        page.locator('button:has-text("fix")').or(
-          page.locator('button:has-text("chore")')
-        )
-      );
+      const commitTypeButton = page
+        .locator('button:has-text("feat")')
+        .or(page.locator('button:has-text("fix")').or(page.locator('button:has-text("chore")')));
 
-      if (await commitTypeButton.count() > 0) {
+      if ((await commitTypeButton.count()) > 0) {
         console.log('Commit type selector found');
         await page.screenshot({ path: 'e2e/screenshots/git-commit-type.png' });
       }
@@ -350,9 +356,9 @@ test.describe('Git Tab', () => {
     });
 
     test('should display commit message textarea', async () => {
-      const textarea = page.locator('textarea[placeholder*="commit"]').or(
-        page.locator('textarea').first()
-      );
+      const textarea = page
+        .locator('textarea[placeholder*="commit"]')
+        .or(page.locator('textarea').first());
 
       if (await textarea.isVisible().catch(() => false)) {
         console.log('Commit message textarea found');
@@ -398,24 +404,24 @@ test.describe('Git Tab', () => {
     });
 
     test('should display PR button when staged changes exist', async () => {
-      const prButton = page.locator('button:has-text("Create PR")').or(
-        page.locator('button:has-text("Draft PR")').or(
-          page.locator('button:has(svg.lucide-git-pull-request)')
-        )
-      );
+      const prButton = page
+        .locator('button:has-text("Create PR")')
+        .or(
+          page
+            .locator('button:has-text("Draft PR")')
+            .or(page.locator('button:has(svg.lucide-git-pull-request)'))
+        );
 
-      if (await prButton.count() > 0) {
+      if ((await prButton.count()) > 0) {
         console.log('PR button found');
         await page.screenshot({ path: 'e2e/screenshots/git-pr-button.png' });
       }
     });
 
     test('should display keyboard shortcut hint', async () => {
-      const shortcutHint = page.locator('text=Cmd+Enter').or(
-        page.locator('kbd')
-      );
+      const shortcutHint = page.locator('text=Cmd+Enter').or(page.locator('kbd'));
 
-      if (await shortcutHint.count() > 0) {
+      if ((await shortcutHint.count()) > 0) {
         console.log('Keyboard shortcut hint found');
       }
     });
@@ -449,7 +455,7 @@ test.describe('Git Tab', () => {
     test('should update staged count in header', async () => {
       const stagedIndicator = page.locator('text=/\\d+ staged/');
 
-      if (await stagedIndicator.count() > 0) {
+      if ((await stagedIndicator.count()) > 0) {
         const text = await stagedIndicator.textContent();
         console.log(`Staged indicator: ${text}`);
       }
@@ -470,13 +476,13 @@ test.describe('Git Tab', () => {
   test.describe('Error Handling', () => {
     test('should display error message when diff fails to render', async () => {
       // This test verifies the error boundary shows proper error message
-      const errorIndicator = page.locator('text=Failed to render diff').or(
-        page.locator('svg.lucide-alert-triangle')
-      );
+      const errorIndicator = page
+        .locator('text=Failed to render diff')
+        .or(page.locator('svg.lucide-alert-triangle'));
 
       await page.screenshot({ path: 'e2e/screenshots/git-error-state.png' });
 
-      if (await errorIndicator.count() > 0) {
+      if ((await errorIndicator.count()) > 0) {
         console.log('Error indicator found - error boundary working');
       }
     });
@@ -485,7 +491,7 @@ test.describe('Git Tab', () => {
       // Look for loading spinner during lazy load
       const loadingSpinner = page.locator('text=Loading diff viewer...');
 
-      if (await loadingSpinner.count() > 0) {
+      if ((await loadingSpinner.count()) > 0) {
         console.log('Diff loading spinner found');
       }
     });

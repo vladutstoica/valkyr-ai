@@ -57,7 +57,7 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status, className }) 
   if (state === 'checking') {
     return (
       <span
-        className={cn('flex items-center gap-1.5 text-xs text-muted-foreground', className)}
+        className={cn('text-muted-foreground flex items-center gap-1.5 text-xs', className)}
         aria-label="Checking repository status"
       >
         <Spinner size="sm" />
@@ -69,7 +69,7 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status, className }) 
   if (state === 'updating') {
     return (
       <span
-        className={cn('flex items-center gap-1.5 text-xs text-muted-foreground', className)}
+        className={cn('text-muted-foreground flex items-center gap-1.5 text-xs', className)}
         aria-label="Pulling latest changes"
       >
         <Spinner size="sm" />
@@ -82,7 +82,7 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status, className }) 
   if (state === 'error') {
     return (
       <span
-        className={cn('flex items-center gap-1.5 text-xs text-destructive', className)}
+        className={cn('text-destructive flex items-center gap-1.5 text-xs', className)}
         aria-label={`Error: ${error || 'Failed to update'}`}
       >
         <AlertCircle className="h-3.5 w-3.5" />
@@ -95,7 +95,10 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status, className }) 
   if (state === 'success') {
     return (
       <span
-        className={cn('flex items-center gap-1.5 text-xs text-green-600 dark:text-green-500', className)}
+        className={cn(
+          'flex items-center gap-1.5 text-xs text-green-600 dark:text-green-500',
+          className
+        )}
         aria-label="Successfully updated"
       >
         <Check className="h-3.5 w-3.5" />
@@ -111,7 +114,10 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status, className }) 
   if (isUpToDate && !isDirty) {
     return (
       <span
-        className={cn('flex items-center gap-1.5 text-xs text-green-600 dark:text-green-500', className)}
+        className={cn(
+          'flex items-center gap-1.5 text-xs text-green-600 dark:text-green-500',
+          className
+        )}
         aria-label="Repository is up to date"
       >
         <Check className="h-3.5 w-3.5" />
@@ -123,7 +129,10 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status, className }) 
   if (isDiverged) {
     return (
       <span
-        className={cn('flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500', className)}
+        className={cn(
+          'flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500',
+          className
+        )}
         aria-label={`Diverged: ${behind} commits behind, ${ahead} commits ahead`}
       >
         <AlertCircle className="h-3.5 w-3.5" />
@@ -137,7 +146,10 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status, className }) 
   if (behind > 0) {
     return (
       <span
-        className={cn('flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-500', className)}
+        className={cn(
+          'flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-500',
+          className
+        )}
         aria-label={`${behind} commits behind remote`}
       >
         <span>&darr;{behind} behind</span>
@@ -148,7 +160,7 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status, className }) 
   if (ahead > 0) {
     return (
       <span
-        className={cn('flex items-center gap-1.5 text-xs text-muted-foreground', className)}
+        className={cn('text-muted-foreground flex items-center gap-1.5 text-xs', className)}
         aria-label={`${ahead} commits ahead of remote`}
       >
         <span>&uarr;{ahead} ahead</span>
@@ -195,7 +207,7 @@ const RepoStatusItem: React.FC<RepoStatusItemProps> = ({
   return (
     <div
       className={cn(
-        'flex flex-col gap-1 rounded-md border border-border/50 bg-muted/20 p-3 transition-colors',
+        'border-border/50 bg-muted/20 flex flex-col gap-1 rounded-md border p-3 transition-colors',
         isSelected && 'border-border bg-muted/40',
         hasError && 'border-destructive/30 bg-destructive/5'
       )}
@@ -220,20 +232,18 @@ const RepoStatusItem: React.FC<RepoStatusItemProps> = ({
             >
               {repo.isMainRepo ? (
                 <span className="flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
+                  <span className="bg-primary h-1.5 w-1.5 rounded-full" aria-hidden="true" />
                   {repo.name}
                 </span>
               ) : (
                 repo.name
               )}
             </Label>
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
               <GitBranch className="h-3 w-3" aria-hidden="true" />
               {repo.currentBranch}
               {repo.trackingBranch && repo.trackingBranch !== repo.currentBranch && (
-                <span className="text-muted-foreground/70">
-                  &rarr; {repo.trackingBranch}
-                </span>
+                <span className="text-muted-foreground/70">&rarr; {repo.trackingBranch}</span>
               )}
             </span>
           </div>
@@ -262,7 +272,7 @@ const RepoStatusItem: React.FC<RepoStatusItemProps> = ({
 
       {/* Stashed indicator */}
       {repo.stashed && repo.state === 'success' && (
-        <span className="ml-7 text-xs text-muted-foreground">
+        <span className="text-muted-foreground ml-7 text-xs">
           Changes were stashed before pulling
         </span>
       )}
@@ -270,7 +280,7 @@ const RepoStatusItem: React.FC<RepoStatusItemProps> = ({
       {/* Error with retry */}
       {hasError && repo.error && (
         <div className="ml-7 flex items-center justify-between gap-2">
-          <span className="truncate text-xs text-destructive" title={repo.error}>
+          <span className="text-destructive truncate text-xs" title={repo.error}>
             {repo.error}
           </span>
           <Button
@@ -553,7 +563,11 @@ export const UpdateProjectModal: React.FC<UpdateProjectModalProps> = ({
             </Label>
           </div>
 
-          <div className="flex items-center gap-2" role="radiogroup" aria-label="Filter repositories">
+          <div
+            className="flex items-center gap-2"
+            role="radiogroup"
+            aria-label="Filter repositories"
+          >
             <button
               type="button"
               role="radio"
@@ -593,7 +607,7 @@ export const UpdateProjectModal: React.FC<UpdateProjectModalProps> = ({
               aria-label="Loading repository status"
             >
               <Spinner size="lg" />
-              <span className="text-sm text-muted-foreground">Checking repositories...</span>
+              <span className="text-muted-foreground text-sm">Checking repositories...</span>
             </div>
           ) : globalError ? (
             <div
@@ -601,8 +615,8 @@ export const UpdateProjectModal: React.FC<UpdateProjectModalProps> = ({
               role="alert"
               aria-live="assertive"
             >
-              <AlertCircle className="h-8 w-8 text-destructive" />
-              <span className="text-sm text-destructive">{globalError}</span>
+              <AlertCircle className="text-destructive h-8 w-8" />
+              <span className="text-destructive text-sm">{globalError}</span>
               <Button variant="outline" size="sm" onClick={fetchRepoStatus}>
                 <RotateCw className="mr-1.5 h-3.5 w-3.5" />
                 Retry
@@ -610,7 +624,7 @@ export const UpdateProjectModal: React.FC<UpdateProjectModalProps> = ({
             </div>
           ) : filteredRepos.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 py-8">
-              <span className="text-sm text-muted-foreground">
+              <span className="text-muted-foreground text-sm">
                 {filterMode === 'outdated'
                   ? 'All repositories are up to date'
                   : 'No repositories found'}

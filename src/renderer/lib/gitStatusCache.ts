@@ -47,9 +47,7 @@ export async function getCachedGitStatus(
   const promise = (async () => {
     try {
       const res = await window.electronAPI.getGitStatus(
-        options?.repoMappings?.length
-          ? { taskPath, repoMappings: options.repoMappings }
-          : taskPath
+        options?.repoMappings?.length ? { taskPath, repoMappings: options.repoMappings } : taskPath
       );
       const result = res ?? {
         success: false,

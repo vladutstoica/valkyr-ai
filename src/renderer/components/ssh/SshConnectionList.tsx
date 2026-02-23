@@ -83,12 +83,12 @@ export const SshConnectionList: React.FC<Props> = ({
 
   if (connections.length === 0) {
     return (
-      <div className="flex h-64 flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 p-8 text-center">
-        <div className="mb-4 rounded-full bg-muted p-4">
-          <Monitor className="h-8 w-8 text-muted-foreground" />
+      <div className="border-border bg-muted/20 flex h-64 flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
+        <div className="bg-muted mb-4 rounded-full p-4">
+          <Monitor className="text-muted-foreground h-8 w-8" />
         </div>
         <h3 className="mb-1 text-sm font-medium">No SSH connections</h3>
-        <p className="mb-4 max-w-xs text-xs text-muted-foreground">
+        <p className="text-muted-foreground mb-4 max-w-xs text-xs">
           Add an SSH connection to connect to remote servers and manage projects remotely.
         </p>
         {onAddNew && (
@@ -118,11 +118,11 @@ export const SshConnectionList: React.FC<Props> = ({
           <div className="flex items-start justify-between gap-4">
             {/* Left side: Icon and Info */}
             <div className="flex min-w-0 flex-1 items-start gap-3">
-              <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
+              <div className="bg-muted mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
                 {connection.authType === 'password' ? (
-                  <Globe className="h-5 w-5 text-muted-foreground" />
+                  <Globe className="text-muted-foreground h-5 w-5" />
                 ) : (
-                  <Server className="h-5 w-5 text-muted-foreground" />
+                  <Server className="text-muted-foreground h-5 w-5" />
                 )}
               </div>
 
@@ -134,7 +134,7 @@ export const SshConnectionList: React.FC<Props> = ({
                   )}
                 </div>
 
-                <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="text-muted-foreground mt-1 flex items-center gap-2 text-xs">
                   <span className="font-mono">
                     {connection.username}@{connection.host}
                   </span>

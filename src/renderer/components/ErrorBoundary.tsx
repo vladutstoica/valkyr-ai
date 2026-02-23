@@ -51,14 +51,14 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
     const message = this.state.error?.message || 'An unexpected error occurred.';
 
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-background p-6">
-        <div className="max-w-xl rounded-none border border-border bg-card p-6 text-card-foreground shadow-xs">
+      <div className="bg-background flex h-screen w-screen items-center justify-center p-6">
+        <div className="border-border bg-card text-card-foreground max-w-xl rounded-none border p-6 shadow-xs">
           <h1 className="mb-2 text-lg font-semibold">Something went wrong</h1>
-          <p className="mb-4 break-all text-sm text-muted-foreground">{message}</p>
+          <p className="text-muted-foreground mb-4 text-sm break-all">{message}</p>
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="inline-flex h-9 items-center justify-center rounded-none border border-input bg-primary px-4 text-sm font-medium text-primary-foreground shadow-xs"
+              className="border-input bg-primary text-primary-foreground inline-flex h-9 items-center justify-center rounded-none border px-4 text-sm font-medium shadow-xs"
               onClick={this.handleReload}
             >
               Reload

@@ -48,12 +48,7 @@ export type ClaudeUsageLimits = {
 };
 
 // ACP (Agent Communication Protocol) types
-export type AcpSessionStatus =
-  | 'initializing'
-  | 'ready'
-  | 'submitted'
-  | 'streaming'
-  | 'error';
+export type AcpSessionStatus = 'initializing' | 'ready' | 'submitted' | 'streaming' | 'error';
 
 export type AcpSessionMode = {
   id: string;
@@ -77,26 +72,32 @@ export type AcpSessionModels = {
   currentModelId: string;
 } | null;
 
-export type AcpUpdateEvent = {
-  type: 'session_update';
-  data: any; // ACP SessionNotification
-} | {
-  type: 'permission_request';
-  data: any; // ACP RequestPermissionRequest
-  toolCallId: string;
-} | {
-  type: 'status_change';
-  status: AcpSessionStatus;
-} | {
-  type: 'session_error';
-  error: string;
-} | {
-  type: 'prompt_error';
-  error: string;
-} | {
-  type: 'prompt_complete';
-  stopReason: string;
-};
+export type AcpUpdateEvent =
+  | {
+      type: 'session_update';
+      data: any; // ACP SessionNotification
+    }
+  | {
+      type: 'permission_request';
+      data: any; // ACP RequestPermissionRequest
+      toolCallId: string;
+    }
+  | {
+      type: 'status_change';
+      status: AcpSessionStatus;
+    }
+  | {
+      type: 'session_error';
+      error: string;
+    }
+  | {
+      type: 'prompt_error';
+      error: string;
+    }
+  | {
+      type: 'prompt_complete';
+      stopReason: string;
+    };
 
 type ProjectSettingsPayload = {
   projectId: string;
@@ -772,7 +773,9 @@ declare global {
       }>;
 
       getGitStatus: (
-        arg: string | { taskPath: string; repoMappings?: Array<{ relativePath: string; targetPath: string }> }
+        arg:
+          | string
+          | { taskPath: string; repoMappings?: Array<{ relativePath: string; targetPath: string }> }
       ) => Promise<{
         success: boolean;
         changes?: Array<{
@@ -1310,10 +1313,7 @@ declare global {
         }>;
         error?: string;
       }>;
-      createWorkspace: (args: {
-        name: string;
-        color?: string;
-      }) => Promise<{
+      createWorkspace: (args: { name: string; color?: string }) => Promise<{
         success: boolean;
         workspace?: {
           id: string;
@@ -1405,20 +1405,78 @@ declare global {
       }) => Promise<{ success: boolean; error?: string }>;
 
       // App state
-      getAppState(): Promise<{ success: boolean; data?: { activeProjectId: string | null; activeTaskId: string | null; activeWorkspaceId: string | null; prMode: string | null; prDraft: boolean }; error?: string }>;
-      updateAppState(partial: { activeProjectId?: string | null; activeTaskId?: string | null; activeWorkspaceId?: string | null; prMode?: string | null; prDraft?: boolean }): Promise<{ success: boolean; error?: string }>;
+      getAppState(): Promise<{
+        success: boolean;
+        data?: {
+          activeProjectId: string | null;
+          activeTaskId: string | null;
+          activeWorkspaceId: string | null;
+          prMode: string | null;
+          prDraft: boolean;
+        };
+        error?: string;
+      }>;
+      updateAppState(partial: {
+        activeProjectId?: string | null;
+        activeTaskId?: string | null;
+        activeWorkspaceId?: string | null;
+        prMode?: string | null;
+        prDraft?: boolean;
+      }): Promise<{ success: boolean; error?: string }>;
       // Task pinned/agent
-      setTaskPinned(args: { taskId: string; pinned: boolean }): Promise<{ success: boolean; error?: string }>;
+      setTaskPinned(args: {
+        taskId: string;
+        pinned: boolean;
+      }): Promise<{ success: boolean; error?: string }>;
       getPinnedTaskIds(): Promise<{ success: boolean; data?: string[]; error?: string }>;
-      setTaskAgent(args: { taskId: string; lastAgent?: string | null; lockedAgent?: string | null }): Promise<{ success: boolean; error?: string }>;
-      setTaskInitialPromptSent(args: { taskId: string; sent: boolean }): Promise<{ success: boolean; error?: string }>;
+      setTaskAgent(args: {
+        taskId: string;
+        lastAgent?: string | null;
+        lockedAgent?: string | null;
+      }): Promise<{ success: boolean; error?: string }>;
+      setTaskInitialPromptSent(args: {
+        taskId: string;
+        sent: boolean;
+      }): Promise<{ success: boolean; error?: string }>;
       // Terminal sessions
-      getTerminalSessions(taskKey: string): Promise<{ success: boolean; data?: Array<{ id: string; taskKey: string; terminalId: string; title: string; cwd: string | null; isActive: boolean; displayOrder: number; createdAt: string }>; error?: string }>;
-      saveTerminalSessions(args: { taskKey: string; sessions: Array<{ id: string; terminalId: string; title: string; cwd?: string | null; isActive: boolean; displayOrder: number }> }): Promise<{ success: boolean; error?: string }>;
+      getTerminalSessions(
+        taskKey: string
+      ): Promise<{
+        success: boolean;
+        data?: Array<{
+          id: string;
+          taskKey: string;
+          terminalId: string;
+          title: string;
+          cwd: string | null;
+          isActive: boolean;
+          displayOrder: number;
+          createdAt: string;
+        }>;
+        error?: string;
+      }>;
+      saveTerminalSessions(args: {
+        taskKey: string;
+        sessions: Array<{
+          id: string;
+          terminalId: string;
+          title: string;
+          cwd?: string | null;
+          isActive: boolean;
+          displayOrder: number;
+        }>;
+      }): Promise<{ success: boolean; error?: string }>;
       deleteTerminalSessions(taskKey: string): Promise<{ success: boolean; error?: string }>;
       // Kanban
-      getKanbanStatuses(): Promise<{ success: boolean; data?: Array<{ taskId: string; status: string }>; error?: string }>;
-      setKanbanStatus(args: { taskId: string; status: string }): Promise<{ success: boolean; error?: string }>;
+      getKanbanStatuses(): Promise<{
+        success: boolean;
+        data?: Array<{ taskId: string; status: string }>;
+        error?: string;
+      }>;
+      setKanbanStatus(args: {
+        taskId: string;
+        status: string;
+      }): Promise<{ success: boolean; error?: string }>;
 
       // Debug helpers
       debugAppendLog: (
@@ -1577,9 +1635,7 @@ declare global {
         data?: import('@shared/mcp/types').McpServerConfig[];
         error?: string;
       }>;
-      mcpSaveGlobalServers: (
-        servers: import('@shared/mcp/types').McpServerConfig[]
-      ) => Promise<{
+      mcpSaveGlobalServers: (servers: import('@shared/mcp/types').McpServerConfig[]) => Promise<{
         success: boolean;
         data?: import('@shared/mcp/types').McpServerConfig[];
         error?: string;
@@ -1695,21 +1751,22 @@ declare global {
         env?: Record<string, string>;
         acpSessionId?: string;
         projectPath?: string;
-      }) => Promise<{ success: boolean; sessionKey?: string; acpSessionId?: string; modes?: AcpSessionModes; models?: AcpSessionModels; error?: string }>;
+      }) => Promise<{
+        success: boolean;
+        sessionKey?: string;
+        acpSessionId?: string;
+        modes?: AcpSessionModes;
+        models?: AcpSessionModels;
+        error?: string;
+      }>;
       acpPrompt: (args: {
         sessionKey: string;
         message: string;
         files?: Array<{ url: string; mediaType: string; filename?: string }>;
       }) => Promise<{ success: boolean; error?: string }>;
-      acpCancel: (args: {
-        sessionKey: string;
-      }) => Promise<{ success: boolean; error?: string }>;
-      acpKill: (args: {
-        sessionKey: string;
-      }) => Promise<{ success: boolean; error?: string }>;
-      acpDetach: (args: {
-        sessionKey: string;
-      }) => Promise<{ success: boolean; error?: string }>;
+      acpCancel: (args: { sessionKey: string }) => Promise<{ success: boolean; error?: string }>;
+      acpKill: (args: { sessionKey: string }) => Promise<{ success: boolean; error?: string }>;
+      acpDetach: (args: { sessionKey: string }) => Promise<{ success: boolean; error?: string }>;
       acpApprove: (args: {
         sessionKey: string;
         toolCallId: string;
@@ -1739,15 +1796,13 @@ declare global {
         method: string;
         params?: Record<string, unknown>;
       }) => Promise<{ success: boolean; result?: Record<string, unknown>; error?: string }>;
-      acpGetClaudeUsageLimits: () => Promise<{ success: boolean; data?: ClaudeUsageLimits | null; error?: string }>;
-      onAcpUpdate: (
-        sessionKey: string,
-        listener: (event: AcpUpdateEvent) => void
-      ) => () => void;
-      onAcpStatus: (
-        sessionKey: string,
-        listener: (status: AcpSessionStatus) => void
-      ) => () => void;
+      acpGetClaudeUsageLimits: () => Promise<{
+        success: boolean;
+        data?: ClaudeUsageLimits | null;
+        error?: string;
+      }>;
+      onAcpUpdate: (sessionKey: string, listener: (event: AcpUpdateEvent) => void) => () => void;
+      onAcpStatus: (sessionKey: string, listener: (status: AcpSessionStatus) => void) => () => void;
 
       // Model metadata
       modelMetadataGet: (args: {
@@ -2309,10 +2364,7 @@ export interface ElectronAPI {
     }>;
     error?: string;
   }>;
-  createWorkspace: (args: {
-    name: string;
-    color?: string;
-  }) => Promise<{
+  createWorkspace: (args: { name: string; color?: string }) => Promise<{
     success: boolean;
     workspace?: {
       id: string;
@@ -2413,20 +2465,78 @@ export interface ElectronAPI {
   }>;
 
   // App state
-  getAppState(): Promise<{ success: boolean; data?: { activeProjectId: string | null; activeTaskId: string | null; activeWorkspaceId: string | null; prMode: string | null; prDraft: boolean }; error?: string }>;
-  updateAppState(partial: { activeProjectId?: string | null; activeTaskId?: string | null; activeWorkspaceId?: string | null; prMode?: string | null; prDraft?: boolean }): Promise<{ success: boolean; error?: string }>;
+  getAppState(): Promise<{
+    success: boolean;
+    data?: {
+      activeProjectId: string | null;
+      activeTaskId: string | null;
+      activeWorkspaceId: string | null;
+      prMode: string | null;
+      prDraft: boolean;
+    };
+    error?: string;
+  }>;
+  updateAppState(partial: {
+    activeProjectId?: string | null;
+    activeTaskId?: string | null;
+    activeWorkspaceId?: string | null;
+    prMode?: string | null;
+    prDraft?: boolean;
+  }): Promise<{ success: boolean; error?: string }>;
   // Task pinned/agent
-  setTaskPinned(args: { taskId: string; pinned: boolean }): Promise<{ success: boolean; error?: string }>;
+  setTaskPinned(args: {
+    taskId: string;
+    pinned: boolean;
+  }): Promise<{ success: boolean; error?: string }>;
   getPinnedTaskIds(): Promise<{ success: boolean; data?: string[]; error?: string }>;
-  setTaskAgent(args: { taskId: string; lastAgent?: string | null; lockedAgent?: string | null }): Promise<{ success: boolean; error?: string }>;
-  setTaskInitialPromptSent(args: { taskId: string; sent: boolean }): Promise<{ success: boolean; error?: string }>;
+  setTaskAgent(args: {
+    taskId: string;
+    lastAgent?: string | null;
+    lockedAgent?: string | null;
+  }): Promise<{ success: boolean; error?: string }>;
+  setTaskInitialPromptSent(args: {
+    taskId: string;
+    sent: boolean;
+  }): Promise<{ success: boolean; error?: string }>;
   // Terminal sessions
-  getTerminalSessions(taskKey: string): Promise<{ success: boolean; data?: Array<{ id: string; taskKey: string; terminalId: string; title: string; cwd: string | null; isActive: boolean; displayOrder: number; createdAt: string }>; error?: string }>;
-  saveTerminalSessions(args: { taskKey: string; sessions: Array<{ id: string; terminalId: string; title: string; cwd?: string | null; isActive: boolean; displayOrder: number }> }): Promise<{ success: boolean; error?: string }>;
+  getTerminalSessions(
+    taskKey: string
+  ): Promise<{
+    success: boolean;
+    data?: Array<{
+      id: string;
+      taskKey: string;
+      terminalId: string;
+      title: string;
+      cwd: string | null;
+      isActive: boolean;
+      displayOrder: number;
+      createdAt: string;
+    }>;
+    error?: string;
+  }>;
+  saveTerminalSessions(args: {
+    taskKey: string;
+    sessions: Array<{
+      id: string;
+      terminalId: string;
+      title: string;
+      cwd?: string | null;
+      isActive: boolean;
+      displayOrder: number;
+    }>;
+  }): Promise<{ success: boolean; error?: string }>;
   deleteTerminalSessions(taskKey: string): Promise<{ success: boolean; error?: string }>;
   // Kanban
-  getKanbanStatuses(): Promise<{ success: boolean; data?: Array<{ taskId: string; status: string }>; error?: string }>;
-  setKanbanStatus(args: { taskId: string; status: string }): Promise<{ success: boolean; error?: string }>;
+  getKanbanStatuses(): Promise<{
+    success: boolean;
+    data?: Array<{ taskId: string; status: string }>;
+    error?: string;
+  }>;
+  setKanbanStatus(args: {
+    taskId: string;
+    status: string;
+  }): Promise<{ success: boolean; error?: string }>;
 
   // MCP server management
   mcpGetGlobalServers: () => Promise<{
@@ -2434,9 +2544,7 @@ export interface ElectronAPI {
     data?: import('@shared/mcp/types').McpServerConfig[];
     error?: string;
   }>;
-  mcpSaveGlobalServers: (
-    servers: import('@shared/mcp/types').McpServerConfig[]
-  ) => Promise<{
+  mcpSaveGlobalServers: (servers: import('@shared/mcp/types').McpServerConfig[]) => Promise<{
     success: boolean;
     data?: import('@shared/mcp/types').McpServerConfig[];
     error?: string;
@@ -2552,20 +2660,21 @@ export interface ElectronAPI {
     env?: Record<string, string>;
     acpSessionId?: string;
     projectPath?: string;
-  }) => Promise<{ success: boolean; sessionKey?: string; acpSessionId?: string; modes?: AcpSessionModes; models?: AcpSessionModels; error?: string }>;
+  }) => Promise<{
+    success: boolean;
+    sessionKey?: string;
+    acpSessionId?: string;
+    modes?: AcpSessionModes;
+    models?: AcpSessionModels;
+    error?: string;
+  }>;
   acpPrompt: (args: {
     sessionKey: string;
     message: string;
   }) => Promise<{ success: boolean; error?: string }>;
-  acpCancel: (args: {
-    sessionKey: string;
-  }) => Promise<{ success: boolean; error?: string }>;
-  acpKill: (args: {
-    sessionKey: string;
-  }) => Promise<{ success: boolean; error?: string }>;
-  acpDetach: (args: {
-    sessionKey: string;
-  }) => Promise<{ success: boolean; error?: string }>;
+  acpCancel: (args: { sessionKey: string }) => Promise<{ success: boolean; error?: string }>;
+  acpKill: (args: { sessionKey: string }) => Promise<{ success: boolean; error?: string }>;
+  acpDetach: (args: { sessionKey: string }) => Promise<{ success: boolean; error?: string }>;
   acpApprove: (args: {
     sessionKey: string;
     toolCallId: string;
@@ -2595,15 +2704,13 @@ export interface ElectronAPI {
     method: string;
     params?: Record<string, unknown>;
   }) => Promise<{ success: boolean; result?: Record<string, unknown>; error?: string }>;
-  acpGetClaudeUsageLimits: () => Promise<{ success: boolean; data?: ClaudeUsageLimits | null; error?: string }>;
-  onAcpUpdate: (
-    sessionKey: string,
-    listener: (event: AcpUpdateEvent) => void
-  ) => () => void;
-  onAcpStatus: (
-    sessionKey: string,
-    listener: (status: AcpSessionStatus) => void
-  ) => () => void;
+  acpGetClaudeUsageLimits: () => Promise<{
+    success: boolean;
+    data?: ClaudeUsageLimits | null;
+    error?: string;
+  }>;
+  onAcpUpdate: (sessionKey: string, listener: (event: AcpUpdateEvent) => void) => () => void;
+  onAcpStatus: (sessionKey: string, listener: (status: AcpSessionStatus) => void) => () => void;
 
   // Model metadata
   modelMetadataGet: (args: {

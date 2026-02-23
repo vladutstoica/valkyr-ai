@@ -7,8 +7,8 @@ import type { FileChange } from '@/hooks/useFileChanges';
 export interface FileNode {
   id: string;
   name: string;
-  path: string;       // Relative path from root
-  fullPath: string;   // Absolute path
+  path: string; // Relative path from root
+  fullPath: string; // Absolute path
   type: 'file' | 'directory';
   children?: FileNode[];
   isLoading?: boolean;
@@ -76,7 +76,7 @@ const TreeNode: React.FC<{
     <div>
       <div
         className={cn(
-          'flex h-6 cursor-pointer select-none items-center px-1 hover:bg-accent/50',
+          'hover:bg-accent/50 flex h-6 cursor-pointer items-center px-1 select-none',
           isSelected && 'bg-accent',
           isHidden && 'opacity-60'
         )}
@@ -88,7 +88,7 @@ const TreeNode: React.FC<{
         aria-expanded={node.type === 'directory' ? isExpanded : undefined}
       >
         {node.type === 'directory' && (
-          <span className="mr-1 text-muted-foreground">
+          <span className="text-muted-foreground mr-1">
             {isLoading ? (
               <Loader2 className="h-3 w-3 animate-spin" />
             ) : isExpanded ? (
@@ -171,9 +171,7 @@ export const FileTree: React.FC<FileTreeProps> = ({
       );
 
       // Build paths for git ignore check
-      const paths = filteredItems.map((item) =>
-        dirPath ? `${dirPath}/${item.name}` : item.name
-      );
+      const paths = filteredItems.map((item) => (dirPath ? `${dirPath}/${item.name}` : item.name));
 
       // Check which paths are ignored by git
       let ignoredSet = new Set<string>();
@@ -298,7 +296,7 @@ export const FileTree: React.FC<FileTreeProps> = ({
 
   if (loading) {
     return (
-      <div className={cn('flex items-center gap-2 p-4 text-sm text-muted-foreground', className)}>
+      <div className={cn('text-muted-foreground flex items-center gap-2 p-4 text-sm', className)}>
         <Loader2 className="h-4 w-4 animate-spin" />
         Loading...
       </div>
@@ -306,11 +304,13 @@ export const FileTree: React.FC<FileTreeProps> = ({
   }
 
   if (error) {
-    return <div className={cn('p-4 text-sm text-destructive', className)}>Error: {error}</div>;
+    return <div className={cn('text-destructive p-4 text-sm', className)}>Error: {error}</div>;
   }
 
   if (tree.length === 0) {
-    return <div className={cn('p-4 text-sm text-muted-foreground', className)}>Empty directory</div>;
+    return (
+      <div className={cn('text-muted-foreground p-4 text-sm', className)}>Empty directory</div>
+    );
   }
 
   return (

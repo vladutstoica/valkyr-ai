@@ -50,7 +50,7 @@ const KanbanCard: React.FC<{
       <div
         role="button"
         tabIndex={0}
-        className="rounded-lg border border-border bg-background p-3 shadow-xs transition hover:bg-muted/40 focus:outline-hidden focus:ring-0 focus-visible:outline-hidden focus-visible:ring-0"
+        className="border-border bg-background hover:bg-muted/40 rounded-lg border p-3 shadow-xs transition focus:ring-0 focus:outline-hidden focus-visible:ring-0 focus-visible:outline-hidden"
         draggable={draggable}
         onDragStart={(e) => {
           e.dataTransfer.setData('text/plain', ws.id);
@@ -66,13 +66,13 @@ const KanbanCard: React.FC<{
       >
         <div className="flex w-full items-center justify-between gap-2 overflow-hidden">
           <div className="min-w-0">
-            <div className="truncate text-sm font-medium text-foreground">{ws.name}</div>
-            <div className="mt-0.5 text-[11px] text-muted-foreground">{ws.branch}</div>
+            <div className="text-foreground truncate text-sm font-medium">{ws.name}</div>
+            <div className="text-muted-foreground mt-0.5 text-[11px]">{ws.branch}</div>
           </div>
 
           {agents.length > 0 && (SHOW_AGENT_LOGOS || busy) ? (
             <div className="flex shrink-0 items-center gap-1">
-              {busy ? <Spinner size="sm" className="shrink-0 text-muted-foreground" /> : null}
+              {busy ? <Spinner size="sm" className="text-muted-foreground shrink-0" /> : null}
               {SHOW_AGENT_LOGOS
                 ? agents.slice(0, 3).map((a) => {
                     const asset = agentAssets[a];
@@ -83,8 +83,8 @@ const KanbanCard: React.FC<{
                     return (
                       <span
                         key={`${ws.id}-agent-${a}`}
-                        className={`inline-flex h-6 shrink-0 items-center gap-1 rounded-md border border-border/70 bg-muted/40 px-1.5 py-0 text-[11px] leading-none text-muted-foreground ${
-                          isAdmin ? 'ring-1 ring-primary/60' : ''
+                        className={`border-border/70 bg-muted/40 text-muted-foreground inline-flex h-6 shrink-0 items-center gap-1 rounded-md border px-1.5 py-0 text-[11px] leading-none ${
+                          isAdmin ? 'ring-primary/60 ring-1' : ''
                         }`}
                         title={tooltip}
                       >
@@ -100,15 +100,15 @@ const KanbanCard: React.FC<{
                   })
                 : null}
               {SHOW_AGENT_LOGOS && agents.length > 3 ? (
-                <span className="inline-flex items-center rounded-md border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                <span className="border-border/70 bg-muted/40 text-muted-foreground inline-flex items-center rounded-md border px-1.5 py-0.5 text-[11px]">
                   +{agents.length - 3}
                 </span>
               ) : null}
             </div>
           ) : asset ? (
             SHOW_AGENT_LOGOS ? (
-              <span className="inline-flex h-6 shrink-0 items-center gap-1 rounded-md border border-border/70 bg-muted/40 px-1.5 py-0 text-[11px] leading-none text-muted-foreground">
-                {busy ? <Spinner size="sm" className="shrink-0 text-muted-foreground" /> : null}
+              <span className="border-border/70 bg-muted/40 text-muted-foreground inline-flex h-6 shrink-0 items-center gap-1 rounded-md border px-1.5 py-0 text-[11px] leading-none">
+                {busy ? <Spinner size="sm" className="text-muted-foreground shrink-0" /> : null}
                 <img
                   src={asset.logo}
                   alt={asset.alt}
@@ -116,15 +116,15 @@ const KanbanCard: React.FC<{
                 />
               </span>
             ) : busy ? (
-              <Spinner size="sm" className="shrink-0 text-muted-foreground" />
+              <Spinner size="sm" className="text-muted-foreground shrink-0" />
             ) : null
           ) : null}
         </div>
 
         {SHOW_AGENT_LOGOS && adminAgent && agentAssets[adminAgent] ? (
           <div className="mt-2">
-            <span className="inline-flex items-center gap-1 rounded-md border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[11px] text-muted-foreground">
-              <span className="font-medium text-foreground/80">Admin:</span>
+            <span className="border-border/70 bg-muted/40 text-muted-foreground inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px]">
+              <span className="text-foreground/80 font-medium">Admin:</span>
               <img
                 src={agentAssets[adminAgent].logo}
                 alt={agentAssets[adminAgent].alt}

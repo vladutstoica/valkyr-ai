@@ -53,7 +53,9 @@ const migrateLocalStorageToDB = async (): Promise<void> => {
       const pinnedRaw = localStorage.getItem('valkyr-pinned-tasks');
       if (pinnedRaw) {
         const ids: string[] = JSON.parse(pinnedRaw);
-        await Promise.all(ids.map((id) => window.electronAPI.setTaskPinned({ taskId: id, pinned: true })));
+        await Promise.all(
+          ids.map((id) => window.electronAPI.setTaskPinned({ taskId: id, pinned: true }))
+        );
       }
     } catch {}
 

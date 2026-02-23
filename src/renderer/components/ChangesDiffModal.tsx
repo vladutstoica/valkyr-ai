@@ -391,7 +391,8 @@ export const ChangesDiffModal: React.FC<ChangesDiffModalProps> = ({
             'diffEditor.insertedLineBackground': MONACO_DIFF_COLORS.dark.insertedLineBackground,
             'diffEditor.removedTextBackground': MONACO_DIFF_COLORS.dark.removedTextBackground,
             'diffEditor.removedLineBackground': MONACO_DIFF_COLORS.dark.removedLineBackground,
-            'diffEditor.unchangedRegionBackground': MONACO_DIFF_COLORS.dark.unchangedRegionBackground,
+            'diffEditor.unchangedRegionBackground':
+              MONACO_DIFF_COLORS.dark.unchangedRegionBackground,
           },
         });
 
@@ -411,7 +412,8 @@ export const ChangesDiffModal: React.FC<ChangesDiffModalProps> = ({
               MONACO_DIFF_COLORS['dark-black'].removedTextBackground,
             'diffEditor.removedLineBackground':
               MONACO_DIFF_COLORS['dark-black'].removedLineBackground,
-            'diffEditor.unchangedRegionBackground': MONACO_DIFF_COLORS['dark-black'].unchangedRegionBackground,
+            'diffEditor.unchangedRegionBackground':
+              MONACO_DIFF_COLORS['dark-black'].unchangedRegionBackground,
           },
         });
 
@@ -424,7 +426,8 @@ export const ChangesDiffModal: React.FC<ChangesDiffModalProps> = ({
             'diffEditor.insertedLineBackground': MONACO_DIFF_COLORS.light.insertedLineBackground,
             'diffEditor.removedTextBackground': MONACO_DIFF_COLORS.light.removedTextBackground,
             'diffEditor.removedLineBackground': MONACO_DIFF_COLORS.light.removedLineBackground,
-            'diffEditor.unchangedRegionBackground': MONACO_DIFF_COLORS.light.unchangedRegionBackground,
+            'diffEditor.unchangedRegionBackground':
+              MONACO_DIFF_COLORS.light.unchangedRegionBackground,
           },
         });
 
@@ -524,7 +527,8 @@ export const ChangesDiffModal: React.FC<ChangesDiffModalProps> = ({
             MONACO_DIFF_COLORS['dark-black'].removedTextBackground,
           'diffEditor.removedLineBackground':
             MONACO_DIFF_COLORS['dark-black'].removedLineBackground,
-          'diffEditor.unchangedRegionBackground': MONACO_DIFF_COLORS['dark-black'].unchangedRegionBackground,
+          'diffEditor.unchangedRegionBackground':
+            MONACO_DIFF_COLORS['dark-black'].unchangedRegionBackground,
         },
       });
 
@@ -537,7 +541,8 @@ export const ChangesDiffModal: React.FC<ChangesDiffModalProps> = ({
           'diffEditor.insertedLineBackground': MONACO_DIFF_COLORS.light.insertedLineBackground,
           'diffEditor.removedTextBackground': MONACO_DIFF_COLORS.light.removedTextBackground,
           'diffEditor.removedLineBackground': MONACO_DIFF_COLORS.light.removedLineBackground,
-          'diffEditor.unchangedRegionBackground': MONACO_DIFF_COLORS.light.unchangedRegionBackground,
+          'diffEditor.unchangedRegionBackground':
+            MONACO_DIFF_COLORS.light.unchangedRegionBackground,
         },
       });
       const currentTheme =
@@ -633,16 +638,16 @@ export const ChangesDiffModal: React.FC<ChangesDiffModalProps> = ({
             transition={
               shouldReduceMotion ? { duration: 0 } : { duration: 0.2, ease: [0.22, 1, 0.36, 1] }
             }
-            className="flex h-[82vh] w-[92vw] transform-gpu overflow-hidden rounded-xl border border-border bg-white shadow-2xl will-change-transform dark:border-border dark:bg-card"
+            className="border-border dark:border-border dark:bg-card flex h-[82vh] w-[92vw] transform-gpu overflow-hidden rounded-xl border bg-white shadow-2xl will-change-transform"
           >
-            <div className="w-72 overflow-y-auto border-r border-border bg-muted dark:border-border dark:bg-muted/40">
-              <div className="px-3 py-2 text-xs tracking-wide text-muted-foreground">
+            <div className="border-border bg-muted dark:border-border dark:bg-muted/40 w-72 overflow-y-auto border-r">
+              <div className="text-muted-foreground px-3 py-2 text-xs tracking-wide">
                 Changed Files
               </div>
               {files.map((f) => (
                 <button
                   key={f.path}
-                  className={`w-full border-b border-border px-3 py-2 text-left text-sm hover:bg-muted dark:border-border dark:hover:bg-accent ${
+                  className={`border-border hover:bg-muted dark:border-border dark:hover:bg-accent w-full border-b px-3 py-2 text-left text-sm ${
                     selected === f.path
                       ? 'bg-muted text-foreground dark:bg-muted dark:text-foreground'
                       : 'text-foreground'
@@ -650,7 +655,7 @@ export const ChangesDiffModal: React.FC<ChangesDiffModalProps> = ({
                   onClick={() => setSelected(f.path)}
                 >
                   <div className="truncate font-medium">{f.path}</div>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-muted-foreground text-xs">
                     {f.status} • +{f.additions} / -{f.deletions}
                     {commentCounts[f.path] > 0 && (
                       <span className="text-blue-600 dark:text-blue-400">
@@ -665,9 +670,9 @@ export const ChangesDiffModal: React.FC<ChangesDiffModalProps> = ({
             </div>
 
             <div className="flex min-w-0 flex-1 flex-col">
-              <div className="flex items-center justify-between border-b border-border bg-white/80 px-4 py-2.5 dark:border-border dark:bg-muted/50">
+              <div className="border-border dark:border-border dark:bg-muted/50 flex items-center justify-between border-b bg-white/80 px-4 py-2.5">
                 <div className="flex min-w-0 flex-1 items-center gap-2">
-                  <span className="truncate font-mono text-sm text-foreground">{selected}</span>
+                  <span className="text-foreground truncate font-mono text-sm">{selected}</span>
                   {selected && (
                     <button
                       onClick={async () => {
@@ -689,7 +694,7 @@ export const ChangesDiffModal: React.FC<ChangesDiffModalProps> = ({
                           });
                         }
                       }}
-                      className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-muted-foreground"
+                      className="text-muted-foreground hover:bg-muted hover:text-foreground dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-muted-foreground rounded-md p-1 transition-colors"
                       title="Copy file path"
                       aria-label="Copy file path"
                     >
@@ -708,8 +713,8 @@ export const ChangesDiffModal: React.FC<ChangesDiffModalProps> = ({
                       disabled={!isDirty || isSaving}
                       className={`inline-flex items-center rounded-md px-3 py-1 text-sm font-medium transition ${
                         !isDirty || isSaving
-                          ? 'cursor-not-allowed bg-muted text-muted-foreground dark:bg-muted dark:text-muted-foreground'
-                          : 'dark:bg-muted0 bg-muted text-white hover:bg-accent dark:hover:bg-muted'
+                          ? 'bg-muted text-muted-foreground dark:bg-muted dark:text-muted-foreground cursor-not-allowed'
+                          : 'dark:bg-muted0 bg-muted hover:bg-accent dark:hover:bg-muted text-white'
                       }`}
                     >
                       {isSaving ? 'Saving…' : 'Save'}
@@ -717,7 +722,7 @@ export const ChangesDiffModal: React.FC<ChangesDiffModalProps> = ({
                   )}
                   <button
                     onClick={onClose}
-                    className="rounded-md p-1 text-muted-foreground hover:bg-muted dark:text-muted-foreground dark:hover:bg-accent"
+                    className="text-muted-foreground hover:bg-muted dark:text-muted-foreground dark:hover:bg-accent rounded-md p-1"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -726,14 +731,14 @@ export const ChangesDiffModal: React.FC<ChangesDiffModalProps> = ({
 
               <div className="relative flex-1 overflow-hidden">
                 {fileData?.loading ? (
-                  <div className="flex h-full items-center justify-center text-muted-foreground">
+                  <div className="text-muted-foreground flex h-full items-center justify-center">
                     <div className="flex items-center gap-2">
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-border border-t-gray-600 dark:border-border dark:border-t-gray-400"></div>
+                      <div className="border-border dark:border-border h-4 w-4 animate-spin rounded-full border-2 border-t-gray-600 dark:border-t-gray-400"></div>
                       <span className="text-sm">Loading diff...</span>
                     </div>
                   </div>
                 ) : fileData?.error ? (
-                  <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-muted-foreground">
+                  <div className="text-muted-foreground flex h-full flex-col items-center justify-center gap-2 px-4">
                     <span className="text-sm">{fileData.error}</span>
                   </div>
                 ) : fileData ? (

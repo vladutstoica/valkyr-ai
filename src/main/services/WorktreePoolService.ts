@@ -261,7 +261,10 @@ export class WorktreePoolService {
 
     // Push branch to remote in background (non-blocking)
     this.pushBranchAsync(newPath, newBranch, settings).catch((err) => {
-      log.warn('WorktreePool: Background push failed for branch:', { branch: newBranch, error: err });
+      log.warn('WorktreePool: Background push failed for branch:', {
+        branch: newBranch,
+        error: err,
+      });
     });
 
     const worktree: WorktreeInfo = {
