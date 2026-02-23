@@ -100,6 +100,11 @@ function extractFilename(val: unknown): string {
  * Get a display-friendly label for a tool invocation.
  */
 export function getToolDisplayLabel(toolName: string, args: Record<string, unknown>): string {
+  // ACP provides a human-readable title (e.g. "Read src/renderer/components/AcpChatPane.tsx")
+  if (typeof args.title === 'string' && args.title) {
+    return args.title;
+  }
+
   const normalized = normalizeToolName(toolName);
 
   switch (normalized) {

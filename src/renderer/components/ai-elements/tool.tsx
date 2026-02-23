@@ -17,6 +17,7 @@ export const Tool = ({ className, ...props }: ToolProps) => (
 
 export type ToolHeaderProps = {
   title?: string;
+  subtitle?: string;
   type: ToolUIPart['type'];
   state: ToolUIPart['state'];
   icon?: LucideIcon;
@@ -26,6 +27,7 @@ export type ToolHeaderProps = {
 export const ToolHeader = ({
   className,
   title,
+  subtitle,
   type,
   state,
   icon: Icon = WrenchIcon,
@@ -48,6 +50,7 @@ export const ToolHeader = ({
         <Icon className="size-3 shrink-0" />
       )}
       <span className="truncate">{title ?? type.split('-').slice(1).join('-')}</span>
+      {subtitle && <span className="text-muted-foreground/50 shrink-0">{subtitle}</span>}
       {isError && <XCircleIcon className="size-3 shrink-0 text-red-500" />}
     </CollapsibleTrigger>
   );

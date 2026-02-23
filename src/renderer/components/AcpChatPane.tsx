@@ -377,6 +377,32 @@ function SessionHistoryPopover({
 /** Regex to detect stack traces: 3+ lines starting with "at " */
 const STACK_TRACE_PATTERN = /(?:^\s*at\s+.+$[\n\r]*){3,}/m;
 
+/** Summarize a group of tool calls by type, e.g. "Read 5 files, ran 3 commands" */
+function summarizeToolRun(toolRun: Array<{ part: any }>): string {
+  const counts: Record<string, number> = {};
+  for (const t of toolRun) {
+    const name = normalizeToolName(t.part.toolName || t.part.type?.replace(/^tool-/, '') || '');
+    counts[name] = (counts[name] || 0) + 1;
+  }
+  const parts: string[] = [];
+  if (counts.read_file) parts.push(`Read ${counts.read_file} file${counts.read_file > 1 ? 's' : ''}`);
+  if (counts.write_file) parts.push(`wrote ${counts.write_file} file${counts.write_file > 1 ? 's' : ''}`);
+  if (counts.edit_file) parts.push(`edited ${counts.edit_file} file${counts.edit_file > 1 ? 's' : ''}`);
+  if (counts.bash) parts.push(`ran ${counts.bash} command${counts.bash > 1 ? 's' : ''}`);
+  if (counts.search) parts.push(`searched ${counts.search} pattern${counts.search > 1 ? 's' : ''}`);
+  if (counts.list_files) parts.push(`listed ${counts.list_files} dir${counts.list_files > 1 ? 's' : ''}`);
+  if (counts.web_search) parts.push(`web searched ${counts.web_search} quer${counts.web_search > 1 ? 'ies' : 'y'}`);
+  if (counts.web_fetch) parts.push(`fetched ${counts.web_fetch} URL${counts.web_fetch > 1 ? 's' : ''}`);
+  if (counts.task) parts.push(`ran ${counts.task} sub-task${counts.task > 1 ? 's' : ''}`);
+  const countedTypes = new Set(['read_file', 'write_file', 'edit_file', 'bash', 'search', 'list_files', 'web_search', 'web_fetch', 'task']);
+  let other = 0;
+  for (const [key, count] of Object.entries(counts)) {
+    if (!countedTypes.has(key)) other += count;
+  }
+  if (other > 0) parts.push(`${other} other`);
+  return parts.join(', ') || `Used ${toolRun.length} tools`;
+}
+
 /**
  * Terminal that subscribes to streaming tool output from the side-channel store.
  * Used for in-progress bash commands so incremental output is visible.
@@ -530,6 +556,23 @@ function renderToolPart(toolPart: any, i: number, sessionKey?: string | null) {
   const hasError = !!toolPart.errorText;
   const hasContent = hasInput || hasOutput || hasError;
 
+  // Extract a brief subtitle hint from output (avoids needing to expand)
+  let subtitle: string | undefined;
+  if (toolPart.output) {
+    const outputStr = String(toolPart.output);
+    const normalized = normalizeToolName(toolName);
+    if (normalized === 'read_file') {
+      const lineCount = outputStr.split('\n').length;
+      if (lineCount > 1) subtitle = `${lineCount} lines`;
+    } else if (normalized === 'search') {
+      const matchCount = outputStr.split('\n').filter((l: string) => l.trim()).length;
+      if (matchCount > 0) subtitle = `${matchCount} match${matchCount > 1 ? 'es' : ''}`;
+    } else if (normalized === 'list_files') {
+      const fileCount = outputStr.split('\n').filter((l: string) => l.trim()).length;
+      if (fileCount > 0) subtitle = `${fileCount} file${fileCount > 1 ? 's' : ''}`;
+    }
+  }
+
   // Compact inline display for tools with no useful detail
   if (!hasContent) {
     return (
@@ -539,7 +582,7 @@ function renderToolPart(toolPart: any, i: number, sessionKey?: string | null) {
 
   return (
     <Tool key={toolPart.toolCallId || i} defaultOpen={hasError}>
-      <ToolHeader title={title} type={toolPart.type} state={toolPart.state} icon={Icon} />
+      <ToolHeader title={title} subtitle={subtitle} type={toolPart.type} state={toolPart.state} icon={Icon} />
       <ToolContent>
         <ToolInput input={inputObj} />
         <ToolOutput output={toolPart.output} errorText={toolPart.errorText} />
@@ -650,7 +693,7 @@ function StreamingToolGroup({
         <ChainOfThoughtHeader>
           <span className="flex items-center gap-1.5">
             <Loader2 className="size-3.5 animate-spin" />
-            Running tools <span className="tabular-nums">({completed.length} completed)</span>
+            {summarizeToolRun(toolRun)} <span className="tabular-nums">({completed.length} done)</span>
           </span>
         </ChainOfThoughtHeader>
         <ChainOfThoughtContent>
@@ -679,10 +722,12 @@ function MessageParts({
   message,
   chatStatus,
   sessionKey,
+  currentModeId,
 }: {
   message: UIMessage;
   chatStatus: string;
   sessionKey?: string | null;
+  currentModeId?: string;
 }) {
   // Collect source parts for grouped rendering
   const sourceParts = message.parts.filter(
@@ -707,7 +752,7 @@ function MessageParts({
     if (allCompleted && toolRun.length >= 3) {
       elements.push(
         <ChainOfThought key={`tg-${toolRun[0].index}`}>
-          <ChainOfThoughtHeader>Used {toolRun.length} tools</ChainOfThoughtHeader>
+          <ChainOfThoughtHeader>{summarizeToolRun(toolRun)}</ChainOfThoughtHeader>
           <ChainOfThoughtContent>
             {toolRun.map((t) => {
               const toolName = t.part.toolName || t.part.type?.replace(/^tool-/, '') || '';
@@ -790,17 +835,31 @@ function MessageParts({
             ? { id: toolPart.toolCallId, approved: false as const }
             : { id: toolPart.toolCallId };
 
-        // For switch_mode, find the preceding plan file content to show inline
+        const isModeSwitch =
+          toolName === 'switch_mode' ||
+          toolName === 'ExitPlanMode' ||
+          toolName === 'EnterPlanMode';
+        const targetMode = (toolPart.input?.mode_slug ||
+          toolPart.input?.mode ||
+          '') as string;
+
+        // For mode switches, find the preceding plan file content to show inline
         let planPreviewContent: string | null = null;
-        if (toolName === 'switch_mode' || toolName === 'ExitPlanMode') {
+        if (isModeSwitch) {
           for (let j = i - 1; j >= 0; j--) {
             const prev = message.parts[j] as any;
+            // Check text parts for plan content (agents often output plan as text before ExitPlanMode)
+            if (prev?.type === 'text' && prev.text && prev.text.length > 100) {
+              planPreviewContent = prev.text;
+              break;
+            }
             const prevToolName = prev?.toolName || prev?.type?.replace(/^tool-/, '') || '';
             const prevNormalized = normalizeToolName(prevToolName);
             if (prevNormalized === 'edit_file' || prevNormalized === 'write_file') {
               const filePath = (prev.input?.file_path ||
                 prev.input?.path ||
                 prev.input?.file ||
+                prev.input?.title ||
                 '') as string;
               if (filePath.endsWith('.md') && prev.output) {
                 planPreviewContent = String(prev.output);
@@ -808,30 +867,41 @@ function MessageParts({
               }
             }
           }
+          // Also check the tool's own output
+          if (!planPreviewContent && toolPart.output && String(toolPart.output).length > 50) {
+            planPreviewContent = String(toolPart.output);
+          }
+        }
+
+        // Build confirmation title based on tool type
+        let confirmTitle: React.ReactNode;
+        if (isModeSwitch) {
+          const fromLabel = currentModeId || '';
+          const toLabel = targetMode || 'code';
+          if (fromLabel && fromLabel !== toLabel) {
+            confirmTitle = (
+              <>
+                Switch from <strong>{fromLabel}</strong> to <strong>{toLabel}</strong> mode?
+              </>
+            );
+          } else {
+            confirmTitle = (
+              <>
+                Switch to <strong>{toLabel}</strong> mode?
+              </>
+            );
+          }
+        } else {
+          confirmTitle = (
+            <>
+              Allow <strong>{title}</strong>?
+            </>
+          );
         }
 
         elements.push(
           <Confirmation key={toolPart.toolCallId || i} state={toolPart.state} approval={approval}>
-            <ConfirmationTitle>
-              {planPreviewContent ? (
-                <>
-                  Review plan before switching to{' '}
-                  <strong>
-                    {
-                      (toolPart.input?.mode_slug ||
-                        toolPart.input?.mode ||
-                        toolPart.input?.title ||
-                        'code') as string
-                    }
-                  </strong>{' '}
-                  mode
-                </>
-              ) : (
-                <>
-                  Agent requests permission to run <strong>{title}</strong>
-                </>
-              )}
-            </ConfirmationTitle>
+            <ConfirmationTitle>{confirmTitle}</ConfirmationTitle>
             {planPreviewContent && (
               <ConfirmationBody className="border-border/50 bg-muted/30 max-h-72 overflow-y-auto rounded border p-3">
                 <pre className="text-muted-foreground font-mono text-xs leading-relaxed whitespace-pre-wrap">
@@ -1605,7 +1675,7 @@ function AcpChatInner({
                       <p className="whitespace-pre-wrap">{getTextFromParts(msg.parts)}</p>
                     </>
                   ) : (
-                    <MessageParts message={msg} chatStatus={chatStatus} sessionKey={sessionKey} />
+                    <MessageParts message={msg} chatStatus={chatStatus} sessionKey={sessionKey} currentModeId={currentModeId} />
                   )}
                 </MessageContent>
                 {/* Message actions (visible on hover) */}
