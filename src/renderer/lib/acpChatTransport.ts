@@ -2,7 +2,9 @@ import type { ChatTransport, UIMessage, UIMessageChunk } from 'ai';
 import type { AcpUpdateEvent } from '../types/electron-api';
 import { acpStatusStore } from './acpStatusStore';
 import { useToolOutputStore } from './toolOutputStore';
+import { createLogger } from './logger';
 
+const log = createLogger('AcpChatTransport');
 const api = () => window.electronAPI;
 
 let partIdCounter = 0;
@@ -304,6 +306,7 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
   constructor(options: AcpTransportOptions) {
     this.sessionKey = options.sessionKey;
     this.conversationId = options.conversationId;
+    log.debug('Transport created', { sessionKey: options.sessionKey, conversationId: options.conversationId });
     if (options.sideChannel) this._sideChannel = options.sideChannel;
     // Start listening for side-channel events immediately (commands, modes, etc.)
     this.startSideChannelListener();
@@ -398,6 +401,13 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
         });
     }
 
+    log.debug('Sending message', {
+      sessionKey,
+      trigger: options.trigger,
+      messageLength: messageText.length,
+      hasFiles: fileParts.length > 0,
+    });
+
     // Send prompt to ACP (include files if present)
     const result = await api().acpPrompt({
       sessionKey,
@@ -408,6 +418,7 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
           : undefined,
     });
     if (!result.success) {
+      log.warn('Prompt send failed', { sessionKey, error: result.error });
       return new ReadableStream<UIMessageChunk>({
         start(controller) {
           controller.enqueue({ type: 'error', errorText: result.error || 'Failed to send prompt' });
@@ -470,6 +481,7 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
             }
 
             case 'permission_request': {
+              log.debug('Permission request', { sessionKey, toolCallId: event.toolCallId, autoApprove: self.autoApprove });
               if (self.autoApprove) {
                 // Auto-approve without showing UI
                 api().acpApprove({ sessionKey, toolCallId: event.toolCallId, approved: true });
@@ -485,6 +497,7 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
             }
 
             case 'prompt_complete': {
+              log.debug('Prompt complete', { sessionKey });
               // Close any active text/reasoning streams before finishing
               for (const chunk of mapper.endAll()) {
                 controller.enqueue(chunk);
@@ -496,6 +509,7 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
             }
 
             case 'prompt_error': {
+              log.warn('Prompt error', { sessionKey, error: event.error });
               // Recoverable error — show error as text, close stream cleanly
               for (const chunk of mapper.endAll()) {
                 controller.enqueue(chunk);
@@ -515,6 +529,7 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
             }
 
             case 'session_error': {
+              log.warn('Session error', { sessionKey, error: event.error });
               for (const chunk of mapper.endAll()) {
                 controller.enqueue(chunk);
               }
@@ -654,9 +669,12 @@ export class LazyAcpChatTransport implements ChatTransport<UIMessage> {
 
     // Replay queued send
     if (this.pendingSend) {
+      log.debug('Lazy transport wired, replaying pending send');
       const { options, resolve, reject } = this.pendingSend;
       this.pendingSend = null;
       transport.sendMessages(options).then(resolve, reject);
+    } else {
+      log.debug('Lazy transport wired, no pending send');
     }
   }
 
@@ -665,6 +683,7 @@ export class LazyAcpChatTransport implements ChatTransport<UIMessage> {
    * Rejects any queued message.
    */
   setError(err: Error): void {
+    log.warn('Lazy transport error set', { error: err.message });
     if (!this._error) this._error = err;
     if (this.pendingSend) {
       const { reject } = this.pendingSend;

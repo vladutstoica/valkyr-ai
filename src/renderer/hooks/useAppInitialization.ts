@@ -3,7 +3,10 @@ import type { Agent } from '../types';
 import type { Project, ProjectGroup, Task, Workspace } from '../types/app';
 import { getStoredActiveIds, saveActiveIds } from '../constants/layout';
 import { getAgentForTask } from '../lib/getAgentForTask';
+import { createLogger } from '../lib/logger';
 import { withRepoKey } from '../lib/projectUtils';
+
+const log = createLogger('hook:useAppInit');
 
 interface UseAppInitializationOptions {
   checkGithubStatus: () => void;
@@ -82,7 +85,7 @@ const migrateLocalStorageToDB = async (): Promise<void> => {
 const saveProjectOrder = (list: Project[]) => {
   const ids = list.map((p) => p.id);
   window.electronAPI.updateProjectOrder(ids).catch((error) => {
-    console.error('Failed to save project order:', error);
+    log.error('Failed to save project order:', error);
   });
 };
 
@@ -133,6 +136,7 @@ export function useAppInitialization(
 
   useEffect(() => {
     const loadAppData = async () => {
+      log.debug('Init started');
       try {
         const [_appVersion, appPlatform, projects, groupsResult, workspacesResult] =
           await Promise.all([
@@ -162,6 +166,7 @@ export function useAppInitialization(
         // Migrate localStorage state to DB (one-time)
         await migrateLocalStorageToDB();
         const initialProjects = migratedProjects.map((p) => withRepoKey(p, appPlatform));
+        log.debug('Projects loaded', { count: initialProjects.length });
         onProjectsLoaded(initialProjects);
 
         checkGithubStatus();
@@ -194,10 +199,10 @@ export function useAppInitialization(
             saveActiveIds(null, null);
           }
         }
+        log.debug('Init complete');
         setIsInitialLoadComplete(true);
         onInitialLoadComplete();
       } catch (error) {
-        const { log } = await import('../lib/logger');
         log.error('Failed to load app data:', error as any);
         onShowHomeView(true);
         setIsInitialLoadComplete(true);

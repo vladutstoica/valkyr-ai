@@ -5,8 +5,10 @@ import * as fs from 'fs';
 import { GITHUB_CONFIG } from '../config/github.config';
 import { getMainWindow } from '../app/window';
 import { errorTracking } from '../errorTracking';
+import { createLogger } from '../lib/logger';
 
 const execAsync = promisify(exec);
+const log = createLogger('GitHubService');
 
 export interface GitHubUser {
   id: number;
@@ -96,6 +98,7 @@ export class GitHubService {
    * Returns immediately with device code info
    */
   async startDeviceFlowAuth(): Promise<DeviceCodeResult> {
+    log.debug('Starting device flow authentication');
     // Stop any existing polling
     this.stopPolling();
 
@@ -239,7 +242,7 @@ export class GitHubService {
           }
         }
       } catch (error) {
-        console.error('Polling error:', error);
+        log.error('Polling error:', error);
 
         // Track polling errors
         await errorTracking.captureGitHubError(error, 'poll_device_code');
@@ -328,7 +331,7 @@ export class GitHubService {
         };
       }
     } catch (error) {
-      console.error('Device code request failed:', error);
+      log.error('Device code request failed:', error);
       return {
         success: false,
         error: 'Network error while requesting device code',
@@ -341,6 +344,7 @@ export class GitHubService {
    * Should be called repeatedly until success or error
    */
   async pollDeviceToken(deviceCode: string, _interval: number = 5): Promise<AuthResult> {
+    log.debug('Polling for device token');
     try {
       const response = await fetch('https://github.com/login/oauth/access_token', {
         method: 'POST',
@@ -388,7 +392,7 @@ export class GitHubService {
               });
             }
           } catch (error) {
-            console.warn('Background auth setup failed:', error);
+            log.warn('Background auth setup failed:', error);
           }
         });
 
@@ -410,7 +414,7 @@ export class GitHubService {
         };
       }
     } catch (error) {
-      console.error('Token polling failed:', error);
+      log.error('Token polling failed:', error);
       return {
         success: false,
         error: 'Network error during token polling',
@@ -429,7 +433,7 @@ export class GitHubService {
       // Authenticate gh CLI with our token
       await execAsync(`echo "${token}" | gh auth login --with-token`);
     } catch (error) {
-      console.warn('Could not authenticate gh CLI (may not be installed):', error);
+      log.warn('Could not authenticate gh CLI (may not be installed):', error);
       // Don't throw - OAuth still succeeded even if gh CLI isn't available
     }
   }
@@ -474,6 +478,7 @@ export class GitHubService {
     projectPath: string,
     limit: number = 50
   ): Promise<
+
     Array<{
       number: number;
       title: string;
@@ -484,6 +489,7 @@ export class GitHubService {
       labels?: Array<{ name?: string }>;
     }>
   > {
+    log.debug('Listing issues', { projectPath, limit });
     const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 200);
     try {
       // Check if repo has GitHub remote before attempting to list issues
@@ -501,7 +507,7 @@ export class GitHubService {
       if (!Array.isArray(list)) return [];
       return list;
     } catch (error) {
-      console.error('Failed to list GitHub issues:', error);
+      log.error('Failed to list GitHub issues:', error);
       return []; // Return empty array instead of throwing
     }
   }
@@ -580,7 +586,7 @@ export class GitHubService {
       if (!data || typeof data !== 'object') return null;
       return data;
     } catch (error) {
-      console.error('Failed to view GitHub issue:', error);
+      log.error('Failed to view GitHub issue:', error);
       return null;
     }
   }
@@ -607,7 +613,7 @@ export class GitHubService {
 
       return { success: false, error: 'Invalid token' };
     } catch (error) {
-      console.error('Token authentication failed:', error);
+      log.error('Token authentication failed:', error);
       return {
         success: false,
         error: 'Invalid token or network error',
@@ -638,7 +644,7 @@ export class GitHubService {
       const user = await this.getUserInfo(token);
       return !!user;
     } catch (error) {
-      console.error('Authentication check failed:', error);
+      log.error('Authentication check failed:', error);
       return false;
     }
   }
@@ -688,7 +694,7 @@ export class GitHubService {
         avatar_url: userData.avatar_url,
       };
     } catch (error) {
-      console.error('Failed to get user info:', error);
+      log.error('Failed to get user info:', error);
       return null;
     }
   }
@@ -709,7 +715,7 @@ export class GitHubService {
       // Note: The token parameter is ignored in getUserInfo since it uses gh CLI
       return await this.getUserInfo('');
     } catch (error) {
-      console.error('Failed to get current user:', error);
+      log.error('Failed to get current user:', error);
       return null;
     }
   }
@@ -741,7 +747,7 @@ export class GitHubService {
         forks_count: repo.forkCount || 0,
       }));
     } catch (error) {
-      console.error('Failed to fetch repositories:', error);
+      log.error('Failed to fetch repositories:', error);
       throw error;
     }
   }
@@ -750,6 +756,7 @@ export class GitHubService {
    * List open pull requests for the repository located at projectPath.
    */
   async getPullRequests(projectPath: string): Promise<GitHubPullRequest[]> {
+    log.debug('Listing pull requests', { projectPath });
     try {
       const fields = [
         'number',
@@ -785,7 +792,7 @@ export class GitHubService {
         headRepository: item?.headRepository || null,
       }));
     } catch (error) {
-      console.error('Failed to list pull requests:', error);
+      log.error('Failed to list pull requests:', error);
       throw error;
     }
   }
@@ -799,6 +806,7 @@ export class GitHubService {
     prNumber: number,
     branchName: string
   ): Promise<string> {
+    log.debug('Ensuring pull request branch', { projectPath, prNumber, branchName });
     const safeBranch = branchName || `pr/${prNumber}`;
     let previousRef: string | null = null;
 
@@ -818,14 +826,14 @@ export class GitHubService {
         { cwd: projectPath }
       );
     } catch (error) {
-      console.error('Failed to checkout pull request branch via gh:', error);
+      log.error('Failed to checkout pull request branch via gh:', error);
       throw error;
     } finally {
       if (previousRef && previousRef !== safeBranch) {
         try {
           await execAsync(`git checkout ${JSON.stringify(previousRef)}`, { cwd: projectPath });
         } catch (switchErr) {
-          console.warn('Failed to restore previous branch after PR checkout:', switchErr);
+          log.warn('Failed to restore previous branch after PR checkout:', switchErr);
         }
       }
     }
@@ -938,12 +946,12 @@ export class GitHubService {
         }
       } catch (error) {
         // If orgs fetch fails, just continue with user only
-        console.warn('Failed to fetch organizations:', error);
+        log.warn('Failed to fetch organizations:', error);
       }
 
       return owners;
     } catch (error) {
-      console.error('Failed to get owners:', error);
+      log.error('Failed to get owners:', error);
       throw error;
     }
   }
@@ -957,6 +965,7 @@ export class GitHubService {
     owner: string;
     isPrivate: boolean;
   }): Promise<{ url: string; defaultBranch: string; fullName: string }> {
+    log.debug('Creating repository', { name: params.name, owner: params.owner, isPrivate: params.isPrivate });
     try {
       const { name, description, owner, isPrivate } = params;
 
@@ -984,7 +993,7 @@ export class GitHubService {
         fullName: repoInfo.nameWithOwner || `${owner}/${name}`,
       };
     } catch (error) {
-      console.error('Failed to create repository:', error);
+      log.error('Failed to create repository:', error);
       throw error;
     }
   }
@@ -1029,7 +1038,7 @@ export class GitHubService {
         }
       });
     } catch (error) {
-      console.error('Failed to initialize new project:', error);
+      log.error('Failed to initialize new project:', error);
       throw error;
     }
   }
@@ -1041,6 +1050,7 @@ export class GitHubService {
     repoUrl: string,
     localPath: string
   ): Promise<{ success: boolean; error?: string }> {
+    log.debug('Cloning repository', { repoUrl, localPath });
     try {
       // Ensure the local path directory exists
       const dir = path.dirname(localPath);
@@ -1053,7 +1063,7 @@ export class GitHubService {
 
       return { success: true };
     } catch (error) {
-      console.error('Failed to clone repository:', error);
+      log.error('Failed to clone repository:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Clone failed',
@@ -1069,7 +1079,7 @@ export class GitHubService {
       const keytar = await import('keytar');
       await keytar.deletePassword(this.SERVICE_NAME, this.ACCOUNT_NAME);
     } catch (error) {
-      console.error('Failed to logout:', error);
+      log.error('Failed to logout:', error);
     }
   }
 
@@ -1081,7 +1091,7 @@ export class GitHubService {
       const keytar = await import('keytar');
       await keytar.setPassword(this.SERVICE_NAME, this.ACCOUNT_NAME, token);
     } catch (error) {
-      console.error('Failed to store token:', error);
+      log.error('Failed to store token:', error);
       throw error;
     }
   }
@@ -1094,7 +1104,7 @@ export class GitHubService {
       const keytar = await import('keytar');
       return await keytar.getPassword(this.SERVICE_NAME, this.ACCOUNT_NAME);
     } catch (error) {
-      console.error('Failed to retrieve token:', error);
+      log.error('Failed to retrieve token:', error);
       return null;
     }
   }

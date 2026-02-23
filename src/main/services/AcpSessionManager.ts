@@ -165,6 +165,7 @@ export class AcpSessionManager {
     const buf = this.eventBuffers.get(sessionKey) || [];
     buf.push(event);
     this.eventBuffers.set(sessionKey, buf);
+    log.debug('[AcpSessionManager] Event buffered', { sessionKey, eventType: event.type, bufferSize: buf.length });
     if (this.eventTimers.has(sessionKey)) return;
     const t = setTimeout(() => {
       this.eventTimers.delete(sessionKey);
@@ -176,6 +177,7 @@ export class AcpSessionManager {
   private flushEvents(sessionKey: string): void {
     const buf = this.eventBuffers.get(sessionKey);
     if (!buf || buf.length === 0) return;
+    log.debug('[AcpSessionManager] Flushing events', { sessionKey, count: buf.length });
     this.eventBuffers.delete(sessionKey);
     this.eventSender?.(sessionKey, buf);
   }
@@ -256,6 +258,7 @@ export class AcpSessionManager {
     const { command, args = [] } = acpCommand;
 
     // Spawn the ACP subprocess
+    log.debug('[AcpSessionManager] Spawning ACP process', { sessionKey, command, cwd });
     const childProcess = spawn(command, args, {
       cwd,
       env: scopedEnv,
@@ -784,7 +787,8 @@ export class AcpSessionManager {
   }
 
   async listSessions(
-    sessionKey: string
+    sessionKey: string,
+    cwd?: string
   ): Promise<{ success: boolean; sessions?: any[]; error?: string }> {
     const session = this.sessions.get(sessionKey);
     if (!session) {
@@ -792,8 +796,20 @@ export class AcpSessionManager {
     }
 
     try {
-      const resp = await (session.connection as any).unstable_listSessions({});
-      return { success: true, sessions: resp.sessions || [] };
+      const params: { cwd?: string; cursor?: string } = {};
+      if (cwd) params.cwd = cwd;
+
+      const allSessions: any[] = [];
+      let cursor: string | undefined;
+
+      do {
+        if (cursor) params.cursor = cursor;
+        const resp = await (session.connection as any).unstable_listSessions(params);
+        if (resp.sessions) allSessions.push(...resp.sessions);
+        cursor = resp.nextCursor ?? undefined;
+      } while (cursor);
+
+      return { success: true, sessions: allSessions };
     } catch (err: any) {
       return { success: false, error: err.message };
     }
@@ -857,6 +873,7 @@ export class AcpSessionManager {
 
   killSession(sessionKey: string): void {
     if (this.finalizedSessions.has(sessionKey)) return;
+    log.debug('[AcpSessionManager] Killing session', { sessionKey });
     this.finalizedSessions.add(sessionKey);
     this.detachedSessions.delete(sessionKey);
 

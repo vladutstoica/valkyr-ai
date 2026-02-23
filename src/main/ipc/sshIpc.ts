@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron';
+import { createLogger } from '../lib/logger';
 import { SSH_IPC_CHANNELS } from '../../shared/ssh/types';
 import { sshService } from '../services/ssh/SshService';
 import { SshCredentialService } from '../services/ssh/SshCredentialService';
@@ -18,6 +19,8 @@ import type {
   ConnectionState,
   SshConfigHost,
 } from '../../shared/ssh/types';
+
+const log = createLogger('ipc:ssh');
 
 // Initialize services
 const credentialService = new SshCredentialService();
@@ -99,14 +102,11 @@ export function registerSshIpc() {
   // Wire up reconnect handler so the monitor's reconnect event actually reconnects (HIGH #9)
   monitor.on('reconnect', async (connectionId: string, config: SshConfig, attempt: number) => {
     try {
-      console.log(`[sshIpc] Reconnecting ${connectionId} (attempt ${attempt})...`);
+      log.debug(`Reconnecting ${connectionId} (attempt ${attempt})...`);
       await sshService.connect(config);
       monitor.updateState(connectionId, 'connected');
     } catch (err: any) {
-      console.error(
-        `[sshIpc] Reconnect attempt ${attempt} failed for ${connectionId}:`,
-        err.message
-      );
+      log.error(`Reconnect attempt ${attempt} failed for ${connectionId}:`, err.message);
       monitor.updateState(connectionId, 'error', err.message);
     }
   });
@@ -185,7 +185,7 @@ export function registerSshIpc() {
           testClient.connect(connectConfig);
         });
       } catch (err: any) {
-        console.error('[sshIpc] Test connection error:', err);
+        log.error('Test connection error:', err);
         return { success: false, error: err.message };
       }
     }
@@ -253,7 +253,7 @@ export function registerSshIpc() {
           },
         };
       } catch (err: any) {
-        console.error('[sshIpc] Save connection error:', err);
+        log.error('Save connection error:', err);
         return { success: false, error: err.message };
       }
     }
@@ -285,7 +285,7 @@ export function registerSshIpc() {
           connections: rows.map(mapRowToConfig),
         };
       } catch (err: any) {
-        console.error('[sshIpc] Get connections error:', err);
+        log.error('Get connections error:', err);
         return { success: false, error: err.message };
       }
     }
@@ -316,7 +316,7 @@ export function registerSshIpc() {
 
         return { success: true };
       } catch (err: any) {
-        console.error('[sshIpc] Delete connection error:', err);
+        log.error('Delete connection error:', err);
         return { success: false, error: err.message };
       }
     }
@@ -401,7 +401,7 @@ export function registerSshIpc() {
         monitor.startMonitoring(connectionId, fullConfig as any);
         return { success: true, connectionId };
       } catch (err: any) {
-        console.error('[sshIpc] Connection error:', err);
+        log.error('Connection error:', err);
         return { success: false, error: err.message };
       }
     }
@@ -416,7 +416,7 @@ export function registerSshIpc() {
         monitor.stopMonitoring(connectionId);
         return { success: true };
       } catch (err: any) {
-        console.error('[sshIpc] Disconnect error:', err);
+        log.error('Disconnect error:', err);
         return { success: false, error: err.message };
       }
     }
@@ -460,14 +460,14 @@ export function registerSshIpc() {
           (prefix) => trimmed === prefix.trimEnd() || trimmed.startsWith(prefix)
         );
         if (!isAllowed) {
-          console.warn(`[sshIpc] Blocked disallowed command: ${trimmed.slice(0, 80)}`);
+          log.warn(`Blocked disallowed command: ${trimmed.slice(0, 80)}`);
           return { success: false, error: 'Command not allowed' };
         }
 
         const result = await sshService.executeCommand(connectionId, command, cwd);
         return { success: true, ...result };
       } catch (error: any) {
-        console.error('[sshIpc] Execute command error:', error);
+        log.error('Execute command error:', error);
         return { success: false, error: error.message };
       }
     }
@@ -518,7 +518,7 @@ export function registerSshIpc() {
           });
         });
       } catch (error: any) {
-        console.error('[sshIpc] List files error:', error);
+        log.error('List files error:', error);
         return { success: false, error: error.message };
       }
     }
@@ -550,7 +550,7 @@ export function registerSshIpc() {
           });
         });
       } catch (error: any) {
-        console.error('[sshIpc] Read file error:', error);
+        log.error('Read file error:', error);
         return { success: false, error: error.message };
       }
     }
@@ -583,7 +583,7 @@ export function registerSshIpc() {
           });
         });
       } catch (error: any) {
-        console.error('[sshIpc] Write file error:', error);
+        log.error('Write file error:', error);
         return { success: false, error: error.message };
       }
     }
@@ -600,7 +600,7 @@ export function registerSshIpc() {
         const state = monitor.getState(connectionId);
         return { success: true, state };
       } catch (err: any) {
-        console.error('[sshIpc] Get state error:', err);
+        log.error('Get state error:', err);
         return { success: false, error: err.message };
       }
     }
@@ -698,7 +698,7 @@ export function registerSshIpc() {
         const hosts = await parseSshConfigFile();
         return { success: true, hosts };
       } catch (err: any) {
-        console.error('[sshIpc] Get SSH config error:', err);
+        log.error('Get SSH config error:', err);
         return { success: false, error: err.message };
       }
     }
@@ -725,7 +725,7 @@ export function registerSshIpc() {
 
         return { success: true, host };
       } catch (err: any) {
-        console.error('[sshIpc] Get SSH config host error:', err);
+        log.error('Get SSH config host error:', err);
         return { success: false, error: err.message };
       }
     }

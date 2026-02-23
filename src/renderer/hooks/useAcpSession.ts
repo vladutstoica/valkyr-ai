@@ -2,7 +2,9 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { UIMessage } from 'ai';
 import { AcpChatTransport, LazyAcpChatTransport } from '../lib/acpChatTransport';
 import type { AcpSessionStatus, AcpSessionModes, AcpSessionModels } from '../types/electron-api';
+import { createLogger } from '../lib/logger';
 
+const log = createLogger('hook:useAcpSession');
 const api = () => window.electronAPI;
 
 export type UseAcpSessionOptions = {
@@ -108,6 +110,8 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
     let cleanupStatus: (() => void) | null = null;
 
     async function init() {
+      log.debug('Init started', { conversationId, providerId, cwd, projectPath });
+
       // Run message loading and session creation in parallel
       const [msgResult, sessionResult] = await Promise.all([
         api()
@@ -117,6 +121,11 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
       ]);
 
       if (cancelled) return;
+
+      log.debug('Parallel init completed', {
+        messagesLoaded: msgResult.success,
+        sessionSuccess: sessionResult.success,
+      });
 
       // Restore messages from DB
       if (msgResult.success && (msgResult as any).messages) {
@@ -131,6 +140,7 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
       // Handle session creation result
       if (!sessionResult.success || !sessionResult.sessionKey) {
         const err = new Error(sessionResult.error || 'Failed to start ACP session');
+        log.warn('Session creation failed', { error: err.message, providerId, conversationId });
         setSessionStatus('error');
         setSessionError(err);
         transportRef.current?.setError(err);
@@ -138,6 +148,12 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
       }
 
       const key = sessionResult.sessionKey;
+      log.debug('Session created', {
+        sessionKey: key,
+        acpSessionId: sessionResult.acpSessionId,
+        modes: sessionResult.modes,
+        models: sessionResult.models,
+      });
       sessionKeyRef.current = key;
       setSessionKey(key);
       setAcpSessionId(sessionResult.acpSessionId ?? null);
@@ -154,6 +170,7 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
       cleanupStatus = api().onAcpStatus(key, (newStatus: AcpSessionStatus) => {
         if (cancelled) return;
         if (sessionKeyRef.current !== key) return;
+        log.debug('Status changed', { sessionKey: key, newStatus });
         setSessionStatus(newStatus);
       });
     }
@@ -163,6 +180,7 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
     return () => {
       cancelled = true;
       cleanupStatus?.();
+      log.debug('Cleanup running', { sessionKey: sessionKeyRef.current });
 
       // Reject any queued message on the outgoing lazy transport
       transportRef.current?.setError(new Error('Session disposed'));
@@ -179,6 +197,7 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
   }, [conversationId, providerId, cwd, restartCount]);
 
   const restartSession = useCallback(() => {
+    log.debug('Restart requested', { sessionKey: sessionKeyRef.current });
     // Kill the dead session
     if (sessionKeyRef.current) {
       api()

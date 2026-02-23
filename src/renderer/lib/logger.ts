@@ -16,6 +16,22 @@ function enabled(target: Level, current: Level): boolean {
 
 const current = envLevel();
 
+export type Logger = {
+  debug: (...args: any[]) => void;
+  info: (...args: any[]) => void;
+  warn: (...args: any[]) => void;
+  error: (...args: any[]) => void;
+};
+
+export function createLogger(tag: string): Logger {
+  return {
+    debug: (...args: any[]) => log.debug(`[${tag}]`, ...args),
+    info: (...args: any[]) => log.info(`[${tag}]`, ...args),
+    warn: (...args: any[]) => log.warn(`[${tag}]`, ...args),
+    error: (...args: any[]) => log.error(`[${tag}]`, ...args),
+  };
+}
+
 export const log = {
   debug: (...args: any[]) => {
     if (enabled('debug', current)) {

@@ -115,7 +115,7 @@ export function registerWorktreeIpc(): void {
         );
         return { success: true, worktree };
       } catch (error) {
-        console.error('Failed to create worktree:', error);
+        log.error('Failed to create worktree:', error);
         return { success: false, error: (error as Error).message };
       }
     }
@@ -148,7 +148,7 @@ export function registerWorktreeIpc(): void {
       const worktrees = await worktreeService.listWorktrees(args.projectPath);
       return { success: true, worktrees };
     } catch (error) {
-      console.error('Failed to list worktrees:', error);
+      log.error('Failed to list worktrees:', error);
       return { success: false, error: (error as Error).message };
     }
   });
@@ -210,7 +210,7 @@ export function registerWorktreeIpc(): void {
         );
         return { success: true };
       } catch (error) {
-        console.error('Failed to remove worktree:', error);
+        log.error('Failed to remove worktree:', error);
         return { success: false, error: (error as Error).message };
       }
     }
@@ -231,7 +231,7 @@ export function registerWorktreeIpc(): void {
       const status = await worktreeService.getWorktreeStatus(args.worktreePath);
       return { success: true, status };
     } catch (error) {
-      console.error('Failed to get worktree status:', error);
+      log.error('Failed to get worktree status:', error);
       return { success: false, error: (error as Error).message };
     }
   });
@@ -254,7 +254,7 @@ export function registerWorktreeIpc(): void {
         await worktreeService.mergeWorktreeChanges(args.projectPath, args.worktreeId);
         return { success: true };
       } catch (error) {
-        console.error('Failed to merge worktree changes:', error);
+        log.error('Failed to merge worktree changes:', error);
         return { success: false, error: (error as Error).message };
       }
     }
@@ -266,7 +266,7 @@ export function registerWorktreeIpc(): void {
       const worktree = worktreeService.getWorktree(args.worktreeId);
       return { success: true, worktree };
     } catch (error) {
-      console.error('Failed to get worktree:', error);
+      log.error('Failed to get worktree:', error);
       return { success: false, error: (error as Error).message };
     }
   });
@@ -277,7 +277,7 @@ export function registerWorktreeIpc(): void {
       const worktrees = worktreeService.getAllWorktrees();
       return { success: true, worktrees };
     } catch (error) {
-      console.error('Failed to get all worktrees:', error);
+      log.error('Failed to get all worktrees:', error);
       return { success: false, error: (error as Error).message };
     }
   });
@@ -306,7 +306,7 @@ export function registerWorktreeIpc(): void {
         worktreePoolService.ensureReserve(args.projectId, args.projectPath, args.baseRef);
         return { success: true };
       } catch (error) {
-        console.error('Failed to ensure reserve:', error);
+        log.error('Failed to ensure reserve:', error);
         return { success: false, error: (error as Error).message };
       }
     }
@@ -322,7 +322,7 @@ export function registerWorktreeIpc(): void {
       const hasReserve = worktreePoolService.hasReserve(args.projectId);
       return { success: true, hasReserve };
     } catch (error) {
-      console.error('Failed to check reserve:', error);
+      log.error('Failed to check reserve:', error);
       return { success: false, error: (error as Error).message };
     }
   });
@@ -362,7 +362,7 @@ export function registerWorktreeIpc(): void {
         }
         return { success: false, error: 'No reserve available' };
       } catch (error) {
-        console.error('Failed to claim reserve:', error);
+        log.error('Failed to claim reserve:', error);
         return { success: false, error: (error as Error).message };
       }
     }
@@ -378,7 +378,7 @@ export function registerWorktreeIpc(): void {
       await worktreePoolService.removeReserve(args.projectId);
       return { success: true };
     } catch (error) {
-      console.error('Failed to remove reserve:', error);
+      log.error('Failed to remove reserve:', error);
       return { success: false, error: (error as Error).message };
     }
   });
@@ -413,7 +413,7 @@ export function registerWorktreeIpc(): void {
         });
         return { success: true, ...result };
       } catch (error) {
-        console.error('Failed to create multi-repo worktree:', error);
+        log.error('Failed to create multi-repo worktree:', error);
         return { success: false, error: (error as Error).message };
       }
     }
@@ -438,7 +438,7 @@ export function registerWorktreeIpc(): void {
         await worktreeService.removeMultiRepoWorktree(args.compositeWorktreePath, args.subRepos);
         return { success: true };
       } catch (error) {
-        console.error('Failed to remove multi-repo worktree:', error);
+        log.error('Failed to remove multi-repo worktree:', error);
         return { success: false, error: (error as Error).message };
       }
     }

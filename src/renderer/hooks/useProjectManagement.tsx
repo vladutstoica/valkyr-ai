@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { pickDefaultBranch } from '../components/BranchSelect';
 import { saveActiveIds, getProjectLastTaskId, saveProjectLastTaskId } from '../constants/layout';
+import { createLogger } from '../lib/logger';
 import {
   computeBaseRef,
   getProjectRepoKey,
@@ -8,6 +9,8 @@ import {
   withRepoKey,
 } from '../lib/projectUtils';
 import type { Project, ProjectGroup, Task, Workspace } from '../types/app';
+
+const log = createLogger('hook:useProjectManagement');
 
 interface UseProjectManagementOptions {
   platform: string;
@@ -97,6 +100,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
   }, [projects, activeWorkspaceId, workspaces]);
 
   const activateProjectView = useCallback((project: Project) => {
+    log.debug('activateProjectView', { projectId: project.id, name: project.name });
     void (async () => {
       const { captureTelemetry } = await import('../lib/telemetryClient');
       captureTelemetry('project_view_opened');
@@ -133,6 +137,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
       .detectSubRepos(project.path)
       .then(async (result) => {
         if (!result.success) return;
+        log.debug('Sub-repos detected', { projectId: project.id, count: result.subRepos.length });
         const isGitRoot = project.gitInfo?.isGitRepo;
         let newSubRepos: Project['subRepos'];
 
@@ -367,7 +372,6 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
                 setProjects((prev) => [...prev, projectWithGithub]);
                 activateProjectView(projectWithGithub);
               } else {
-                const { log } = await import('../lib/logger');
                 log.error('Failed to save project:', saveResult.error);
                 toast({
                   title: 'Failed to Add Project',
@@ -408,7 +412,6 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
               setProjects((prev) => [...prev, projectWithoutGithub]);
               activateProjectView(projectWithoutGithub);
             } else {
-              const { log } = await import('../lib/logger');
               log.error('Failed to save project:', saveResult.error);
               toast({
                 title: 'Failed to Add Project',
@@ -419,7 +422,6 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
             }
           }
         } catch (error) {
-          const { log } = await import('../lib/logger');
           log.error('Git detection error:', error as any);
           toast({
             title: 'Project Opened',
@@ -436,7 +438,6 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
         });
       }
     } catch (error) {
-      const { log } = await import('../lib/logger');
       log.error('Open project error:', error as any);
       toast({
         title: 'Failed to Open Project',
@@ -544,7 +545,6 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
               setProjects((prev) => [...prev, projectWithGithub]);
               activateProjectView(projectWithGithub);
             } else {
-              const { log } = await import('../lib/logger');
               log.error('Failed to save project:', saveResult.error);
               toast({
                 title: 'Project Cloned',
@@ -593,7 +593,6 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
           }
         }
       } catch (error) {
-        const { log } = await import('../lib/logger');
         log.error('Failed to load cloned project:', error);
         toast({
           title: 'Project Cloned',
@@ -672,7 +671,6 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
               });
               activateProjectView(projectWithGithub);
             } else {
-              const { log } = await import('../lib/logger');
               log.error('Failed to save project:', saveResult.error);
               toast({
                 title: 'Project Created',
@@ -740,7 +738,6 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
           }
         }
       } catch (error) {
-        const { log } = await import('../lib/logger');
         log.error('Failed to load new project:', error);
         toast({
           title: 'Project Created',
@@ -814,7 +811,6 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
 
       toast({ title: 'Project renamed', description: `Renamed to "${trimmed}".` });
     } catch (err) {
-      const { log } = await import('../lib/logger');
       log.error('Rename project failed:', err as any);
       toast({
         title: 'Error',
@@ -859,7 +855,6 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
       }
       toast({ title: 'Project deleted', description: `"${project.name}" was removed.` });
     } catch (err) {
-      const { log } = await import('../lib/logger');
       log.error('Delete project failed:', err as any);
       toast({
         title: 'Error',
@@ -879,7 +874,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
         setGroups((prev) => [...prev, res.group!]);
       }
     } catch (err) {
-      console.error('Failed to create group:', err);
+      log.error('Failed to create group:', err);
     }
   };
 
@@ -890,7 +885,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
         setGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, name } : g)));
       }
     } catch (err) {
-      console.error('Failed to rename group:', err);
+      log.error('Failed to rename group:', err);
     }
   };
 
@@ -905,7 +900,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
         );
       }
     } catch (err) {
-      console.error('Failed to delete group:', err);
+      log.error('Failed to delete group:', err);
     }
   };
 
@@ -918,7 +913,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
       });
       await window.electronAPI.updateProjectGroupOrder(groupIds);
     } catch (err) {
-      console.error('Failed to reorder groups:', err);
+      log.error('Failed to reorder groups:', err);
     }
   };
 
@@ -929,7 +924,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
         setProjects((prev) => prev.map((p) => (p.id === projectId ? { ...p, groupId } : p)));
       }
     } catch (err) {
-      console.error('Failed to move project to group:', err);
+      log.error('Failed to move project to group:', err);
     }
   };
 
@@ -939,7 +934,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
       setGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, isCollapsed } : g)));
       await window.electronAPI.toggleProjectGroupCollapsed({ id: groupId, isCollapsed });
     } catch (err) {
-      console.error('Failed to toggle group collapsed:', err);
+      log.error('Failed to toggle group collapsed:', err);
     }
   };
 
@@ -952,7 +947,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
         setWorkspaces((prev) => [...prev, res.workspace!]);
       }
     } catch (err) {
-      console.error('Failed to create workspace:', err);
+      log.error('Failed to create workspace:', err);
     }
   };
 
@@ -963,7 +958,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
         setWorkspaces((prev) => prev.map((ws) => (ws.id === workspaceId ? { ...ws, name } : ws)));
       }
     } catch (err) {
-      console.error('Failed to rename workspace:', err);
+      log.error('Failed to rename workspace:', err);
     }
   };
 
@@ -987,7 +982,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
         }
       }
     } catch (err) {
-      console.error('Failed to delete workspace:', err);
+      log.error('Failed to delete workspace:', err);
     }
   };
 
@@ -998,7 +993,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
         setWorkspaces((prev) => prev.map((ws) => (ws.id === workspaceId ? { ...ws, color } : ws)));
       }
     } catch (err) {
-      console.error('Failed to update workspace color:', err);
+      log.error('Failed to update workspace color:', err);
     }
   };
 
@@ -1009,7 +1004,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
         setWorkspaces((prev) => prev.map((ws) => (ws.id === workspaceId ? { ...ws, emoji } : ws)));
       }
     } catch (err) {
-      console.error('Failed to update workspace emoji:', err);
+      log.error('Failed to update workspace emoji:', err);
     }
   };
 
@@ -1021,7 +1016,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
       });
       await window.electronAPI.updateWorkspaceOrder(workspaceIds);
     } catch (err) {
-      console.error('Failed to reorder workspaces:', err);
+      log.error('Failed to reorder workspaces:', err);
     }
   };
 
@@ -1032,7 +1027,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
         setProjects((prev) => prev.map((p) => (p.id === projectId ? { ...p, workspaceId } : p)));
       }
     } catch (err) {
-      console.error('Failed to move project to workspace:', err);
+      log.error('Failed to move project to workspace:', err);
     }
   };
 
@@ -1112,7 +1107,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
           setProjectDefaultBranch(defaultBranch ?? currentRef ?? 'main');
         }
       } catch (error) {
-        console.error('Failed to load branches:', error);
+        log.error('Failed to load branches:', error);
       } finally {
         if (!cancelled) {
           setIsLoadingBranches(false);

@@ -6,6 +6,9 @@ import { execSync } from 'child_process';
 import { FsListWorkerResponse } from '../types/fsListWorker';
 import { DEFAULT_IGNORES } from '../utils/fsIgnores';
 import { safeStat } from '../utils/safeStat';
+import { createLogger } from '../lib/logger';
+
+const log = createLogger('ipc:fs');
 
 const DEFAULT_VALKYR_CONFIG = `{
   "preservePatterns": [
@@ -105,7 +108,7 @@ export function registerFsIpc(): void {
 
         return { success: true, items };
       } catch (error) {
-        console.error('fs:readdir failed:', error);
+        log.error('fs:readdir failed:', error);
         return { success: false, error: 'Failed to read directory' };
       }
     }
@@ -176,7 +179,7 @@ export function registerFsIpc(): void {
           }
 
           // For other git errors, fallback to DEFAULT_IGNORES
-          console.warn(
+          log.warn(
             'git check-ignore failed, falling back to DEFAULT_IGNORES:',
             gitError.message
           );
@@ -187,7 +190,7 @@ export function registerFsIpc(): void {
           return { success: true, ignoredPaths };
         }
       } catch (error) {
-        console.error('fs:check-ignored failed:', error);
+        log.error('fs:check-ignored failed:', error);
         return { success: false, error: 'Failed to check ignored files' };
       }
     }
@@ -282,7 +285,7 @@ export function registerFsIpc(): void {
         durationMs: result.durationMs,
       };
     } catch (error) {
-      console.error('fs:list failed:', error);
+      log.error('fs:list failed:', error);
       return { success: false, error: 'Failed to list files' };
     }
   });
@@ -321,7 +324,7 @@ export function registerFsIpc(): void {
 
         return { success: true, path: relPath, size, truncated, content };
       } catch (error) {
-        console.error('fs:read failed:', error);
+        log.error('fs:read failed:', error);
         return { success: false, error: 'Failed to read file' };
       }
     }
@@ -374,7 +377,7 @@ export function registerFsIpc(): void {
         size: st.size,
       };
     } catch (error) {
-      console.error('fs:read-image failed:', error);
+      log.error('fs:read-image failed:', error);
       return { success: false, error: 'Failed to read image' };
     }
   });
@@ -651,7 +654,7 @@ export function registerFsIpc(): void {
 
         return { success: true, results };
       } catch (error) {
-        console.error('fs:searchContent failed:', error);
+        log.error('fs:searchContent failed:', error);
         return { success: false, error: 'Failed to search files' };
       }
     }
@@ -697,7 +700,7 @@ export function registerFsIpc(): void {
           fileName: destName,
         };
       } catch (error) {
-        console.error('fs:save-attachment failed:', error);
+        log.error('fs:save-attachment failed:', error);
         return { success: false, error: 'Failed to save attachment' };
       }
     }
@@ -735,7 +738,7 @@ export function registerFsIpc(): void {
         }
         return { success: true };
       } catch (error) {
-        console.error('fs:write failed:', error);
+        log.error('fs:write failed:', error);
         return { success: false, error: 'Failed to write file' };
       }
     }
@@ -783,7 +786,7 @@ export function registerFsIpc(): void {
       }
       return { success: true };
     } catch (error) {
-      console.error('fs:remove failed:', error);
+      log.error('fs:remove failed:', error);
       return { success: false, error: 'Failed to remove file' };
     }
   });
@@ -806,7 +809,7 @@ export function registerFsIpc(): void {
       const content = fs.readFileSync(configPath, 'utf8');
       return { success: true, path: configPath, content };
     } catch (error) {
-      console.error('fs:getProjectConfig failed:', error);
+      log.error('fs:getProjectConfig failed:', error);
       return { success: false, error: 'Failed to read config file' };
     }
   });
@@ -832,7 +835,7 @@ export function registerFsIpc(): void {
         fs.writeFileSync(configPath, content, 'utf8');
         return { success: true, path: configPath };
       } catch (error) {
-        console.error('fs:saveProjectConfig failed:', error);
+        log.error('fs:saveProjectConfig failed:', error);
         return { success: false, error: 'Failed to save config file' };
       }
     }

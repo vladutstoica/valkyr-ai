@@ -2,11 +2,14 @@ import { useState, useMemo, useCallback, useRef } from 'react';
 import { TERMINAL_PROVIDER_IDS } from '../constants/agents';
 import { saveActiveIds, getStoredActiveIds, saveProjectLastTaskId } from '../constants/layout';
 import { getAgentForTask } from '../lib/getAgentForTask';
+import { createLogger } from '../lib/logger';
 import { disposeTaskTerminals } from '../lib/taskTerminalsStore';
 import { terminalSessionRegistry } from '../terminal/SessionRegistry';
 import type { Agent } from '../types';
 import type { Project, Task } from '../types/app';
 import type { GitHubIssueLink } from '../types/chat';
+
+const log = createLogger('hook:useTaskManagement');
 
 const LIFECYCLE_TEARDOWN_TIMEOUT_MS = 15000;
 type LifecycleTarget = { taskId: string; taskPath: string; label: string };
@@ -115,6 +118,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
   );
 
   const handleSelectTask = (task: Task) => {
+    log.debug('Task selected', { taskId: task.id, name: task.name });
     setActiveTask(task);
     setActiveTaskAgent(getAgentForTask(task));
     saveActiveIds(task.projectId, task.id);
@@ -154,6 +158,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
   const handleNewTask = useCallback(() => {
     // Only open modal if a project is selected
     if (selectedProject) {
+      log.debug('New task requested', { projectId: selectedProject.id });
       setShowTaskModal(true);
     }
   }, [selectedProject]);
@@ -255,7 +260,6 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
     }
 
     if (issues.length > 0) {
-      const { log } = await import('../lib/logger');
       log.warn(
         `Lifecycle teardown issues for "${task.name}"; continuing ${continueLabel}.`,
         issues.join(' | ')
@@ -274,6 +278,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
     task: Task,
     options?: { silent?: boolean }
   ): Promise<boolean> => {
+    log.debug('Task delete requested', { taskId: task.id, name: task.name });
     if (deletingTaskIdsRef.current.has(task.id)) {
       toast({
         title: 'Deletion in progress',
@@ -392,7 +397,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
           // Safety check: Don't try to remove worktree if the task path equals project path
           // This indicates a task without a worktree running directly on the main repo
           if (task.path === targetProject.path) {
-            console.warn(
+            log.warn(
               `Task "${task.name}" appears to be running on main repo, skipping worktree removal`
             );
           } else {
@@ -450,7 +455,6 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
         }
         return true;
       } catch (error) {
-        const { log } = await import('../lib/logger');
         log.error('Failed to delete task:', error as any);
         toast({
           title: 'Error',
@@ -510,6 +514,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
   };
 
   const handleRenameTask = async (targetProject: Project, task: Task, newName: string) => {
+    log.debug('Task rename requested', { taskId: task.id, oldName: task.name, newName });
     const oldName = task.name;
     const oldBranch = task.branch;
 
@@ -586,7 +591,6 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
         description: `"${oldName}" → "${newName}"${remoteNote}`,
       });
     } catch (error) {
-      const { log } = await import('../lib/logger');
       log.error('Failed to rename task:', error as any);
 
       // Rollback git branch if it was renamed
@@ -618,6 +622,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
     task: Task,
     options?: { silent?: boolean }
   ): Promise<boolean> => {
+    log.debug('Task archive requested', { taskId: task.id, name: task.name });
     if (archivingTaskIdsRef.current.has(task.id)) {
       return false;
     }
@@ -703,7 +708,6 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
           }
           disposeTaskTerminals(task.id);
         } catch (err) {
-          const { log } = await import('../lib/logger');
           log.error('Error cleaning up PTY resources during archive:', err as any);
         }
       };
@@ -742,7 +746,6 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
 
         return true;
       } catch (error) {
-        const { log } = await import('../lib/logger');
         log.error('Failed to archive task:', error as any);
 
         // Restore task to UI on error
@@ -802,6 +805,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
   };
 
   const handleRestoreTask = async (targetProject: Project, task: Task): Promise<void> => {
+    log.debug('Task restore requested', { taskId: task.id, name: task.name });
     if (restoringTaskIdsRef.current.has(task.id)) {
       return;
     }
@@ -831,7 +835,6 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
         restoredTaskForSetup = refreshedTasks.find((t) => t.id === task.id) || null;
         refreshed = true;
       } catch (refreshError) {
-        const { log } = await import('../lib/logger');
         log.error('Failed to refresh tasks after restore:', refreshError as any);
       }
 
@@ -868,7 +871,6 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
         description: task.name,
       });
     } catch (error) {
-      const { log } = await import('../lib/logger');
       log.error('Failed to restore task:', error as any);
 
       toast({
