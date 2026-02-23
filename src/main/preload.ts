@@ -745,6 +745,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('acp:forkSession', args),
   acpExtMethod: (args: { sessionKey: string; method: string; params?: Record<string, unknown> }) =>
     ipcRenderer.invoke('acp:extMethod', args),
+  acpGetClaudeUsageLimits: () => ipcRenderer.invoke('acp:getClaudeUsageLimits'),
   onAcpUpdate: (sessionKey: string, listener: (event: any) => void) => {
     const channel = `acp:update:${sessionKey}`;
     const wrapped = (_: Electron.IpcRendererEvent, event: any) => listener(event);

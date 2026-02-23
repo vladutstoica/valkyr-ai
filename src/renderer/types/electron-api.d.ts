@@ -26,6 +26,27 @@ export type ProviderStatusResult = {
   activeIncidents: { name: string; impact: string; startedAt: string }[];
 };
 
+// Claude usage limits types
+export type ClaudeUsageBucket = {
+  utilization: number;
+  resets_at: string | null;
+};
+
+export type ClaudeExtraUsage = {
+  is_enabled: boolean;
+  monthly_limit: number;
+  used_credits: number;
+  utilization: number;
+};
+
+export type ClaudeUsageLimits = {
+  fiveHour: ClaudeUsageBucket | null;
+  sevenDay: ClaudeUsageBucket | null;
+  sevenDayOpus: ClaudeUsageBucket | null;
+  sevenDaySonnet: ClaudeUsageBucket | null;
+  extraUsage: ClaudeExtraUsage | null;
+};
+
 // ACP (Agent Communication Protocol) types
 export type AcpSessionStatus =
   | 'initializing'
@@ -1686,6 +1707,7 @@ declare global {
         method: string;
         params?: Record<string, unknown>;
       }) => Promise<{ success: boolean; result?: Record<string, unknown>; error?: string }>;
+      acpGetClaudeUsageLimits: () => Promise<{ success: boolean; data?: ClaudeUsageLimits | null; error?: string }>;
       onAcpUpdate: (
         sessionKey: string,
         listener: (event: AcpUpdateEvent) => void
@@ -2513,6 +2535,7 @@ export interface ElectronAPI {
     method: string;
     params?: Record<string, unknown>;
   }) => Promise<{ success: boolean; result?: Record<string, unknown>; error?: string }>;
+  acpGetClaudeUsageLimits: () => Promise<{ success: boolean; data?: ClaudeUsageLimits | null; error?: string }>;
   onAcpUpdate: (
     sessionKey: string,
     listener: (event: AcpUpdateEvent) => void

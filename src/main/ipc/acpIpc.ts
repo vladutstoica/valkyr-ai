@@ -1,6 +1,7 @@
 import { ipcMain, WebContents, BrowserWindow } from 'electron';
 import { z } from 'zod';
 import { acpSessionManager, type AcpUpdateEvent } from '../services/AcpSessionManager';
+import { claudeUsageService } from '../services/ClaudeUsageService';
 import { log } from '../lib/logger';
 
 // ---------------------------------------------------------------------------
@@ -318,6 +319,19 @@ export function registerAcpIpc(): void {
       if (error instanceof z.ZodError) {
         return { success: false, error: `Validation error: ${error.errors.map(e => e.message).join(', ')}` };
       }
+      return { success: false, error: error.message || 'Unknown error' };
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // acp:getClaudeUsageLimits — Fetch Claude Code plan usage limits
+  // -------------------------------------------------------------------------
+  ipcMain.handle('acp:getClaudeUsageLimits', async () => {
+    try {
+      const data = await claudeUsageService.getUsageLimits();
+      return { success: true, data };
+    } catch (error: any) {
+      log.error('acp:getClaudeUsageLimits failed', error);
       return { success: false, error: error.message || 'Unknown error' };
     }
   });
