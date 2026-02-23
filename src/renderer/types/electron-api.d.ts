@@ -1439,9 +1439,7 @@ declare global {
         sent: boolean;
       }): Promise<{ success: boolean; error?: string }>;
       // Terminal sessions
-      getTerminalSessions(
-        taskKey: string
-      ): Promise<{
+      getTerminalSessions(taskKey: string): Promise<{
         success: boolean;
         data?: Array<{
           id: string;
@@ -2499,9 +2497,7 @@ export interface ElectronAPI {
     sent: boolean;
   }): Promise<{ success: boolean; error?: string }>;
   // Terminal sessions
-  getTerminalSessions(
-    taskKey: string
-  ): Promise<{
+  getTerminalSessions(taskKey: string): Promise<{
     success: boolean;
     data?: Array<{
       id: string;
