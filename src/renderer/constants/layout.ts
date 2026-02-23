@@ -38,6 +38,40 @@ export const saveActiveIds = (projectId: string | null, taskId: string | null): 
   } catch {}
 };
 
+const PROJECT_LAST_TASK_KEY = 'valkyr:projectLastTaskId';
+
+/** Get the map of projectId -> last active taskId from localStorage */
+const getLastTaskMap = (): Record<string, string> => {
+  try {
+    const raw = localStorage.getItem(PROJECT_LAST_TASK_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+};
+
+/** Save the last active taskId for a specific project */
+export const saveProjectLastTaskId = (projectId: string, taskId: string | null): void => {
+  try {
+    const map = getLastTaskMap();
+    if (taskId) {
+      map[projectId] = taskId;
+    } else {
+      delete map[projectId];
+    }
+    localStorage.setItem(PROJECT_LAST_TASK_KEY, JSON.stringify(map));
+  } catch {}
+};
+
+/** Get the last active taskId for a specific project */
+export const getProjectLastTaskId = (projectId: string): string | null => {
+  try {
+    return getLastTaskMap()[projectId] ?? null;
+  } catch {
+    return null;
+  }
+};
+
 export const clampRightSidebarSize = (value: number) =>
   Math.min(
     Math.max(Number.isFinite(value) ? value : DEFAULT_PANEL_LAYOUT[2], RIGHT_SIDEBAR_MIN_SIZE),

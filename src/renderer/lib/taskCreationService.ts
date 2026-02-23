@@ -4,7 +4,7 @@ import type { AgentRun, TaskMetadata } from '../types/chat';
 import { type GitHubIssueSummary } from '../types/github';
 import { type JiraIssueSummary } from '../types/jira';
 import { type LinearIssueSummary } from '../types/linear';
-import { saveActiveIds } from '../constants/layout';
+import { saveActiveIds, saveProjectLastTaskId } from '../constants/layout';
 import { getAgentForTask } from './getAgentForTask';
 
 export interface CreateTaskParams {
@@ -167,6 +167,7 @@ export async function createTask(params: CreateTaskParams, callbacks: CreateTask
       setActiveTask(newTask);
       setActiveTaskAgent(null);
       saveActiveIds(newTask.projectId, newTask.id);
+      saveProjectLastTaskId(newTask.projectId, newTask.id);
 
       // Create worktrees in background, then update task with real variants
       (async () => {
@@ -491,6 +492,7 @@ export async function createTask(params: CreateTaskParams, callbacks: CreateTask
       setActiveTask(newTask);
       setActiveTaskAgent(getAgentForTask(newTask) ?? primaryAgent ?? 'codex');
       saveActiveIds(newTask.projectId, newTask.id);
+      saveProjectLastTaskId(newTask.projectId, newTask.id);
 
       // Run setup after task creation (non-blocking).
       void runSetupOnCreate(newTask.id, newTask.path, selectedProject.path, newTask.name);

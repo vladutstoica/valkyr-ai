@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef } from 'react';
 import { TERMINAL_PROVIDER_IDS } from '../constants/agents';
-import { saveActiveIds, getStoredActiveIds } from '../constants/layout';
+import { saveActiveIds, getStoredActiveIds, saveProjectLastTaskId } from '../constants/layout';
 import { getAgentForTask } from '../lib/getAgentForTask';
 import { disposeTaskTerminals } from '../lib/taskTerminalsStore';
 import { terminalSessionRegistry } from '../terminal/SessionRegistry';
@@ -118,6 +118,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
     setActiveTask(task);
     setActiveTaskAgent(getAgentForTask(task));
     saveActiveIds(task.projectId, task.id);
+    saveProjectLastTaskId(task.projectId, task.id);
   };
 
   const handleNextTask = useCallback(() => {
@@ -132,6 +133,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
     setActiveTask(task);
     setActiveTaskAgent(getAgentForTask(task));
     saveActiveIds(project.id, task.id);
+    saveProjectLastTaskId(project.id, task.id);
   }, [allTasks, activeTask]);
 
   const handlePrevTask = useCallback(() => {
@@ -146,6 +148,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
     setActiveTask(task);
     setActiveTaskAgent(getAgentForTask(task));
     saveActiveIds(project.id, task.id);
+    saveProjectLastTaskId(project.id, task.id);
   }, [allTasks, activeTask]);
 
   const handleNewTask = useCallback(() => {

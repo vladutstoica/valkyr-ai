@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { pickDefaultBranch } from '../components/BranchSelect';
-import { saveActiveIds } from '../constants/layout';
+import { saveActiveIds, getProjectLastTaskId, saveProjectLastTaskId } from '../constants/layout';
 import {
   computeBaseRef,
   getProjectRepoKey,
@@ -105,8 +105,12 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
     setShowHomeView(false);
     setShowSkillsView(false);
     setShowSettingsView(false);
-    setActiveTask(null);
-    saveActiveIds(project.id, null);
+
+    // Restore last active task for this project
+    const lastTaskId = getProjectLastTaskId(project.id);
+    const lastTask = lastTaskId ? project.tasks?.find((t) => t.id === lastTaskId) ?? null : null;
+    setActiveTask(lastTask);
+    saveActiveIds(project.id, lastTask?.id ?? null);
 
     // Start creating a reserve worktree in the background for instant task creation
     if (project.gitInfo?.isGitRepo) {
@@ -1049,13 +1053,15 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
         );
         const firstProject = wsProjects[0];
         if (firstProject) {
-          // Pick the most recent task instead of showing the project view
-          const lastTask =
-            firstProject.tasks
-              ?.slice()
-              .sort((a, b) =>
-                (b.updatedAt ?? b.createdAt ?? '').localeCompare(a.updatedAt ?? a.createdAt ?? '')
-              )[0] ?? null;
+          // Restore the last active task for this project, falling back to most recent
+          const savedTaskId = getProjectLastTaskId(firstProject.id);
+          const lastTask = savedTaskId
+            ? firstProject.tasks?.find((t) => t.id === savedTaskId) ?? null
+            : firstProject.tasks
+                ?.slice()
+                .sort((a, b) =>
+                  (b.updatedAt ?? b.createdAt ?? '').localeCompare(a.updatedAt ?? a.createdAt ?? '')
+                )[0] ?? null;
           setSelectedProject(firstProject);
           setShowHomeView(false);
           setShowSkillsView(false);
