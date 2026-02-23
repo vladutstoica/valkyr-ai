@@ -271,11 +271,13 @@ function SessionHistoryPopover({
   sessionKey,
   currentAcpSessionId,
   cwd,
+  projectPath,
   onResumeSession,
 }: {
   sessionKey: string | null;
   currentAcpSessionId: string | null;
   cwd: string;
+  projectPath?: string;
   onResumeSession: (acpSessionId: string, title?: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -291,7 +293,7 @@ function SessionHistoryPopover({
       const result = await window.electronAPI.acpListSessions({ sessionKey });
       if (result.success && result.sessions) {
         const filtered = (result.sessions as AcpSessionInfo[])
-          .filter((s) => s.sessionId !== currentAcpSessionId && s.cwd === cwd)
+          .filter((s) => s.sessionId !== currentAcpSessionId && s.cwd === (projectPath || cwd))
           .sort((a, b) => {
             if (!a.updatedAt || !b.updatedAt) return 0;
             return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
@@ -305,7 +307,7 @@ function SessionHistoryPopover({
     } finally {
       setLoading(false);
     }
-  }, [sessionKey, currentAcpSessionId, cwd]);
+  }, [sessionKey, currentAcpSessionId, cwd, projectPath]);
 
   useEffect(() => {
     if (open) fetchSessions();
@@ -966,6 +968,7 @@ type AcpChatInnerProps = {
   conversationId: string;
   providerId: string;
   cwd: string;
+  projectPath?: string;
   transport: LazyAcpChatTransport;
   initialMessages: UIMessage[];
   sessionKey: string | null;
@@ -989,6 +992,7 @@ function AcpChatInner({
   conversationId,
   providerId,
   cwd,
+  projectPath,
   transport,
   initialMessages,
   sessionKey,
@@ -1457,6 +1461,7 @@ function AcpChatInner({
               sessionKey={sessionKey}
               currentAcpSessionId={acpSessionId}
               cwd={cwd}
+              projectPath={projectPath}
               onResumeSession={onResumeSession}
             />
           )}
@@ -2028,6 +2033,7 @@ export function AcpChatPane({
       conversationId={conversationId}
       providerId={providerId}
       cwd={cwd}
+      projectPath={projectPath}
       transport={transport}
       initialMessages={initialMessages}
       sessionKey={sessionKey ?? null}
