@@ -1,12 +1,14 @@
 import React, { useState, useCallback } from 'react';
-import { Plus, Search, Blocks } from 'lucide-react';
+import { Plus, Search, Blocks, Download, Check, Loader2 } from 'lucide-react';
 import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
 import { McpServerList } from './McpServerList';
 import { McpServerForm } from './McpServerForm';
 import { McpRegistrySearch } from './McpRegistrySearch';
 import { useMcpServers } from '../../hooks/useMcpServers';
 import type { McpServerConfig, McpServerInput } from '@shared/mcp/types';
+import type { AgentMcpDiscovery } from '../../types/electron-api';
 
 interface McpViewProps {
   projectPath?: string;
@@ -22,6 +24,42 @@ export const McpView: React.FC<McpViewProps> = ({ projectPath }) => {
 
   const globalServers = useMcpServers('global');
   const projectServers = useMcpServers('project', projectPath);
+
+  // Agent import state
+  const [discoveries, setDiscoveries] = useState<AgentMcpDiscovery[] | null>(null);
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [importedNames, setImportedNames] = useState<Set<string>>(new Set());
+
+  const existingNames = new Set([
+    ...globalServers.servers.map((s) => s.name),
+    ...projectServers.servers.map((s) => s.name),
+  ]);
+
+  const handleDetectAgents = useCallback(async () => {
+    setIsDetecting(true);
+    try {
+      const res = await window.electronAPI.mcpDetectAgentServers({ projectPath });
+      if (res.success && res.data) {
+        setDiscoveries(res.data);
+      }
+    } catch (err) {
+      console.error('Failed to detect agent servers:', err);
+    } finally {
+      setIsDetecting(false);
+    }
+  }, [projectPath]);
+
+  const handleImportServer = useCallback(
+    async (server: McpServerConfig, scope: 'global' | 'project') => {
+      const hook = scope === 'global' ? globalServers : projectServers;
+      const input: McpServerInput = server.transport === 'stdio'
+        ? { name: server.name, transport: 'stdio', enabled: true, command: server.command, args: server.args, env: server.env }
+        : { name: server.name, transport: server.transport, enabled: true, url: server.url, headers: server.headers };
+      await hook.addServer(input);
+      setImportedNames((prev) => new Set(prev).add(server.name));
+    },
+    [globalServers, projectServers]
+  );
 
   const handleInstallFromRegistry = useCallback((prefill: McpServerInput) => {
     setViewState({ mode: 'create', scope: 'global', prefill });
@@ -116,6 +154,85 @@ export const McpView: React.FC<McpViewProps> = ({ projectPath }) => {
           <h3 className="text-sm font-semibold">Browse Registry</h3>
         </div>
         <McpRegistrySearch onInstall={handleInstallFromRegistry} />
+      </section>
+
+      {/* Import from Agents */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Download className="text-muted-foreground h-4 w-4" />
+            <h3 className="text-sm font-semibold">Import from Agents</h3>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 text-xs"
+            onClick={handleDetectAgents}
+            disabled={isDetecting}
+          >
+            {isDetecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+            {discoveries === null ? 'Detect' : 'Rescan'}
+          </Button>
+        </div>
+        <p className="text-muted-foreground text-xs">
+          Detect MCP servers configured in Claude Code, Cursor, and other agents.
+        </p>
+
+        {discoveries !== null && discoveries.length === 0 && (
+          <div className="border-border/40 text-muted-foreground flex items-center justify-center rounded-lg border border-dashed py-4 text-xs">
+            No MCP servers found in other agents
+          </div>
+        )}
+
+        {discoveries !== null && discoveries.length > 0 && (
+          <div className="space-y-3">
+            {discoveries.map((discovery) => (
+              <div key={`${discovery.agent}-${discovery.scope}`} className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium">{discovery.agent}</span>
+                  <Badge variant="outline" className="text-muted-foreground text-[10px] font-normal">
+                    {discovery.scope}
+                  </Badge>
+                </div>
+                <div className="space-y-1.5">
+                  {discovery.servers.map((server) => {
+                    const alreadyExists = existingNames.has(server.name);
+                    const justImported = importedNames.has(server.name);
+                    return (
+                      <div
+                        key={server.name}
+                        className="border-border/50 flex items-center justify-between gap-3 rounded-lg border p-2.5"
+                      >
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="truncate text-sm">{server.name}</span>
+                          <Badge variant="outline" className="shrink-0 text-[10px] font-normal">
+                            {server.transport}
+                          </Badge>
+                        </div>
+                        {alreadyExists || justImported ? (
+                          <span className="flex shrink-0 items-center gap-1 text-xs text-emerald-500">
+                            <Check className="h-3.5 w-3.5" />
+                            {justImported ? 'Imported' : 'Already exists'}
+                          </span>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 gap-1 text-xs"
+                            onClick={() => void handleImportServer(server, discovery.scope === 'project' ? 'project' : 'global')}
+                          >
+                            <Download className="h-3 w-3" />
+                            Import
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <Separator className="border-border/60" />

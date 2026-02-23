@@ -85,6 +85,19 @@ export function registerMcpIpc() {
     }
   });
 
+  ipcMain.handle('mcp:detectAgentServers', async (_event, args: unknown) => {
+    try {
+      const { projectPath } = z
+        .object({ projectPath: z.string().optional() })
+        .parse(args ?? {});
+      const data = mcpConfigService.detectAgentServers(projectPath);
+      return { success: true, data };
+    } catch (err: any) {
+      log.error('mcp:detectAgentServers failed:', err);
+      return { success: false, error: err.message };
+    }
+  });
+
   ipcMain.handle('mcp:searchRegistry', async (_event, args: unknown) => {
     try {
       const { query, limit, cursor } = z
@@ -107,8 +120,25 @@ export function registerMcpIpc() {
         return { success: false, error: `Registry returned ${response.status}` };
       }
 
-      const data = await response.json();
-      return { success: true, data };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = await response.json();
+      // API wraps each entry as { server: {...}, _meta: {...} } — unwrap to flat server objects
+      const allServers = (data.servers ?? []).map((entry: any) => entry.server ?? entry);
+
+      // Deduplicate by server name — keep only the latest version (last occurrence)
+      const seen = new Map<string, any>();
+      for (const s of allServers) {
+        seen.set(s.name, s);
+      }
+      const servers = Array.from(seen.values());
+
+      return {
+        success: true,
+        data: {
+          servers,
+          metadata: data.metadata ?? { count: servers.length },
+        },
+      };
     } catch (err: any) {
       log.error('mcp:searchRegistry failed:', err);
       return { success: false, error: err.message };

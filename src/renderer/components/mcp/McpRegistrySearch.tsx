@@ -5,64 +5,91 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { useMcpRegistry } from '../../hooks/useMcpRegistry';
 import type { McpServerInput } from '@shared/mcp/types';
-import type { McpRegistryServer, McpRegistryPackage } from '../../types/electron-api';
+import type { McpRegistryServer, McpRegistryPackage, McpRegistryRemote } from '../../types/electron-api';
 
 interface McpRegistrySearchProps {
   onInstall: (prefill: McpServerInput) => void;
 }
 
 function buildPrefillFromPackage(server: McpRegistryServer): McpServerInput | null {
+  const displayName = server.title ?? server.name.split('/').pop() ?? server.name;
+
+  // Try packages first (npm/pypi/etc.)
   const pkg: McpRegistryPackage | undefined = server.packages?.[0];
-  if (!pkg) return null;
+  if (pkg) {
+    const transportType = pkg.transport?.type;
 
-  const transportType = pkg.transport?.type;
+    if (transportType === 'stdio' || pkg.registryType === 'npm' || pkg.registryType === 'pypi') {
+      const runtime = pkg.registryType === 'pypi' ? 'uvx' : 'npx';
+      const args: string[] = [];
+      if (runtime === 'npx') args.push('-y');
+      args.push(pkg.identifier);
 
-  if (transportType === 'stdio' || pkg.runtimeHint === 'npx' || pkg.runtimeHint === 'uvx') {
-    const runtime = pkg.runtimeHint ?? 'npx';
-    const args: string[] = [];
-    if (runtime === 'npx') args.push('-y');
-    args.push(pkg.identifier);
+      // Build env from environmentVariables
+      const env: Record<string, string> = {};
+      for (const v of pkg.environmentVariables ?? []) {
+        env[v.name] = v.default ?? '';
+      }
 
-    return {
-      name: server.title ?? server.name,
-      transport: 'stdio' as const,
-      enabled: true,
-      command: runtime,
-      args,
-      env: {},
-    };
+      return {
+        name: displayName,
+        transport: 'stdio' as const,
+        enabled: true,
+        command: runtime,
+        args,
+        env,
+      };
+    }
+
+    if (transportType === 'sse' || transportType === 'streamable-http') {
+      return {
+        name: displayName,
+        transport: transportType === 'sse' ? ('sse' as const) : ('http' as const),
+        enabled: true,
+        url: '',
+        headers: {},
+      };
+    }
+
+    // Fallback for package with identifier
+    if (pkg.identifier) {
+      return {
+        name: displayName,
+        transport: 'stdio' as const,
+        enabled: true,
+        command: 'npx',
+        args: ['-y', pkg.identifier],
+        env: {},
+      };
+    }
   }
 
-  if (transportType === 'sse' || transportType === 'streamable-http') {
+  // Try remotes (cloud-hosted servers like Linear, Sentry)
+  const remote: McpRegistryRemote | undefined = server.remotes?.[0];
+  if (remote) {
+    const transport = remote.type === 'sse' ? ('sse' as const) : ('http' as const);
     return {
-      name: server.title ?? server.name,
-      transport: transportType === 'sse' ? ('sse' as const) : ('http' as const),
+      name: displayName,
+      transport,
       enabled: true,
-      url: '',
+      url: remote.url,
       headers: {},
-    };
-  }
-
-  // Fallback: assume stdio with npx
-  if (pkg.identifier) {
-    return {
-      name: server.title ?? server.name,
-      transport: 'stdio' as const,
-      enabled: true,
-      command: pkg.runtimeHint ?? 'npx',
-      args: pkg.runtimeHint === 'npx' ? ['-y', pkg.identifier] : [pkg.identifier],
-      env: {},
     };
   }
 
   return null;
 }
 
-function getTransportLabel(pkg?: McpRegistryPackage): string {
-  if (!pkg) return 'unknown';
-  if (pkg.transport?.type) return pkg.transport.type;
-  if (pkg.runtimeHint === 'npx' || pkg.runtimeHint === 'uvx') return 'stdio';
-  return 'stdio';
+function getTransportLabel(server: McpRegistryServer): string {
+  const pkg = server.packages?.[0];
+  if (pkg) {
+    if (pkg.transport?.type) return pkg.transport.type;
+    if (pkg.registryType === 'npm' || pkg.registryType === 'pypi') return 'stdio';
+    return 'stdio';
+  }
+  const remote = server.remotes?.[0];
+  if (remote) return remote.type;
+  return 'unknown';
 }
 
 function getTransportColor(transport: string): string {
@@ -136,21 +163,21 @@ export const McpRegistrySearch: React.FC<McpRegistrySearchProps> = ({ onInstall 
 
       {results.length > 0 && (
         <div className="space-y-2">
-          {results.map((server) => {
+          {results.map((server, idx) => {
             const pkg = server.packages?.[0];
-            const transport = getTransportLabel(pkg);
+            const transport = getTransportLabel(server);
             const repoUrl = server.repository?.url;
             const shortRepo = repoUrl?.replace('https://github.com/', '');
 
             return (
               <div
-                key={server.name}
+                key={`${server.name}-${server.version ?? idx}`}
                 className="border-border/50 hover:border-border hover:bg-muted/30 flex items-start gap-3 rounded-lg border p-3 transition-colors"
               >
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
                   <div className="flex items-center gap-2">
                     <span className="truncate text-sm font-medium">
-                      {server.title ?? server.name}
+                      {server.title ?? server.name.split('/').pop() ?? server.name}
                     </span>
                     <Badge variant="outline" className={`shrink-0 text-[10px] font-normal ${getTransportColor(transport)}`}>
                       {transport}

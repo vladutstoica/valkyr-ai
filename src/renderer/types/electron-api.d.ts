@@ -4,6 +4,7 @@
 export interface McpRegistryPackage {
   registryType: string;
   identifier: string;
+  version?: string;
   runtimeHint?: string;
   transport?: { type: string };
   packageArguments?: Array<{
@@ -14,6 +15,18 @@ export interface McpRegistryPackage {
     isRequired: boolean;
     default?: string;
   }>;
+  environmentVariables?: Array<{
+    name: string;
+    description?: string;
+    format?: string;
+    isRequired: boolean;
+    default?: string;
+  }>;
+}
+
+export interface McpRegistryRemote {
+  type: string;
+  url: string;
 }
 
 export interface McpRegistryServer {
@@ -21,8 +34,16 @@ export interface McpRegistryServer {
   title?: string;
   description?: string;
   version?: string;
-  repository?: { url: string };
+  repository?: { url: string; source?: string };
   packages?: McpRegistryPackage[];
+  remotes?: McpRegistryRemote[];
+}
+
+export interface AgentMcpDiscovery {
+  agent: string;
+  scope: 'global' | 'project';
+  configPath: string;
+  servers: import('@shared/mcp/types').McpServerConfig[];
 }
 
 // Model metadata types
@@ -1676,6 +1697,13 @@ declare global {
         data?: import('@shared/mcp/types').McpServerConfig[];
         error?: string;
       }>;
+      mcpDetectAgentServers: (args?: {
+        projectPath?: string;
+      }) => Promise<{
+        success: boolean;
+        data?: AgentMcpDiscovery[];
+        error?: string;
+      }>;
       mcpSearchRegistry: (args: {
         query: string;
         limit?: number;
@@ -2593,6 +2621,13 @@ export interface ElectronAPI {
   ) => Promise<{
     success: boolean;
     data?: import('@shared/mcp/types').McpServerConfig[];
+    error?: string;
+  }>;
+  mcpDetectAgentServers: (args?: {
+    projectPath?: string;
+  }) => Promise<{
+    success: boolean;
+    data?: AgentMcpDiscovery[];
     error?: string;
   }>;
   mcpSearchRegistry: (args: {
