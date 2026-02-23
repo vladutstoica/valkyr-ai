@@ -9,6 +9,7 @@ import type { McpServerConfig, McpServerInput, McpServerTransport } from '@share
 
 interface Props {
   initialValues?: McpServerConfig;
+  prefill?: McpServerInput;
   onSubmit: (server: McpServerInput) => void;
   onCancel: () => void;
   isSubmitting: boolean;
@@ -79,36 +80,39 @@ const KeyValueEditor: React.FC<{
 
 export const McpServerForm: React.FC<Props> = ({
   initialValues,
+  prefill,
   onSubmit,
   onCancel,
   isSubmitting,
 }) => {
-  const [name, setName] = useState(initialValues?.name ?? '');
+  // Use initialValues (edit mode) > prefill (registry install) > empty defaults
+  const src = initialValues ?? prefill;
+  const [name, setName] = useState(src?.name ?? '');
   const [transport, setTransport] = useState<McpServerTransport>(
-    initialValues?.transport ?? 'stdio'
+    src?.transport ?? 'stdio'
   );
   const [enabled] = useState(initialValues?.enabled ?? true);
 
   // stdio fields
   const [command, setCommand] = useState(
-    initialValues?.transport === 'stdio' ? initialValues.command : ''
+    src?.transport === 'stdio' ? src.command : ''
   );
   const [argsText, setArgsText] = useState(
-    initialValues?.transport === 'stdio' ? initialValues.args.join('\n') : ''
+    src?.transport === 'stdio' ? src.args.join('\n') : ''
   );
   const [envKv, setEnvKv] = useState<KeyValue[]>(
-    initialValues?.transport === 'stdio' ? recordToKv(initialValues.env) : []
+    src?.transport === 'stdio' ? recordToKv(src.env) : []
   );
 
   // http/sse fields
   const [url, setUrl] = useState(
-    initialValues?.transport === 'http' || initialValues?.transport === 'sse'
-      ? initialValues.url
+    src?.transport === 'http' || src?.transport === 'sse'
+      ? src.url
       : ''
   );
   const [headersKv, setHeadersKv] = useState<KeyValue[]>(
-    initialValues?.transport === 'http' || initialValues?.transport === 'sse'
-      ? recordToKv(initialValues.headers)
+    src?.transport === 'http' || src?.transport === 'sse'
+      ? recordToKv(src.headers)
       : []
   );
 

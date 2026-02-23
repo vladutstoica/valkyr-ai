@@ -51,6 +51,8 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
   // Start with showHomeView=false if we have a pending restore to prevent flash
   const [showHomeView, setShowHomeView] = useState<boolean>(!hasPendingRestore);
   const [showSkillsView, setShowSkillsView] = useState(false);
+  const [showSettingsView, setShowSettingsView] = useState(false);
+  const [settingsViewTab, setSettingsViewTab] = useState<import('./useModalState').SettingsTab>('general');
   const [projectBranchOptions, setProjectBranchOptions] = useState<
     Array<{ value: string; label: string }>
   >([]);
@@ -102,6 +104,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
     setSelectedProject(project);
     setShowHomeView(false);
     setShowSkillsView(false);
+    setShowSettingsView(false);
     setActiveTask(null);
     saveActiveIds(project.id, null);
 
@@ -194,6 +197,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
     setSelectedProject(null);
     setShowHomeView(true);
     setShowSkillsView(false);
+    setShowSettingsView(false);
     setActiveTask(null);
     saveActiveIds(null, null);
   };
@@ -202,6 +206,17 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
     setSelectedProject(null);
     setShowHomeView(false);
     setShowSkillsView(true);
+    setShowSettingsView(false);
+    setActiveTask(null);
+    saveActiveIds(null, null);
+  };
+
+  const handleGoToSettings = (tab?: import('./useModalState').SettingsTab) => {
+    setSelectedProject(null);
+    setShowHomeView(false);
+    setShowSkillsView(false);
+    setShowSettingsView(true);
+    setSettingsViewTab(tab ?? 'general');
     setActiveTask(null);
     saveActiveIds(null, null);
   };
@@ -1044,12 +1059,14 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
           setSelectedProject(firstProject);
           setShowHomeView(false);
           setShowSkillsView(false);
+          setShowSettingsView(false);
           setActiveTask(lastTask);
           saveActiveIds(firstProject.id, lastTask?.id ?? null);
         } else {
           setSelectedProject(null);
           setShowHomeView(true);
           setShowSkillsView(false);
+          setShowSettingsView(false);
           setActiveTask(null);
           saveActiveIds(null, null);
         }
@@ -1115,6 +1132,10 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
     showSkillsView,
     setShowSkillsView,
     handleGoToSkills,
+    showSettingsView,
+    setShowSettingsView,
+    settingsViewTab,
+    handleGoToSettings,
     projectBranchOptions,
     projectDefaultBranch,
     setProjectDefaultBranch,

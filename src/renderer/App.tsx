@@ -9,7 +9,6 @@ import { GithubDeviceFlowModal } from './components/GithubDeviceFlowModal';
 import LeftSidebar from './components/LeftSidebar';
 import MainContentArea from './components/MainContentArea';
 import { NewProjectModal } from './components/NewProjectModal';
-import SettingsModal from './components/SettingsModal';
 import TaskModal from './components/TaskModal';
 import { ThemeProvider } from './components/ThemeProvider';
 import Titlebar from './components/titlebar/Titlebar';
@@ -54,8 +53,6 @@ const AppContent: React.FC = () => {
   const modals = useModalState();
 
   const {
-    showSettings,
-    settingsInitialTab,
     showCommandPalette,
     showWelcomeScreen,
     showTaskModal,
@@ -65,11 +62,7 @@ const AppContent: React.FC = () => {
     setShowTaskModal,
     setShowNewProjectModal,
     setShowCloneModal,
-    openSettings,
-    handleToggleSettings,
-    handleOpenSettings,
     handleOpenKeyboardShortcuts,
-    handleCloseSettings,
     handleToggleCommandPalette,
     handleCloseCommandPalette,
     handleWelcomeGetStarted,
@@ -134,8 +127,31 @@ const AppContent: React.FC = () => {
     []
   );
 
+  // Override settings navigation to use full-page view instead of modal
+  const openSettingsView = useCallback(
+    (tab?: import('./hooks/useModalState').SettingsTab) => {
+      projectMgmt.handleGoToSettings(tab);
+      modals.handleCloseSettings(); // close modal if open for backward compat
+    },
+    [projectMgmt.handleGoToSettings, modals.handleCloseSettings]
+  );
+
+  const handleToggleSettingsView = useCallback(() => {
+    if (projectMgmt.showSettingsView) {
+      projectMgmt.handleGoHome();
+    } else {
+      openSettingsView('general');
+    }
+  }, [projectMgmt.showSettingsView, projectMgmt.handleGoHome, openSettingsView]);
+
+  const handleCloseSettingsView = useCallback(() => {
+    if (projectMgmt.showSettingsView) {
+      projectMgmt.handleGoHome();
+    }
+  }, [projectMgmt.showSettingsView, projectMgmt.handleGoHome]);
+
   // Show toast on update availability
-  useUpdateNotifier({ checkOnMount: true, onOpenSettings: () => openSettings('about') });
+  useUpdateNotifier({ checkOnMount: true, onOpenSettings: () => openSettingsView('about') });
 
   // Auto-refresh PR status
   useAutoPrRefresh(taskMgmt.activeTask?.path);
@@ -306,8 +322,8 @@ const AppContent: React.FC = () => {
   const titlebar = useMemo(
     () => (
       <Titlebar
-        onToggleSettings={handleToggleSettings}
-        isSettingsOpen={showSettings}
+        onToggleSettings={handleToggleSettingsView}
+        isSettingsOpen={projectMgmt.showSettingsView}
         currentPath={
           activeTask?.metadata?.multiAgent?.enabled
             ? null
@@ -323,8 +339,8 @@ const AppContent: React.FC = () => {
       />
     ),
     [
-      handleToggleSettings,
-      showSettings,
+      handleToggleSettingsView,
+      projectMgmt.showSettingsView,
       activeTask,
       selectedProject,
       projectMgmt.projects,
@@ -429,6 +445,10 @@ const AppContent: React.FC = () => {
         activeTaskAgent={activeTaskAgent}
         showHomeView={projectMgmt.showHomeView}
         showSkillsView={projectMgmt.showSkillsView}
+        showSettingsView={projectMgmt.showSettingsView}
+        settingsViewTab={projectMgmt.settingsViewTab}
+        settingsProjectPath={selectedProject?.path}
+        handleGoBackFromSettings={projectMgmt.handleGoHome}
         projectDefaultBranch={projectMgmt.projectDefaultBranch}
         projectBranchOptions={projectMgmt.projectBranchOptions}
         isLoadingBranches={projectMgmt.isLoadingBranches}
@@ -451,6 +471,9 @@ const AppContent: React.FC = () => {
       activeTaskAgent,
       projectMgmt.showHomeView,
       projectMgmt.showSkillsView,
+      projectMgmt.showSettingsView,
+      projectMgmt.settingsViewTab,
+      projectMgmt.handleGoHome,
       projectMgmt.projectDefaultBranch,
       projectMgmt.projectBranchOptions,
       projectMgmt.isLoadingBranches,
@@ -473,11 +496,11 @@ const AppContent: React.FC = () => {
         <RightSidebarProvider>
           <AppKeyboardShortcuts
             showCommandPalette={showCommandPalette}
-            showSettings={showSettings}
+            showSettings={projectMgmt.showSettingsView}
             handleToggleCommandPalette={handleToggleCommandPalette}
-            handleOpenSettings={handleOpenSettings}
+            handleOpenSettings={openSettingsView}
             handleCloseCommandPalette={handleCloseCommandPalette}
-            handleCloseSettings={handleCloseSettings}
+            handleCloseSettings={handleCloseSettingsView}
             handleNextTask={taskMgmt.handleNextTask}
             handlePrevTask={taskMgmt.handlePrevTask}
             handleNewTask={taskMgmt.handleNewTask}
@@ -499,12 +522,6 @@ const AppContent: React.FC = () => {
           )}
 
           {/* Modals - rendered at App level */}
-          <SettingsModal
-            isOpen={showSettings}
-            onClose={handleCloseSettings}
-            initialTab={settingsInitialTab}
-            projectPath={selectedProject?.path}
-          />
           <CommandPaletteWrapper
             isOpen={showCommandPalette}
             onClose={handleCloseCommandPalette}
@@ -513,7 +530,7 @@ const AppContent: React.FC = () => {
             handleSelectTask={taskMgmt.handleSelectTask}
             handleGoHome={projectMgmt.handleGoHome}
             handleOpenProject={projectMgmt.handleOpenProject}
-            handleOpenSettings={handleOpenSettings}
+            handleOpenSettings={openSettingsView}
             handleOpenKeyboardShortcuts={handleOpenKeyboardShortcuts}
           />
           <TaskModal

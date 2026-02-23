@@ -1,6 +1,24 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { SettingsTab } from '../components/SettingsModal';
 import { FIRST_LAUNCH_KEY } from '../constants/layout';
+
+export type SettingsTab =
+  | 'general'
+  | 'appearance'
+  | 'agents'
+  | 'mcp'
+  | 'connections'
+  | 'repository'
+  | 'about';
+
+export const ORDERED_TABS: SettingsTab[] = [
+  'general',
+  'appearance',
+  'agents',
+  'mcp',
+  'connections',
+  'repository',
+  'about',
+];
 
 export interface ModalState {
   showSettings: boolean;

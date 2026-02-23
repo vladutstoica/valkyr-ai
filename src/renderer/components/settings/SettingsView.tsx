@@ -1,10 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { Button } from './ui/button';
-import { Spinner } from './ui/spinner';
+import { Button } from '../ui/button';
+import { Spinner } from '../ui/spinner';
+import { Separator } from '../ui/separator';
 import {
-  X,
+  ChevronLeft,
   Settings2,
   Cable,
   RefreshCw,
@@ -14,47 +13,29 @@ import {
   Info,
   Blocks,
 } from 'lucide-react';
-import { UpdateCard } from './UpdateCard';
-import IntegrationsCard from './IntegrationsCard';
-import CliAgentsList, { BASE_CLI_AGENTS } from './CliAgentsList';
-import TelemetryCard from './TelemetryCard';
-import ThemeCard from './ThemeCard';
-import BrowserPreviewSettingsCard from './BrowserPreviewSettingsCard';
-import NotificationSettingsCard from './NotificationSettingsCard';
-import RepositorySettingsCard from './RepositorySettingsCard';
-import TerminalSettingsCard from './TerminalSettingsCard';
-import ProjectPrepSettingsCard from './ProjectPrepSettingsCard';
-import Context7SettingsCard from './Context7SettingsCard';
-import { McpSettingsCard } from './mcp/McpSettingsCard';
-import DefaultAgentSettingsCard from './DefaultAgentSettingsCard';
-import AcpAgentsList from './AcpAgentsList';
-import DefaultOpenInSettingsCard from './DefaultOpenInSettingsCard';
-import TaskSettingsCard from './TaskSettingsCard';
-import KeyboardSettingsCard from './KeyboardSettingsCard';
-import { SshSettingsCard } from './ssh/SshSettingsCard';
-import { CliAgentStatus } from '../types/connections';
-import { Separator } from './ui/separator';
-import { type SettingsTab, ORDERED_TABS } from '../hooks/useModalState';
+import { UpdateCard } from '../UpdateCard';
+import IntegrationsCard from '../IntegrationsCard';
+import CliAgentsList, { BASE_CLI_AGENTS } from '../CliAgentsList';
+import TelemetryCard from '../TelemetryCard';
+import ThemeCard from '../ThemeCard';
+import BrowserPreviewSettingsCard from '../BrowserPreviewSettingsCard';
+import NotificationSettingsCard from '../NotificationSettingsCard';
+import RepositorySettingsCard from '../RepositorySettingsCard';
+import TerminalSettingsCard from '../TerminalSettingsCard';
+import ProjectPrepSettingsCard from '../ProjectPrepSettingsCard';
+import Context7SettingsCard from '../Context7SettingsCard';
+import DefaultAgentSettingsCard from '../DefaultAgentSettingsCard';
+import AcpAgentsList from '../AcpAgentsList';
+import DefaultOpenInSettingsCard from '../DefaultOpenInSettingsCard';
+import TaskSettingsCard from '../TaskSettingsCard';
+import KeyboardSettingsCard from '../KeyboardSettingsCard';
+import { SshSettingsCard } from '../ssh/SshSettingsCard';
+import { McpView } from '../mcp/McpView';
+import { type SettingsTab, ORDERED_TABS } from '../../hooks/useModalState';
+import type { CliAgentStatus } from '../../types/connections';
 
 const createDefaultCliAgents = (): CliAgentStatus[] =>
   BASE_CLI_AGENTS.map((agent) => ({ ...agent }));
-
-const mergeCliAgents = (incoming: CliAgentStatus[]): CliAgentStatus[] => {
-  const mergedMap = new Map<string, CliAgentStatus>();
-
-  BASE_CLI_AGENTS.forEach((agent) => {
-    mergedMap.set(agent.id, { ...agent });
-  });
-
-  incoming.forEach((agent) => {
-    mergedMap.set(agent.id, {
-      ...(mergedMap.get(agent.id) ?? {}),
-      ...agent,
-    });
-  });
-
-  return Array.from(mergedMap.values());
-};
 
 type CachedAgentStatus = {
   installed: boolean;
@@ -87,15 +68,14 @@ const mapAgentStatusesToCli = (
   }, []);
 };
 
-interface SettingsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  initialTab?: SettingsTab;
-  projectPath?: string;
-}
-
-// SettingsTab type and ORDERED_TABS are now exported from useModalState.ts
-export type { SettingsTab } from '../hooks/useModalState';
+const mergeCliAgents = (incoming: CliAgentStatus[]): CliAgentStatus[] => {
+  const mergedMap = new Map<string, CliAgentStatus>();
+  BASE_CLI_AGENTS.forEach((agent) => mergedMap.set(agent.id, { ...agent }));
+  incoming.forEach((agent) => {
+    mergedMap.set(agent.id, { ...(mergedMap.get(agent.id) ?? {}), ...agent });
+  });
+  return Array.from(mergedMap.values());
+};
 
 interface SettingsSection {
   title: string;
@@ -104,31 +84,27 @@ interface SettingsSection {
   render?: () => React.ReactNode;
 }
 
-const SettingsModal: React.FC<SettingsModalProps> = ({
-  isOpen,
-  onClose,
-  initialTab,
-  projectPath,
-}) => {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('general');
+interface SettingsViewProps {
+  initialTab?: SettingsTab;
+  onBack: () => void;
+  projectPath?: string;
+}
+
+const SettingsView: React.FC<SettingsViewProps> = ({ initialTab, onBack, projectPath }) => {
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab ?? 'general');
   const [cliAgents, setCliAgents] = useState<CliAgentStatus[]>(() => createDefaultCliAgents());
   const [cliError, setCliError] = useState<string | null>(null);
   const [cliLoading, setCliLoading] = useState<boolean>(false);
-  const shouldReduceMotion = useReducedMotion();
 
   useEffect(() => {
-    if (isOpen) {
-      setActiveTab(initialTab ?? 'general');
-    }
-  }, [isOpen, initialTab]);
+    if (initialTab) setActiveTab(initialTab);
+  }, [initialTab]);
 
   useEffect(() => {
-    if (isOpen) {
-      void import('../lib/telemetryClient').then(({ captureTelemetry }) => {
-        captureTelemetry('settings_tab_viewed', { tab: activeTab });
-      });
-    }
-  }, [activeTab, isOpen]);
+    void import('../../lib/telemetryClient').then(({ captureTelemetry }) => {
+      captureTelemetry('settings_tab_viewed', { tab: activeTab });
+    });
+  }, [activeTab]);
 
   useEffect(() => {
     let cancelled = false;
@@ -149,9 +125,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           applyCachedStatuses(result.statuses);
         }
       } catch (error) {
-        if (!cancelled) {
-          console.error('Failed to load cached CLI agent statuses:', error);
-        }
+        if (!cancelled) console.error('Failed to load cached CLI agent statuses:', error);
       }
     };
 
@@ -203,7 +177,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         icon: Settings2,
         label: 'General',
         title: 'General',
-        description: '',
         sections: [
           { title: 'Tasks', render: () => <TaskSettingsCard /> },
           { title: 'Notifications', render: () => <NotificationSettingsCard /> },
@@ -215,19 +188,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         icon: Palette,
         label: 'Appearance',
         title: 'Appearance',
-        description: '',
         sections: [
           { title: 'Theme', render: () => <ThemeCard /> },
           { title: 'Default open in app', render: () => <DefaultOpenInSettingsCard /> },
           { title: 'Terminal font', render: () => <TerminalSettingsCard /> },
-          { title: 'In‑app Browser Preview', render: () => <BrowserPreviewSettingsCard /> },
+          { title: 'In\u2011app Browser Preview', render: () => <BrowserPreviewSettingsCard /> },
         ],
       },
       agents: {
         icon: Puzzle,
         label: 'Agents & Tools',
         title: 'Agents & Tools',
-        description: '',
         sections: [
           { title: 'Default agent', render: () => <DefaultAgentSettingsCard /> },
           {
@@ -237,7 +208,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           },
           {
             title: 'Native CLI agents',
-            description: 'Disabled — ACP agents are preferred.',
+            description: 'Disabled \u2014 ACP agents are preferred.',
             action: (
               <Button
                 type="button"
@@ -259,11 +230,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             ),
           },
           { title: 'MCP Tools', render: () => <Context7SettingsCard /> },
-          {
-            title: 'MCP Servers',
-            description: 'Configure MCP servers injected into agent sessions',
-            render: () => <McpSettingsCard projectPath={projectPath} />,
-          },
           { title: 'SSH', render: () => <SshSettingsCard /> },
         ],
       },
@@ -271,28 +237,24 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         icon: Blocks,
         label: 'MCP Servers',
         title: 'MCP Servers',
-        description: '',
-        sections: [] as { title: string; render?: () => React.ReactNode }[],
+        sections: [] as SettingsSection[], // McpView renders directly, not via sections
       },
       connections: {
         icon: Cable,
         label: 'Connections',
         title: 'Connections',
-        description: '',
         sections: [{ title: 'Integrations', render: () => <IntegrationsCard /> }],
       },
       repository: {
         icon: GitBranch,
         label: 'Repository',
         title: 'Repository',
-        description: '',
         sections: [{ title: 'Branch settings', render: () => <RepositorySettingsCard /> }],
       },
       about: {
         icon: Info,
         label: 'About',
         title: 'About',
-        description: '',
         sections: [
           { title: 'Updates', render: () => <UpdateCard /> },
           { title: 'Privacy & Telemetry', render: () => <TelemetryCard /> },
@@ -333,15 +295,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const activeTabDetails = tabDetails[activeTab];
 
   const renderContent = () => {
-    const { sections } = activeTabDetails;
-
-    if (!sections.length) {
-      return null;
+    // MCP tab gets its own full-page component
+    if (activeTab === 'mcp') {
+      return <McpView projectPath={projectPath} />;
     }
+
+    const { sections } = activeTabDetails;
+    if (!sections.length) return null;
 
     return (
       <div className="flex min-w-0 flex-col gap-6">
-        {sections.map((section: SettingsSection, index) => {
+        {sections.map((section: SettingsSection, index: number) => {
           let renderedContent: React.ReactNode = null;
           if (typeof section.render === 'function') {
             renderedContent = section.render();
@@ -375,88 +339,64 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     );
   };
 
-  return createPortal(
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-xs"
-          initial={shouldReduceMotion ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
-          transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.12, ease: 'easeOut' }}
-          onClick={onClose}
+  return (
+    <div className="bg-background text-foreground flex h-full flex-col overflow-hidden">
+      {/* Top bar */}
+      <header className="border-border/60 flex h-12 shrink-0 items-center gap-3 border-b px-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onBack}
+          className="text-muted-foreground hover:text-foreground gap-1.5"
         >
-          <motion.div
-            onClick={(event) => event.stopPropagation()}
-            initial={shouldReduceMotion ? false : { opacity: 0, y: 8, scale: 0.995 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={
-              shouldReduceMotion
-                ? { opacity: 1, y: 0, scale: 1 }
-                : { opacity: 0, y: 6, scale: 0.995 }
-            }
-            transition={
-              shouldReduceMotion ? { duration: 0 } : { duration: 0.18, ease: [0.22, 1, 0.36, 1] }
-            }
-            className="border-border/50 bg-background mx-4 w-full max-w-3xl overflow-hidden rounded-2xl border shadow-2xl"
-          >
-            <div className="flex h-[520px]">
-              <aside className="border-border/60 bg-muted/20 w-60 border-r p-4">
-                <nav className="space-y-1">
-                  {ORDERED_TABS.map((tab) => {
-                    const { icon: Icon, label } = tabDetails[tab];
+          <ChevronLeft className="h-4 w-4" />
+          Back
+        </Button>
+        <Separator orientation="vertical" className="h-5" />
+        <h1 className="text-sm font-semibold">Settings</h1>
+      </header>
 
-                    return (
-                      <button
-                        key={tab}
-                        type="button"
-                        onClick={() => setActiveTab(tab)}
-                        className={`focus-visible:ring-ring focus-visible:ring-offset-background flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden ${
-                          activeTab === tab
-                            ? 'bg-primary/10 text-foreground'
-                            : 'text-muted-foreground hover:bg-muted/60'
-                        }`}
-                      >
-                        <span className="flex items-center gap-2">
-                          <Icon className="h-4 w-4" aria-hidden="true" />
-                          <span>{label}</span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </nav>
-              </aside>
+      {/* Two-column layout */}
+      <div className="flex min-h-0 flex-1">
+        {/* Sidebar nav */}
+        <aside className="border-border/60 bg-muted/20 w-52 shrink-0 overflow-y-auto border-r p-3">
+          <nav className="space-y-0.5">
+            {ORDERED_TABS.map((tab) => {
+              const { icon: Icon, label } = tabDetails[tab];
 
-              <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-                <header className="border-border/60 flex items-center justify-between border-b px-6 py-4">
-                  <div>
-                    <h2 className="text-lg font-semibold">{activeTabDetails.title}</h2>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={onClose}
-                    className="h-8 w-8"
-                    aria-label="Close settings"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </header>
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={`focus-visible:ring-ring focus-visible:ring-offset-background flex w-full items-center rounded-lg px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden ${
+                    activeTab === tab
+                      ? 'bg-primary/10 text-foreground'
+                      : 'text-muted-foreground hover:bg-muted/60'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <Icon className="h-4 w-4" aria-hidden="true" />
+                    <span>{label}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
 
-                <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-6 py-6">
-                  {renderContent()}
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>,
-    document.body
+        {/* Content area */}
+        <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-8 py-6">
+          <div className="mx-auto max-w-2xl">
+            {activeTab !== 'mcp' && (
+              <h2 className="mb-6 text-lg font-semibold">{activeTabDetails.title}</h2>
+            )}
+            {renderContent()}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
-export default SettingsModal;
+export default SettingsView;

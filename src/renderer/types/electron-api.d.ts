@@ -1,5 +1,30 @@
 // Updated for Codex integration
 
+// MCP Registry types
+export interface McpRegistryPackage {
+  registryType: string;
+  identifier: string;
+  runtimeHint?: string;
+  transport?: { type: string };
+  packageArguments?: Array<{
+    name: string;
+    description?: string;
+    type: string;
+    format?: string;
+    isRequired: boolean;
+    default?: string;
+  }>;
+}
+
+export interface McpRegistryServer {
+  name: string;
+  title?: string;
+  description?: string;
+  version?: string;
+  repository?: { url: string };
+  packages?: McpRegistryPackage[];
+}
+
 // Model metadata types
 export type ModelMetadataResult = {
   id: string;
@@ -1651,6 +1676,18 @@ declare global {
         data?: import('@shared/mcp/types').McpServerConfig[];
         error?: string;
       }>;
+      mcpSearchRegistry: (args: {
+        query: string;
+        limit?: number;
+        cursor?: string;
+      }) => Promise<{
+        success: boolean;
+        data?: {
+          servers: McpRegistryServer[];
+          metadata: { count: number; nextCursor?: string };
+        };
+        error?: string;
+      }>;
 
       // Skills management
       skillsGetCatalog: () => Promise<{
@@ -2556,6 +2593,18 @@ export interface ElectronAPI {
   ) => Promise<{
     success: boolean;
     data?: import('@shared/mcp/types').McpServerConfig[];
+    error?: string;
+  }>;
+  mcpSearchRegistry: (args: {
+    query: string;
+    limit?: number;
+    cursor?: string;
+  }) => Promise<{
+    success: boolean;
+    data?: {
+      servers: McpRegistryServer[];
+      metadata: { count: number; nextCursor?: string };
+    };
     error?: string;
   }>;
 

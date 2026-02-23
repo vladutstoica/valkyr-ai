@@ -84,4 +84,34 @@ export function registerMcpIpc() {
       return { success: false, error: err.message };
     }
   });
+
+  ipcMain.handle('mcp:searchRegistry', async (_event, args: unknown) => {
+    try {
+      const { query, limit, cursor } = z
+        .object({
+          query: z.string().default(''),
+          limit: z.number().int().min(1).max(50).default(20),
+          cursor: z.string().optional(),
+        })
+        .parse(args);
+
+      const params = new URLSearchParams({ limit: String(limit) });
+      if (query) params.set('search', query);
+      if (cursor) params.set('cursor', cursor);
+
+      const response = await fetch(
+        `https://registry.modelcontextprotocol.io/v0/servers?${params.toString()}`
+      );
+
+      if (!response.ok) {
+        return { success: false, error: `Registry returned ${response.status}` };
+      }
+
+      const data = await response.json();
+      return { success: true, data };
+    } catch (err: any) {
+      log.error('mcp:searchRegistry failed:', err);
+      return { success: false, error: err.message };
+    }
+  });
 }

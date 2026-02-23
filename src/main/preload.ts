@@ -687,6 +687,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('mcp:getProjectServers', { projectPath }),
   mcpSaveProjectServers: (projectPath: string, servers: any[]) =>
     ipcRenderer.invoke('mcp:saveProjectServers', { projectPath, servers }),
+  mcpSearchRegistry: (args: { query: string; limit?: number; cursor?: string }) =>
+    ipcRenderer.invoke('mcp:searchRegistry', args),
 
   // Skills management
   skillsGetCatalog: () => ipcRenderer.invoke('skills:getCatalog'),

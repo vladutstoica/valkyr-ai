@@ -4,8 +4,10 @@ import MultiAgentTask from './MultiAgentTask';
 import ProjectMainView from './ProjectMainView';
 import HomeView from './HomeView';
 import SkillsView from './skills/SkillsView';
+import SettingsView from './settings/SettingsView';
 import type { Agent } from '../types';
 import type { Project, Task } from '../types/app';
+import type { SettingsTab } from '../hooks/useModalState';
 
 interface MainContentAreaProps {
   allProjects: Project[];
@@ -14,6 +16,10 @@ interface MainContentAreaProps {
   activeTaskAgent: Agent | null;
   showHomeView: boolean;
   showSkillsView: boolean;
+  showSettingsView: boolean;
+  settingsViewTab: SettingsTab;
+  settingsProjectPath?: string;
+  handleGoBackFromSettings: () => void;
   projectDefaultBranch: string;
   projectBranchOptions: Array<{ value: string; label: string }>;
   isLoadingBranches: boolean;
@@ -44,6 +50,10 @@ const MainContentArea: React.FC<MainContentAreaProps> = ({
   activeTaskAgent,
   showHomeView,
   showSkillsView,
+  showSettingsView,
+  settingsViewTab,
+  settingsProjectPath,
+  handleGoBackFromSettings,
   projectDefaultBranch,
   projectBranchOptions,
   isLoadingBranches,
@@ -58,6 +68,16 @@ const MainContentArea: React.FC<MainContentAreaProps> = ({
   handleAddRemoteProject,
   setShowTaskModal,
 }) => {
+  if (showSettingsView) {
+    return (
+      <SettingsView
+        initialTab={settingsViewTab}
+        onBack={handleGoBackFromSettings}
+        projectPath={settingsProjectPath}
+      />
+    );
+  }
+
   if (showSkillsView) {
     return <SkillsView />;
   }
