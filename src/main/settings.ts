@@ -5,6 +5,7 @@ import { homedir } from 'os';
 import type { ProviderId } from '@shared/providers/registry';
 import { isValidProviderId } from '@shared/providers/registry';
 import { isValidOpenInAppId, type OpenInAppId } from '@shared/openInApps';
+import type { McpServerConfig } from '@shared/mcp/types';
 
 const DEFAULT_PROVIDER_ID: ProviderId = 'claude';
 
@@ -59,6 +60,7 @@ export interface AppSettings {
       enabled: boolean;
       installHintsDismissed?: Record<string, boolean>;
     };
+    servers?: McpServerConfig[];
   };
   defaultProvider?: ProviderId;
   tasks?: {
@@ -97,6 +99,7 @@ const DEFAULT_SETTINGS: AppSettings = {
       enabled: false,
       installHintsDismissed: {},
     },
+    servers: [],
   },
   defaultProvider: DEFAULT_PROVIDER_ID,
   tasks: {
@@ -250,6 +253,17 @@ function normalizeSettings(input: AppSettings): AppSettings {
   // MCP
   const mcp = (input as any)?.mcp || {};
   const c7 = mcp?.context7 || {};
+  // Read servers directly from input to avoid deepMerge array corruption
+  const rawServers = Array.isArray(mcp?.servers) ? mcp.servers : [];
+  const validServers = rawServers.filter(
+    (s: any) =>
+      s &&
+      typeof s === 'object' &&
+      typeof s.id === 'string' &&
+      typeof s.name === 'string' &&
+      ['stdio', 'http', 'sse'].includes(s.transport) &&
+      typeof s.enabled === 'boolean'
+  );
   out.mcp = {
     context7: {
       enabled: Boolean(c7?.enabled ?? DEFAULT_SETTINGS.mcp!.context7!.enabled),
@@ -258,6 +272,7 @@ function normalizeSettings(input: AppSettings): AppSettings {
           ? { ...c7.installHintsDismissed }
           : {},
     },
+    servers: validServers as McpServerConfig[],
   };
 
   // Default provider

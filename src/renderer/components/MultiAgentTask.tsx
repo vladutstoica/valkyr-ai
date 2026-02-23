@@ -37,7 +37,7 @@ type Variant = {
 
 const MultiAgentTask: React.FC<Props> = ({
   task,
-  projectPath: _projectPath,
+  projectPath,
   projectRemoteConnectionId,
   projectRemotePath: _projectRemotePath,
   defaultBranch: _defaultBranch,
@@ -447,6 +447,7 @@ const MultiAgentTask: React.FC<Props> = ({
                     worktreeId={v.worktreeId}
                     agent={v.agent}
                     cwd={v.path}
+                    projectPath={projectPath || undefined}
                     onAppendRef={(fn) => { acpAppendRefs.current[v.worktreeId] = fn; }}
                   />
                 </div>
@@ -501,11 +502,13 @@ function AcpChatPaneWithRef({
   worktreeId,
   agent,
   cwd,
+  projectPath,
   onAppendRef,
 }: {
   worktreeId: string;
   agent: Agent;
   cwd: string;
+  projectPath?: string;
   onAppendRef?: (fn: ((msg: { content: string }) => Promise<void>) | null) => void;
 }) {
   const conversationId = `multi-${worktreeId}`;
@@ -515,6 +518,7 @@ function AcpChatPaneWithRef({
       conversationId={conversationId}
       providerId={agent}
       cwd={cwd}
+      projectPath={projectPath}
       onAppendRef={onAppendRef}
       className="h-full w-full"
     />

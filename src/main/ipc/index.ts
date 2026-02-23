@@ -27,6 +27,7 @@ import { registerScriptRunnerIpc } from './scriptRunnerIpc';
 import { registerAcpIpc } from './acpIpc';
 import { registerAcpRegistryIpc } from './acpRegistryIpc';
 import { registerModelMetadataIpc } from './modelMetadataIpc';
+import { registerMcpIpc } from './mcpIpc';
 
 export function registerAllIpc() {
   // Core app/utility IPC
@@ -62,4 +63,5 @@ export function registerAllIpc() {
   registerAcpIpc();
   registerAcpRegistryIpc();
   registerModelMetadataIpc();
+  registerMcpIpc();
 }

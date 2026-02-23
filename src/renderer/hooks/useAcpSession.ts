@@ -9,6 +9,7 @@ export type UseAcpSessionOptions = {
   conversationId: string;
   providerId: string;
   cwd: string;
+  projectPath?: string;
 };
 
 export type UseAcpSessionReturn = {
@@ -77,7 +78,7 @@ function safeParseMessageParts(m: any): UIMessage['parts'] {
  * for the ACP subprocess to start.
  */
 export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionReturn {
-  const { conversationId, providerId, cwd } = options;
+  const { conversationId, providerId, cwd, projectPath } = options;
 
   const [sessionKey, setSessionKey] = useState<string | null>(null);
   const [acpSessionId, setAcpSessionId] = useState<string | null>(null);
@@ -110,7 +111,7 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
       // Run message loading and session creation in parallel
       const [msgResult, sessionResult] = await Promise.all([
         api().getMessages(conversationId).catch(() => ({ success: false as const })),
-        api().acpStart({ conversationId, providerId, cwd }),
+        api().acpStart({ conversationId, providerId, cwd, projectPath }),
       ]);
 
       if (cancelled) return;

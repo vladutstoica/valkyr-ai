@@ -503,6 +503,7 @@ const AppContent: React.FC = () => {
             isOpen={showSettings}
             onClose={handleCloseSettings}
             initialTab={settingsInitialTab}
+            projectPath={selectedProject?.path}
           />
           <CommandPaletteWrapper
             isOpen={showCommandPalette}

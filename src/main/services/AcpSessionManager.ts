@@ -390,6 +390,7 @@ export class AcpSessionManager {
     cwd: string,
     env?: Record<string, string>,
     resumeAcpSessionId?: string,
+    mcpServers?: any[],
   ): Promise<SessionCreateResult> {
     const sessionKey = `${providerId}-acp-${conversationId}`;
 
@@ -423,16 +424,17 @@ export class AcpSessionManager {
       let sessionResp: any;
 
       // Try to resume an existing session if we have a stored acpSessionId
+      const mcpServerList = mcpServers ?? [];
       if (storedSessionId) {
         const result = await this.tryResumeOrCreate(
-          connection, spawnError, storedSessionId, cwd, initResp,
+          connection, spawnError, storedSessionId, cwd, initResp, mcpServerList,
         );
         acpSessionId = result.sessionId;
         sessionResp = result.sessionResp;
       } else {
         // Create a brand new session
         sessionResp = await Promise.race([
-          connection.newSession({ cwd, mcpServers: [] }),
+          connection.newSession({ cwd, mcpServers: mcpServerList }),
           spawnError,
         ]);
         acpSessionId = sessionResp.sessionId;
@@ -490,6 +492,7 @@ export class AcpSessionManager {
     acpSessionId: string,
     cwd: string,
     initResp: any,
+    mcpServers: any[],
   ): Promise<{ sessionId: string; sessionResp: any }> {
     const supportsLoadSession = initResp.agentCapabilities?.loadSession === true;
 
@@ -497,7 +500,7 @@ export class AcpSessionManager {
       try {
         log.info(`Attempting loadSession with sessionId=${acpSessionId}`);
         const loadResp = await Promise.race([
-          connection.loadSession({ sessionId: acpSessionId, cwd, mcpServers: [] }),
+          connection.loadSession({ sessionId: acpSessionId, cwd, mcpServers }),
           spawnError,
         ]);
         log.info(`loadSession succeeded for sessionId=${acpSessionId}`);
@@ -511,7 +514,7 @@ export class AcpSessionManager {
 
     // Fallback: create a new session
     const sessionResp = await Promise.race([
-      connection.newSession({ cwd, mcpServers: [] }),
+      connection.newSession({ cwd, mcpServers }),
       spawnError,
     ]);
     return { sessionId: sessionResp.sessionId, sessionResp };

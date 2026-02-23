@@ -91,6 +91,7 @@ type AcpChatPaneProps = {
   conversationId: string;
   providerId: string;
   cwd: string;
+  projectPath?: string;
   onStatusChange?: (status: AcpSessionStatus, sessionKey: string) => void;
   onAppendRef?: (fn: ((msg: { content: string }) => Promise<void>) | null) => void;
   onOpenAgentSettings?: () => void;
@@ -1622,6 +1623,7 @@ export function AcpChatPane({
   conversationId,
   providerId,
   cwd,
+  projectPath,
   onStatusChange,
   onAppendRef,
   onOpenAgentSettings,
@@ -1645,7 +1647,7 @@ export function AcpChatPane({
     modes,
     models,
     restartSession,
-  } = useAcpSession({ conversationId, providerId, cwd });
+  } = useAcpSession({ conversationId, providerId, cwd, projectPath });
 
   // Register this conversation with unifiedStatusStore for sidebar aggregation
   useEffect(() => {

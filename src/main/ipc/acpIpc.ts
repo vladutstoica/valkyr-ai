@@ -1,6 +1,7 @@
-import { ipcMain, WebContents, BrowserWindow } from 'electron';
+import { ipcMain, WebContents } from 'electron';
 import { z } from 'zod';
 import { acpSessionManager, type AcpUpdateEvent } from '../services/AcpSessionManager';
+import { mcpConfigService } from '../services/McpConfigService';
 import { claudeUsageService } from '../services/ClaudeUsageService';
 import { log } from '../lib/logger';
 
@@ -14,6 +15,7 @@ const AcpStartSchema = z.object({
   cwd: z.string().min(1),
   env: z.record(z.string()).optional(),
   acpSessionId: z.string().optional(),
+  projectPath: z.string().optional(),
 });
 
 const AcpFileSchema = z.object({
@@ -105,12 +107,14 @@ export function registerAcpIpc(): void {
   ipcMain.handle('acp:start', async (event, args: unknown) => {
     try {
       const parsed = AcpStartSchema.parse(args);
+      const mcpServers = mcpConfigService.getMergedServersForSession(parsed.projectPath);
       const result = await acpSessionManager.createSession(
         parsed.conversationId,
         parsed.providerId,
         parsed.cwd,
         parsed.env,
         parsed.acpSessionId,
+        mcpServers,
       );
 
       if (result.success && result.sessionKey) {

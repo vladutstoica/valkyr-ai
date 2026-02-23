@@ -20,7 +20,8 @@ const DEFAULT_VALKYR_CONFIG = `{
     "setup": "",
     "run": "",
     "teardown": ""
-  }
+  },
+  "mcpServers": []
 }
 `;
 

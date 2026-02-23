@@ -15,6 +15,7 @@ import RepositorySettingsCard from './RepositorySettingsCard';
 import TerminalSettingsCard from './TerminalSettingsCard';
 import ProjectPrepSettingsCard from './ProjectPrepSettingsCard';
 import Context7SettingsCard from './Context7SettingsCard';
+import { McpSettingsCard } from './mcp/McpSettingsCard';
 import DefaultAgentSettingsCard from './DefaultAgentSettingsCard';
 import AcpAgentsList from './AcpAgentsList';
 import DefaultOpenInSettingsCard from './DefaultOpenInSettingsCard';
@@ -79,6 +80,7 @@ interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialTab?: SettingsTab;
+  projectPath?: string;
 }
 
 export type SettingsTab = 'general' | 'appearance' | 'agents' | 'connections' | 'repository' | 'about';
@@ -92,7 +94,7 @@ interface SettingsSection {
 
 const ORDERED_TABS: SettingsTab[] = ['general', 'appearance', 'agents', 'connections', 'repository', 'about'];
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialTab }) => {
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialTab, projectPath }) => {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
   const [cliAgents, setCliAgents] = useState<CliAgentStatus[]>(() => createDefaultCliAgents());
   const [cliError, setCliError] = useState<string | null>(null);
@@ -242,6 +244,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialT
             ),
           },
           { title: 'MCP Tools', render: () => <Context7SettingsCard /> },
+          {
+            title: 'MCP Servers',
+            description: 'Configure MCP servers injected into agent sessions',
+            render: () => <McpSettingsCard projectPath={projectPath} />,
+          },
           { title: 'SSH', render: () => <SshSettingsCard /> },
         ],
       },

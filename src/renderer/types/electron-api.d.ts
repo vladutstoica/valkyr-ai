@@ -1571,6 +1571,33 @@ declare global {
         error?: string;
       }>;
 
+      // MCP server management
+      mcpGetGlobalServers: () => Promise<{
+        success: boolean;
+        data?: import('@shared/mcp/types').McpServerConfig[];
+        error?: string;
+      }>;
+      mcpSaveGlobalServers: (
+        servers: import('@shared/mcp/types').McpServerConfig[]
+      ) => Promise<{
+        success: boolean;
+        data?: import('@shared/mcp/types').McpServerConfig[];
+        error?: string;
+      }>;
+      mcpGetProjectServers: (projectPath: string) => Promise<{
+        success: boolean;
+        data?: import('@shared/mcp/types').McpServerConfig[];
+        error?: string;
+      }>;
+      mcpSaveProjectServers: (
+        projectPath: string,
+        servers: import('@shared/mcp/types').McpServerConfig[]
+      ) => Promise<{
+        success: boolean;
+        data?: import('@shared/mcp/types').McpServerConfig[];
+        error?: string;
+      }>;
+
       // Skills management
       skillsGetCatalog: () => Promise<{
         success: boolean;
@@ -1667,6 +1694,7 @@ declare global {
         cwd: string;
         env?: Record<string, string>;
         acpSessionId?: string;
+        projectPath?: string;
       }) => Promise<{ success: boolean; sessionKey?: string; acpSessionId?: string; modes?: AcpSessionModes; models?: AcpSessionModels; error?: string }>;
       acpPrompt: (args: {
         sessionKey: string;
@@ -2400,6 +2428,33 @@ export interface ElectronAPI {
   getKanbanStatuses(): Promise<{ success: boolean; data?: Array<{ taskId: string; status: string }>; error?: string }>;
   setKanbanStatus(args: { taskId: string; status: string }): Promise<{ success: boolean; error?: string }>;
 
+  // MCP server management
+  mcpGetGlobalServers: () => Promise<{
+    success: boolean;
+    data?: import('@shared/mcp/types').McpServerConfig[];
+    error?: string;
+  }>;
+  mcpSaveGlobalServers: (
+    servers: import('@shared/mcp/types').McpServerConfig[]
+  ) => Promise<{
+    success: boolean;
+    data?: import('@shared/mcp/types').McpServerConfig[];
+    error?: string;
+  }>;
+  mcpGetProjectServers: (projectPath: string) => Promise<{
+    success: boolean;
+    data?: import('@shared/mcp/types').McpServerConfig[];
+    error?: string;
+  }>;
+  mcpSaveProjectServers: (
+    projectPath: string,
+    servers: import('@shared/mcp/types').McpServerConfig[]
+  ) => Promise<{
+    success: boolean;
+    data?: import('@shared/mcp/types').McpServerConfig[];
+    error?: string;
+  }>;
+
   // Skills management
   skillsGetCatalog: () => Promise<{
     success: boolean;
@@ -2496,6 +2551,7 @@ export interface ElectronAPI {
     cwd: string;
     env?: Record<string, string>;
     acpSessionId?: string;
+    projectPath?: string;
   }) => Promise<{ success: boolean; sessionKey?: string; acpSessionId?: string; modes?: AcpSessionModes; models?: AcpSessionModels; error?: string }>;
   acpPrompt: (args: {
     sessionKey: string;

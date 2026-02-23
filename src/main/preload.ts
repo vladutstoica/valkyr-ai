@@ -668,6 +668,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   sshGetConfig: () => ipcRenderer.invoke('ssh:getSshConfig'),
   sshGetSshConfigHost: (hostAlias: string) => ipcRenderer.invoke('ssh:getSshConfigHost', hostAlias),
 
+  // MCP server management
+  mcpGetGlobalServers: () => ipcRenderer.invoke('mcp:getGlobalServers'),
+  mcpSaveGlobalServers: (servers: any[]) =>
+    ipcRenderer.invoke('mcp:saveGlobalServers', { servers }),
+  mcpGetProjectServers: (projectPath: string) =>
+    ipcRenderer.invoke('mcp:getProjectServers', { projectPath }),
+  mcpSaveProjectServers: (projectPath: string, servers: any[]) =>
+    ipcRenderer.invoke('mcp:saveProjectServers', { projectPath, servers }),
+
   // Skills management
   skillsGetCatalog: () => ipcRenderer.invoke('skills:getCatalog'),
   skillsRefreshCatalog: () => ipcRenderer.invoke('skills:refreshCatalog'),

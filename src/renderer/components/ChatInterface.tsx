@@ -900,6 +900,7 @@ const ChatInterface: React.FC<Props> = ({
                     conversationId={conv.id}
                     providerId={convAgent}
                     cwd={terminalCwd || task.path || '.'}
+                    projectPath={projectPath || undefined}
                     onStatusChange={(status) => {
                       try { window.localStorage.setItem(`agent:locked:${task.id}`, convAgent); } catch {}
                       try { window.electronAPI?.setTaskAgent?.({ taskId: task.id, lockedAgent: convAgent }); } catch {}
