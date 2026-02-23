@@ -466,7 +466,15 @@ function renderRichToolPart(
 
   // 1. Bash/shell → StreamingTerminal (with stop button + incremental output)
   if (normalized === 'bash' && (output || isStreaming)) {
-    const command = (inputObj.command || inputObj.cmd || '') as string;
+    // Extract command from tool args, or from ACP title (e.g. "Run pnpm run lint")
+    let command = (inputObj.command || inputObj.cmd || '') as string;
+    if (!command && typeof inputObj.title === 'string' && inputObj.title) {
+      // ACP title for bash is like "Run pnpm run lint" or the description
+      command = inputObj.title.replace(/^Run\s+/, '');
+    }
+    if (!command && typeof inputObj.description === 'string') {
+      command = inputObj.description;
+    }
     return (
       <StreamingTerminal
         key={key}
@@ -506,24 +514,29 @@ function renderRichToolPart(
     output &&
     output.length > 0
   ) {
-    const filePath = (inputObj.file_path || inputObj.path || inputObj.file || '') as string;
+    // Extract file path from tool args, or parse it from ACP title (e.g. "Read src/foo/bar.tsx")
+    let filePath = (inputObj.file_path || inputObj.path || inputObj.file || '') as string;
+    if (!filePath && typeof inputObj.title === 'string' && inputObj.title) {
+      // ACP title format: "Read src/renderer/components/AcpChatPane.tsx"
+      const titleParts = inputObj.title.split(/\s+/);
+      if (titleParts.length >= 2) {
+        filePath = titleParts.slice(1).join(' ');
+      }
+    }
     const language = getLanguageFromPath(filePath) as BundledLanguage;
     const filename = filePath ? (filePath.split('/').pop() ?? '') : '';
+    // For the header label, use ACP title if available (includes verb + path)
+    const headerLabel = (typeof inputObj.title === 'string' && inputObj.title)
+      ? inputObj.title
+      : (filename
+          ? `${normalized === 'read_file' ? 'Read' : normalized === 'write_file' ? 'Write' : 'Edit'} ${filename}`
+          : (normalized === 'read_file' ? 'Read' : normalized === 'write_file' ? 'Write' : 'Edit'));
 
     return (
       <CodeBlockContainer key={key} language={language}>
         <CodeBlockHeader>
           <CodeBlockTitle>
-            {filename && <CodeBlockFilename>{filename}</CodeBlockFilename>}
-            {!filename && (
-              <span>
-                {normalized === 'read_file'
-                  ? 'Read'
-                  : normalized === 'write_file'
-                    ? 'Write'
-                    : 'Edit'}
-              </span>
-            )}
+            <span>{headerLabel}</span>
           </CodeBlockTitle>
           <CodeBlockActions>
             <CodeBlockCopyButton />
