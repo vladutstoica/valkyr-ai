@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type { UIMessage } from 'ai';
 import { useChat } from '@ai-sdk/react';
 import * as SelectPrimitive from '@radix-ui/react-select';
@@ -384,6 +392,64 @@ function SessionHistoryPopover({
         </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Debug overlay — hover to see raw part data (toggle: Ctrl+Shift+D)
+// ---------------------------------------------------------------------------
+
+const DebugOverlayContext = createContext(false);
+
+/** Wrap any rendered part to show raw JSON on hover when debug mode is on. */
+function DebugWrap({ data, children }: { data: unknown; children: React.ReactNode }) {
+  const debug = useContext(DebugOverlayContext);
+  const [show, setShow] = useState(false);
+  if (!debug) return <>{children}</>;
+
+  // Build a compact summary of the part data
+  const raw = data && typeof data === 'object' ? (data as Record<string, unknown>) : {};
+  const summary: Record<string, unknown> = {};
+  for (const key of ['type', 'toolName', 'state', 'toolCallId']) {
+    if (raw[key] != null) summary[key] = raw[key];
+  }
+  if (raw.input && typeof raw.input === 'object') {
+    const inp = raw.input as Record<string, unknown>;
+    const inputKeys = Object.keys(inp);
+    if (inputKeys.length <= 6) {
+      summary.input = inp;
+    } else {
+      // Show keys + truncated values
+      const trimmed: Record<string, unknown> = {};
+      for (const k of inputKeys.slice(0, 8)) {
+        const v = inp[k];
+        trimmed[k] = typeof v === 'string' && v.length > 80 ? v.slice(0, 80) + '...' : v;
+      }
+      if (inputKeys.length > 8) trimmed['...'] = `+${inputKeys.length - 8} more keys`;
+      summary.input = trimmed;
+    }
+  }
+  if (raw.output != null) {
+    const out = String(raw.output);
+    summary.output = out.length > 120 ? out.slice(0, 120) + `... (${out.length} chars)` : out;
+  }
+  if (raw.errorText) summary.errorText = String(raw.errorText).slice(0, 120);
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      {children}
+      {/* Blue top-left dot to indicate debug-wrapped element */}
+      <div className="pointer-events-none absolute top-0 left-0 size-1.5 rounded-full bg-blue-500/60" />
+      {show && (
+        <div className="absolute top-full left-0 z-50 mt-1 max-h-80 max-w-lg overflow-auto rounded border border-blue-500/30 bg-zinc-900/95 p-2 font-mono text-[10px] text-zinc-300 shadow-lg backdrop-blur">
+          <pre className="whitespace-pre-wrap">{JSON.stringify(summary, null, 2)}</pre>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1066,7 +1132,13 @@ function renderToolPart(toolPart: any, i: number, sessionKey?: string | null) {
 
   // Try rich rendering first
   const rich = renderRichToolPart(toolPart, i, sessionKey);
-  if (rich) return rich;
+  if (rich) {
+    return (
+      <DebugWrap key={`dbg-${toolPart.toolCallId || i}`} data={toolPart}>
+        {rich}
+      </DebugWrap>
+    );
+  }
 
   const title = getToolDisplayLabel(toolName, toolPart.input || {});
   const Icon = getToolIconComponent(toolName);
@@ -1101,24 +1173,28 @@ function renderToolPart(toolPart: any, i: number, sessionKey?: string | null) {
   // Compact inline display for tools with no useful detail
   if (!hasContent) {
     return (
-      <ToolInline key={toolPart.toolCallId || i} title={title} state={toolPart.state} icon={Icon} />
+      <DebugWrap key={`dbg-${toolPart.toolCallId || i}`} data={toolPart}>
+        <ToolInline title={title} state={toolPart.state} icon={Icon} />
+      </DebugWrap>
     );
   }
 
   return (
-    <Tool key={toolPart.toolCallId || i} defaultOpen={hasError}>
-      <ToolHeader
-        title={title}
-        subtitle={subtitle}
-        type={toolPart.type}
-        state={toolPart.state}
-        icon={Icon}
-      />
-      <ToolContent>
-        <ToolInput input={inputObj} />
-        <ToolOutput output={toolPart.output} errorText={toolPart.errorText} />
-      </ToolContent>
-    </Tool>
+    <DebugWrap key={`dbg-${toolPart.toolCallId || i}`} data={toolPart}>
+      <Tool defaultOpen={hasError}>
+        <ToolHeader
+          title={title}
+          subtitle={subtitle}
+          type={toolPart.type}
+          state={toolPart.state}
+          icon={Icon}
+        />
+        <ToolContent>
+          <ToolInput input={inputObj} />
+          <ToolOutput output={toolPart.output} errorText={toolPart.errorText} />
+        </ToolContent>
+      </Tool>
+    </DebugWrap>
   );
 }
 
@@ -1664,6 +1740,19 @@ function AcpChatInner({
   const [currentModeId, setCurrentModeId] = useState(initialModes?.currentModeId ?? '');
   const [currentModelId, setCurrentModelId] = useState(initialModels?.currentModelId ?? '');
   const [hoveredModel, setHoveredModel] = useState<AcpSessionModel | null>(null);
+
+  // Debug overlay toggle (Ctrl+Shift+D) — shows raw part data on hover
+  const [debugOverlay, setDebugOverlay] = useState(false);
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+        e.preventDefault();
+        setDebugOverlay((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   // Sync mode/model when initial data arrives (useState only captures the first value)
   useEffect(() => {
@@ -2339,198 +2428,212 @@ function AcpChatInner({
       </div>
 
       {/* Messages area */}
-      <Conversation>
-        <ConversationContent className="gap-3 p-3">
-          {messages.length === 0 && chatStatus === 'ready' && (
-            <>
-              <ConversationEmptyState
-                title="Start a conversation"
-                description="Send a message to begin working with this agent"
-              />
-              <Suggestions className="justify-center px-4">
-                <Suggestion
-                  suggestion="Explain this codebase"
-                  onClick={(s) => sendMessage({ text: s })}
+      <DebugOverlayContext.Provider value={debugOverlay}>
+        {debugOverlay && (
+          <div className="border-b border-blue-500/30 bg-blue-500/10 px-3 py-1 text-[10px] text-blue-400">
+            Debug overlay ON — hover parts to inspect raw data (Ctrl+Shift+D to toggle)
+          </div>
+        )}
+        <Conversation>
+          <ConversationContent className="gap-3 p-3">
+            {messages.length === 0 && chatStatus === 'ready' && (
+              <>
+                <ConversationEmptyState
+                  title="Start a conversation"
+                  description="Send a message to begin working with this agent"
                 />
-                <Suggestion
-                  suggestion="Find and fix bugs"
-                  onClick={(s) => sendMessage({ text: s })}
-                />
-                <Suggestion suggestion="Write tests" onClick={(s) => sendMessage({ text: s })} />
-                <Suggestion suggestion="Refactor code" onClick={(s) => sendMessage({ text: s })} />
-              </Suggestions>
-            </>
-          )}
+                <Suggestions className="justify-center px-4">
+                  <Suggestion
+                    suggestion="Explain this codebase"
+                    onClick={(s) => sendMessage({ text: s })}
+                  />
+                  <Suggestion
+                    suggestion="Find and fix bugs"
+                    onClick={(s) => sendMessage({ text: s })}
+                  />
+                  <Suggestion suggestion="Write tests" onClick={(s) => sendMessage({ text: s })} />
+                  <Suggestion
+                    suggestion="Refactor code"
+                    onClick={(s) => sendMessage({ text: s })}
+                  />
+                </Suggestions>
+              </>
+            )}
 
-          {messages.map((msg, msgIdx) => (
-            <div key={msg.id}>
-              {/* Checkpoint separator between conversation turns */}
-              {msgIdx > 0 && msg.role === 'user' && messages[msgIdx - 1]?.role === 'assistant' && (
-                <Checkpoint className="my-1">
-                  <CheckpointIcon />
-                  <CheckpointTrigger
-                    className="text-[10px] whitespace-nowrap"
-                    tooltip="Restore to this point"
-                    disabled={isStreaming}
-                    onClick={() => setMessages(messages.slice(0, msgIdx))}
-                  >
-                    Turn {messages.slice(0, msgIdx).filter((m) => m.role === 'user').length + 1}
-                  </CheckpointTrigger>
-                </Checkpoint>
-              )}
-              <Message from={msg.role}>
-                <MessageContent>
-                  {msg.role === 'user' ? (
-                    <>
-                      {msg.parts
-                        .filter(
-                          (
-                            p
-                          ): p is {
-                            type: 'file';
-                            url: string;
-                            mediaType: string;
-                            filename?: string;
-                          } => p.type === 'file'
-                        )
-                        .map((filePart, i) =>
-                          filePart.mediaType.startsWith('image/') ? (
-                            <img
-                              key={i}
-                              src={filePart.url}
-                              alt={filePart.filename || 'Attached image'}
-                              className="border-border/50 max-h-64 max-w-full rounded-md border"
-                            />
-                          ) : (
-                            <div
-                              key={i}
-                              className="border-border/50 text-muted-foreground flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs"
-                            >
-                              <PaperclipIcon className="size-3" />
-                              {filePart.filename || 'Attachment'}
-                            </div>
+            {messages.map((msg, msgIdx) => (
+              <div key={msg.id}>
+                {/* Checkpoint separator between conversation turns */}
+                {msgIdx > 0 &&
+                  msg.role === 'user' &&
+                  messages[msgIdx - 1]?.role === 'assistant' && (
+                    <Checkpoint className="my-1">
+                      <CheckpointIcon />
+                      <CheckpointTrigger
+                        className="text-[10px] whitespace-nowrap"
+                        tooltip="Restore to this point"
+                        disabled={isStreaming}
+                        onClick={() => setMessages(messages.slice(0, msgIdx))}
+                      >
+                        Turn {messages.slice(0, msgIdx).filter((m) => m.role === 'user').length + 1}
+                      </CheckpointTrigger>
+                    </Checkpoint>
+                  )}
+                <Message from={msg.role}>
+                  <MessageContent>
+                    {msg.role === 'user' ? (
+                      <>
+                        {msg.parts
+                          .filter(
+                            (
+                              p
+                            ): p is {
+                              type: 'file';
+                              url: string;
+                              mediaType: string;
+                              filename?: string;
+                            } => p.type === 'file'
                           )
-                        )}
-                      <p className="whitespace-pre-wrap">{getTextFromParts(msg.parts)}</p>
-                    </>
+                          .map((filePart, i) =>
+                            filePart.mediaType.startsWith('image/') ? (
+                              <img
+                                key={i}
+                                src={filePart.url}
+                                alt={filePart.filename || 'Attached image'}
+                                className="border-border/50 max-h-64 max-w-full rounded-md border"
+                              />
+                            ) : (
+                              <div
+                                key={i}
+                                className="border-border/50 text-muted-foreground flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs"
+                              >
+                                <PaperclipIcon className="size-3" />
+                                {filePart.filename || 'Attachment'}
+                              </div>
+                            )
+                          )}
+                        <p className="whitespace-pre-wrap">{getTextFromParts(msg.parts)}</p>
+                      </>
+                    ) : (
+                      <MessageParts
+                        message={msg}
+                        chatStatus={chatStatus}
+                        sessionKey={sessionKey}
+                        currentModeId={currentModeId}
+                      />
+                    )}
+                  </MessageContent>
+                  {/* Message actions (visible on hover) */}
+                  {msg.role === 'assistant' && chatStatus === 'ready' && (
+                    <MessageActions className="mt-1 opacity-0 transition-opacity group-hover:opacity-100">
+                      <MessageAction
+                        tooltip="Copy"
+                        onClick={() => {
+                          const text = getTextFromParts(msg.parts);
+                          navigator.clipboard.writeText(text);
+                        }}
+                      >
+                        <CopyIcon className="size-3" />
+                      </MessageAction>
+                      <MessageAction
+                        tooltip="Retry"
+                        onClick={() => {
+                          const msgIndex = messages.indexOf(msg);
+                          const prevUserMsg = messages
+                            .slice(0, msgIndex)
+                            .reverse()
+                            .find((m) => m.role === 'user');
+                          if (prevUserMsg) {
+                            const text = getTextFromParts(prevUserMsg.parts);
+                            if (text) sendMessage({ text });
+                          }
+                        }}
+                      >
+                        <RefreshCwIcon className="size-3" />
+                      </MessageAction>
+                    </MessageActions>
+                  )}
+                </Message>
+
+                {/* Resume checkpoint — shown after the last restored message */}
+                {resumed !== null &&
+                  initialMessages.length > 0 &&
+                  msgIdx === initialMessages.length - 1 && (
+                    <Checkpoint className="my-1">
+                      <CheckpointIcon />
+                      <CheckpointTrigger className="text-[10px] whitespace-nowrap" disabled>
+                        {resumed ? 'Session resumed' : 'New session — context resumed'}
+                      </CheckpointTrigger>
+                    </Checkpoint>
+                  )}
+              </div>
+            ))}
+
+            {/* Streaming / thinking indicator */}
+            {isStreaming && messages[messages.length - 1]?.role !== 'assistant' && (
+              <Message from="assistant">
+                <MessageContent>
+                  {chatStatus === 'submitted' ? (
+                    <Shimmer className="text-sm">Thinking…</Shimmer>
                   ) : (
-                    <MessageParts
-                      message={msg}
-                      chatStatus={chatStatus}
-                      sessionKey={sessionKey}
-                      currentModeId={currentModeId}
-                    />
+                    <Loader />
                   )}
                 </MessageContent>
-                {/* Message actions (visible on hover) */}
-                {msg.role === 'assistant' && chatStatus === 'ready' && (
-                  <MessageActions className="mt-1 opacity-0 transition-opacity group-hover:opacity-100">
-                    <MessageAction
-                      tooltip="Copy"
-                      onClick={() => {
-                        const text = getTextFromParts(msg.parts);
-                        navigator.clipboard.writeText(text);
-                      }}
-                    >
-                      <CopyIcon className="size-3" />
-                    </MessageAction>
-                    <MessageAction
-                      tooltip="Retry"
-                      onClick={() => {
-                        const msgIndex = messages.indexOf(msg);
-                        const prevUserMsg = messages
-                          .slice(0, msgIndex)
-                          .reverse()
-                          .find((m) => m.role === 'user');
-                        if (prevUserMsg) {
-                          const text = getTextFromParts(prevUserMsg.parts);
-                          if (text) sendMessage({ text });
-                        }
-                      }}
-                    >
-                      <RefreshCwIcon className="size-3" />
-                    </MessageAction>
-                  </MessageActions>
-                )}
               </Message>
+            )}
 
-              {/* Resume checkpoint — shown after the last restored message */}
-              {resumed !== null &&
-                initialMessages.length > 0 &&
-                msgIdx === initialMessages.length - 1 && (
-                  <Checkpoint className="my-1">
-                    <CheckpointIcon />
-                    <CheckpointTrigger className="text-[10px] whitespace-nowrap" disabled>
-                      {resumed ? 'Session resumed' : 'New session — context resumed'}
-                    </CheckpointTrigger>
-                  </Checkpoint>
-                )}
-            </div>
-          ))}
-
-          {/* Streaming / thinking indicator */}
-          {isStreaming && messages[messages.length - 1]?.role !== 'assistant' && (
-            <Message from="assistant">
-              <MessageContent>
-                {chatStatus === 'submitted' ? (
-                  <Shimmer className="text-sm">Thinking…</Shimmer>
-                ) : (
-                  <Loader />
-                )}
-              </MessageContent>
-            </Message>
-          )}
-
-          {/* Inline plan */}
-          {planEntries.length > 0 && (
-            <div className="px-2">
-              <Plan isStreaming={isStreaming} defaultOpen>
-                <PlanTrigger
-                  completed={planEntries.filter((e) => e.status === 'completed').length}
-                  total={planEntries.length}
-                />
-                <PlanContent>
-                  <ul className="space-y-1 text-xs">
-                    {planEntries.map((entry, i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <span className="mt-0.5 shrink-0">
-                          {entry.status === 'completed' ? (
-                            <CheckCircleIcon className="size-3.5 text-green-500" />
-                          ) : entry.status === 'in_progress' ? (
-                            <Loader2 className="text-primary size-3.5 animate-spin" />
-                          ) : (
-                            <ClockIcon className="text-muted-foreground size-3.5" />
-                          )}
-                        </span>
-                        <span
-                          className={
-                            entry.status === 'completed' ? 'text-muted-foreground line-through' : ''
-                          }
-                        >
-                          {entry.content}
-                        </span>
-                        {entry.priority === 'high' && (
-                          <span className="ml-auto shrink-0 rounded bg-red-500/15 px-1 text-[10px] text-red-400">
-                            high
+            {/* Inline plan */}
+            {planEntries.length > 0 && (
+              <div className="px-2">
+                <Plan isStreaming={isStreaming} defaultOpen>
+                  <PlanTrigger
+                    completed={planEntries.filter((e) => e.status === 'completed').length}
+                    total={planEntries.length}
+                  />
+                  <PlanContent>
+                    <ul className="space-y-1 text-xs">
+                      {planEntries.map((entry, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="mt-0.5 shrink-0">
+                            {entry.status === 'completed' ? (
+                              <CheckCircleIcon className="size-3.5 text-green-500" />
+                            ) : entry.status === 'in_progress' ? (
+                              <Loader2 className="text-primary size-3.5 animate-spin" />
+                            ) : (
+                              <ClockIcon className="text-muted-foreground size-3.5" />
+                            )}
                           </span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </PlanContent>
-              </Plan>
-            </div>
-          )}
+                          <span
+                            className={
+                              entry.status === 'completed'
+                                ? 'text-muted-foreground line-through'
+                                : ''
+                            }
+                          >
+                            {entry.content}
+                          </span>
+                          {entry.priority === 'high' && (
+                            <span className="ml-auto shrink-0 rounded bg-red-500/15 px-1 text-[10px] text-red-400">
+                              high
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </PlanContent>
+                </Plan>
+              </div>
+            )}
 
-          {/* Error display */}
-          {chatStatus === 'error' && chatError && (
-            <div className="mx-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-              <p>{chatError.message}</p>
-            </div>
-          )}
-        </ConversationContent>
-        <ConversationScrollButton />
-      </Conversation>
+            {/* Error display */}
+            {chatStatus === 'error' && chatError && (
+              <div className="mx-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                <p>{chatError.message}</p>
+              </div>
+            )}
+          </ConversationContent>
+          <ConversationScrollButton />
+        </Conversation>
+      </DebugOverlayContext.Provider>
 
       {/* Queued messages */}
       {queuedMessages.length > 0 && (
