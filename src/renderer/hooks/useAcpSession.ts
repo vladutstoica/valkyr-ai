@@ -26,6 +26,7 @@ export type UseAcpSessionReturn = {
   initialMessages: UIMessage[];
   sessionKey: string | null;
   acpSessionId: string | null;
+  resumed: boolean | null;
   modes: AcpSessionModes;
   models: AcpSessionModels;
   restartSession: () => void;
@@ -241,6 +242,7 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
   const [sessionStatus, setSessionStatus] = useState<AcpSessionStatus>('initializing');
   const [sessionError, setSessionError] = useState<Error | null>(null);
   const [initialMessages, setInitialMessages] = useState<UIMessage[]>([]);
+  const [resumed, setResumed] = useState<boolean | null>(null);
   const [modes, setModes] = useState<AcpSessionModes>(null);
   const [models, setModels] = useState<AcpSessionModels>(null);
 
@@ -264,6 +266,7 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
     let cleanupStatus: (() => void) | null = null;
 
     async function init() {
+      const tInit0 = performance.now();
       log.debug('Init started', { conversationId, providerId, cwd, projectPath });
 
       // Run message loading and session creation in parallel
@@ -273,6 +276,7 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
           .catch(() => ({ success: false as const })),
         api().acpStart({ conversationId, providerId, cwd, projectPath }),
       ]);
+      const tIpcDone = performance.now();
 
       if (cancelled) return;
 
@@ -280,7 +284,19 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
         messagesLoaded: msgResult.success,
         sessionSuccess: sessionResult.success,
         historyEventCount: sessionResult.historyEvents?.length ?? 0,
+        resumed: sessionResult.resumed ?? null,
       });
+
+      // Surface resume status
+      if (sessionResult.success) {
+        const wasResumed = sessionResult.resumed ?? false;
+        setResumed(wasResumed);
+        if (wasResumed) {
+          log.info('[RESUME CHECKPOINT] Session RESUMED successfully');
+        } else {
+          log.warn('[RESUME CHECKPOINT] Session NOT resumed — new session created, agent has no prior context');
+        }
+      }
 
       // Prefer ACP history events (from loadSession) over DB messages,
       // since they include the full conversation including user messages.
@@ -310,6 +326,8 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
         return;
       }
 
+      const tMsgParsed = performance.now();
+
       const key = sessionResult.sessionKey;
       log.debug('Session created', {
         sessionKey: key,
@@ -336,6 +354,9 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
         log.debug('Status changed', { sessionKey: key, newStatus });
         setSessionStatus(newStatus);
       });
+
+      const tReady = performance.now();
+      console.info(`[PERF useAcpSession] ipc(getMessages+acpStart)=${(tIpcDone - tInit0).toFixed(0)}ms msgParse=${(tMsgParsed - tIpcDone).toFixed(0)}ms wireTransport=${(tReady - tMsgParsed).toFixed(0)}ms total=${(tReady - tInit0).toFixed(0)}ms provider=${providerId} resumed=${sessionResult.resumed ?? 'n/a'}`);
     }
 
     init();
@@ -383,6 +404,7 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
     initialMessages,
     sessionKey,
     acpSessionId,
+    resumed,
     modes,
     models,
     restartSession,

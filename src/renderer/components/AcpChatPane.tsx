@@ -1903,29 +1903,6 @@ function AcpChatInner({
       {/* Messages area */}
       <Conversation>
         <ConversationContent className="gap-3 p-3">
-          {/* Resume checkpoint banner */}
-          {resumed !== null && messages.length > 0 && (
-            <div
-              className={`flex items-center gap-2 rounded-md border px-3 py-2 text-xs ${
-                resumed
-                  ? 'border-green-500/30 bg-green-500/10 text-green-400'
-                  : 'border-yellow-500/30 bg-yellow-500/10 text-yellow-400'
-              }`}
-            >
-              {resumed ? (
-                <>
-                  <CheckCircleIcon className="h-3.5 w-3.5 shrink-0" />
-                  <span>Session resumed — agent has full conversation context</span>
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                  <span>New session — conversation history was replayed to restore context</span>
-                </>
-              )}
-            </div>
-          )}
-
           {messages.length === 0 && chatStatus === 'ready' && (
             <>
               <ConversationEmptyState
@@ -2033,6 +2010,24 @@ function AcpChatInner({
                   </MessageActions>
                 )}
               </Message>
+
+              {/* Resume checkpoint — shown after the last restored message */}
+              {resumed !== null &&
+                initialMessages.length > 0 &&
+                msgIdx === initialMessages.length - 1 && (
+                  <Checkpoint className="my-2">
+                    <CheckpointIcon />
+                    <span
+                      className={`text-[10px] ${
+                        resumed ? 'text-green-400' : 'text-yellow-400'
+                      }`}
+                    >
+                      {resumed
+                        ? 'Session resumed'
+                        : 'New session — context replayed'}
+                    </span>
+                  </Checkpoint>
+                )}
             </div>
           ))}
 

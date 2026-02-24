@@ -105,9 +105,12 @@ export function registerAcpIpc(): void {
   // acp:start — Create an ACP session
   // -------------------------------------------------------------------------
   ipcMain.handle('acp:start', async (event, args: unknown) => {
+    const t0 = performance.now();
     try {
       const parsed = AcpStartSchema.parse(args);
+      const tParsed = performance.now();
       const mcpServers = mcpConfigService.getMergedServersForSession(parsed.projectPath);
+      const tMcp = performance.now();
       const result = await acpSessionManager.createSession(
         parsed.conversationId,
         parsed.providerId,
@@ -116,6 +119,8 @@ export function registerAcpIpc(): void {
         parsed.acpSessionId,
         mcpServers
       );
+      const tSession = performance.now();
+      log.info(`[PERF acp:start] validate=${(tParsed - t0).toFixed(0)}ms mcp=${(tMcp - tParsed).toFixed(0)}ms createSession=${(tSession - tMcp).toFixed(0)}ms total=${(tSession - t0).toFixed(0)}ms provider=${parsed.providerId} resumed=${result.resumed ?? 'n/a'}`);
 
       if (result.success && result.sessionKey) {
         // Track ownership for per-session event routing

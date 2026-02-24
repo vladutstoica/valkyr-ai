@@ -1846,6 +1846,7 @@ declare global {
         modes?: AcpSessionModes;
         models?: AcpSessionModels;
         historyEvents?: AcpUpdateEvent[];
+        resumed?: boolean;
         error?: string;
       }>;
       acpPrompt: (args: {
@@ -2773,6 +2774,7 @@ export interface ElectronAPI {
     modes?: AcpSessionModes;
     models?: AcpSessionModels;
     historyEvents?: AcpUpdateEvent[];
+    resumed?: boolean;
     error?: string;
   }>;
   acpPrompt: (args: {
