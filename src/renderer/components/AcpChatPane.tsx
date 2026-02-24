@@ -15,6 +15,11 @@ import {
   ClockIcon,
   CopyIcon,
   DownloadIcon,
+  FileEditIcon,
+  FilePlusIcon,
+  FileTextIcon,
+  FolderTreeIcon,
+  GlobeIcon,
   HistoryIcon,
   ListPlusIcon,
   Loader2,
@@ -23,9 +28,12 @@ import {
   PaperclipIcon,
   PlusIcon,
   RefreshCwIcon,
+  SearchIcon,
   SettingsIcon,
+  TerminalIcon,
   Trash2Icon,
   WrenchIcon,
+  XCircleIcon,
   XIcon,
 } from 'lucide-react';
 import { useAcpSession } from '../hooks/useAcpSession';
@@ -137,6 +145,7 @@ import {
   PromptInputSelectItem,
   PromptInputSelectValue,
   PromptInputSpeechButton,
+  usePromptInputAttachments,
   type SpeechButtonState,
   type PromptInputMessage,
 } from './ai-elements/prompt-input';
@@ -393,16 +402,32 @@ function summarizeToolRun(toolRun: Array<{ part: any }>): string {
     counts[name] = (counts[name] || 0) + 1;
   }
   const parts: string[] = [];
-  if (counts.read_file) parts.push(`Read ${counts.read_file} file${counts.read_file > 1 ? 's' : ''}`);
-  if (counts.write_file) parts.push(`wrote ${counts.write_file} file${counts.write_file > 1 ? 's' : ''}`);
-  if (counts.edit_file) parts.push(`edited ${counts.edit_file} file${counts.edit_file > 1 ? 's' : ''}`);
+  if (counts.read_file)
+    parts.push(`Read ${counts.read_file} file${counts.read_file > 1 ? 's' : ''}`);
+  if (counts.write_file)
+    parts.push(`wrote ${counts.write_file} file${counts.write_file > 1 ? 's' : ''}`);
+  if (counts.edit_file)
+    parts.push(`edited ${counts.edit_file} file${counts.edit_file > 1 ? 's' : ''}`);
   if (counts.bash) parts.push(`ran ${counts.bash} command${counts.bash > 1 ? 's' : ''}`);
   if (counts.search) parts.push(`searched ${counts.search} pattern${counts.search > 1 ? 's' : ''}`);
-  if (counts.list_files) parts.push(`listed ${counts.list_files} dir${counts.list_files > 1 ? 's' : ''}`);
-  if (counts.web_search) parts.push(`web searched ${counts.web_search} quer${counts.web_search > 1 ? 'ies' : 'y'}`);
-  if (counts.web_fetch) parts.push(`fetched ${counts.web_fetch} URL${counts.web_fetch > 1 ? 's' : ''}`);
+  if (counts.list_files)
+    parts.push(`listed ${counts.list_files} dir${counts.list_files > 1 ? 's' : ''}`);
+  if (counts.web_search)
+    parts.push(`web searched ${counts.web_search} quer${counts.web_search > 1 ? 'ies' : 'y'}`);
+  if (counts.web_fetch)
+    parts.push(`fetched ${counts.web_fetch} URL${counts.web_fetch > 1 ? 's' : ''}`);
   if (counts.task) parts.push(`ran ${counts.task} sub-task${counts.task > 1 ? 's' : ''}`);
-  const countedTypes = new Set(['read_file', 'write_file', 'edit_file', 'bash', 'search', 'list_files', 'web_search', 'web_fetch', 'task']);
+  const countedTypes = new Set([
+    'read_file',
+    'write_file',
+    'edit_file',
+    'bash',
+    'search',
+    'list_files',
+    'web_search',
+    'web_fetch',
+    'task',
+  ]);
   let other = 0;
   for (const [key, count] of Object.entries(counts)) {
     if (!countedTypes.has(key)) other += count;
@@ -455,22 +480,58 @@ function StreamingTerminal({
 }
 
 /**
- * Dedicated renderer for Task (sub-agent delegation) tool calls.
- * Shows the agent type as a badge, the description/prompt, and streams output.
+ * Syncs PromptInput attachment state to an external ref.
+ * Must be rendered inside <PromptInput> tree.
  */
-function SubAgentTool({
-  toolCallId,
-  toolPart,
+function AttachmentSync({
+  targetRef,
 }: {
-  toolCallId: string;
-  toolPart: any;
+  targetRef: React.MutableRefObject<{ files: any[]; clear: () => void } | null>;
 }) {
+  const attachments = usePromptInputAttachments();
+  useEffect(() => {
+    targetRef.current = { files: attachments.files, clear: attachments.clear };
+  }, [attachments.files, attachments.clear, targetRef]);
+  return null;
+}
+
+/**
+ * Parse sub-agent info from either structured input or ACP title.
+ * ACP title format is often "AgentType: description text" or just "description text".
+ */
+function parseSubAgentInfo(input: Record<string, unknown>): {
+  agentType: string;
+  description: string;
+  prompt: string;
+} {
+  let agentType = ((input.subagent_type || '') as string).trim();
+  let description = ((input.description || '') as string).trim();
+  const prompt = ((input.prompt || '') as string).trim();
+  const title = ((input.title || '') as string).trim();
+
+  // If no structured data, parse from ACP title (format: "AgentType: description")
+  if (!agentType && !description && title) {
+    const colonIdx = title.indexOf(':');
+    if (colonIdx > 0 && colonIdx < 30) {
+      agentType = title.slice(0, colonIdx).trim();
+      description = title.slice(colonIdx + 1).trim();
+    } else {
+      description = title;
+    }
+  }
+
+  return { agentType, description, prompt };
+}
+
+/**
+ * Dedicated renderer for Task (sub-agent delegation) tool calls.
+ * Shows agent type badge, description, and output snippet — all visible by default.
+ */
+function SubAgentTool({ toolCallId, toolPart }: { toolCallId: string; toolPart: any }) {
   const [expanded, setExpanded] = useState(false);
   const streamingOutput = useToolOutput(toolCallId);
   const input = toolPart.input || {};
-  const agentType = (input.subagent_type || '') as string;
-  const description = (input.description || '') as string;
-  const prompt = (input.prompt || '') as string;
+  const { agentType, description, prompt } = parseSubAgentInfo(input);
   const isRunning = toolPart.state === 'input-available' || toolPart.state === 'input-streaming';
   const isDone = toolPart.state === 'output-available';
   const isError = toolPart.state === 'output-error' || toolPart.state === 'output-denied';
@@ -478,9 +539,15 @@ function SubAgentTool({
 
   // Show streaming content while running, final output when done
   const outputText = finalOutput || streamingOutput;
-  // Truncate long output for display
-  const truncatedOutput = outputText.length > 500 ? outputText.slice(-500) : outputText;
   const hasOutput = outputText.length > 0;
+
+  // Always show last 4 lines of output inline (no expand needed)
+  const outputLines = outputText.split('\n').filter((l: string) => l.trim());
+  const inlineLines = outputLines.slice(-4);
+  const hiddenLineCount = outputLines.length - inlineLines.length;
+
+  // If we have nothing meaningful, don't render
+  if (!agentType && !description) return null;
 
   return (
     <div className="not-prose mb-0.5 w-full">
@@ -498,34 +565,47 @@ function SubAgentTool({
           <BotIcon className="size-3 shrink-0" />
         )}
         {agentType && (
-          <span className="bg-muted text-muted-foreground shrink-0 rounded px-1 py-0.5 text-[10px] font-medium uppercase tracking-wide">
+          <span className="bg-primary/15 text-primary shrink-0 rounded px-1 py-0.5 text-[10px] font-medium tracking-wide uppercase">
             {agentType}
           </span>
         )}
-        <span className="truncate">{description || 'Sub-agent task'}</span>
+        <span className="truncate">{description}</span>
         {isRunning && (
           <span className="text-muted-foreground/50 shrink-0 text-[10px]">running</span>
         )}
-        {isDone && (
-          <CheckCircleIcon className="text-muted-foreground/50 size-3 shrink-0" />
-        )}
+        {isDone && <CheckCircleIcon className="text-muted-foreground/50 size-3 shrink-0" />}
       </button>
+
+      {/* Output snippet — always visible when there's output */}
+      {hasOutput && !expanded && (
+        <div className="border-border/40 ml-6 border-l pl-3">
+          {hiddenLineCount > 0 && (
+            <div className="text-muted-foreground/40 text-[10px]">
+              ... {hiddenLineCount} more line{hiddenLineCount > 1 ? 's' : ''}
+            </div>
+          )}
+          <pre className="text-muted-foreground/70 max-h-20 overflow-hidden font-mono text-[11px] leading-relaxed whitespace-pre-wrap">
+            {inlineLines.join('\n')}
+          </pre>
+        </div>
+      )}
+
+      {/* Expanded view — full prompt + full output */}
       {expanded && (
-        <div className="border-border/40 ml-3 border-l pl-3">
+        <div className="border-border/40 ml-6 border-l pl-3">
           {prompt && (
             <div className="text-muted-foreground/70 mt-1 mb-1 max-h-24 overflow-y-auto text-[11px] leading-relaxed">
               {prompt.length > 300 ? prompt.slice(0, 300) + '...' : prompt}
             </div>
           )}
           {hasOutput && (
-            <div className="bg-muted/40 mt-1 mb-2 max-h-48 overflow-y-auto rounded p-2 font-mono text-[11px] whitespace-pre-wrap">
-              {truncatedOutput}
-            </div>
+            <pre className="bg-muted/40 mt-1 mb-2 max-h-48 overflow-y-auto rounded p-2 font-mono text-[11px] whitespace-pre-wrap">
+              {outputText.length > 2000 ? outputText.slice(-2000) : outputText}
+            </pre>
           )}
           {isRunning && !hasOutput && (
             <div className="text-muted-foreground/50 flex items-center gap-1.5 py-1 text-[11px]">
               <Loader2Icon className="size-3 animate-spin" />
-              <span>Agent is working...</span>
             </div>
           )}
         </div>
@@ -534,10 +614,42 @@ function SubAgentTool({
   );
 }
 
+/** Extract file path from tool args or ACP title. */
+function extractFilePath(inputObj: Record<string, unknown>): string {
+  let fp = ((inputObj.file_path || inputObj.path || inputObj.file || '') as string).trim();
+  if (!fp && typeof inputObj.title === 'string' && inputObj.title) {
+    const parts = inputObj.title.split(/\s+/);
+    if (parts.length >= 2) fp = parts.slice(1).join(' ');
+  }
+  return fp;
+}
+
+/** Extract bash command from tool args or ACP title. */
+function extractBashCommand(inputObj: Record<string, unknown>): string {
+  let cmd = ((inputObj.command || inputObj.cmd || '') as string).trim();
+  if (!cmd && typeof inputObj.title === 'string' && inputObj.title) {
+    cmd = inputObj.title.replace(/^Run\s+/, '');
+  }
+  if (!cmd && typeof inputObj.description === 'string') {
+    cmd = (inputObj.description as string).trim();
+  }
+  return cmd;
+}
+
+/** Compute +N / -M diff stats from old_string / new_string. */
+function computeDiffStats(inputObj: Record<string, unknown>): { added: number; removed: number } | null {
+  const oldStr = typeof inputObj.old_string === 'string' ? inputObj.old_string : '';
+  const newStr = typeof inputObj.new_string === 'string' ? inputObj.new_string : '';
+  if (!oldStr && !newStr) return null;
+  const oldLines = oldStr ? oldStr.split('\n').length : 0;
+  const newLines = newStr ? newStr.split('\n').length : 0;
+  return { added: Math.max(0, newLines - oldLines + (oldLines > 0 ? oldLines : 0)), removed: oldLines };
+}
+
 /**
- * Attempt to render a tool part using a rich AI Element component.
- * Returns a React element if a rich match is found, or null to fall through
- * to the generic Tool rendering.
+ * Rich tool part renderer.
+ * Handles all tool types with spec-compliant compact displays.
+ * Returns a React element, or null if there's not enough data to render.
  */
 function renderRichToolPart(
   toolPart: any,
@@ -551,31 +663,57 @@ function renderRichToolPart(
   const inputObj = toolPart.input || {};
   const key = toolPart.toolCallId || i;
   const isStreaming = toolPart.state === 'partial-call' || toolPart.state === 'call';
+  const isRunning = toolPart.state === 'input-available' || toolPart.state === 'input-streaming' || isStreaming;
+  const isError = toolPart.state === 'output-error' || toolPart.state === 'output-denied';
+  const isDone = toolPart.state === 'output-available';
 
-  // 1. Bash/shell → StreamingTerminal (with stop button + incremental output)
-  if (normalized === 'bash' && (output || isStreaming)) {
-    // Extract command from tool args, or from ACP title (e.g. "Run pnpm run lint")
-    let command = (inputObj.command || inputObj.cmd || '') as string;
-    if (!command && typeof inputObj.title === 'string' && inputObj.title) {
-      // ACP title for bash is like "Run pnpm run lint" or the description
-      command = inputObj.title.replace(/^Run\s+/, '');
+  // ── 1. Bash/shell ──
+  if (normalized === 'bash') {
+    const command = extractBashCommand(inputObj);
+    const description = ((inputObj.description || '') as string).trim();
+
+    // If we have output or are streaming, use the full terminal
+    if (output || isStreaming) {
+      return (
+        <StreamingTerminal
+          key={key}
+          toolCallId={toolPart.toolCallId || `tool-${i}`}
+          command={command}
+          finalOutput={output}
+          isStreaming={isStreaming}
+          sessionKey={sessionKey ?? null}
+        />
+      );
     }
-    if (!command && typeof inputObj.description === 'string') {
-      command = inputObj.description;
-    }
+
+    // In-progress or just input available — show compact command preview
+    if (!command) return null;
     return (
-      <StreamingTerminal
-        key={key}
-        toolCallId={toolPart.toolCallId || `tool-${i}`}
-        command={command}
-        finalOutput={output}
-        isStreaming={isStreaming}
-        sessionKey={sessionKey ?? null}
-      />
+      <div key={key} className="not-prose mb-0.5 w-full">
+        <div className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}>
+          {isRunning ? (
+            <Loader2Icon className="size-3 shrink-0 animate-spin" />
+          ) : (
+            <TerminalIcon className="size-3 shrink-0" />
+          )}
+          <span className="truncate">{description || 'Run command'}</span>
+          {isError && <XCircleIcon className="size-3 shrink-0 text-red-500" />}
+        </div>
+        <div className="ml-6 mt-0.5">
+          <code className="bg-muted/60 text-muted-foreground rounded px-1.5 py-0.5 font-mono text-[11px]">
+            $ {command.length > 100 ? command.slice(0, 100) + '...' : command}
+          </code>
+        </div>
+        {errorText && (
+          <pre className="ml-6 mt-1 max-h-16 overflow-hidden font-mono text-[11px] text-red-500 whitespace-pre-wrap">
+            {errorText.slice(0, 300)}
+          </pre>
+        )}
+      </div>
     );
   }
 
-  // 2. Error text with stack traces → StackTrace component
+  // ── 2. Error text with stack traces ──
   if (errorText && STACK_TRACE_PATTERN.test(errorText)) {
     return (
       <StackTrace key={key} trace={errorText} defaultOpen>
@@ -596,53 +734,266 @@ function renderRichToolPart(
     );
   }
 
-  // 3. File read/write/edit → CodeBlock with language detection
-  if (
-    (normalized === 'read_file' || normalized === 'write_file' || normalized === 'edit_file') &&
-    output &&
-    output.length > 0
-  ) {
-    // Extract file path from tool args, or parse it from ACP title (e.g. "Read src/foo/bar.tsx")
-    let filePath = (inputObj.file_path || inputObj.path || inputObj.file || '') as string;
-    if (!filePath && typeof inputObj.title === 'string' && inputObj.title) {
-      // ACP title format: "Read src/renderer/components/AcpChatPane.tsx"
-      const titleParts = inputObj.title.split(/\s+/);
-      if (titleParts.length >= 2) {
-        filePath = titleParts.slice(1).join(' ');
-      }
-    }
-    const language = getLanguageFromPath(filePath) as BundledLanguage;
-    const filename = filePath ? (filePath.split('/').pop() ?? '') : '';
-    // For the header label, use ACP title if available (includes verb + path)
-    const headerLabel = (typeof inputObj.title === 'string' && inputObj.title)
-      ? inputObj.title
-      : (filename
-          ? `${normalized === 'read_file' ? 'Read' : normalized === 'write_file' ? 'Write' : 'Edit'} ${filename}`
-          : (normalized === 'read_file' ? 'Read' : normalized === 'write_file' ? 'Write' : 'Edit'));
+  // ── 3. Read file ──
+  if (normalized === 'read_file') {
+    const filePath = extractFilePath(inputObj);
+    if (!filePath) return null;
+    const filename = filePath.split('/').pop() ?? '';
+    const lineCount = output ? output.split('\n').length : 0;
 
+    // With output → collapsible CodeBlock
+    if (output && output.length > 0) {
+      const language = getLanguageFromPath(filePath) as BundledLanguage;
+      return (
+        <CodeBlockContainer key={key} language={language}>
+          <CodeBlockHeader>
+            <CodeBlockTitle>
+              <span>Read <span className="font-medium">{filename}</span></span>
+              {lineCount > 0 && (
+                <span className="text-muted-foreground/60 ml-1.5 text-[10px]">{lineCount} lines</span>
+              )}
+            </CodeBlockTitle>
+            <CodeBlockActions>
+              <CodeBlockCopyButton />
+            </CodeBlockActions>
+          </CodeBlockHeader>
+          <CodeBlockContent code={output} language={language} showLineNumbers />
+        </CodeBlockContainer>
+      );
+    }
+
+    // No output yet — compact inline
     return (
-      <CodeBlockContainer key={key} language={language}>
-        <CodeBlockHeader>
-          <CodeBlockTitle>
-            <span>{headerLabel}</span>
-          </CodeBlockTitle>
-          <CodeBlockActions>
-            <CodeBlockCopyButton />
-          </CodeBlockActions>
-        </CodeBlockHeader>
-        <CodeBlockContent code={output} language={language} showLineNumbers />
-      </CodeBlockContainer>
+      <div key={key} className="not-prose mb-0.5 w-full">
+        <div className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}>
+          {isRunning ? (
+            <Loader2Icon className="size-3 shrink-0 animate-spin" />
+          ) : (
+            <FileTextIcon className="size-3 shrink-0" />
+          )}
+          <span>Read <span className="font-medium">{filename}</span></span>
+          {isError && <XCircleIcon className="size-3 shrink-0 text-red-500" />}
+        </div>
+        <div className="text-muted-foreground/50 ml-6 truncate text-[10px]">{filePath}</div>
+      </div>
     );
   }
 
-  // 4. Task/sub-agent delegation → SubAgentTool with streaming output
+  // ── 4. Edit file ──
+  if (normalized === 'edit_file') {
+    const filePath = extractFilePath(inputObj);
+    if (!filePath) return null;
+    const filename = filePath.split('/').pop() ?? '';
+    const diffStats = computeDiffStats(inputObj);
+
+    // With output → CodeBlock
+    if (output && output.length > 0) {
+      const language = getLanguageFromPath(filePath) as BundledLanguage;
+      return (
+        <CodeBlockContainer key={key} language={language}>
+          <CodeBlockHeader>
+            <CodeBlockTitle>
+              <span>Edit <span className="font-medium">{filename}</span></span>
+              {diffStats && (
+                <span className="ml-1.5 text-[10px]">
+                  <span className="text-green-500">+{diffStats.added}</span>{' '}
+                  <span className="text-red-500">-{diffStats.removed}</span>
+                </span>
+              )}
+            </CodeBlockTitle>
+            <CodeBlockActions>
+              <CodeBlockCopyButton />
+            </CodeBlockActions>
+          </CodeBlockHeader>
+          <CodeBlockContent code={output} language={language} showLineNumbers />
+        </CodeBlockContainer>
+      );
+    }
+
+    // No output — compact inline with diff stats
+    return (
+      <div key={key} className="not-prose mb-0.5 w-full">
+        <div className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}>
+          {isRunning ? (
+            <Loader2Icon className="size-3 shrink-0 animate-spin" />
+          ) : isDone ? (
+            <CheckCircleIcon className="size-3 shrink-0 text-green-500" />
+          ) : (
+            <FileEditIcon className="size-3 shrink-0" />
+          )}
+          <span>Edit <span className="font-medium">{filename}</span></span>
+          {diffStats && (
+            <span className="text-[10px]">
+              <span className="text-green-500">+{diffStats.added}</span>{' '}
+              <span className="text-red-500">-{diffStats.removed}</span>
+            </span>
+          )}
+          {isError && <XCircleIcon className="size-3 shrink-0 text-red-500" />}
+        </div>
+        <div className="text-muted-foreground/50 ml-6 truncate text-[10px]">{filePath}</div>
+        {errorText && (
+          <pre className="ml-6 mt-1 max-h-12 overflow-hidden font-mono text-[11px] text-red-500 whitespace-pre-wrap">
+            {errorText.slice(0, 200)}
+          </pre>
+        )}
+      </div>
+    );
+  }
+
+  // ── 5. Write / Create file ──
+  if (normalized === 'write_file') {
+    const filePath = extractFilePath(inputObj);
+    if (!filePath) return null;
+    const filename = filePath.split('/').pop() ?? '';
+    const content = typeof inputObj.content === 'string' ? inputObj.content : '';
+    const lineCount = content ? content.split('\n').length : (output ? output.split('\n').length : 0);
+
+    // With output → CodeBlock
+    if (output && output.length > 0) {
+      const language = getLanguageFromPath(filePath) as BundledLanguage;
+      return (
+        <CodeBlockContainer key={key} language={language}>
+          <CodeBlockHeader>
+            <CodeBlockTitle>
+              <span>Create <span className="font-medium">{filename}</span></span>
+              {lineCount > 0 && (
+                <span className="ml-1.5 text-[10px] text-green-500">+{lineCount} lines</span>
+              )}
+            </CodeBlockTitle>
+            <CodeBlockActions>
+              <CodeBlockCopyButton />
+            </CodeBlockActions>
+          </CodeBlockHeader>
+          <CodeBlockContent code={output} language={language} showLineNumbers />
+        </CodeBlockContainer>
+      );
+    }
+
+    // No output — compact inline
+    return (
+      <div key={key} className="not-prose mb-0.5 w-full">
+        <div className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}>
+          {isRunning ? (
+            <Loader2Icon className="size-3 shrink-0 animate-spin" />
+          ) : (
+            <FilePlusIcon className="size-3 shrink-0" />
+          )}
+          <span>Create <span className="font-medium">{filename}</span></span>
+          {lineCount > 0 && (
+            <span className="text-[10px] text-green-500">+{lineCount} lines</span>
+          )}
+          {isError && <XCircleIcon className="size-3 shrink-0 text-red-500" />}
+        </div>
+        <div className="text-muted-foreground/50 ml-6 truncate text-[10px]">{filePath}</div>
+      </div>
+    );
+  }
+
+  // ── 6. Search / Grep ──
+  if (normalized === 'search') {
+    const pattern = ((inputObj.pattern || inputObj.query || inputObj.regex || '') as string).trim();
+    if (!pattern) return null;
+    const scope = ((inputObj.glob || inputObj.path || inputObj.directory || '') as string).trim();
+    const matchCount = output ? output.split('\n').filter((l: string) => l.trim()).length : 0;
+
+    return (
+      <div key={key} className="not-prose mb-0.5 w-full">
+        <div className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}>
+          {isRunning ? (
+            <Loader2Icon className="size-3 shrink-0 animate-spin" />
+          ) : (
+            <SearchIcon className="size-3 shrink-0" />
+          )}
+          <span>
+            Search for{' '}
+            <code className="bg-muted/60 rounded px-1 py-0.5 font-mono text-[11px]">
+              {pattern.length > 40 ? pattern.slice(0, 40) + '...' : pattern}
+            </code>
+          </span>
+          {isDone && matchCount > 0 && (
+            <span className="text-muted-foreground/60 shrink-0 text-[10px]">
+              {matchCount} match{matchCount > 1 ? 'es' : ''}
+            </span>
+          )}
+          {isError && <XCircleIcon className="size-3 shrink-0 text-red-500" />}
+        </div>
+        {scope && (
+          <div className="text-muted-foreground/50 ml-6 truncate text-[10px]">in {scope}</div>
+        )}
+      </div>
+    );
+  }
+
+  // ── 7. List files / Glob ──
+  if (normalized === 'list_files') {
+    const pattern = ((inputObj.pattern || inputObj.path || inputObj.directory || '') as string).trim();
+    if (!pattern) return null;
+    const fileCount = output ? output.split('\n').filter((l: string) => l.trim()).length : 0;
+
+    return (
+      <div key={key} className="not-prose mb-0.5 w-full">
+        <div className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}>
+          {isRunning ? (
+            <Loader2Icon className="size-3 shrink-0 animate-spin" />
+          ) : (
+            <FolderTreeIcon className="size-3 shrink-0" />
+          )}
+          <span>
+            List <code className="bg-muted/60 rounded px-1 py-0.5 font-mono text-[11px]">{pattern}</code>
+          </span>
+          {isDone && fileCount > 0 && (
+            <span className="text-muted-foreground/60 shrink-0 text-[10px]">
+              {fileCount} file{fileCount > 1 ? 's' : ''}
+            </span>
+          )}
+          {isError && <XCircleIcon className="size-3 shrink-0 text-red-500" />}
+        </div>
+      </div>
+    );
+  }
+
+  // ── 8. Web search ──
+  if (normalized === 'web_search') {
+    const query = ((inputObj.query || '') as string).trim();
+    if (!query) return null;
+    return (
+      <div key={key} className="not-prose mb-0.5 w-full">
+        <div className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}>
+          {isRunning ? (
+            <Loader2Icon className="size-3 shrink-0 animate-spin" />
+          ) : (
+            <GlobeIcon className="size-3 shrink-0" />
+          )}
+          <span>Search web for <span className="font-medium">&ldquo;{query.slice(0, 60)}&rdquo;</span></span>
+        </div>
+      </div>
+    );
+  }
+
+  // ── 9. Web fetch ──
+  if (normalized === 'web_fetch') {
+    const url = ((inputObj.url || '') as string).trim();
+    if (!url) return null;
+    let hostname = url;
+    try { hostname = new URL(url).hostname; } catch { /* use raw url */ }
+    return (
+      <div key={key} className="not-prose mb-0.5 w-full">
+        <div className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}>
+          {isRunning ? (
+            <Loader2Icon className="size-3 shrink-0 animate-spin" />
+          ) : (
+            <GlobeIcon className="size-3 shrink-0" />
+          )}
+          <span>Fetch <span className="font-medium">{hostname}</span></span>
+        </div>
+      </div>
+    );
+  }
+
+  // ── 10. Task / sub-agent ──
   if (normalized === 'task') {
     return (
-      <SubAgentTool
-        key={key}
-        toolCallId={toolPart.toolCallId || `tool-${i}`}
-        toolPart={toolPart}
-      />
+      <SubAgentTool key={key} toolCallId={toolPart.toolCallId || `tool-${i}`} toolPart={toolPart} />
     );
   }
 
@@ -697,7 +1048,13 @@ function renderToolPart(toolPart: any, i: number, sessionKey?: string | null) {
 
   return (
     <Tool key={toolPart.toolCallId || i} defaultOpen={hasError}>
-      <ToolHeader title={title} subtitle={subtitle} type={toolPart.type} state={toolPart.state} icon={Icon} />
+      <ToolHeader
+        title={title}
+        subtitle={subtitle}
+        type={toolPart.type}
+        state={toolPart.state}
+        icon={Icon}
+      />
       <ToolContent>
         <ToolInput input={inputObj} />
         <ToolOutput output={toolPart.output} errorText={toolPart.errorText} />
@@ -808,7 +1165,8 @@ function StreamingToolGroup({
         <ChainOfThoughtHeader>
           <span className="flex items-center gap-1.5">
             <Loader2 className="size-3.5 animate-spin" />
-            {summarizeToolRun(toolRun)} <span className="tabular-nums">({completed.length} done)</span>
+            {summarizeToolRun(toolRun)}{' '}
+            <span className="tabular-nums">({completed.length} done)</span>
           </span>
         </ChainOfThoughtHeader>
         <ChainOfThoughtContent>
@@ -953,12 +1311,8 @@ function MessageParts({
             : { id: toolPart.toolCallId };
 
         const isModeSwitch =
-          toolName === 'switch_mode' ||
-          toolName === 'ExitPlanMode' ||
-          toolName === 'EnterPlanMode';
-        const targetMode = (toolPart.input?.mode_slug ||
-          toolPart.input?.mode ||
-          '') as string;
+          toolName === 'switch_mode' || toolName === 'ExitPlanMode' || toolName === 'EnterPlanMode';
+        const targetMode = (toolPart.input?.mode_slug || toolPart.input?.mode || '') as string;
 
         // For mode switches, find the preceding plan file content to show inline
         let planPreviewContent: string | null = null;
@@ -1263,6 +1617,9 @@ function AcpChatInner({
   const [inputHasText, setInputHasText] = useState(false);
   const interruptPayloadRef = useRef<{ text: string; files?: any[] } | null>(null);
 
+  // External ref to PromptInput attachments — synced by AttachmentSync below
+  const promptAttachmentsRef = useRef<{ files: any[]; clear: () => void } | null>(null);
+
   // Side-channel state
   const [usage, setUsage] = useState<AcpUsageData | null>(null);
   const [planEntries, setPlanEntries] = useState<AcpPlanEntry[]>([]);
@@ -1510,7 +1867,9 @@ function AcpChatInner({
         setVoiceInputEnabled(res.settings?.voiceInput?.enabled ?? false);
       }
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Slash command autocomplete
@@ -1685,17 +2044,27 @@ function AcpChatInner({
   const handleQueueFromInput = useCallback(() => {
     const text = textareaRef.current?.value?.trim();
     if (!text) return;
-    const payload = { text };
+    const currentFiles = promptAttachmentsRef.current?.files;
+    const payload = {
+      text,
+      files: currentFiles && currentFiles.length > 0 ? [...currentFiles] : undefined,
+    };
     messageQueueRef.current.push(payload);
     setQueuedMessages([...messageQueueRef.current]);
     clearTextarea();
+    promptAttachmentsRef.current?.clear();
   }, [clearTextarea]);
 
   const handleInterruptAndSend = useCallback(() => {
     const text = textareaRef.current?.value?.trim();
     if (!text) return;
-    interruptPayloadRef.current = { text };
+    const currentFiles = promptAttachmentsRef.current?.files;
+    interruptPayloadRef.current = {
+      text,
+      files: currentFiles && currentFiles.length > 0 ? [...currentFiles] : undefined,
+    };
     clearTextarea();
+    promptAttachmentsRef.current?.clear();
     stop();
   }, [stop, clearTextarea]);
 
@@ -1976,7 +2345,12 @@ function AcpChatInner({
                       <p className="whitespace-pre-wrap">{getTextFromParts(msg.parts)}</p>
                     </>
                   ) : (
-                    <MessageParts message={msg} chatStatus={chatStatus} sessionKey={sessionKey} currentModeId={currentModeId} />
+                    <MessageParts
+                      message={msg}
+                      chatStatus={chatStatus}
+                      sessionKey={sessionKey}
+                      currentModeId={currentModeId}
+                    />
                   )}
                 </MessageContent>
                 {/* Message actions (visible on hover) */}
@@ -2015,17 +2389,11 @@ function AcpChatInner({
               {resumed !== null &&
                 initialMessages.length > 0 &&
                 msgIdx === initialMessages.length - 1 && (
-                  <Checkpoint className="my-2">
+                  <Checkpoint className="my-1">
                     <CheckpointIcon />
-                    <span
-                      className={`text-[10px] ${
-                        resumed ? 'text-green-400' : 'text-yellow-400'
-                      }`}
-                    >
-                      {resumed
-                        ? 'Session resumed'
-                        : 'New session — context replayed'}
-                    </span>
+                    <CheckpointTrigger className="text-[10px] whitespace-nowrap" disabled>
+                      {resumed ? 'Session resumed' : 'New session — context resumed'}
+                    </CheckpointTrigger>
                   </Checkpoint>
                 )}
             </div>
@@ -2112,7 +2480,15 @@ function AcpChatInner({
                   {queuedMessages.map((msg, i) => (
                     <QueueItem key={i} className="flex-row items-center">
                       <QueueItemIndicator />
-                      <QueueItemContent className="ml-2">{msg.text}</QueueItemContent>
+                      <QueueItemContent className="ml-2">
+                        {msg.text}
+                        {msg.files && msg.files.length > 0 && (
+                          <span className="text-muted-foreground/60 ml-1.5 inline-flex items-center gap-0.5 text-[10px]">
+                            <PaperclipIcon className="size-2.5" />
+                            {msg.files.length}
+                          </span>
+                        )}
+                      </QueueItemContent>
                       <QueueItemActions>
                         <QueueItemAction onClick={() => removeFromQueue(i)} title="Remove">
                           <XIcon className="size-3" />
@@ -2155,6 +2531,7 @@ function AcpChatInner({
       {/* Input area */}
       <div className="border-border/50 shrink-0 border-t p-3 [&_[data-slot=input-group-addon]]:!px-0 [&_[data-slot=input-group-addon]]:!pt-0 [&_[data-slot=input-group-addon]]:!pb-0 [&_[data-slot=input-group]]:items-stretch [&_[data-slot=input-group]]:!border-0 [&_[data-slot=input-group]]:!bg-transparent [&_[data-slot=input-group]]:!ring-0 [&_[data-slot=input-group]]:![box-shadow:none] [&_[data-slot=input-group]]:dark:!bg-transparent [&_textarea]:!px-0 [&_textarea]:!py-1.5 [&_textarea]:!ring-offset-0 [&_textarea]:!outline-none">
         <PromptInput onSubmit={handleSubmit} multiple>
+          <AttachmentSync targetRef={promptAttachmentsRef} />
           <PromptInputAttachments>
             {(attachment) => <PromptInputAttachment key={attachment.id} data={attachment} />}
           </PromptInputAttachments>
@@ -2194,7 +2571,7 @@ function AcpChatInner({
               <div className="text-muted-foreground flex items-center gap-1.5 px-0.5 pb-1 text-xs">
                 {speechState === 'recording' && (
                   <>
-                    <span className="bg-red-500 inline-block h-2 w-2 animate-pulse rounded-full" />
+                    <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-red-500" />
                     Recording... click mic to stop
                   </>
                 )}
@@ -2227,10 +2604,7 @@ function AcpChatInner({
                 </PromptInputActionMenuContent>
               </PromptInputActionMenu>
               {voiceInputEnabled && (
-                <PromptInputSpeechButton
-                  textareaRef={textareaRef}
-                  onStateChange={setSpeechState}
-                />
+                <PromptInputSpeechButton textareaRef={textareaRef} onStateChange={setSpeechState} />
               )}
 
               {/* Mode selector */}
