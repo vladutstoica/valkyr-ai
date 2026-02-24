@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { UIMessage } from 'ai';
 import { useChat } from '@ai-sdk/react';
 import * as SelectPrimitive from '@radix-ui/react-select';
@@ -1215,13 +1215,16 @@ function AcpChatInner({
     if (sessionKey) onStatusChange?.(effectiveStatus, sessionKey);
   }, [effectiveStatus, sessionKey, onStatusChange]);
 
+  // Derive pending approvals as a stable boolean to avoid re-running the effect on every message chunk
+  const hasPendingApprovals = useMemo(
+    () => messages.some((m) => m.parts.some((p: any) => p.state === 'approval-requested')),
+    [messages]
+  );
+
   // Update acpStatusStore so unifiedStatusStore can aggregate
   useEffect(() => {
-    const hasPending = messages.some((m) =>
-      m.parts.some((p: any) => p.state === 'approval-requested')
-    );
-    if (sessionKey) acpStatusStore.setStatus(sessionKey, effectiveStatus, hasPending);
-  }, [effectiveStatus, messages, sessionKey]);
+    if (sessionKey) acpStatusStore.setStatus(sessionKey, effectiveStatus, hasPendingApprovals);
+  }, [effectiveStatus, hasPendingApprovals, sessionKey]);
 
   // Handle approval clicks (delegated from Confirmation buttons)
   const handleApprovalClick = useCallback(

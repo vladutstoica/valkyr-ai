@@ -29,6 +29,10 @@ class AcpStatusStore {
   private listeners = new Map<string, Set<Listener>>();
 
   setStatus(sessionKey: string, status: AcpSessionStatus, hasPendingApprovals: boolean): void {
+    const prev = this.entries.get(sessionKey);
+    if (prev && prev.status === status && prev.hasPendingApprovals === hasPendingApprovals) {
+      return; // No change — skip notification
+    }
     this.entries.set(sessionKey, { status, hasPendingApprovals });
     this.notify(sessionKey);
   }

@@ -92,6 +92,7 @@ class UnifiedStatusStore {
 
   removeConversation(taskId: string, conversationId: string): void {
     const convMap = this.tasks.get(taskId);
+    const entry = convMap?.get(conversationId);
     if (convMap) {
       convMap.delete(conversationId);
       if (convMap.size === 0) this.tasks.delete(taskId);
@@ -105,13 +106,18 @@ class UnifiedStatusStore {
     }
     this.ptyDots.delete(subKey);
 
+    // Clean up acpStatusStore entry to prevent stale status lingering
+    if (entry?.mode === 'acp' && entry.acpSessionKey) {
+      acpStatusStore.remove(entry.acpSessionKey);
+    }
+
     this.notifyTask(taskId);
   }
 
   removeTask(taskId: string): void {
     const convMap = this.tasks.get(taskId);
     if (convMap) {
-      for (const convId of convMap.keys()) {
+      for (const [convId, entry] of convMap) {
         const subKey = `${taskId}:${convId}`;
         const unsub = this.subs.get(subKey);
         if (unsub) {
@@ -119,6 +125,10 @@ class UnifiedStatusStore {
           this.subs.delete(subKey);
         }
         this.ptyDots.delete(subKey);
+        // Clean up acpStatusStore entry
+        if (entry.mode === 'acp' && entry.acpSessionKey) {
+          acpStatusStore.remove(entry.acpSessionKey);
+        }
       }
     }
     this.tasks.delete(taskId);
