@@ -260,6 +260,9 @@ export const MessageResponse = memo(
   ({ className, ...props }: MessageResponseProps) => (
     <Streamdown
       className={cn('size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0', className)}
+      shikiTheme={['github-light', 'github-dark']}
+      controls
+      parseIncompleteMarkdown
       {...props}
     />
   ),

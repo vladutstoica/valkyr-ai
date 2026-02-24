@@ -3,6 +3,13 @@
 @import 'tw-animate-css';
 @import '@xterm/xterm/css/xterm.css';
 
+/* Streamdown styles for rich markdown rendering */
+@source "../node_modules/streamdown/dist/*.js";
+
+/* Safelist Streamdown classes that Tailwind v4's @source scanner misses.
+   See: https://tailwindcss.com/docs/detecting-classes-in-source-files */
+@source inline("list-inside list-item whitespace-normal wrap-anywhere border-collapse border-l-4 divide-border my-4 my-6 mt-6 py-0.5 px-1.5 p-1.5 group-hover:block");
+
 @custom-variant dark (&:is(.dark *));
 @custom-variant dark-black (&:is(.dark-black *));
 
