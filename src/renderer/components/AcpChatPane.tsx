@@ -134,6 +134,7 @@ import {
   PromptInputSelectItem,
   PromptInputSelectValue,
   PromptInputSpeechButton,
+  type SpeechButtonState,
   type PromptInputMessage,
 } from './ai-elements/prompt-input';
 import {
@@ -1341,18 +1342,18 @@ function AcpChatInner({
     [sendMessage, chatStatus, draftKey]
   );
 
-  // Drain interrupt payload when chat becomes ready (priority over queue)
+  // Drain interrupt payload or queued messages when chat becomes ready
+  // Merged into a single effect to avoid race conditions when both exist
   useEffect(() => {
-    if (chatStatus === 'ready' && interruptPayloadRef.current) {
+    if (chatStatus !== 'ready') return;
+    // Interrupt takes priority over queued messages
+    if (interruptPayloadRef.current) {
       const payload = interruptPayloadRef.current;
       interruptPayloadRef.current = null;
       sendMessage(payload);
+      return;
     }
-  }, [chatStatus, sendMessage]);
-
-  // Drain queued messages when chat becomes ready
-  useEffect(() => {
-    if (chatStatus === 'ready' && !interruptPayloadRef.current && messageQueueRef.current.length > 0) {
+    if (messageQueueRef.current.length > 0) {
       const next = messageQueueRef.current.shift()!;
       setQueuedMessages([...messageQueueRef.current]);
       sendMessage(next);
@@ -1361,6 +1362,7 @@ function AcpChatInner({
 
   // Voice input setting
   const [voiceInputEnabled, setVoiceInputEnabled] = useState(false);
+  const [speechState, setSpeechState] = useState<SpeechButtonState>('idle');
   useEffect(() => {
     let cancelled = false;
     window.electronAPI.getSettings().then((res) => {
@@ -2030,6 +2032,22 @@ function AcpChatInner({
                 ))}
               </div>
             )}
+            {speechState !== 'idle' && (
+              <div className="text-muted-foreground flex items-center gap-1.5 px-0.5 pb-1 text-xs">
+                {speechState === 'recording' && (
+                  <>
+                    <span className="bg-red-500 inline-block h-2 w-2 animate-pulse rounded-full" />
+                    Recording... click mic to stop
+                  </>
+                )}
+                {speechState === 'transcribing' && (
+                  <>
+                    <span className="border-muted-foreground inline-block h-3 w-3 animate-spin rounded-full border-2 border-t-transparent" />
+                    Transcribing...
+                  </>
+                )}
+              </div>
+            )}
             <PromptInputTextarea
               className="min-h-10 pb-0"
               placeholder={
@@ -2051,7 +2069,10 @@ function AcpChatInner({
                 </PromptInputActionMenuContent>
               </PromptInputActionMenu>
               {voiceInputEnabled && (
-                <PromptInputSpeechButton textareaRef={textareaRef} />
+                <PromptInputSpeechButton
+                  textareaRef={textareaRef}
+                  onStateChange={setSpeechState}
+                />
               )}
 
               {/* Mode selector */}

@@ -985,9 +985,12 @@ export const PromptInputSubmit = ({
   );
 };
 
+export type SpeechButtonState = 'idle' | 'recording' | 'transcribing';
+
 export type PromptInputSpeechButtonProps = ComponentProps<typeof PromptInputButton> & {
   textareaRef?: RefObject<HTMLTextAreaElement | null>;
   onTranscriptionChange?: (text: string) => void;
+  onStateChange?: (state: SpeechButtonState) => void;
 };
 
 /**
@@ -999,10 +1002,13 @@ export const PromptInputSpeechButton = ({
   className,
   textareaRef,
   onTranscriptionChange,
+  onStateChange,
   ...props
 }: PromptInputSpeechButtonProps) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const onStateChangeRef = useRef(onStateChange);
+  onStateChangeRef.current = onStateChange;
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
@@ -1102,6 +1108,12 @@ export const PromptInputSpeechButton = ({
     }
   }, [isRecording, stopRecording, startRecording]);
 
+  // Notify parent of state changes
+  useEffect(() => {
+    const state: SpeechButtonState = isRecording ? 'recording' : isTranscribing ? 'transcribing' : 'idle';
+    onStateChangeRef.current?.(state);
+  }, [isRecording, isTranscribing]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -1119,7 +1131,8 @@ export const PromptInputSpeechButton = ({
     <PromptInputButton
       className={cn(
         'relative transition-all duration-200',
-        isRecording && 'bg-red-500/20 text-red-500 animate-pulse',
+        isRecording &&
+          'bg-red-500/20 text-red-500 hover:bg-red-500/30 hover:text-red-500 animate-pulse',
         isTranscribing && 'text-muted-foreground opacity-50',
         className
       )}
