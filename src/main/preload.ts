@@ -291,6 +291,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     createBranchIfOnDefault?: boolean;
     branchPrefix?: string;
   }) => ipcRenderer.invoke('git:commit-and-push', args),
+  gitPush: (args: { repoPath: string }) => ipcRenderer.invoke('git:push', args),
   generatePrContent: (args: { taskPath: string; base?: string }) =>
     ipcRenderer.invoke('git:generate-pr-content', args),
   createPullRequest: (args: {
@@ -1002,6 +1003,9 @@ export interface ElectronAPI {
     createBranchIfOnDefault?: boolean;
     branchPrefix?: string;
   }) => Promise<{ success: boolean; branch?: string; output?: string; error?: string }>;
+  gitPush: (args: {
+    repoPath: string;
+  }) => Promise<{ success: boolean; branch?: string; error?: string }>;
   createPullRequest: (args: {
     taskPath: string;
     title?: string;

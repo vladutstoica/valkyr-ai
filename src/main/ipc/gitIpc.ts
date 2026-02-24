@@ -1352,6 +1352,53 @@ current branch '${currentBranch}' ahead of base '${baseRef}'.`,
     }
   );
 
+  // Git: Push current branch for a given repo path
+  ipcMain.handle(
+    'git:push',
+    async (
+      _,
+      args: {
+        repoPath: string;
+      }
+    ) => {
+      const { repoPath } = args || ({} as { repoPath: string });
+      if (!repoPath || typeof repoPath !== 'string') {
+        return { success: false, error: 'repoPath is required' };
+      }
+      if (!fs.existsSync(repoPath)) {
+        return { success: false, error: `Path does not exist: ${repoPath}` };
+      }
+
+      try {
+        // Verify git repo
+        await execFileAsync(GIT, ['rev-parse', '--is-inside-work-tree'], { cwd: repoPath });
+
+        // Get current branch
+        const { stdout: branchOut } = await execFileAsync(GIT, ['branch', '--show-current'], {
+          cwd: repoPath,
+        });
+        const branch = (branchOut || '').trim();
+        if (!branch) {
+          return { success: false, error: 'Detached HEAD — cannot push' };
+        }
+
+        // Push (set upstream if needed)
+        try {
+          await execFileAsync(GIT, ['push'], { cwd: repoPath });
+        } catch {
+          await execFileAsync(GIT, ['push', '--set-upstream', 'origin', branch], {
+            cwd: repoPath,
+          });
+        }
+
+        return { success: true, branch };
+      } catch (error) {
+        log.error('git:push failed:', error);
+        return { success: false, error: error instanceof Error ? error.message : String(error) };
+      }
+    }
+  );
+
   // Cleanup git status watchers on app quit to prevent race conditions
   app.on('before-quit', () => {
     for (const [, entry] of gitStatusWatchers) {
