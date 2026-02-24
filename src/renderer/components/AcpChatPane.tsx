@@ -7,15 +7,18 @@ import {
   ArrowLeftIcon,
   ArrowRightIcon,
   ArrowUpIcon,
+  BotIcon,
   CheckCircleIcon,
   CheckIcon,
   ChevronDownIcon,
+  ChevronRightIcon,
   ClockIcon,
   CopyIcon,
   DownloadIcon,
   HistoryIcon,
   ListPlusIcon,
   Loader2,
+  Loader2Icon,
   MoreHorizontalIcon,
   PaperclipIcon,
   PlusIcon,
@@ -452,6 +455,86 @@ function StreamingTerminal({
 }
 
 /**
+ * Dedicated renderer for Task (sub-agent delegation) tool calls.
+ * Shows the agent type as a badge, the description/prompt, and streams output.
+ */
+function SubAgentTool({
+  toolCallId,
+  toolPart,
+}: {
+  toolCallId: string;
+  toolPart: any;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const streamingOutput = useToolOutput(toolCallId);
+  const input = toolPart.input || {};
+  const agentType = (input.subagent_type || '') as string;
+  const description = (input.description || '') as string;
+  const prompt = (input.prompt || '') as string;
+  const isRunning = toolPart.state === 'input-available' || toolPart.state === 'input-streaming';
+  const isDone = toolPart.state === 'output-available';
+  const isError = toolPart.state === 'output-error' || toolPart.state === 'output-denied';
+  const finalOutput = toolPart.output != null ? String(toolPart.output) : '';
+
+  // Show streaming content while running, final output when done
+  const outputText = finalOutput || streamingOutput;
+  // Truncate long output for display
+  const truncatedOutput = outputText.length > 500 ? outputText.slice(-500) : outputText;
+  const hasOutput = outputText.length > 0;
+
+  return (
+    <div className="not-prose mb-0.5 w-full">
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className={`text-muted-foreground hover:bg-muted/50 flex w-full items-center gap-1.5 rounded px-1.5 py-1 text-xs transition-colors ${isError ? 'text-red-500' : ''}`}
+      >
+        <ChevronRightIcon
+          className={`size-3 shrink-0 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
+        />
+        {isRunning ? (
+          <Loader2Icon className="size-3 shrink-0 animate-spin" />
+        ) : (
+          <BotIcon className="size-3 shrink-0" />
+        )}
+        {agentType && (
+          <span className="bg-muted text-muted-foreground shrink-0 rounded px-1 py-0.5 text-[10px] font-medium uppercase tracking-wide">
+            {agentType}
+          </span>
+        )}
+        <span className="truncate">{description || 'Sub-agent task'}</span>
+        {isRunning && (
+          <span className="text-muted-foreground/50 shrink-0 text-[10px]">running</span>
+        )}
+        {isDone && (
+          <CheckCircleIcon className="text-muted-foreground/50 size-3 shrink-0" />
+        )}
+      </button>
+      {expanded && (
+        <div className="border-border/40 ml-3 border-l pl-3">
+          {prompt && (
+            <div className="text-muted-foreground/70 mt-1 mb-1 max-h-24 overflow-y-auto text-[11px] leading-relaxed">
+              {prompt.length > 300 ? prompt.slice(0, 300) + '...' : prompt}
+            </div>
+          )}
+          {hasOutput && (
+            <div className="bg-muted/40 mt-1 mb-2 max-h-48 overflow-y-auto rounded p-2 font-mono text-[11px] whitespace-pre-wrap">
+              {truncatedOutput}
+            </div>
+          )}
+          {isRunning && !hasOutput && (
+            <div className="text-muted-foreground/50 flex items-center gap-1.5 py-1 text-[11px]">
+              <Loader2Icon className="size-3 animate-spin" />
+              <span>Agent is working...</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * Attempt to render a tool part using a rich AI Element component.
  * Returns a React element if a rich match is found, or null to fall through
  * to the generic Tool rendering.
@@ -552,6 +635,17 @@ function renderRichToolPart(
     );
   }
 
+  // 4. Task/sub-agent delegation → SubAgentTool with streaming output
+  if (normalized === 'task') {
+    return (
+      <SubAgentTool
+        key={key}
+        toolCallId={toolPart.toolCallId || `tool-${i}`}
+        toolPart={toolPart}
+      />
+    );
+  }
+
   // No rich match — fall through
   return null;
 }
@@ -566,6 +660,9 @@ function renderToolPart(toolPart: any, i: number, sessionKey?: string | null) {
 
   const title = getToolDisplayLabel(toolName, toolPart.input || {});
   const Icon = getToolIconComponent(toolName);
+
+  // No label means we don't have enough info to show anything meaningful — skip
+  if (!title) return null;
 
   // Check if this tool has meaningful expandable content
   const inputObj = toolPart.input || {};
@@ -717,8 +814,9 @@ function StreamingToolGroup({
         <ChainOfThoughtContent>
           {completed.map((t) => {
             const toolName = t.part.toolName || t.part.type?.replace(/^tool-/, '') || '';
-            const Icon = getToolIconComponent(toolName);
             const label = getToolStepLabel(toolName, t.part.input || {});
+            if (!label) return null;
+            const Icon = getToolIconComponent(toolName);
             const status = mapToolStateToStepStatus(t.part.state);
             return (
               <ChainOfThoughtStep
@@ -774,8 +872,9 @@ function MessageParts({
           <ChainOfThoughtContent>
             {toolRun.map((t) => {
               const toolName = t.part.toolName || t.part.type?.replace(/^tool-/, '') || '';
-              const Icon = getToolIconComponent(toolName);
               const label = getToolStepLabel(toolName, t.part.input || {});
+              if (!label) return null;
+              const Icon = getToolIconComponent(toolName);
               const status = mapToolStateToStepStatus(t.part.state);
               return (
                 <ChainOfThoughtStep
@@ -909,21 +1008,60 @@ function MessageParts({
               </>
             );
           }
-        } else {
+        } else if (title) {
           confirmTitle = (
             <>
               Allow <strong>{title}</strong>?
             </>
           );
+        } else {
+          // No meaningful label available — show the raw tool name so the user
+          // can at least see the tool type rather than a blank prompt
+          confirmTitle = (
+            <>
+              Allow <strong>{toolName || 'tool call'}</strong>?
+            </>
+          );
         }
+
+        // Build a detail preview for tool inputs so the user knows what they're approving
+        const toolInput = toolPart.input || {};
+        const normalized = normalizeToolName(toolName);
+        let inputPreview: string | null = null;
+        if (!isModeSwitch) {
+          if (normalized === 'bash') {
+            const cmd = (toolInput.command || toolInput.cmd || '') as string;
+            if (cmd) inputPreview = cmd;
+          } else if (normalized === 'edit_file' || normalized === 'write_file') {
+            const fp = (toolInput.file_path || toolInput.path || toolInput.file || '') as string;
+            if (fp) inputPreview = fp;
+          } else if (normalized === 'read_file') {
+            const fp = (toolInput.file_path || toolInput.path || toolInput.file || '') as string;
+            if (fp) inputPreview = fp;
+          }
+          // If we still have no preview and there is raw input, show it as JSON
+          // so the user can always see exactly what they're approving
+          if (!inputPreview && toolInput && Object.keys(toolInput).length > 0) {
+            // Filter out the 'title' key which is our own metadata
+            const displayInput = Object.fromEntries(
+              Object.entries(toolInput).filter(([k]) => k !== 'title')
+            );
+            if (Object.keys(displayInput).length > 0) {
+              inputPreview = JSON.stringify(displayInput, null, 2);
+            }
+          }
+        }
+
+        // Use title for after-the-fact labels, fall back to toolName
+        const displayTitle = title || toolName || 'tool call';
 
         elements.push(
           <Confirmation key={toolPart.toolCallId || i} state={toolPart.state} approval={approval}>
             <ConfirmationTitle>{confirmTitle}</ConfirmationTitle>
-            {planPreviewContent && (
+            {(planPreviewContent || inputPreview) && (
               <ConfirmationBody className="border-border/50 bg-muted/30 max-h-72 overflow-y-auto rounded border p-3">
                 <pre className="text-muted-foreground font-mono text-xs leading-relaxed whitespace-pre-wrap">
-                  {planPreviewContent}
+                  {planPreviewContent || inputPreview}
                 </pre>
               </ConfirmationBody>
             )}
@@ -959,10 +1097,10 @@ function MessageParts({
               </ConfirmationActions>
             </ConfirmationRequest>
             <ConfirmationAccepted>
-              Allowed <strong>{title}</strong>
+              Allowed <strong>{displayTitle}</strong>
             </ConfirmationAccepted>
             <ConfirmationRejected>
-              Denied <strong>{title}</strong>
+              Denied <strong>{displayTitle}</strong>
             </ConfirmationRejected>
           </Confirmation>
         );
@@ -1061,6 +1199,7 @@ type AcpChatInnerProps = {
   initialMessages: UIMessage[];
   sessionKey: string | null;
   acpSessionId: string | null;
+  resumed: boolean | null;
   modes: AcpSessionModes;
   models: AcpSessionModels;
   onStatusChange?: (status: AcpSessionStatus, sessionKey: string) => void;
@@ -1085,6 +1224,7 @@ function AcpChatInner({
   initialMessages,
   sessionKey,
   acpSessionId,
+  resumed,
   modes: initialModes,
   models: initialModels,
   onStatusChange,
@@ -1763,6 +1903,29 @@ function AcpChatInner({
       {/* Messages area */}
       <Conversation>
         <ConversationContent className="gap-3 p-3">
+          {/* Resume checkpoint banner */}
+          {resumed !== null && messages.length > 0 && (
+            <div
+              className={`flex items-center gap-2 rounded-md border px-3 py-2 text-xs ${
+                resumed
+                  ? 'border-green-500/30 bg-green-500/10 text-green-400'
+                  : 'border-yellow-500/30 bg-yellow-500/10 text-yellow-400'
+              }`}
+            >
+              {resumed ? (
+                <>
+                  <CheckCircleIcon className="h-3.5 w-3.5 shrink-0" />
+                  <span>Session resumed — agent has full conversation context</span>
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  <span>New session — conversation history was replayed to restore context</span>
+                </>
+              )}
+            </div>
+          )}
+
           {messages.length === 0 && chatStatus === 'ready' && (
             <>
               <ConversationEmptyState
@@ -2216,6 +2379,7 @@ export function AcpChatPane({
     initialMessages,
     sessionKey,
     acpSessionId,
+    resumed,
     modes,
     models,
     restartSession,
@@ -2310,6 +2474,7 @@ export function AcpChatPane({
       initialMessages={initialMessages}
       sessionKey={sessionKey ?? null}
       acpSessionId={acpSessionId ?? null}
+      resumed={resumed}
       modes={modes}
       models={models}
       onStatusChange={onStatusChange}

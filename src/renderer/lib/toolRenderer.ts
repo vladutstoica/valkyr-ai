@@ -15,6 +15,7 @@ import {
   BookOpenIcon,
   WrenchIcon,
   ToggleRightIcon,
+  BotIcon,
 } from 'lucide-react';
 
 const TOOL_NAME_MAP: Record<string, string> = {
@@ -70,6 +71,16 @@ const TOOL_NAME_MAP: Record<string, string> = {
   // Task / agent delegation
   Task: 'task',
   task: 'task',
+
+  // ACP ToolKind categories (used when title isn't available)
+  execute: 'bash',
+  read: 'read_file',
+  // edit already mapped above
+  delete: 'edit_file',
+  move: 'edit_file',
+  // fetch already mapped above
+  think: 'search',
+  other: 'unknown',
 };
 
 export type NormalizedToolName =
@@ -96,132 +107,178 @@ function extractFilename(val: unknown): string {
   return parts[parts.length - 1];
 }
 
+/** Extract a non-empty string from args, trying multiple keys. */
+function extractArg(args: Record<string, unknown>, ...keys: string[]): string {
+  for (const k of keys) {
+    const v = args[k];
+    if (typeof v === 'string' && v.trim()) return v.trim();
+  }
+  return '';
+}
+
 /**
  * Get a display-friendly label for a tool invocation.
+ * Returns null when there is not enough information to produce a meaningful label.
  */
-export function getToolDisplayLabel(toolName: string, args: Record<string, unknown>): string {
+export function getToolDisplayLabel(
+  toolName: string,
+  args: Record<string, unknown>
+): string | null {
   // ACP provides a human-readable title (e.g. "Read src/renderer/components/AcpChatPane.tsx")
-  if (typeof args.title === 'string' && args.title) {
-    return args.title;
-  }
+  const title = extractArg(args, 'title');
+  if (title) return title;
 
   const normalized = normalizeToolName(toolName);
 
   switch (normalized) {
-    case 'read_file':
-      return `Read ${(args.file_path || args.path || args.file || '') as string}`;
-    case 'write_file':
-      return `Write ${(args.file_path || args.path || args.file || '') as string}`;
-    case 'edit_file':
-      return `Edit ${(args.file_path || args.path || args.file || '') as string}`;
-    case 'bash':
-      return `Run ${((args.command || args.cmd || '') as string).slice(0, 60)}`;
-    case 'list_files':
-      return `List ${(args.pattern || args.path || args.directory || '') as string}`;
-    case 'search':
-      return `Search "${(args.pattern || args.query || args.regex || '') as string}"`;
-    case 'web_search':
-      return `Search web: ${((args.query || '') as string).slice(0, 60)}`;
-    case 'web_fetch':
-      return `Fetch ${(args.url || '') as string}`;
-    case 'notebook_edit':
-      return `Edit notebook`;
-    case 'task':
-      return `Task: ${((args.description || '') as string).slice(0, 60)}`;
+    case 'read_file': {
+      const fp = extractArg(args, 'file_path', 'path', 'file');
+      return fp ? `Read ${fp}` : null;
+    }
+    case 'write_file': {
+      const fp = extractArg(args, 'file_path', 'path', 'file');
+      return fp ? `Write ${fp}` : null;
+    }
+    case 'edit_file': {
+      const fp = extractArg(args, 'file_path', 'path', 'file');
+      return fp ? `Edit ${fp}` : null;
+    }
+    case 'bash': {
+      const cmd = extractArg(args, 'command', 'cmd');
+      return cmd ? `Run ${cmd.slice(0, 80)}` : null;
+    }
+    case 'list_files': {
+      const target = extractArg(args, 'pattern', 'path', 'directory');
+      return target ? `List ${target}` : null;
+    }
+    case 'search': {
+      const q = extractArg(args, 'pattern', 'query', 'regex');
+      return q ? `Search "${q}"` : null;
+    }
+    case 'web_search': {
+      const q = extractArg(args, 'query');
+      return q ? `Search web: ${q.slice(0, 60)}` : null;
+    }
+    case 'web_fetch': {
+      const url = extractArg(args, 'url');
+      return url ? `Fetch ${url}` : null;
+    }
+    case 'notebook_edit': {
+      const nb = extractArg(args, 'notebook_path', 'path');
+      return nb ? `Edit ${nb}` : null;
+    }
+    case 'task': {
+      const agentType = extractArg(args, 'subagent_type');
+      const desc = extractArg(args, 'description');
+      if (agentType && desc) return `${agentType}: ${desc.slice(0, 60)}`;
+      if (agentType) return agentType;
+      if (desc) return desc.slice(0, 60);
+      return null;
+    }
     default: {
-      // Handle switch_mode and similar non-normalized tools with descriptive titles
       if (toolName === 'switch_mode') {
-        const mode = (args.mode_slug || args.mode || args.title || '') as string;
-        return mode ? `Switch to ${mode} mode` : 'Switch mode';
+        const mode = extractArg(args, 'mode_slug', 'mode', 'title');
+        return mode ? `Switch to ${mode} mode` : null;
       }
-      return toolName;
+      return null;
     }
   }
 }
 
 /**
  * Get a short, human-readable step label for a tool invocation (used in ChainOfThought).
+ * Returns null when there is not enough information to produce a meaningful label.
  *
  * Priority:
  * 1. ACP `title` field — already a human-readable description from the agent
- * 2. Smart extraction from tool args (filename from path, truncated commands, etc.)
- * 3. Fallback to a sensible default per tool type
+ * 2. Bash `description` field — a short human-readable summary
+ * 3. Smart extraction from tool args (filename from path, truncated commands, etc.)
  */
-export function getToolStepLabel(toolName: string, args: Record<string, unknown>): string {
-  // ACP provides a human-readable title (e.g., "Read file: package.json") — use it first
-  if (typeof args.title === 'string' && args.title) {
-    return args.title;
-  }
+export function getToolStepLabel(
+  toolName: string,
+  args: Record<string, unknown>
+): string | null {
+  // ACP provides a human-readable title — use it first
+  const title = extractArg(args, 'title');
+  if (title) return title;
 
   // Bash description field is a short human-readable summary
-  if (typeof args.description === 'string' && args.description) {
-    return args.description;
-  }
+  const desc = extractArg(args, 'description');
+  if (desc) return desc;
 
   const normalized = normalizeToolName(toolName);
 
   switch (normalized) {
     case 'read_file': {
       const name = extractFilename(args.file_path || args.path || args.file);
-      return name ? `Read ${name}` : 'Read file';
+      return name ? `Read ${name}` : null;
     }
     case 'write_file': {
       const name = extractFilename(args.file_path || args.path || args.file);
-      return name ? `Write ${name}` : 'Write file';
+      return name ? `Write ${name}` : null;
     }
     case 'edit_file': {
       const name = extractFilename(args.file_path || args.path || args.file);
-      return name ? `Edit ${name}` : 'Edit file';
+      return name ? `Edit ${name}` : null;
     }
     case 'bash': {
-      const cmd = ((args.command || args.cmd || '') as string).slice(0, 50);
-      return cmd ? `Run \`${cmd}\`` : 'Run command';
+      const cmd = extractArg(args, 'command', 'cmd');
+      return cmd ? `Run \`${cmd.slice(0, 50)}\`` : null;
     }
     case 'list_files': {
-      const pattern = (args.pattern || '') as string;
+      const pattern = extractArg(args, 'pattern');
+      if (pattern) return `List ${pattern}`;
       const dir = extractFilename(args.path || args.directory);
-      return pattern ? `List ${pattern}` : dir ? `List ${dir}/` : 'List files';
+      return dir ? `List ${dir}/` : null;
     }
     case 'search': {
-      const q = (args.pattern || args.query || args.regex || '') as string;
-      return q ? `Search for "${q.slice(0, 40)}"` : 'Search codebase';
+      const q = extractArg(args, 'pattern', 'query', 'regex');
+      return q ? `Search for "${q.slice(0, 40)}"` : null;
     }
     case 'web_search': {
-      const q = (args.query || '') as string;
-      return q ? `Search web for "${q.slice(0, 40)}"` : 'Search web';
+      const q = extractArg(args, 'query');
+      return q ? `Search web for "${q.slice(0, 40)}"` : null;
     }
     case 'web_fetch': {
-      const url = (args.url || '') as string;
+      const url = extractArg(args, 'url');
       if (url) {
         try {
           return `Fetch ${new URL(url).hostname}`;
         } catch {
-          /* fallthrough */
+          return `Fetch ${url.slice(0, 40)}`;
         }
       }
-      return 'Fetch URL';
+      return null;
     }
     case 'notebook_edit': {
       const nb = extractFilename(args.notebook_path || args.path);
-      return nb ? `Edit ${nb}` : 'Edit notebook';
+      return nb ? `Edit ${nb}` : null;
     }
     case 'task': {
-      const desc = (args.description || args.prompt || '') as string;
-      return desc ? desc.slice(0, 50) : 'Run sub-task';
+      const agentType = extractArg(args, 'subagent_type');
+      const taskDesc = extractArg(args, 'description', 'prompt');
+      if (agentType && taskDesc) return `${agentType}: ${taskDesc.slice(0, 50)}`;
+      if (agentType) return agentType;
+      if (taskDesc) return taskDesc.slice(0, 50);
+      return null;
     }
     default: {
-      // Handle switch_mode with target mode info
       if (toolName === 'switch_mode') {
-        const mode = (args.mode_slug || args.mode || '') as string;
-        return mode ? `Switch to ${mode} mode` : 'Switch mode';
+        const mode = extractArg(args, 'mode_slug', 'mode');
+        return mode ? `Switch to ${mode} mode` : null;
       }
-      // For MCP or unknown tools, humanize the tool name
-      const humanized = toolName
-        .replace(/^mcp__[^_]+__/, '') // strip MCP prefix
-        .replace(/_/g, ' ')
-        .replace(/([a-z])([A-Z])/g, '$1 $2')
-        .toLowerCase();
-      return humanized.charAt(0).toUpperCase() + humanized.slice(1);
+      // For MCP or other named tools, humanize the tool name only if it's meaningful
+      if (toolName && toolName !== 'tool' && toolName !== 'unknown') {
+        const humanized = toolName
+          .replace(/^mcp__[^_]+__/, '') // strip MCP prefix
+          .replace(/_/g, ' ')
+          .replace(/([a-z])([A-Z])/g, '$1 $2')
+          .toLowerCase();
+        const result = humanized.charAt(0).toUpperCase() + humanized.slice(1);
+        // Only return if we got something meaningful (not just "execute", "other", etc.)
+        if (result.length > 2) return result;
+      }
+      return null;
     }
   }
 }
@@ -250,6 +307,8 @@ export function getToolIconComponent(toolName: string): LucideIcon {
       return GlobeIcon;
     case 'notebook_edit':
       return BookOpenIcon;
+    case 'task':
+      return BotIcon;
     default: {
       if (toolName === 'switch_mode') return ToggleRightIcon;
       return WrenchIcon;
@@ -281,6 +340,8 @@ export function getToolIcon(toolName: string): string {
       return 'Globe';
     case 'notebook_edit':
       return 'BookOpen';
+    case 'task':
+      return 'Bot';
     default:
       return 'Wrench';
   }

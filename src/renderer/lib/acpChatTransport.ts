@@ -114,8 +114,11 @@ class ChunkMapper {
       case 'tool_call': {
         chunks.push(...this.endAll());
         const toolCallId = update.toolCallId || `tool-${Date.now()}`;
-        // Use canonical tool kind if available, fall back to deriving from title
-        const toolName = update.kind || update.title?.split(/\s/)[0] || 'tool';
+        // Derive toolName from the first word of title (e.g. "Read", "Edit", "Run")
+        // which maps well to TOOL_NAME_MAP. Fall back to kind only as last resort
+        // since kind values like "execute"/"think" are categories, not tool names.
+        const firstWord = update.title?.split(/\s/)[0] || '';
+        const toolName = firstWord || update.kind || 'tool';
         chunks.push({
           type: 'tool-input-available',
           toolCallId,
@@ -439,6 +442,9 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
     return new ReadableStream<UIMessageChunk>({
       start(controller) {
         const mapper = new ChunkMapper();
+        // Track toolCallIds that already have a tool-input-available chunk
+        // to avoid emitting duplicates when permission_request arrives
+        const emittedToolCalls = new Set<string>();
 
         const rawCleanup = api().onAcpUpdate(sessionKey, (event: AcpUpdateEvent) => {
           switch (event.type) {
@@ -475,6 +481,9 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
 
               const chunks = mapper.map(event.data);
               for (const chunk of chunks) {
+                if ((chunk as any).type === 'tool-input-available' && (chunk as any).toolCallId) {
+                  emittedToolCalls.add((chunk as any).toolCallId);
+                }
                 controller.enqueue(chunk);
               }
               break;
@@ -487,6 +496,24 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
                 api().acpApprove({ sessionKey, toolCallId: event.toolCallId, approved: true });
               } else {
                 acpStatusStore.setStatus(sessionKey, 'streaming', true);
+
+                // Emit a tool-input-available chunk so the ai-sdk has a tool
+                // part with name + input before the approval state change.
+                // Without this, the approval dialog shows a generic label.
+                // Skip if a tool_call session_update already emitted one.
+                const tc = event.data?.toolCall;
+                if (tc && !emittedToolCalls.has(event.toolCallId)) {
+                  const firstWord = tc.title?.split(/\s/)[0] || '';
+                  const toolName = firstWord || tc.kind || 'tool';
+                  emittedToolCalls.add(event.toolCallId);
+                  controller.enqueue({
+                    type: 'tool-input-available',
+                    toolCallId: event.toolCallId,
+                    toolName,
+                    input: tc.rawInput ?? { title: tc.title },
+                  });
+                }
+
                 controller.enqueue({
                   type: 'tool-approval-request',
                   approvalId: event.toolCallId,
