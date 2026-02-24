@@ -433,7 +433,21 @@ function summarizeToolRun(toolRun: Array<{ part: any }>): string {
     if (!countedTypes.has(key)) other += count;
   }
   if (other > 0) parts.push(`${other} other`);
-  return parts.join(', ') || `Used ${toolRun.length} tools`;
+  return parts.join(', ') || `${toolRun.length} steps`;
+}
+
+/** Render a row of mini tool-type icons for a tool run group header. */
+function ToolRunMiniIcons({ toolRun }: { toolRun: Array<{ part: any }> }) {
+  return (
+    <span className="flex items-center gap-0.5">
+      {toolRun.map((t, idx) => {
+        const Icon = getToolIconComponent(
+          t.part.toolName || t.part.type?.replace(/^tool-/, '') || ''
+        );
+        return <Icon key={idx} className="text-muted-foreground/40 size-2.5" />;
+      })}
+    </span>
+  );
 }
 
 /**
@@ -637,13 +651,18 @@ function extractBashCommand(inputObj: Record<string, unknown>): string {
 }
 
 /** Compute +N / -M diff stats from old_string / new_string. */
-function computeDiffStats(inputObj: Record<string, unknown>): { added: number; removed: number } | null {
+function computeDiffStats(
+  inputObj: Record<string, unknown>
+): { added: number; removed: number } | null {
   const oldStr = typeof inputObj.old_string === 'string' ? inputObj.old_string : '';
   const newStr = typeof inputObj.new_string === 'string' ? inputObj.new_string : '';
   if (!oldStr && !newStr) return null;
   const oldLines = oldStr ? oldStr.split('\n').length : 0;
   const newLines = newStr ? newStr.split('\n').length : 0;
-  return { added: Math.max(0, newLines - oldLines + (oldLines > 0 ? oldLines : 0)), removed: oldLines };
+  return {
+    added: Math.max(0, newLines - oldLines + (oldLines > 0 ? oldLines : 0)),
+    removed: oldLines,
+  };
 }
 
 /**
@@ -663,7 +682,8 @@ function renderRichToolPart(
   const inputObj = toolPart.input || {};
   const key = toolPart.toolCallId || i;
   const isStreaming = toolPart.state === 'partial-call' || toolPart.state === 'call';
-  const isRunning = toolPart.state === 'input-available' || toolPart.state === 'input-streaming' || isStreaming;
+  const isRunning =
+    toolPart.state === 'input-available' || toolPart.state === 'input-streaming' || isStreaming;
   const isError = toolPart.state === 'output-error' || toolPart.state === 'output-denied';
   const isDone = toolPart.state === 'output-available';
 
@@ -690,7 +710,9 @@ function renderRichToolPart(
     if (!command) return null;
     return (
       <div key={key} className="not-prose mb-0.5 w-full">
-        <div className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}>
+        <div
+          className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}
+        >
           {isRunning ? (
             <Loader2Icon className="size-3 shrink-0 animate-spin" />
           ) : (
@@ -699,13 +721,13 @@ function renderRichToolPart(
           <span className="truncate">{description || 'Run command'}</span>
           {isError && <XCircleIcon className="size-3 shrink-0 text-red-500" />}
         </div>
-        <div className="ml-6 mt-0.5">
+        <div className="mt-0.5 ml-6">
           <code className="bg-muted/60 text-muted-foreground rounded px-1.5 py-0.5 font-mono text-[11px]">
             $ {command.length > 100 ? command.slice(0, 100) + '...' : command}
           </code>
         </div>
         {errorText && (
-          <pre className="ml-6 mt-1 max-h-16 overflow-hidden font-mono text-[11px] text-red-500 whitespace-pre-wrap">
+          <pre className="mt-1 ml-6 max-h-16 overflow-hidden font-mono text-[11px] whitespace-pre-wrap text-red-500">
             {errorText.slice(0, 300)}
           </pre>
         )}
@@ -748,9 +770,13 @@ function renderRichToolPart(
         <CodeBlockContainer key={key} language={language}>
           <CodeBlockHeader>
             <CodeBlockTitle>
-              <span>Read <span className="font-medium">{filename}</span></span>
+              <span>
+                Read <span className="font-medium">{filename}</span>
+              </span>
               {lineCount > 0 && (
-                <span className="text-muted-foreground/60 ml-1.5 text-[10px]">{lineCount} lines</span>
+                <span className="text-muted-foreground/60 ml-1.5 text-[10px]">
+                  {lineCount} lines
+                </span>
               )}
             </CodeBlockTitle>
             <CodeBlockActions>
@@ -765,13 +791,17 @@ function renderRichToolPart(
     // No output yet — compact inline
     return (
       <div key={key} className="not-prose mb-0.5 w-full">
-        <div className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}>
+        <div
+          className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}
+        >
           {isRunning ? (
             <Loader2Icon className="size-3 shrink-0 animate-spin" />
           ) : (
             <FileTextIcon className="size-3 shrink-0" />
           )}
-          <span>Read <span className="font-medium">{filename}</span></span>
+          <span>
+            Read <span className="font-medium">{filename}</span>
+          </span>
           {isError && <XCircleIcon className="size-3 shrink-0 text-red-500" />}
         </div>
         <div className="text-muted-foreground/50 ml-6 truncate text-[10px]">{filePath}</div>
@@ -793,7 +823,9 @@ function renderRichToolPart(
         <CodeBlockContainer key={key} language={language}>
           <CodeBlockHeader>
             <CodeBlockTitle>
-              <span>Edit <span className="font-medium">{filename}</span></span>
+              <span>
+                Edit <span className="font-medium">{filename}</span>
+              </span>
               {diffStats && (
                 <span className="ml-1.5 text-[10px]">
                   <span className="text-green-500">+{diffStats.added}</span>{' '}
@@ -813,7 +845,9 @@ function renderRichToolPart(
     // No output — compact inline with diff stats
     return (
       <div key={key} className="not-prose mb-0.5 w-full">
-        <div className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}>
+        <div
+          className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}
+        >
           {isRunning ? (
             <Loader2Icon className="size-3 shrink-0 animate-spin" />
           ) : isDone ? (
@@ -821,7 +855,9 @@ function renderRichToolPart(
           ) : (
             <FileEditIcon className="size-3 shrink-0" />
           )}
-          <span>Edit <span className="font-medium">{filename}</span></span>
+          <span>
+            Edit <span className="font-medium">{filename}</span>
+          </span>
           {diffStats && (
             <span className="text-[10px]">
               <span className="text-green-500">+{diffStats.added}</span>{' '}
@@ -832,7 +868,7 @@ function renderRichToolPart(
         </div>
         <div className="text-muted-foreground/50 ml-6 truncate text-[10px]">{filePath}</div>
         {errorText && (
-          <pre className="ml-6 mt-1 max-h-12 overflow-hidden font-mono text-[11px] text-red-500 whitespace-pre-wrap">
+          <pre className="mt-1 ml-6 max-h-12 overflow-hidden font-mono text-[11px] whitespace-pre-wrap text-red-500">
             {errorText.slice(0, 200)}
           </pre>
         )}
@@ -846,7 +882,7 @@ function renderRichToolPart(
     if (!filePath) return null;
     const filename = filePath.split('/').pop() ?? '';
     const content = typeof inputObj.content === 'string' ? inputObj.content : '';
-    const lineCount = content ? content.split('\n').length : (output ? output.split('\n').length : 0);
+    const lineCount = content ? content.split('\n').length : output ? output.split('\n').length : 0;
 
     // With output → CodeBlock
     if (output && output.length > 0) {
@@ -855,7 +891,9 @@ function renderRichToolPart(
         <CodeBlockContainer key={key} language={language}>
           <CodeBlockHeader>
             <CodeBlockTitle>
-              <span>Create <span className="font-medium">{filename}</span></span>
+              <span>
+                Create <span className="font-medium">{filename}</span>
+              </span>
               {lineCount > 0 && (
                 <span className="ml-1.5 text-[10px] text-green-500">+{lineCount} lines</span>
               )}
@@ -872,16 +910,18 @@ function renderRichToolPart(
     // No output — compact inline
     return (
       <div key={key} className="not-prose mb-0.5 w-full">
-        <div className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}>
+        <div
+          className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}
+        >
           {isRunning ? (
             <Loader2Icon className="size-3 shrink-0 animate-spin" />
           ) : (
             <FilePlusIcon className="size-3 shrink-0" />
           )}
-          <span>Create <span className="font-medium">{filename}</span></span>
-          {lineCount > 0 && (
-            <span className="text-[10px] text-green-500">+{lineCount} lines</span>
-          )}
+          <span>
+            Create <span className="font-medium">{filename}</span>
+          </span>
+          {lineCount > 0 && <span className="text-[10px] text-green-500">+{lineCount} lines</span>}
           {isError && <XCircleIcon className="size-3 shrink-0 text-red-500" />}
         </div>
         <div className="text-muted-foreground/50 ml-6 truncate text-[10px]">{filePath}</div>
@@ -898,7 +938,9 @@ function renderRichToolPart(
 
     return (
       <div key={key} className="not-prose mb-0.5 w-full">
-        <div className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}>
+        <div
+          className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}
+        >
           {isRunning ? (
             <Loader2Icon className="size-3 shrink-0 animate-spin" />
           ) : (
@@ -926,20 +968,25 @@ function renderRichToolPart(
 
   // ── 7. List files / Glob ──
   if (normalized === 'list_files') {
-    const pattern = ((inputObj.pattern || inputObj.path || inputObj.directory || '') as string).trim();
+    const pattern = (
+      (inputObj.pattern || inputObj.path || inputObj.directory || '') as string
+    ).trim();
     if (!pattern) return null;
     const fileCount = output ? output.split('\n').filter((l: string) => l.trim()).length : 0;
 
     return (
       <div key={key} className="not-prose mb-0.5 w-full">
-        <div className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}>
+        <div
+          className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}
+        >
           {isRunning ? (
             <Loader2Icon className="size-3 shrink-0 animate-spin" />
           ) : (
             <FolderTreeIcon className="size-3 shrink-0" />
           )}
           <span>
-            List <code className="bg-muted/60 rounded px-1 py-0.5 font-mono text-[11px]">{pattern}</code>
+            List{' '}
+            <code className="bg-muted/60 rounded px-1 py-0.5 font-mono text-[11px]">{pattern}</code>
           </span>
           {isDone && fileCount > 0 && (
             <span className="text-muted-foreground/60 shrink-0 text-[10px]">
@@ -958,13 +1005,17 @@ function renderRichToolPart(
     if (!query) return null;
     return (
       <div key={key} className="not-prose mb-0.5 w-full">
-        <div className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}>
+        <div
+          className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}
+        >
           {isRunning ? (
             <Loader2Icon className="size-3 shrink-0 animate-spin" />
           ) : (
             <GlobeIcon className="size-3 shrink-0" />
           )}
-          <span>Search web for <span className="font-medium">&ldquo;{query.slice(0, 60)}&rdquo;</span></span>
+          <span>
+            Search web for <span className="font-medium">&ldquo;{query.slice(0, 60)}&rdquo;</span>
+          </span>
         </div>
       </div>
     );
@@ -975,16 +1026,24 @@ function renderRichToolPart(
     const url = ((inputObj.url || '') as string).trim();
     if (!url) return null;
     let hostname = url;
-    try { hostname = new URL(url).hostname; } catch { /* use raw url */ }
+    try {
+      hostname = new URL(url).hostname;
+    } catch {
+      /* use raw url */
+    }
     return (
       <div key={key} className="not-prose mb-0.5 w-full">
-        <div className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}>
+        <div
+          className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}
+        >
           {isRunning ? (
             <Loader2Icon className="size-3 shrink-0 animate-spin" />
           ) : (
             <GlobeIcon className="size-3 shrink-0" />
           )}
-          <span>Fetch <span className="font-medium">{hostname}</span></span>
+          <span>
+            Fetch <span className="font-medium">{hostname}</span>
+          </span>
         </div>
       </div>
     );
@@ -1163,11 +1222,12 @@ function StreamingToolGroup({
     <>
       <ChainOfThought key={`stg-${toolRun[0].index}`}>
         <ChainOfThoughtHeader>
-          <span className="flex items-center gap-1.5">
+          <span className="flex items-center gap-2">
             <Loader2 className="size-3.5 animate-spin" />
-            {summarizeToolRun(toolRun)}{' '}
-            <span className="tabular-nums">({completed.length} done)</span>
+            <span>{toolRun.length} steps</span>
+            <ToolRunMiniIcons toolRun={toolRun} />
           </span>
+          <span className="text-muted-foreground/60 text-[10px]">{summarizeToolRun(toolRun)}</span>
         </ChainOfThoughtHeader>
         <ChainOfThoughtContent>
           {completed.map((t) => {
@@ -1226,7 +1286,15 @@ function MessageParts({
     if (allCompleted && toolRun.length >= 3) {
       elements.push(
         <ChainOfThought key={`tg-${toolRun[0].index}`}>
-          <ChainOfThoughtHeader>{summarizeToolRun(toolRun)}</ChainOfThoughtHeader>
+          <ChainOfThoughtHeader>
+            <span className="flex items-center gap-2">
+              <span>{toolRun.length} steps</span>
+              <ToolRunMiniIcons toolRun={toolRun} />
+            </span>
+            <span className="text-muted-foreground/60 text-[10px]">
+              {summarizeToolRun(toolRun)}
+            </span>
+          </ChainOfThoughtHeader>
           <ChainOfThoughtContent>
             {toolRun.map((t) => {
               const toolName = t.part.toolName || t.part.type?.replace(/^tool-/, '') || '';
@@ -1629,6 +1697,7 @@ function AcpChatInner({
 
   // Wire side-channel callbacks on transport
   useEffect(() => {
+    // eslint-disable-next-line -- false positive: ESLint internal error on setter assignment
     transport.sideChannel = {
       onUsageUpdate: (data) => setUsage(data),
       onPlanUpdate: (entries) => setPlanEntries(entries),

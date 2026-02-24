@@ -309,7 +309,10 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
   constructor(options: AcpTransportOptions) {
     this.sessionKey = options.sessionKey;
     this.conversationId = options.conversationId;
-    log.debug('Transport created', { sessionKey: options.sessionKey, conversationId: options.conversationId });
+    log.debug('Transport created', {
+      sessionKey: options.sessionKey,
+      conversationId: options.conversationId,
+    });
     if (options.sideChannel) this._sideChannel = options.sideChannel;
     // Start listening for side-channel events immediately (commands, modes, etc.)
     this.startSideChannelListener();
@@ -431,7 +434,12 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
     }
 
     // Return a stream that listens for ACP events
-    const self = this;
+    // Capture instance members for use inside ReadableStream callbacks
+    const getAutoApprove = () => this.autoApprove;
+    const setActiveCleanup = (fn: (() => void) | null) => {
+      this.activeCleanup = fn;
+    };
+    const startSideChannel = () => this.startSideChannelListener();
     const sideChannel = this._sideChannel;
     // Stop the side-channel listener — the stream listener handles everything
     this.stopSideChannelListener();
@@ -490,8 +498,12 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
             }
 
             case 'permission_request': {
-              log.debug('Permission request', { sessionKey, toolCallId: event.toolCallId, autoApprove: self.autoApprove });
-              if (self.autoApprove) {
+              log.debug('Permission request', {
+                sessionKey,
+                toolCallId: event.toolCallId,
+                autoApprove: getAutoApprove(),
+              });
+              if (getAutoApprove()) {
                 // Auto-approve without showing UI
                 api().acpApprove({ sessionKey, toolCallId: event.toolCallId, approved: true });
               } else {
@@ -571,11 +583,11 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
         // Wrap cleanup to also clear the tracked reference and restart side-channel
         const cleanupUpdate = () => {
           rawCleanup();
-          self.activeCleanup = null;
+          setActiveCleanup(null);
           // Resume side-channel listener for events between prompts
-          self.startSideChannelListener();
+          startSideChannel();
         };
-        self.activeCleanup = cleanupUpdate;
+        setActiveCleanup(cleanupUpdate);
 
         // Handle abort (user clicks stop)
         options.abortSignal?.addEventListener(
