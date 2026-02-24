@@ -101,6 +101,35 @@ try {
   console.log('[main] Failed to initialize shell environment:', error);
 }
 
+// ---------------------------------------------------------------------------
+// Process-level crash handlers — catch unhandled errors before they kill the app
+// ---------------------------------------------------------------------------
+process.on('uncaughtException', (error: Error) => {
+  // eslint-disable-next-line no-console
+  console.error('[main] Uncaught exception:', error);
+  // errorTracking is loaded lazily below; guard against use before init.
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { errorTracking: et } = require('./errorTracking');
+    et.captureException?.(error, { severity: 'critical', service: 'process' });
+  } catch {
+    // If error tracking itself fails, we've already logged to stderr.
+  }
+});
+
+process.on('unhandledRejection', (reason: unknown) => {
+  // eslint-disable-next-line no-console
+  console.error('[main] Unhandled rejection:', reason);
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { errorTracking: et } = require('./errorTracking');
+    const err = reason instanceof Error ? reason : new Error(String(reason));
+    et.captureException?.(err, { severity: 'high', service: 'process' });
+  } catch {
+    // guard
+  }
+});
+
 import { createMainWindow } from './app/window';
 import { registerAppLifecycle } from './app/lifecycle';
 import { registerAllIpc } from './ipc';

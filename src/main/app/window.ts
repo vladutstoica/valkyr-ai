@@ -1,4 +1,4 @@
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, session } from 'electron';
 import { join } from 'path';
 import { isDev } from '../utils/dev';
 import { registerExternalLinkHandlers } from '../utils/externalLinks';
@@ -54,7 +54,30 @@ export function createMainWindow(): BrowserWindow {
       });
   }
 
-  // Route external links to the user’s default browser
+  // Content Security Policy — restrict script/style sources to same-origin.
+  // 'unsafe-inline' is needed for Vite HMR in dev and inline styles from UI libs.
+  // 'unsafe-eval' is needed for the ACP SDK dynamic import workaround (new Function).
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          [
+            "default-src 'self'",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' data: https:",
+            "font-src 'self' data:",
+            "connect-src 'self' ws://localhost:* http://localhost:* https:",
+            "media-src 'self' blob:",
+            "worker-src 'self' blob:",
+          ].join('; '),
+        ],
+      },
+    });
+  });
+
+  // Route external links to the user's default browser
   registerExternalLinkHandlers(mainWindow, isDev);
 
   // Show when ready

@@ -8,8 +8,7 @@ import { Spinner } from './ui/spinner';
 import { Textarea } from './ui/textarea';
 import { useToast } from '../hooks/use-toast';
 
-const DISCORD_WEBHOOK_URL =
-  'https://discord.com/api/webhooks/1430482776045391912/7r3aZtu7y0safAJfFF0mywzw2uoY_2UhadMf7uv1oJSitIC2eUirWzGHdjiEm7zgdPDt';
+const DISCORD_WEBHOOK_URL = '';
 
 interface FeedbackModalProps {
   isOpen: boolean;

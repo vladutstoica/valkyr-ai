@@ -1,11 +1,25 @@
 import { app, ipcMain, shell } from 'electron';
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { ensureProjectPrepared } from '../services/ProjectPrep';
 import { getAppSettings } from '../settings';
 import { getAppById, OPEN_IN_APPS, type OpenInAppId, type PlatformKey } from '@shared/openInApps';
 import { databaseService } from '../services/DatabaseService';
+
+// ---------------------------------------------------------------------------
+// Input validation for SSH connection parameters
+// ---------------------------------------------------------------------------
+
+const HOSTNAME_RE = /^[a-zA-Z0-9._-]+$/;
+const USERNAME_RE = /^[a-zA-Z0-9._-]+$/;
+
+function validateSshParams(conn: { host: string; port: number; username: string }): string | null {
+  if (!conn.host || !HOSTNAME_RE.test(conn.host)) return 'Invalid SSH hostname';
+  if (!Number.isInteger(conn.port) || conn.port < 1 || conn.port > 65535) return 'Invalid SSH port';
+  if (!conn.username || !USERNAME_RE.test(conn.username)) return 'Invalid SSH username';
+  return null;
+}
 
 const UNKNOWN_VERSION = 'unknown';
 
@@ -207,66 +221,71 @@ export function registerAppIpc() {
               return { success: false, error: 'SSH connection not found' };
             }
 
+            // Validate SSH parameters to prevent injection
+            const validationError = validateSshParams(connection);
+            if (validationError) {
+              return { success: false, error: validationError };
+            }
+
+            // Build SSH args safely as an array (never interpolated into a shell string)
+            const sshArgs = [
+              `${connection.username}@${connection.host}`,
+              '-p',
+              String(connection.port),
+              '-t',
+              `cd ${target} && exec $SHELL`,
+            ];
+            const sshCommandStr = `ssh ${sshArgs.join(' ')}`;
+
             // Construct remote SSH URL or command based on the app
             if (appId === 'vscode') {
-              // VS Code Remote SSH URL format: vscode://vscode-remote/ssh-remote+hostname/path
               const remoteUrl = `vscode://vscode-remote/ssh-remote+${connection.host}${target}`;
               await shell.openExternal(remoteUrl);
               return { success: true };
             } else if (appId === 'cursor') {
-              // Cursor uses its own URL scheme for remote SSH
               const remoteUrl = `cursor://vscode-remote/ssh-remote+${connection.host}${target}`;
               await shell.openExternal(remoteUrl);
               return { success: true };
             } else if (appId === 'terminal' && platform === 'darwin') {
-              // macOS Terminal.app - execute SSH command
-              const sshCommand = `ssh ${connection.username}@${connection.host} -p ${connection.port} -t "cd ${target} && exec \\$SHELL"`;
-              // Properly escape for AppleScript
-              const escapedCommand = sshCommand.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-              const terminalCommand = `osascript -e 'tell application "Terminal" to do script "${escapedCommand}"' -e 'tell application "Terminal" to activate'`;
-
+              // macOS Terminal.app — use execFile with osascript args array
               await new Promise<void>((resolve, reject) => {
-                exec(terminalCommand, (err) => {
-                  if (err) return reject(err);
-                  resolve();
-                });
+                execFile(
+                  'osascript',
+                  [
+                    '-e',
+                    `tell application "Terminal" to do script "${sshCommandStr.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`,
+                    '-e',
+                    'tell application "Terminal" to activate',
+                  ],
+                  (err) => (err ? reject(err) : resolve())
+                );
               });
               return { success: true };
             } else if (appId === 'iterm2' && platform === 'darwin') {
-              // iTerm2 - execute SSH command
-              const sshCommand = `ssh ${connection.username}@${connection.host} -p ${connection.port} -t "cd ${target} && exec \\$SHELL"`;
-              const escapedCommand = sshCommand.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-              const terminalCommand = `osascript -e 'tell application "iTerm" to create window with default profile command "${escapedCommand}"'`;
-
               await new Promise<void>((resolve, reject) => {
-                exec(terminalCommand, (err) => {
-                  if (err) return reject(err);
-                  resolve();
-                });
+                execFile(
+                  'osascript',
+                  [
+                    '-e',
+                    `tell application "iTerm" to create window with default profile command "${sshCommandStr.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`,
+                  ],
+                  (err) => (err ? reject(err) : resolve())
+                );
               });
               return { success: true };
             } else if (appId === 'warp' && platform === 'darwin') {
-              // Warp - use URL scheme with SSH command
-              const sshCommand = `ssh ${connection.username}@${connection.host} -p ${connection.port} -t "cd ${target} && exec \\$SHELL"`;
               await shell.openExternal(
-                `warp://action/new_window?cmd=${encodeURIComponent(sshCommand)}`
+                `warp://action/new_window?cmd=${encodeURIComponent(sshCommandStr)}`
               );
               return { success: true };
             } else if (appId === 'ghostty') {
-              // Ghostty - execute SSH command directly
-              const sshCommand = `ssh ${connection.username}@${connection.host} -p ${connection.port} -t "cd ${target} && exec \\$SHELL"`;
-              const quoted = (p: string) => `'${p.replace(/'/g, "'\\''")}'`;
-              const terminalCommand = `ghostty -e ${quoted(sshCommand)}`;
-
               await new Promise<void>((resolve, reject) => {
-                exec(terminalCommand, (err) => {
-                  if (err) return reject(err);
-                  resolve();
-                });
+                execFile('ghostty', ['-e', sshCommandStr], (err) =>
+                  err ? reject(err) : resolve()
+                );
               });
               return { success: true };
             } else if (appConfig.supportsRemote) {
-              // App claims to support remote but we don't have a handler
               return {
                 success: false,
                 error: `Remote SSH not yet implemented for ${appConfig.label}`,
@@ -346,28 +365,28 @@ export function registerAppIpc() {
     const platform = process.platform as PlatformKey;
     const availability: Record<string, boolean> = {};
 
-    // Helper to check if a command exists
+    // Helper to check if a command exists (uses execFile — no shell interpolation)
     const checkCommand = (cmd: string): Promise<boolean> => {
       return new Promise((resolve) => {
-        exec(`command -v ${cmd} >/dev/null 2>&1`, (error) => {
+        execFile('which', [cmd], (error) => {
           resolve(!error);
         });
       });
     };
 
-    // Helper to check if macOS app exists by bundle ID
+    // Helper to check if macOS app exists by bundle ID (uses execFile)
     const checkMacApp = (bundleId: string): Promise<boolean> => {
       return new Promise((resolve) => {
-        exec(`mdfind "kMDItemCFBundleIdentifier == '${bundleId}'"`, (error, stdout) => {
-          resolve(!error && stdout.trim().length > 0);
+        execFile('mdfind', [`kMDItemCFBundleIdentifier == '${bundleId}'`], (error, stdout) => {
+          resolve(!error && (stdout ?? '').trim().length > 0);
         });
       });
     };
 
-    // Helper to check if macOS app exists by name
+    // Helper to check if macOS app exists by name (uses execFile)
     const checkMacAppByName = (appName: string): Promise<boolean> => {
       return new Promise((resolve) => {
-        exec(`osascript -e 'id of application "${appName}"' 2>/dev/null`, (error) => {
+        execFile('osascript', ['-e', `id of application "${appName}"`], (error) => {
           resolve(!error);
         });
       });
