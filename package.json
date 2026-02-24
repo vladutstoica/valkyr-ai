@@ -27,8 +27,12 @@
     "e2e": "pnpm run build:main && pnpm exec playwright test",
     "e2e:debug": "pnpm run build:main && pnpm exec playwright test --headed --timeout=0",
     "e2e:ui": "pnpm run build:main && pnpm exec playwright test --ui",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "docs": "cd docs && pnpm run dev",
-    "docs:build": "cd docs && pnpm run build"
+    "docs:build": "cd docs && pnpm run build",
+    "prepare": "husky",
+    "prepare": "husky"
   },
   "keywords": [
     "electron",
@@ -63,6 +67,8 @@
     "eslint": "^8.55.0",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-react-hooks": "^7.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
     "prettier": "3.6.2",
     "prettier-plugin-tailwindcss": "^0.6.14",
     "tailwindcss": "^4.0.0",
@@ -259,6 +265,15 @@
       "perMachine": false
     },
     "npmRebuild": false
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{json,md,yml,yaml,css}": [
+      "prettier --write"
+    ]
   },
   "pnpm": {
     "onlyBuiltDependencies": [
