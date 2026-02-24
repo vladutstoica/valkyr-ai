@@ -95,14 +95,34 @@ export type AcpSessionModels = {
   currentModelId: string;
 } | null;
 
+// ---------------------------------------------------------------------------
+// AcpConnection — owns one subprocess + ClientSideConnection, shared by N sessions
+// ---------------------------------------------------------------------------
+
+type AcpConnection = {
+  connectionKey: string;
+  providerId: string;
+  cwd: string;
+  connection: ClientSideConnection;
+  childProcess: ChildProcess;
+  initResp: any;
+  spawnError: Promise<never>;
+  refCount: number;
+  idleTimer: NodeJS.Timeout | null;
+  dead: boolean;
+};
+
+// ---------------------------------------------------------------------------
+// AcpSession — one ACP session on a shared (or dedicated) connection
+// ---------------------------------------------------------------------------
+
 type AcpSession = {
   sessionKey: string;
   conversationId: string;
   providerId: ProviderId;
   cwd: string;
   status: AcpSessionStatus;
-  connection: ClientSideConnection;
-  childProcess: ChildProcess;
+  connectionKey: string; // Key into connections pool
   acpSessionId: string | null;
   modes: AcpSessionModes;
   models: AcpSessionModels;
@@ -123,15 +143,8 @@ type SessionCreateResult = {
   modes?: AcpSessionModes;
   models?: AcpSessionModels;
   historyEvents?: AcpUpdateEvent[];
+  resumed?: boolean;
   error?: string;
-};
-
-// Internal result from spawnAndInitialize
-type SpawnInitResult = {
-  session: AcpSession;
-  connection: ClientSideConnection;
-  initResp: any;
-  spawnError: Promise<never>;
 };
 
 // ---------------------------------------------------------------------------
@@ -139,6 +152,9 @@ type SpawnInitResult = {
 // ---------------------------------------------------------------------------
 
 const EVENT_FLUSH_MS = 16;
+
+/** Idle timeout before killing an unused connection (ms). */
+const CONNECTION_IDLE_MS = 60_000;
 
 // ---------------------------------------------------------------------------
 // AcpSessionManager — singleton service
@@ -152,6 +168,13 @@ export class AcpSessionManager {
   private eventTimers = new Map<string, NodeJS.Timeout>();
   /** Collects session_update events during loadSession so they can be returned to the renderer. */
   private historyBuffers = new Map<string, AcpUpdateEvent[]>();
+
+  // Connection pool
+  private connections = new Map<string, AcpConnection>();
+  /** In-flight connection creation promises for deduplication. */
+  private connectionPromises = new Map<string, Promise<AcpConnection>>();
+  /** Reverse map: acpSessionId → sessionKey for event routing on shared connections. */
+  private acpSessionIdToSessionKey = new Map<string, string>();
 
   // Callback for sending events to renderer — set by acpIpc.ts
   private eventSender: ((sessionKey: string, events: AcpUpdateEvent[]) => void) | null = null;
@@ -195,27 +218,77 @@ export class AcpSessionManager {
   }
 
   // -----------------------------------------------------------------------
-  // Session lifecycle
+  // Connection pool
   // -----------------------------------------------------------------------
 
   /**
-   * Spawn the ACP subprocess, create the connection, and initialize it.
-   * Shared between createSession and resumeSession.
+   * Get or create a shared ACP connection for the given (providerId, cwd) pair.
+   * Uses promise-based deduplication to prevent concurrent spawns for the same key.
    */
-  private async spawnAndInitialize(
-    sessionKey: string,
-    conversationId: string,
+  private async getOrCreateConnection(
     providerId: string,
     cwd: string,
     env?: Record<string, string>
-  ): Promise<SpawnInitResult> {
-    // Start SDK load immediately in parallel with command resolution
-    // (no-op if already warm, but overlaps with resolveCommand if not)
+  ): Promise<AcpConnection> {
+    const connectionKey = `${providerId}::${cwd}`;
+
+    // Return existing healthy connection
+    const existing = this.connections.get(connectionKey);
+    if (existing && !existing.dead) {
+      // Cancel idle timer — a new session is claiming this connection
+      if (existing.idleTimer) {
+        clearTimeout(existing.idleTimer);
+        existing.idleTimer = null;
+      }
+      existing.refCount++;
+      log.info(`[ConnPool] Reusing connection ${connectionKey} (refCount=${existing.refCount})`);
+      return existing;
+    }
+
+    // Piggyback on in-flight creation (prevents double-spawn race)
+    const pending = this.connectionPromises.get(connectionKey);
+    if (pending) {
+      log.info(`[ConnPool] Waiting on in-flight connection for ${connectionKey}`);
+      const conn = await pending;
+      conn.refCount++;
+      return conn;
+    }
+
+    // Spawn a new connection
+    const promise = this.spawnConnection(connectionKey, providerId, cwd, env);
+    this.connectionPromises.set(connectionKey, promise);
+
+    try {
+      const conn = await promise;
+      this.connections.set(connectionKey, conn);
+      conn.refCount = 1;
+      log.info(`[ConnPool] Created new connection ${connectionKey}`);
+      return conn;
+    } catch (err) {
+      // Remove dead connection entry if spawn failed
+      this.connections.delete(connectionKey);
+      throw err;
+    } finally {
+      this.connectionPromises.delete(connectionKey);
+    }
+  }
+
+  /**
+   * Spawn subprocess, create ClientSideConnection, and initialize the ACP handshake.
+   */
+  private async spawnConnection(
+    connectionKey: string,
+    providerId: string,
+    cwd: string,
+    env?: Record<string, string>
+  ): Promise<AcpConnection> {
+    const t0 = performance.now();
     const sdkPromise = getAcpSdk();
 
     // Resolve ACP command: try registry first, then hardcoded acpSupport
     const acpId = PROVIDER_TO_ACP_ID[providerId] ?? providerId;
     const resolved = await acpRegistryService.resolveCommand(acpId);
+    const tResolve = performance.now();
     const provider = getProvider(providerId as any);
 
     const fallback = provider?.acpSupport
@@ -239,7 +312,6 @@ export class AcpSessionManager {
       TERM: process.env.TERM || 'xterm-256color',
     };
 
-    // Only pass provider-relevant env vars
     if (provider?.envVars) {
       for (const key of provider.envVars) {
         if (process.env[key]) {
@@ -248,27 +320,25 @@ export class AcpSessionManager {
       }
     }
 
-    // Merge ACP command env
     if (acpCommand.env) {
       Object.assign(scopedEnv, acpCommand.env);
     }
 
-    // Merge caller-provided env (limited)
     if (env) {
       Object.assign(scopedEnv, env);
     }
 
     const { command, args = [] } = acpCommand;
 
-    // Spawn the ACP subprocess
-    log.debug('[AcpSessionManager] Spawning ACP process', { sessionKey, command, cwd });
+    log.debug('[AcpSessionManager] Spawning ACP process', { connectionKey, command, cwd });
+    const tPreSpawn = performance.now();
     const childProcess = spawn(command, args, {
       cwd,
       env: scopedEnv,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
+    const tPostSpawn = performance.now();
 
-    // Create a promise that rejects on spawn error (e.g. binary not found)
     const spawnError = new Promise<never>((_, reject) => {
       childProcess.on('error', (err) => reject(err));
     });
@@ -278,7 +348,6 @@ export class AcpSessionManager {
       throw Object.assign(new Error('acp_unavailable'), { code: 'ACP_UNAVAILABLE' });
     }
 
-    // Create ndjson stream from child stdio
     const stdoutStream = new ReadableStream<Uint8Array>({
       start(controller) {
         childProcess.stdout!.on('data', (chunk: Buffer) => {
@@ -320,73 +389,47 @@ export class AcpSessionManager {
     });
 
     const acpSdk = await sdkPromise;
+    const tSdk = performance.now();
     const stream = acpSdk.ndJsonStream(stdinStream, stdoutStream);
 
-    const session: AcpSession = {
-      sessionKey,
-      conversationId,
-      providerId: providerId as ProviderId,
-      cwd,
-      status: 'initializing',
-      connection: null as unknown as ClientSideConnection,
-      childProcess,
-      acpSessionId: null,
-      modes: null,
-      models: null,
-      pendingPermissions: new Map(),
-    };
-
-    // Create the client-side connection
+    // Create connection-scoped client that routes by sessionId
     const connection = new acpSdk.ClientSideConnection(
-      (_agent) => this.createClient(sessionKey),
+      (_agent) => this.createConnectionScopedClient(connectionKey),
       stream
     );
 
-    session.connection = connection;
-    this.sessions.set(sessionKey, session);
+    const conn: AcpConnection = {
+      connectionKey,
+      providerId,
+      cwd,
+      connection,
+      childProcess,
+      initResp: null,
+      spawnError,
+      refCount: 0,
+      idleTimer: null,
+      dead: false,
+    };
 
-    // Subprocess crash detection
+    // Subprocess crash detection — notify ALL sessions on this connection
     childProcess.on('exit', (code, signal) => {
-      if (this.finalizedSessions.has(sessionKey)) return;
-      log.info(`ACP subprocess exited: ${sessionKey} code=${code} signal=${signal}`);
-      // If detached (user navigated away), don't mark as error — the session
-      // is still valid for reconnection when the user comes back.
-      if (this.detachedSessions.has(sessionKey)) {
-        log.info(`Subprocess exited while detached, cleaning up: ${sessionKey}`);
-        this.finalizedSessions.add(sessionKey);
-        this.sessions.delete(sessionKey);
-        return;
-      }
-      this.setStatus(sessionKey, 'error');
-      this.bufferEvent(sessionKey, {
-        type: 'session_error',
-        error: `Agent process exited with code ${code}${signal ? ` (signal: ${signal})` : ''}`,
-      });
+      if (conn.dead) return;
+      log.info(`[ConnPool] Subprocess exited: ${connectionKey} code=${code} signal=${signal}`);
+      this.handleConnectionDeath(connectionKey, `Agent process exited with code ${code}${signal ? ` (signal: ${signal})` : ''}`);
     });
 
     childProcess.stderr?.on('data', (chunk: Buffer) => {
-      log.info(`ACP stderr [${sessionKey}]: ${chunk.toString().trim()}`);
+      log.info(`ACP stderr [${connectionKey}]: ${chunk.toString().trim()}`);
     });
 
-    // Connection close detection
     connection.closed.then(() => {
-      if (this.finalizedSessions.has(sessionKey)) return;
-      const s = this.sessions.get(sessionKey);
-      if (!s || s.status === 'error') return;
-      // If detached (user navigated away), don't mark as error.
-      // The connection closing while detached is normal — the agent finished work.
-      if (this.detachedSessions.has(sessionKey)) {
-        log.info(`ACP connection closed while detached: ${sessionKey}`);
-        return;
-      }
-      this.setStatus(sessionKey, 'error');
-      this.bufferEvent(sessionKey, {
-        type: 'session_error',
-        error: 'ACP connection closed unexpectedly',
-      });
+      if (conn.dead) return;
+      log.info(`[ConnPool] Connection closed: ${connectionKey}`);
+      this.handleConnectionDeath(connectionKey, 'ACP connection closed unexpectedly');
     });
 
-    // Initialize the ACP connection (race against spawn errors)
+    // Initialize the ACP connection
+    const tPreInit = performance.now();
     const initResp = await Promise.race([
       connection.initialize({
         clientInfo: { name: 'Valkyr', version: '1.0.0' },
@@ -400,11 +443,120 @@ export class AcpSessionManager {
       }),
       spawnError,
     ]);
+    const tPostInit = performance.now();
 
-    log.info(`ACP initialized: ${sessionKey}, protocol v${initResp.protocolVersion}`);
+    conn.initResp = initResp;
 
-    return { session, connection, initResp, spawnError };
+    log.info(`[PERF spawnConnection] resolveCmd=${(tResolve - t0).toFixed(0)}ms spawn=${(tPostSpawn - tPreSpawn).toFixed(0)}ms sdkAwait=${(tSdk - tPostSpawn).toFixed(0)}ms initialize=${(tPostInit - tPreInit).toFixed(0)}ms total=${(tPostInit - t0).toFixed(0)}ms cmd=${command}`);
+    log.info(`[RESUME CHECKPOINT] Agent capabilities: loadSession=${initResp.agentCapabilities?.loadSession}, protocolVersion=${initResp.protocolVersion}`);
+
+    return conn;
   }
+
+  /**
+   * Handle the death of a shared connection — notify all sessions using it.
+   */
+  private handleConnectionDeath(connectionKey: string, errorMessage: string): void {
+    const conn = this.connections.get(connectionKey);
+    if (!conn || conn.dead) return;
+    conn.dead = true;
+
+    if (conn.idleTimer) {
+      clearTimeout(conn.idleTimer);
+      conn.idleTimer = null;
+    }
+
+    // Find all sessions on this connection and notify them
+    for (const [sessionKey, session] of this.sessions) {
+      if (session.connectionKey !== connectionKey) continue;
+      if (this.finalizedSessions.has(sessionKey)) continue;
+
+      if (this.detachedSessions.has(sessionKey)) {
+        log.info(`[ConnPool] Connection died while session detached: ${sessionKey}`);
+        this.finalizedSessions.add(sessionKey);
+        this.sessions.delete(sessionKey);
+        continue;
+      }
+
+      this.setStatus(sessionKey, 'error');
+      this.bufferEvent(sessionKey, {
+        type: 'session_error',
+        error: errorMessage,
+      });
+    }
+
+    // Clean up the connection from the pool
+    this.connections.delete(connectionKey);
+    try {
+      if (!conn.childProcess.killed) {
+        conn.childProcess.kill();
+      }
+    } catch {
+      /* already dead */
+    }
+  }
+
+  /**
+   * Release a session's reference to a connection.
+   * Starts idle timer when refCount drops to 0.
+   */
+  private releaseConnection(connectionKey: string): void {
+    const conn = this.connections.get(connectionKey);
+    if (!conn || conn.dead) return;
+
+    conn.refCount = Math.max(0, conn.refCount - 1);
+    log.info(`[ConnPool] Released connection ${connectionKey} (refCount=${conn.refCount})`);
+
+    if (conn.refCount <= 0 && !conn.idleTimer) {
+      conn.idleTimer = setTimeout(() => {
+        log.info(`[ConnPool] Idle timeout — killing connection ${connectionKey}`);
+        this.destroyConnection(connectionKey);
+      }, CONNECTION_IDLE_MS);
+    }
+  }
+
+  /**
+   * Force-destroy a connection and all its sessions.
+   */
+  private destroyConnection(connectionKey: string): void {
+    const conn = this.connections.get(connectionKey);
+    if (!conn) return;
+
+    if (conn.idleTimer) {
+      clearTimeout(conn.idleTimer);
+      conn.idleTimer = null;
+    }
+
+    conn.dead = true;
+    this.connections.delete(connectionKey);
+
+    // Kill all sessions on this connection
+    for (const [sessionKey, session] of this.sessions) {
+      if (session.connectionKey === connectionKey) {
+        this.finalizedSessions.add(sessionKey);
+        // Clean up reverse map
+        if (session.acpSessionId) {
+          this.acpSessionIdToSessionKey.delete(session.acpSessionId);
+        }
+        this.clearEventBuffer(sessionKey);
+        this.sessions.delete(sessionKey);
+      }
+    }
+
+    try {
+      if (!conn.childProcess.killed) {
+        conn.childProcess.kill();
+      }
+    } catch {
+      /* already dead */
+    }
+
+    log.info(`[ConnPool] Destroyed connection ${connectionKey}`);
+  }
+
+  // -----------------------------------------------------------------------
+  // Session lifecycle
+  // -----------------------------------------------------------------------
 
   async createSession(
     conversationId: string,
@@ -437,16 +589,53 @@ export class AcpSessionManager {
     // Clear finalized flag so crash/close handlers work for the new session
     this.finalizedSessions.delete(sessionKey);
 
-    try {
-      // Parallelize subprocess spawn with DB lookup for stored session ID
-      const [spawnResult, storedSessionId] = await Promise.all([
-        this.spawnAndInitialize(sessionKey, conversationId, providerId, cwd, env),
-        resumeAcpSessionId
-          ? Promise.resolve(resumeAcpSessionId)
-          : databaseService.getConversationAcpSessionId(conversationId).catch(() => null),
-      ]);
+    // Determine whether to use connection pooling
+    const provider = getProvider(providerId as any);
+    const usePool = provider?.acpMultiSession === true;
 
-      const { session, connection, initResp, spawnError } = spawnResult;
+    try {
+      const tCreate0 = performance.now();
+
+      // Get or create a connection (pooled or dedicated)
+      let conn: AcpConnection;
+      let storedSessionId: string | null;
+
+      if (usePool) {
+        // Pooled path: shared connection for (providerId, cwd)
+        [conn, storedSessionId] = await Promise.all([
+          this.getOrCreateConnection(providerId, cwd, env),
+          resumeAcpSessionId
+            ? Promise.resolve(resumeAcpSessionId)
+            : databaseService.getConversationAcpSessionId(conversationId).catch(() => null),
+        ]);
+      } else {
+        // Dedicated path: one connection per session (old behavior)
+        // Use sessionKey as connectionKey to keep it unique per conversation
+        [conn, storedSessionId] = await Promise.all([
+          this.spawnDedicatedConnection(sessionKey, providerId, cwd, env),
+          resumeAcpSessionId
+            ? Promise.resolve(resumeAcpSessionId)
+            : databaseService.getConversationAcpSessionId(conversationId).catch(() => null),
+        ]);
+      }
+      const tConnReady = performance.now();
+
+      const { connection, initResp, spawnError } = conn;
+
+      // Create the session object
+      const session: AcpSession = {
+        sessionKey,
+        conversationId,
+        providerId: providerId as ProviderId,
+        cwd,
+        status: 'initializing',
+        connectionKey: conn.connectionKey,
+        acpSessionId: null,
+        modes: null,
+        models: null,
+        pendingPermissions: new Map(),
+      };
+      this.sessions.set(sessionKey, session);
 
       let acpSessionId: string;
       let sessionResp: any;
@@ -454,6 +643,7 @@ export class AcpSessionManager {
       // Try to resume an existing session if we have a stored acpSessionId
       const mcpServerList = mcpServers ?? [];
       let historyEvents: AcpUpdateEvent[] | undefined;
+      let resumed = false;
       if (storedSessionId) {
         // Start buffering session_update events so loadSession history isn't lost
         this.historyBuffers.set(sessionKey, []);
@@ -468,6 +658,7 @@ export class AcpSessionManager {
           );
           acpSessionId = result.sessionId;
           sessionResp = result.sessionResp;
+          resumed = result.resumed;
         } finally {
           const buf = this.historyBuffers.get(sessionKey);
           this.historyBuffers.delete(sessionKey);
@@ -477,13 +668,18 @@ export class AcpSessionManager {
           }
         }
       } else {
-        // Create a brand new session
+        // Create a brand new session (no stored session ID to resume from)
+        log.info(`[RESUME CHECKPOINT] No stored sessionId for conversation ${conversationId}, creating fresh session`);
         sessionResp = await Promise.race([
           connection.newSession({ cwd, mcpServers: mcpServerList }),
           spawnError,
         ]);
         acpSessionId = sessionResp.sessionId;
       }
+      const tSessionCreated = performance.now();
+
+      // Register reverse mapping for event routing
+      this.acpSessionIdToSessionKey.set(acpSessionId, sessionKey);
 
       // Capture modes/models from session response
       const modes: AcpSessionModes = sessionResp?.modes
@@ -506,25 +702,37 @@ export class AcpSessionManager {
       session.acpSessionId = acpSessionId;
       session.modes = modes;
       session.models = models;
+
+      // When resume failed but we had a previous session, replay conversation
+      // history as a context prompt so the agent knows what was discussed.
+      let tReplayDone = tSessionCreated;
+      if (!resumed && storedSessionId) {
+        try {
+          await this.replayConversationContext(conversationId, connection, acpSessionId);
+          tReplayDone = performance.now();
+        } catch (err) {
+          tReplayDone = performance.now();
+          log.error(`[RESUME CHECKPOINT] Context replay failed for ${sessionKey}`, err);
+        }
+      }
+
       this.setStatus(sessionKey, 'ready');
+      log.info(`[PERF createSession] connection=${(tConnReady - tCreate0).toFixed(0)}ms ${storedSessionId ? 'resume/newSession' : 'newSession'}=${(tSessionCreated - tConnReady).toFixed(0)}ms replay=${(tReplayDone - tSessionCreated).toFixed(0)}ms total=${(tReplayDone - tCreate0).toFixed(0)}ms resumed=${resumed} hadStoredId=${!!storedSessionId} pooled=${usePool}`);
 
       // Persist the acpSessionId to DB for future resume
       databaseService.updateConversationAcpSessionId(conversationId, acpSessionId).catch((err) => {
         log.error(`Failed to persist acpSessionId for ${conversationId}`, err);
       });
 
-      return { success: true, sessionKey, acpSessionId, modes, models, historyEvents };
+      log.info(`[RESUME CHECKPOINT] Session ready: sessionKey=${sessionKey}, acpSessionId=${acpSessionId}, resumed=${resumed}, pooled=${usePool}`);
+      return { success: true, sessionKey, acpSessionId, modes, models, historyEvents, resumed };
     } catch (error: any) {
       // Cleanup on failure
       const session = this.sessions.get(sessionKey);
-      if (session?.childProcess) {
-        try {
-          session.childProcess.kill();
-        } catch {
-          /* ignore */
-        }
+      if (session) {
+        this.releaseConnection(session.connectionKey);
+        this.sessions.delete(sessionKey);
       }
-      this.sessions.delete(sessionKey);
       log.error(`ACP session creation failed: ${sessionKey}`, error);
 
       const errorCode =
@@ -538,6 +746,22 @@ export class AcpSessionManager {
   }
 
   /**
+   * Spawn a dedicated (non-pooled) connection for providers that don't support multi-session.
+   * Uses sessionKey as connectionKey to keep it unique.
+   */
+  private async spawnDedicatedConnection(
+    sessionKey: string,
+    providerId: string,
+    cwd: string,
+    env?: Record<string, string>
+  ): Promise<AcpConnection> {
+    const conn = await this.spawnConnection(sessionKey, providerId, cwd, env);
+    conn.refCount = 1;
+    this.connections.set(sessionKey, conn);
+    return conn;
+  }
+
+  /**
    * Try loadSession first, then fall back to newSession if unsupported or fails.
    */
   private async tryResumeOrCreate(
@@ -547,33 +771,85 @@ export class AcpSessionManager {
     cwd: string,
     initResp: any,
     mcpServers: any[]
-  ): Promise<{ sessionId: string; sessionResp: any }> {
+  ): Promise<{ sessionId: string; sessionResp: any; resumed: boolean }> {
     const supportsLoadSession = initResp.agentCapabilities?.loadSession === true;
 
     if (supportsLoadSession) {
-      try {
-        log.info(`Attempting loadSession with sessionId=${acpSessionId}`);
-        const loadResp = await Promise.race([
-          connection.loadSession({ sessionId: acpSessionId, cwd, mcpServers }),
-          spawnError,
-        ]);
-        log.info(`loadSession succeeded for sessionId=${acpSessionId}`);
-        return { sessionId: acpSessionId, sessionResp: loadResp };
-      } catch (loadErr: any) {
-        log.info(
-          `loadSession failed for sessionId=${acpSessionId}: ${loadErr.message}, falling back to newSession`
-        );
+      // Try loadSession twice — the first attempt may fail due to a race with agent startup
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          log.info(`Attempting loadSession (attempt ${attempt}/2) with sessionId=${acpSessionId}`);
+          const loadResp = await Promise.race([
+            connection.loadSession({ sessionId: acpSessionId, cwd, mcpServers }),
+            spawnError,
+          ]);
+          log.info(`[RESUME CHECKPOINT] loadSession SUCCEEDED for sessionId=${acpSessionId}`);
+          return { sessionId: acpSessionId, sessionResp: loadResp, resumed: true };
+        } catch (loadErr: any) {
+          log.warn(
+            `[RESUME CHECKPOINT] loadSession attempt ${attempt} FAILED for sessionId=${acpSessionId}: ${loadErr.message}`
+          );
+          if (attempt === 1) {
+            await new Promise((r) => setTimeout(r, 500));
+          }
+        }
       }
+      log.warn(`[RESUME CHECKPOINT] loadSession exhausted retries for sessionId=${acpSessionId}, falling back to newSession + context replay`);
     } else {
-      log.info(`Agent does not support loadSession, creating new session`);
+      log.warn(`[RESUME CHECKPOINT] Agent does not support loadSession (agentCapabilities.loadSession=${initResp.agentCapabilities?.loadSession}), creating new session + context replay`);
     }
 
-    // Fallback: create a new session
+    // Fallback: create a new session — conversation context is LOST
     const sessionResp = await Promise.race([
       connection.newSession({ cwd, mcpServers }),
       spawnError,
     ]);
-    return { sessionId: sessionResp.sessionId, sessionResp };
+    log.warn(`[RESUME CHECKPOINT] Created NEW session ${sessionResp.sessionId} (previous session ${acpSessionId} could not be resumed — context lost)`);
+    return { sessionId: sessionResp.sessionId, sessionResp, resumed: false };
+  }
+
+  /**
+   * When session resume fails, load saved messages from DB and send them
+   * as a context prompt so the agent knows the prior conversation.
+   */
+  private async replayConversationContext(
+    conversationId: string,
+    connection: ClientSideConnection,
+    acpSessionId: string
+  ): Promise<void> {
+    const messages = await databaseService.getMessages(conversationId);
+    if (!messages || messages.length === 0) {
+      log.info(`[RESUME CHECKPOINT] No saved messages to replay for ${conversationId}`);
+      return;
+    }
+
+    const lines: string[] = [
+      '[CONTEXT REPLAY] The previous session could not be resumed. Below is the conversation history from the prior session so you have full context. Do not repeat or summarize this back to the user — just continue naturally from where the conversation left off.',
+      '',
+    ];
+
+    for (const msg of messages) {
+      const role = msg.sender === 'user' ? 'User' : 'Assistant';
+      const content = (msg.content || '').trim();
+      if (content) {
+        lines.push(`--- ${role} ---`);
+        lines.push(content);
+        lines.push('');
+      }
+    }
+
+    lines.push('[END OF CONTEXT REPLAY] Continue the conversation from here.');
+
+    const contextText = lines.join('\n');
+    log.info(
+      `[RESUME CHECKPOINT] Replaying ${messages.length} messages (${contextText.length} chars) as context to new session ${acpSessionId}`
+    );
+
+    await connection.prompt({
+      sessionId: acpSessionId,
+      prompt: [{ type: 'text', text: contextText }],
+    });
+    log.info(`[RESUME CHECKPOINT] Context replay completed for ${conversationId}`);
   }
 
   async sendPrompt(
@@ -592,15 +868,18 @@ export class AcpSessionManager {
       return { success: false, error: 'No ACP session ID' };
     }
 
+    const conn = this.connections.get(session.connectionKey);
+    if (!conn || conn.dead) {
+      return { success: false, error: 'Connection is dead' };
+    }
+
     this.setStatus(sessionKey, 'submitted');
 
     // Build prompt content blocks
     const promptBlocks: Array<any> = [];
 
-    // Add file content blocks (images as ImageContent, others as EmbeddedResource)
     if (files && files.length > 0) {
       for (const file of files) {
-        // Extract base64 data from data URL (format: data:<mediaType>;base64,<data>)
         const dataUrlMatch = file.url.match(/^data:([^;]+);base64,(.+)$/);
         if (!dataUrlMatch) continue;
 
@@ -613,7 +892,6 @@ export class AcpSessionManager {
             mimeType: file.mediaType,
           });
         } else {
-          // Non-image files as embedded resources
           promptBlocks.push({
             type: 'resource',
             resource: {
@@ -626,20 +904,17 @@ export class AcpSessionManager {
       }
     }
 
-    // Add text content block
     if (message) {
       promptBlocks.push({ type: 'text', text: message });
     }
 
     // Fire and forget — the prompt response comes async via the connection
-    session.connection
+    conn.connection
       .prompt({
         sessionId: session.acpSessionId,
         prompt: promptBlocks,
       })
       .then((resp) => {
-        // Prompt turn completed — only transition if still streaming/submitted
-        // (cancel may have already set status to 'ready')
         const s = this.sessions.get(sessionKey);
         if (s && (s.status === 'streaming' || s.status === 'submitted')) {
           this.bufferEvent(sessionKey, {
@@ -652,10 +927,7 @@ export class AcpSessionManager {
       .catch((err) => {
         log.error(`ACP prompt failed: ${sessionKey}`, err);
         const s = this.sessions.get(sessionKey);
-        // If already reset to 'ready' by cancel, don't transition
         if (s && s.status !== 'ready') {
-          // Emit as prompt_error (recoverable) so the stream closes cleanly
-          // and the user can keep sending messages.
           this.bufferEvent(sessionKey, {
             type: 'prompt_error',
             error: err.message || 'Prompt failed',
@@ -677,7 +949,6 @@ export class AcpSessionManager {
       return { success: false, error: 'Session not found' };
     }
 
-    // S3: Validate toolCallId format
     if (!toolCallId || typeof toolCallId !== 'string') {
       return { success: false, error: 'Invalid toolCallId' };
     }
@@ -689,7 +960,6 @@ export class AcpSessionManager {
 
     session.pendingPermissions.delete(toolCallId);
     if (approved) {
-      // Find the first 'allow_once' or 'allow_always' option
       const allowOption = pending.options.find(
         (o) => o.kind === 'allow_once' || o.kind === 'allow_always'
       );
@@ -717,15 +987,18 @@ export class AcpSessionManager {
       return { success: false, error: 'No ACP session ID' };
     }
 
+    const conn = this.connections.get(session.connectionKey);
+    if (!conn || conn.dead) {
+      return { success: false, error: 'Connection is dead' };
+    }
+
     try {
-      await session.connection.cancel({
+      await conn.connection.cancel({
         sessionId: session.acpSessionId,
       });
-      // Reset status to ready so user can send new prompts
       this.setStatus(sessionKey, 'ready');
       return { success: true };
     } catch (err: any) {
-      // Even if cancel fails, reset to ready to unblock the user
       if (session.status === 'streaming' || session.status === 'submitted') {
         this.setStatus(sessionKey, 'ready');
       }
@@ -742,8 +1015,13 @@ export class AcpSessionManager {
       return { success: false, error: 'No ACP session ID' };
     }
 
+    const conn = this.connections.get(session.connectionKey);
+    if (!conn || conn.dead) {
+      return { success: false, error: 'Connection is dead' };
+    }
+
     try {
-      await session.connection.setSessionMode({
+      await conn.connection.setSessionMode({
         sessionId: session.acpSessionId,
         modeId: mode,
       });
@@ -766,8 +1044,13 @@ export class AcpSessionManager {
       return { success: false, error: 'No ACP session ID' };
     }
 
+    const conn = this.connections.get(session.connectionKey);
+    if (!conn || conn.dead) {
+      return { success: false, error: 'Connection is dead' };
+    }
+
     try {
-      await session.connection.setSessionConfigOption({
+      await conn.connection.setSessionConfigOption({
         sessionId: session.acpSessionId,
         configId: optionId,
         value,
@@ -790,8 +1073,13 @@ export class AcpSessionManager {
       return { success: false, error: 'No ACP session ID' };
     }
 
+    const conn = this.connections.get(session.connectionKey);
+    if (!conn || conn.dead) {
+      return { success: false, error: 'Connection is dead' };
+    }
+
     try {
-      await (session.connection as any).unstable_setSessionModel({
+      await (conn.connection as any).unstable_setSessionModel({
         sessionId: session.acpSessionId,
         modelId,
       });
@@ -810,6 +1098,11 @@ export class AcpSessionManager {
       return { success: false, error: 'Session not found' };
     }
 
+    const conn = this.connections.get(session.connectionKey);
+    if (!conn || conn.dead) {
+      return { success: false, error: 'Connection is dead' };
+    }
+
     try {
       const params: { cwd?: string; cursor?: string } = {};
       if (cwd) params.cwd = cwd;
@@ -819,7 +1112,7 @@ export class AcpSessionManager {
 
       do {
         if (cursor) params.cursor = cursor;
-        const resp = await (session.connection as any).unstable_listSessions(params);
+        const resp = await (conn.connection as any).unstable_listSessions(params);
         if (resp.sessions) allSessions.push(...resp.sessions);
         cursor = resp.nextCursor ?? undefined;
       } while (cursor);
@@ -841,8 +1134,13 @@ export class AcpSessionManager {
       return { success: false, error: 'No ACP session ID' };
     }
 
+    const conn = this.connections.get(session.connectionKey);
+    if (!conn || conn.dead) {
+      return { success: false, error: 'Connection is dead' };
+    }
+
     try {
-      const resp = await (session.connection as any).unstable_forkSession({
+      const resp = await (conn.connection as any).unstable_forkSession({
         sessionId: session.acpSessionId,
       });
       return { success: true, newSessionId: resp.sessionId };
@@ -861,8 +1159,13 @@ export class AcpSessionManager {
       return { success: false, error: 'Session not found' };
     }
 
+    const conn = this.connections.get(session.connectionKey);
+    if (!conn || conn.dead) {
+      return { success: false, error: 'Connection is dead' };
+    }
+
     try {
-      const resp = await session.connection.extMethod(method, params);
+      const resp = await conn.connection.extMethod(method, params);
       return { success: true, result: resp };
     } catch (err: any) {
       return { success: false, error: err.message };
@@ -886,9 +1189,6 @@ export class AcpSessionManager {
   reattachSession(sessionKey: string): void {
     this.detachedSessions.delete(sessionKey);
     log.info(`ACP session reattached: ${sessionKey}`);
-
-    // Flush any events that accumulated while detached (e.g. prompt_complete,
-    // status_change to 'ready') so the renderer gets the latest state.
     this.flushEvents(sessionKey);
   }
 
@@ -910,25 +1210,24 @@ export class AcpSessionManager {
     // Clear event buffer
     this.clearEventBuffer(sessionKey);
 
-    // Kill the subprocess
-    try {
-      if (!session.childProcess.killed) {
-        session.childProcess.kill();
-      }
-    } catch {
-      // already dead
+    // Clean up reverse map
+    if (session.acpSessionId) {
+      this.acpSessionIdToSessionKey.delete(session.acpSessionId);
     }
+
+    // Release connection reference (may trigger idle timer)
+    this.releaseConnection(session.connectionKey);
 
     this.sessions.delete(sessionKey);
     log.info(`ACP session killed: ${sessionKey}`);
   }
 
   shutdown(): void {
-    const keys = [...this.sessions.keys()];
-    if (keys.length === 0) return;
-    log.info(`Shutting down ${keys.length} ACP session(s)`);
-    for (const key of keys) {
-      this.killSession(key);
+    const connKeys = [...this.connections.keys()];
+    if (connKeys.length === 0) return;
+    log.info(`Shutting down ${connKeys.length} ACP connection(s)`);
+    for (const key of connKeys) {
+      this.destroyConnection(key);
     }
   }
 
@@ -941,12 +1240,27 @@ export class AcpSessionManager {
   }
 
   // -----------------------------------------------------------------------
-  // Internal: Client implementation for ACP
+  // Internal: Connection-scoped Client for ACP event routing
   // -----------------------------------------------------------------------
 
-  private createClient(sessionKey: string): Client {
+  /**
+   * Creates a Client that routes events by sessionId to the correct AcpSession.
+   * One Client per connection — shared by all sessions on that connection.
+   */
+  private createConnectionScopedClient(connectionKey: string): Client {
     return {
       sessionUpdate: async (params: SessionNotification) => {
+        // Route by acpSessionId → sessionKey
+        const acpSessionId = (params as any).sessionId;
+        const sessionKey = acpSessionId
+          ? this.acpSessionIdToSessionKey.get(acpSessionId)
+          : this.findSessionKeyByConnectionKey(connectionKey);
+
+        if (!sessionKey) {
+          log.debug(`[ConnPool] Unroutable sessionUpdate for acpSessionId=${acpSessionId} on ${connectionKey}`);
+          return;
+        }
+
         const session = this.sessions.get(sessionKey);
         if (!session) return;
 
@@ -970,8 +1284,13 @@ export class AcpSessionManager {
       requestPermission: async (
         params: RequestPermissionRequest
       ): Promise<RequestPermissionResponse> => {
-        const session = this.sessions.get(sessionKey);
-        if (!session) {
+        const acpSessionId = (params as any).sessionId;
+        const sessionKey = acpSessionId
+          ? this.acpSessionIdToSessionKey.get(acpSessionId)
+          : this.findSessionKeyByConnectionKey(connectionKey);
+
+        const session = sessionKey ? this.sessions.get(sessionKey) : null;
+        if (!session || !sessionKey) {
           return { outcome: { outcome: 'cancelled' } };
         }
 
@@ -994,7 +1313,12 @@ export class AcpSessionManager {
       },
 
       readTextFile: async (params: ReadTextFileRequest): Promise<ReadTextFileResponse> => {
-        const session = this.sessions.get(sessionKey);
+        const acpSessionId = (params as any).sessionId;
+        const sessionKey = acpSessionId
+          ? this.acpSessionIdToSessionKey.get(acpSessionId)
+          : this.findSessionKeyByConnectionKey(connectionKey);
+
+        const session = sessionKey ? this.sessions.get(sessionKey) : null;
         if (!session) {
           throw new Error('Session not found');
         }
@@ -1010,7 +1334,12 @@ export class AcpSessionManager {
       },
 
       writeTextFile: async (params: WriteTextFileRequest): Promise<WriteTextFileResponse> => {
-        const session = this.sessions.get(sessionKey);
+        const acpSessionId = (params as any).sessionId;
+        const sessionKey = acpSessionId
+          ? this.acpSessionIdToSessionKey.get(acpSessionId)
+          : this.findSessionKeyByConnectionKey(connectionKey);
+
+        const session = sessionKey ? this.sessions.get(sessionKey) : null;
         if (!session) {
           throw new Error('Session not found');
         }
@@ -1026,6 +1355,17 @@ export class AcpSessionManager {
         return {};
       },
     };
+  }
+
+  /**
+   * Fallback: find a session on this connection when sessionId is not in the event.
+   * Used for dedicated (non-pooled) connections where there's only one session.
+   */
+  private findSessionKeyByConnectionKey(connectionKey: string): string | undefined {
+    for (const [sessionKey, session] of this.sessions) {
+      if (session.connectionKey === connectionKey) return sessionKey;
+    }
+    return undefined;
   }
 
   // -----------------------------------------------------------------------

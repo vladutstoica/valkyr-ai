@@ -46,6 +46,7 @@ export type ProviderDefinition = {
   icon?: string;
   terminalOnly?: boolean;
   acpSupport?: AcpSupport;
+  acpMultiSession?: boolean; // Agent supports multiple ACP sessions on one connection
   envVars?: string[]; // Provider-specific env vars (scoped keys)
   description?: string;
   contextWindow?: number;
@@ -85,6 +86,7 @@ export const PROVIDERS: ProviderDefinition[] = [
     icon: 'claude.png',
     terminalOnly: true,
     acpSupport: { command: 'claude-code-acp' },
+    acpMultiSession: true,
     envVars: ['ANTHROPIC_API_KEY'],
     description: 'Anthropic Claude Code agent',
     contextWindow: 200000,
