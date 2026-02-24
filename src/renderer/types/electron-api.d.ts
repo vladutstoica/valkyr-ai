@@ -891,6 +891,11 @@ declare global {
         output?: string;
         error?: string;
       }>;
+      gitPush: (args: { repoPath: string }) => Promise<{
+        success: boolean;
+        branch?: string;
+        error?: string;
+      }>;
       generatePrContent: (args: { taskPath: string; base?: string }) => Promise<{
         success: boolean;
         title?: string;
@@ -1820,6 +1825,7 @@ declare global {
         acpSessionId?: string;
         modes?: AcpSessionModes;
         models?: AcpSessionModels;
+        historyEvents?: AcpUpdateEvent[];
         error?: string;
       }>;
       acpPrompt: (args: {
@@ -2746,6 +2752,7 @@ export interface ElectronAPI {
     acpSessionId?: string;
     modes?: AcpSessionModes;
     models?: AcpSessionModels;
+    historyEvents?: AcpUpdateEvent[];
     error?: string;
   }>;
   acpPrompt: (args: {

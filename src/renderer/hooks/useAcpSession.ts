@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { UIMessage } from 'ai';
 import { AcpChatTransport, LazyAcpChatTransport } from '../lib/acpChatTransport';
-import type { AcpSessionStatus, AcpSessionModes, AcpSessionModels } from '../types/electron-api';
+import type {
+  AcpSessionStatus,
+  AcpSessionModes,
+  AcpSessionModels,
+  AcpUpdateEvent,
+} from '../types/electron-api';
 import { createLogger } from '../lib/logger';
 
 const log = createLogger('hook:useAcpSession');
@@ -75,6 +80,155 @@ function safeParseMessageParts(m: any): UIMessage['parts'] {
 }
 
 /**
+ * Convert ACP history events (streamed back from loadSession) into UIMessage[].
+ *
+ * The event stream contains interleaved user_message_chunk and assistant events
+ * (agent_message_chunk, agent_thought_chunk, tool_call, tool_call_update).
+ * We group them into alternating user/assistant messages.
+ */
+function convertHistoryToMessages(events: AcpUpdateEvent[]): UIMessage[] {
+  const messages: UIMessage[] = [];
+  let currentRole: 'user' | 'assistant' | null = null;
+  let currentParts: UIMessage['parts'] = [];
+  let textAccumulator = '';
+  let reasoningAccumulator = '';
+  let msgCounter = 0;
+
+  function flushText() {
+    if (textAccumulator) {
+      currentParts.push({ type: 'text', text: textAccumulator });
+      textAccumulator = '';
+    }
+  }
+
+  function flushReasoning() {
+    if (reasoningAccumulator) {
+      currentParts.push({ type: 'reasoning', text: reasoningAccumulator } as any);
+      reasoningAccumulator = '';
+    }
+  }
+
+  function flushMessage() {
+    flushText();
+    flushReasoning();
+    if (currentRole && currentParts.length > 0) {
+      messages.push({
+        id: `history-${msgCounter++}`,
+        role: currentRole,
+        parts: currentParts,
+      });
+    }
+    currentParts = [];
+    currentRole = null;
+  }
+
+  function ensureRole(role: 'user' | 'assistant') {
+    if (currentRole !== role) {
+      flushMessage();
+      currentRole = role;
+    }
+  }
+
+  for (const event of events) {
+    if (event.type !== 'session_update') continue;
+    const update = event.data?.update;
+    const updateType = update?.sessionUpdate;
+    if (!updateType) continue;
+
+    switch (updateType) {
+      case 'user_message_chunk': {
+        const content = update?.content;
+        if (content?.type === 'text' && content.text) {
+          ensureRole('user');
+          textAccumulator += content.text;
+        }
+        break;
+      }
+
+      case 'agent_message_chunk': {
+        const content = update?.content;
+        if (content?.type === 'text' && content.text) {
+          ensureRole('assistant');
+          flushReasoning();
+          textAccumulator += content.text;
+        }
+        break;
+      }
+
+      case 'agent_thought_chunk': {
+        const content = update?.content;
+        if (content?.type === 'text' && content.text) {
+          ensureRole('assistant');
+          flushText();
+          reasoningAccumulator += content.text;
+        }
+        break;
+      }
+
+      case 'tool_call': {
+        ensureRole('assistant');
+        flushText();
+        flushReasoning();
+        const toolCallId = update.toolCallId || `tool-${msgCounter}-${Date.now()}`;
+        const toolName = update.kind || update.title?.split(/\s/)[0] || 'tool';
+        currentParts.push({
+          type: `tool-${toolName}`,
+          toolCallId,
+          toolName,
+          state: 'input-available',
+          input: update.rawInput ?? { title: update.title },
+        } as any);
+        break;
+      }
+
+      case 'tool_call_update': {
+        const toolCallId = update.toolCallId;
+        if (!toolCallId) break;
+        if (update.status === 'completed' || update.status === 'failed') {
+          // Find the matching tool part and update its state
+          const toolPart = currentParts.find(
+            (p: any) => p.toolCallId === toolCallId
+          ) as any;
+          if (toolPart) {
+            toolPart.state = 'output-available';
+            toolPart.output =
+              update.rawOutput ??
+              extractToolContent(update.content) ??
+              (update.status === 'failed' ? 'Tool execution failed' : '');
+          }
+        }
+        break;
+      }
+
+      // Skip side-channel events
+      default:
+        break;
+    }
+  }
+
+  // Flush any remaining message
+  flushMessage();
+
+  return messages;
+}
+
+/** Extract displayable text from ToolCallContent array (same logic as ChunkMapper). */
+function extractToolContent(content: any[] | undefined | null): string | undefined {
+  if (!content || !Array.isArray(content)) return undefined;
+  const parts: string[] = [];
+  for (const item of content) {
+    if (item.type === 'content' && item.content?.type === 'text' && item.content.text) {
+      parts.push(item.content.text);
+    } else if (item.type === 'diff' && item.diff) {
+      parts.push(item.diff);
+    } else if (item.type === 'terminal' && item.output) {
+      parts.push(item.output);
+    }
+  }
+  return parts.length > 0 ? parts.join('\n') : undefined;
+}
+
+/**
  * Manages ACP session lifecycle (init, cleanup) separately from useChat.
  * Returns a lazy transport immediately so the UI can render without waiting
  * for the ACP subprocess to start.
@@ -125,10 +279,19 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
       log.debug('Parallel init completed', {
         messagesLoaded: msgResult.success,
         sessionSuccess: sessionResult.success,
+        historyEventCount: sessionResult.historyEvents?.length ?? 0,
       });
 
-      // Restore messages from DB
-      if (msgResult.success && (msgResult as any).messages) {
+      // Prefer ACP history events (from loadSession) over DB messages,
+      // since they include the full conversation including user messages.
+      if (sessionResult.historyEvents && sessionResult.historyEvents.length > 0) {
+        const historyMessages = convertHistoryToMessages(sessionResult.historyEvents);
+        log.debug('Restored messages from ACP history', { count: historyMessages.length });
+        if (historyMessages.length > 0) {
+          setInitialMessages(historyMessages);
+        }
+      } else if (msgResult.success && (msgResult as any).messages) {
+        // Fallback: restore from DB (may be missing user messages)
         const restored: UIMessage[] = (msgResult as any).messages.map((m: any) => ({
           id: m.id,
           role: m.sender === 'user' ? ('user' as const) : ('assistant' as const),
