@@ -5,7 +5,11 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { useMcpRegistry } from '../../hooks/useMcpRegistry';
 import type { McpServerInput } from '@shared/mcp/types';
-import type { McpRegistryServer, McpRegistryPackage, McpRegistryRemote } from '../../types/electron-api';
+import type {
+  McpRegistryServer,
+  McpRegistryPackage,
+  McpRegistryRemote,
+} from '../../types/electron-api';
 
 interface McpRegistrySearchProps {
   onInstall: (prefill: McpServerInput) => void;
@@ -118,18 +122,18 @@ export const McpRegistrySearch: React.FC<McpRegistrySearchProps> = ({ onInstall 
     <div className="space-y-3">
       {/* Search input */}
       <div className="relative">
-        <Search className="text-muted-foreground pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
+        <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
         <Input
           placeholder="Search MCP servers (e.g. filesystem, github, postgres)..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="h-9 pl-9 pr-8 text-sm"
+          className="h-9 pr-8 pl-9 text-sm"
         />
         {query && (
           <button
             type="button"
             onClick={() => setQuery('')}
-            className="text-muted-foreground hover:text-foreground absolute right-2.5 top-1/2 -translate-y-1/2"
+            className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2.5 -translate-y-1/2"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -179,11 +183,17 @@ export const McpRegistrySearch: React.FC<McpRegistrySearchProps> = ({ onInstall 
                     <span className="truncate text-sm font-medium">
                       {server.title ?? server.name.split('/').pop() ?? server.name}
                     </span>
-                    <Badge variant="outline" className={`shrink-0 text-[10px] font-normal ${getTransportColor(transport)}`}>
+                    <Badge
+                      variant="outline"
+                      className={`shrink-0 text-[10px] font-normal ${getTransportColor(transport)}`}
+                    >
                       {transport}
                     </Badge>
                     {pkg?.registryType && (
-                      <Badge variant="outline" className="text-muted-foreground shrink-0 text-[10px] font-normal">
+                      <Badge
+                        variant="outline"
+                        className="text-muted-foreground shrink-0 text-[10px] font-normal"
+                      >
                         {pkg.registryType}
                       </Badge>
                     )}
@@ -227,9 +237,7 @@ export const McpRegistrySearch: React.FC<McpRegistrySearchProps> = ({ onInstall 
                 onClick={loadMore}
                 disabled={isSearching}
               >
-                {isSearching ? (
-                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                ) : null}
+                {isSearching ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
                 Load more
               </Button>
             </div>

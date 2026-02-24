@@ -194,10 +194,7 @@ export function getToolDisplayLabel(
  * 2. Bash `description` field — a short human-readable summary
  * 3. Smart extraction from tool args (filename from path, truncated commands, etc.)
  */
-export function getToolStepLabel(
-  toolName: string,
-  args: Record<string, unknown>
-): string | null {
+export function getToolStepLabel(toolName: string, args: Record<string, unknown>): string | null {
   // ACP provides a human-readable title — use it first
   const title = extractArg(args, 'title');
   if (title) return title;

@@ -71,6 +71,10 @@ export function WelcomeScreen({ onGetStarted }: WelcomeScreenProps) {
           Welcome.
         </motion.h1>
 
+        <motion.p className="text-muted-foreground text-xs" variants={itemVariants}>
+          Run them all. Ship the best.
+        </motion.p>
+
         <motion.div
           variants={itemVariants}
           whileHover={{ scale: 1.02 }}

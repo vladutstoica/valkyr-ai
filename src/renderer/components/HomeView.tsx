@@ -1,23 +1,9 @@
-import { motion } from 'framer-motion';
-import { FolderOpen, Github, Plus, Server } from 'lucide-react';
 import React from 'react';
 import valkyrLogo from '../../assets/images/valkyr/valkyr_logo.svg';
 import valkyrLogoWhite from '../../assets/images/valkyr/valkyr_logo_white.svg';
 import { useTheme } from '../hooks/useTheme';
 
-interface HomeViewProps {
-  onOpenProject: () => void;
-  onNewProjectClick: () => void;
-  onCloneProjectClick: () => void;
-  onAddRemoteProject: () => void;
-}
-
-const HomeView: React.FC<HomeViewProps> = ({
-  onOpenProject,
-  onNewProjectClick,
-  onCloneProjectClick,
-  onAddRemoteProject,
-}) => {
+const HomeView: React.FC = () => {
   const { effectiveTheme } = useTheme();
 
   return (
@@ -52,63 +38,9 @@ const HomeView: React.FC<HomeViewProps> = ({
               />
             </div>
           </div>
-          <p className="text-muted-foreground text-xs whitespace-nowrap">Coding Agent Dashboard</p>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-4 sm:gap-2">
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            transition={{ duration: 0.1, ease: 'easeInOut' }}
-            onClick={() => {
-              void (async () => {
-                const { captureTelemetry } = await import('../lib/telemetryClient');
-                captureTelemetry('project_open_clicked');
-              })();
-              onOpenProject();
-            }}
-            className="group border-border bg-muted/20 text-card-foreground hover:bg-muted/40 focus-visible:ring-ring flex flex-col items-start justify-between rounded-lg border p-4 shadow-xs transition-all hover:shadow-md focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden"
-          >
-            <FolderOpen className="text-foreground mb-5 h-5 w-5 opacity-70" />
-            <div className="w-full min-w-0 text-left">
-              <h3 className="truncate text-xs font-semibold">Open project</h3>
-            </div>
-          </motion.button>
-
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            transition={{ duration: 0.1, ease: 'easeInOut' }}
-            onClick={onNewProjectClick}
-            className="group border-border bg-muted/20 text-card-foreground hover:bg-muted/40 focus-visible:ring-ring flex flex-col items-start justify-between rounded-lg border p-4 shadow-xs transition-all hover:shadow-md focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden"
-          >
-            <Plus className="text-foreground mb-5 h-5 w-5 opacity-70" />
-            <div className="w-full min-w-0 text-left">
-              <h3 className="truncate text-xs font-semibold">Create New Project</h3>
-            </div>
-          </motion.button>
-
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            transition={{ duration: 0.1, ease: 'easeInOut' }}
-            onClick={onCloneProjectClick}
-            className="group border-border bg-muted/20 text-card-foreground hover:bg-muted/40 focus-visible:ring-ring flex flex-col items-start justify-between rounded-lg border p-4 shadow-xs transition-all hover:shadow-md focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden"
-          >
-            <Github className="text-foreground mb-5 h-5 w-5 opacity-70" />
-            <div className="w-full min-w-0 text-left">
-              <h3 className="truncate text-xs font-semibold">Clone from GitHub</h3>
-            </div>
-          </motion.button>
-
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            transition={{ duration: 0.1, ease: 'easeInOut' }}
-            onClick={onAddRemoteProject}
-            className="group border-border bg-muted/20 text-card-foreground hover:bg-muted/40 focus-visible:ring-ring flex flex-col items-start justify-between rounded-lg border p-4 shadow-xs transition-all hover:shadow-md focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden"
-          >
-            <Server className="text-foreground mb-5 h-5 w-5 opacity-70" />
-            <div className="w-full min-w-0 text-left">
-              <h3 className="truncate text-xs font-semibold">Add Remote Project</h3>
-            </div>
-          </motion.button>
+          <p className="text-muted-foreground text-xs whitespace-nowrap">
+            Run them all. Ship the best.
+          </p>
         </div>
       </div>
     </div>

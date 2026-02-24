@@ -88,32 +88,22 @@ export const McpServerForm: React.FC<Props> = ({
   // Use initialValues (edit mode) > prefill (registry install) > empty defaults
   const src = initialValues ?? prefill;
   const [name, setName] = useState(src?.name ?? '');
-  const [transport, setTransport] = useState<McpServerTransport>(
-    src?.transport ?? 'stdio'
-  );
+  const [transport, setTransport] = useState<McpServerTransport>(src?.transport ?? 'stdio');
   const [enabled] = useState(initialValues?.enabled ?? true);
 
   // stdio fields
-  const [command, setCommand] = useState(
-    src?.transport === 'stdio' ? src.command : ''
-  );
-  const [argsText, setArgsText] = useState(
-    src?.transport === 'stdio' ? src.args.join('\n') : ''
-  );
+  const [command, setCommand] = useState(src?.transport === 'stdio' ? src.command : '');
+  const [argsText, setArgsText] = useState(src?.transport === 'stdio' ? src.args.join('\n') : '');
   const [envKv, setEnvKv] = useState<KeyValue[]>(
     src?.transport === 'stdio' ? recordToKv(src.env) : []
   );
 
   // http/sse fields
   const [url, setUrl] = useState(
-    src?.transport === 'http' || src?.transport === 'sse'
-      ? src.url
-      : ''
+    src?.transport === 'http' || src?.transport === 'sse' ? src.url : ''
   );
   const [headersKv, setHeadersKv] = useState<KeyValue[]>(
-    src?.transport === 'http' || src?.transport === 'sse'
-      ? recordToKv(src.headers)
-      : []
+    src?.transport === 'http' || src?.transport === 'sse' ? recordToKv(src.headers) : []
   );
 
   const handleTransportChange = useCallback((value: string) => {

@@ -179,10 +179,7 @@ export function registerFsIpc(): void {
           }
 
           // For other git errors, fallback to DEFAULT_IGNORES
-          log.warn(
-            'git check-ignore failed, falling back to DEFAULT_IGNORES:',
-            gitError.message
-          );
+          log.warn('git check-ignore failed, falling back to DEFAULT_IGNORES:', gitError.message);
           const ignoredPaths = paths.filter((p) => {
             const name = path.basename(p);
             return DEFAULT_IGNORES.has(name);

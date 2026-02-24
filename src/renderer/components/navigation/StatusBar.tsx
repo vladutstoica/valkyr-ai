@@ -106,7 +106,9 @@ const RepoBranchPopover: React.FC<RepoBranchPopoverProps> = ({
       !isReserveBranch(b.name) && (!q || b.name.toLowerCase().includes(q));
     return {
       ...branchData,
-      recent: branchData.recent.filter((n) => !isReserveBranch(n) && (!q || n.toLowerCase().includes(q))),
+      recent: branchData.recent.filter(
+        (n) => !isReserveBranch(n) && (!q || n.toLowerCase().includes(q))
+      ),
       local: branchData.local.filter(filterBranch),
       remote: branchData.remote.filter(filterBranch),
     };
@@ -135,10 +137,18 @@ const RepoBranchPopover: React.FC<RepoBranchPopoverProps> = ({
           onBranchSwitched(target);
           setOpen(false);
         } else {
-          toast({ title: 'Failed to switch branch', description: result.error || 'Unknown error', variant: 'destructive' });
+          toast({
+            title: 'Failed to switch branch',
+            description: result.error || 'Unknown error',
+            variant: 'destructive',
+          });
         }
       } catch (error) {
-        toast({ title: 'Failed to switch branch', description: error instanceof Error ? error.message : 'Unknown error', variant: 'destructive' });
+        toast({
+          title: 'Failed to switch branch',
+          description: error instanceof Error ? error.message : 'Unknown error',
+          variant: 'destructive',
+        });
       } finally {
         setSwitchingBranch(null);
       }
@@ -148,8 +158,10 @@ const RepoBranchPopover: React.FC<RepoBranchPopoverProps> = ({
 
   const renderItem = (branch: BranchInfo | { name: string }, isRemote: boolean) => {
     const effectiveCurrent = branchData?.current || currentBranch;
-    const isCurrent = branch.name === effectiveCurrent || branch.name === `origin/${effectiveCurrent}`;
-    const isBeingSwitched = switchingBranch === branch.name || switchingBranch === branch.name.replace(/^origin\//, '');
+    const isCurrent =
+      branch.name === effectiveCurrent || branch.name === `origin/${effectiveCurrent}`;
+    const isBeingSwitched =
+      switchingBranch === branch.name || switchingBranch === branch.name.replace(/^origin\//, '');
 
     return (
       <button
@@ -170,7 +182,9 @@ const RepoBranchPopover: React.FC<RepoBranchPopoverProps> = ({
           )}
           <span className="truncate">{branch.name}</span>
         </div>
-        {isCurrent && <Check className="h-3 w-3 flex-shrink-0 text-green-600 dark:text-green-400" />}
+        {isCurrent && (
+          <Check className="h-3 w-3 flex-shrink-0 text-green-600 dark:text-green-400" />
+        )}
       </button>
     );
   };
@@ -192,7 +206,13 @@ const RepoBranchPopover: React.FC<RepoBranchPopoverProps> = ({
           <ChevronRight className="text-muted-foreground h-3 w-3 flex-shrink-0" />
         </button>
       </PopoverTrigger>
-      <PopoverContent side="right" sideOffset={4} align="start" className="w-64 p-0" collisionPadding={8}>
+      <PopoverContent
+        side="right"
+        sideOffset={4}
+        align="start"
+        className="w-64 p-0"
+        collisionPadding={8}
+      >
         <div className="px-2 pt-2 pb-1">
           <div className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
             {repoName}
@@ -255,11 +275,13 @@ const RepoBranchPopover: React.FC<RepoBranchPopoverProps> = ({
                   </div>
                 </>
               )}
-              {filtered.recent.length === 0 && filtered.local.length === 0 && filtered.remote.length === 0 && (
-                <div className="text-muted-foreground py-4 text-center text-xs">
-                  {searchQuery.trim() ? 'No branches found' : 'No branches available'}
-                </div>
-              )}
+              {filtered.recent.length === 0 &&
+                filtered.local.length === 0 &&
+                filtered.remote.length === 0 && (
+                  <div className="text-muted-foreground py-4 text-center text-xs">
+                    {searchQuery.trim() ? 'No branches found' : 'No branches available'}
+                  </div>
+                )}
             </div>
           </ScrollArea>
         )}
@@ -376,16 +398,27 @@ export const StatusBar: React.FC<StatusBarProps> = ({
         stashIfDirty: true,
       });
       if (result.success) {
-        toast({ title: 'Update complete', description: `Updated ${repos.length} repo${repos.length !== 1 ? 's' : ''}` });
+        toast({
+          title: 'Update complete',
+          description: `Updated ${repos.length} repo${repos.length !== 1 ? 's' : ''}`,
+        });
         onBranchChange?.();
       } else {
         const repoError = Array.isArray(result.data)
           ? result.data.find((r: { success: boolean; error?: string }) => !r.success)?.error
           : undefined;
-        toast({ title: 'Update failed', description: result.error || repoError || 'Unknown error', variant: 'destructive' });
+        toast({
+          title: 'Update failed',
+          description: result.error || repoError || 'Unknown error',
+          variant: 'destructive',
+        });
       }
     } catch (error) {
-      toast({ title: 'Update failed', description: error instanceof Error ? error.message : 'Unknown error', variant: 'destructive' });
+      toast({
+        title: 'Update failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
     } finally {
       setIsUpdating(false);
     }
@@ -401,17 +434,29 @@ export const StatusBar: React.FC<StatusBarProps> = ({
         (r) => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success)
       );
       if (failures.length === 0) {
-        toast({ title: 'Push complete', description: `Pushed ${repos.length} repo${repos.length !== 1 ? 's' : ''}` });
+        toast({
+          title: 'Push complete',
+          description: `Pushed ${repos.length} repo${repos.length !== 1 ? 's' : ''}`,
+        });
         onBranchChange?.();
       } else {
         const firstError =
           failures[0]?.status === 'fulfilled'
-            ? (failures[0] as PromiseFulfilledResult<{ success: boolean; error?: string }>).value.error
+            ? (failures[0] as PromiseFulfilledResult<{ success: boolean; error?: string }>).value
+                .error
             : (failures[0] as PromiseRejectedResult).reason?.message;
-        toast({ title: 'Push failed', description: firstError || 'Some repos failed to push', variant: 'destructive' });
+        toast({
+          title: 'Push failed',
+          description: firstError || 'Some repos failed to push',
+          variant: 'destructive',
+        });
       }
     } catch (error) {
-      toast({ title: 'Push failed', description: error instanceof Error ? error.message : 'Unknown error', variant: 'destructive' });
+      toast({
+        title: 'Push failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
     } finally {
       setIsPushing(false);
     }
@@ -422,7 +467,11 @@ export const StatusBar: React.FC<StatusBarProps> = ({
       await navigator.clipboard.writeText(worktreePath);
       toast({ title: 'Copied to clipboard', description: 'Worktree path copied' });
     } catch {
-      toast({ title: 'Failed to copy', description: 'Could not copy path to clipboard', variant: 'destructive' });
+      toast({
+        title: 'Failed to copy',
+        description: 'Could not copy path to clipboard',
+        variant: 'destructive',
+      });
     }
   }, [worktreePath]);
 
@@ -510,7 +559,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
                 disabled
                 className={cn(
                   'flex flex-1 items-center justify-center gap-1.5 rounded-sm border px-2 py-1 text-xs',
-                  'opacity-50 cursor-not-allowed'
+                  'cursor-not-allowed opacity-50'
                 )}
               >
                 <Check className="h-3 w-3" />

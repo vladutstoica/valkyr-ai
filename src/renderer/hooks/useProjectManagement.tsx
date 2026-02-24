@@ -55,7 +55,8 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
   const [showHomeView, setShowHomeView] = useState<boolean>(!hasPendingRestore);
   const [showSkillsView, setShowSkillsView] = useState(false);
   const [showSettingsView, setShowSettingsView] = useState(false);
-  const [settingsViewTab, setSettingsViewTab] = useState<import('./useModalState').SettingsTab>('general');
+  const [settingsViewTab, setSettingsViewTab] =
+    useState<import('./useModalState').SettingsTab>('general');
   const [projectBranchOptions, setProjectBranchOptions] = useState<
     Array<{ value: string; label: string }>
   >([]);
@@ -112,7 +113,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
 
     // Restore last active task for this project
     const lastTaskId = getProjectLastTaskId(project.id);
-    const lastTask = lastTaskId ? project.tasks?.find((t) => t.id === lastTaskId) ?? null : null;
+    const lastTask = lastTaskId ? (project.tasks?.find((t) => t.id === lastTaskId) ?? null) : null;
     setActiveTask(lastTask);
     saveActiveIds(project.id, lastTask?.id ?? null);
 
@@ -1060,12 +1061,12 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
           // Restore the last active task for this project, falling back to most recent
           const savedTaskId = getProjectLastTaskId(firstProject.id);
           const lastTask = savedTaskId
-            ? firstProject.tasks?.find((t) => t.id === savedTaskId) ?? null
-            : firstProject.tasks
+            ? (firstProject.tasks?.find((t) => t.id === savedTaskId) ?? null)
+            : (firstProject.tasks
                 ?.slice()
                 .sort((a, b) =>
                   (b.updatedAt ?? b.createdAt ?? '').localeCompare(a.updatedAt ?? a.createdAt ?? '')
-                )[0] ?? null;
+                )[0] ?? null);
           setSelectedProject(firstProject);
           setShowHomeView(false);
           setShowSkillsView(false);

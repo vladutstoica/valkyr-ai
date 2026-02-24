@@ -209,6 +209,7 @@ const ChatInterface: React.FC<Props> = ({
 
   // Ref to control terminal focus imperatively if needed
   const terminalRef = useRef<{ focus: () => void }>(null);
+  const chatScrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Auto-focus terminal when switching to this task
   useEffect(() => {
@@ -336,6 +337,13 @@ const ChatInterface: React.FC<Props> = ({
           }
           setActiveConversationId(result.conversation.id);
           setAgent(newAgent as Agent);
+          // Scroll to the newly created chat pane
+          requestAnimationFrame(() => {
+            chatScrollContainerRef.current?.scrollTo({
+              left: chatScrollContainerRef.current.scrollWidth,
+              behavior: 'smooth',
+            });
+          });
         } else {
           console.error('Failed to create conversation:', result.error);
           toast({
@@ -878,7 +886,10 @@ const ChatInterface: React.FC<Props> = ({
             }
             return null;
           })()}
-          <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto p-3 pt-3">
+          <div
+            ref={chatScrollContainerRef}
+            className="flex min-h-0 flex-1 gap-3 overflow-x-auto p-3 pt-3"
+          >
             {conversationsLoaded &&
               sortedConversations.map((conv, idx) => {
                 const convAgent = conv.provider || agent;

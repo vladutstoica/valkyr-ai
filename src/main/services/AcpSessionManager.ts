@@ -191,7 +191,11 @@ export class AcpSessionManager {
     const buf = this.eventBuffers.get(sessionKey) || [];
     buf.push(event);
     this.eventBuffers.set(sessionKey, buf);
-    log.debug('[AcpSessionManager] Event buffered', { sessionKey, eventType: event.type, bufferSize: buf.length });
+    log.debug('[AcpSessionManager] Event buffered', {
+      sessionKey,
+      eventType: event.type,
+      bufferSize: buf.length,
+    });
     if (this.eventTimers.has(sessionKey)) return;
     const t = setTimeout(() => {
       this.eventTimers.delete(sessionKey);
@@ -415,7 +419,10 @@ export class AcpSessionManager {
     childProcess.on('exit', (code, signal) => {
       if (conn.dead) return;
       log.info(`[ConnPool] Subprocess exited: ${connectionKey} code=${code} signal=${signal}`);
-      this.handleConnectionDeath(connectionKey, `Agent process exited with code ${code}${signal ? ` (signal: ${signal})` : ''}`);
+      this.handleConnectionDeath(
+        connectionKey,
+        `Agent process exited with code ${code}${signal ? ` (signal: ${signal})` : ''}`
+      );
     });
 
     childProcess.stderr?.on('data', (chunk: Buffer) => {
@@ -447,8 +454,12 @@ export class AcpSessionManager {
 
     conn.initResp = initResp;
 
-    log.info(`[PERF spawnConnection] resolveCmd=${(tResolve - t0).toFixed(0)}ms spawn=${(tPostSpawn - tPreSpawn).toFixed(0)}ms sdkAwait=${(tSdk - tPostSpawn).toFixed(0)}ms initialize=${(tPostInit - tPreInit).toFixed(0)}ms total=${(tPostInit - t0).toFixed(0)}ms cmd=${command}`);
-    log.info(`[RESUME CHECKPOINT] Agent capabilities: loadSession=${initResp.agentCapabilities?.loadSession}, protocolVersion=${initResp.protocolVersion}`);
+    log.info(
+      `[PERF spawnConnection] resolveCmd=${(tResolve - t0).toFixed(0)}ms spawn=${(tPostSpawn - tPreSpawn).toFixed(0)}ms sdkAwait=${(tSdk - tPostSpawn).toFixed(0)}ms initialize=${(tPostInit - tPreInit).toFixed(0)}ms total=${(tPostInit - t0).toFixed(0)}ms cmd=${command}`
+    );
+    log.info(
+      `[RESUME CHECKPOINT] Agent capabilities: loadSession=${initResp.agentCapabilities?.loadSession}, protocolVersion=${initResp.protocolVersion}`
+    );
 
     return conn;
   }
@@ -669,7 +680,9 @@ export class AcpSessionManager {
         }
       } else {
         // Create a brand new session (no stored session ID to resume from)
-        log.info(`[RESUME CHECKPOINT] No stored sessionId for conversation ${conversationId}, creating fresh session`);
+        log.info(
+          `[RESUME CHECKPOINT] No stored sessionId for conversation ${conversationId}, creating fresh session`
+        );
         sessionResp = await Promise.race([
           connection.newSession({ cwd, mcpServers: mcpServerList }),
           spawnError,
@@ -717,14 +730,18 @@ export class AcpSessionManager {
       }
 
       this.setStatus(sessionKey, 'ready');
-      log.info(`[PERF createSession] connection=${(tConnReady - tCreate0).toFixed(0)}ms ${storedSessionId ? 'resume/newSession' : 'newSession'}=${(tSessionCreated - tConnReady).toFixed(0)}ms replay=${(tReplayDone - tSessionCreated).toFixed(0)}ms total=${(tReplayDone - tCreate0).toFixed(0)}ms resumed=${resumed} hadStoredId=${!!storedSessionId} pooled=${usePool}`);
+      log.info(
+        `[PERF createSession] connection=${(tConnReady - tCreate0).toFixed(0)}ms ${storedSessionId ? 'resume/newSession' : 'newSession'}=${(tSessionCreated - tConnReady).toFixed(0)}ms replay=${(tReplayDone - tSessionCreated).toFixed(0)}ms total=${(tReplayDone - tCreate0).toFixed(0)}ms resumed=${resumed} hadStoredId=${!!storedSessionId} pooled=${usePool}`
+      );
 
       // Persist the acpSessionId to DB for future resume
       databaseService.updateConversationAcpSessionId(conversationId, acpSessionId).catch((err) => {
         log.error(`Failed to persist acpSessionId for ${conversationId}`, err);
       });
 
-      log.info(`[RESUME CHECKPOINT] Session ready: sessionKey=${sessionKey}, acpSessionId=${acpSessionId}, resumed=${resumed}, pooled=${usePool}`);
+      log.info(
+        `[RESUME CHECKPOINT] Session ready: sessionKey=${sessionKey}, acpSessionId=${acpSessionId}, resumed=${resumed}, pooled=${usePool}`
+      );
       return { success: true, sessionKey, acpSessionId, modes, models, historyEvents, resumed };
     } catch (error: any) {
       // Cleanup on failure
@@ -794,9 +811,13 @@ export class AcpSessionManager {
           }
         }
       }
-      log.warn(`[RESUME CHECKPOINT] loadSession exhausted retries for sessionId=${acpSessionId}, falling back to newSession + context replay`);
+      log.warn(
+        `[RESUME CHECKPOINT] loadSession exhausted retries for sessionId=${acpSessionId}, falling back to newSession + context replay`
+      );
     } else {
-      log.warn(`[RESUME CHECKPOINT] Agent does not support loadSession (agentCapabilities.loadSession=${initResp.agentCapabilities?.loadSession}), creating new session + context replay`);
+      log.warn(
+        `[RESUME CHECKPOINT] Agent does not support loadSession (agentCapabilities.loadSession=${initResp.agentCapabilities?.loadSession}), creating new session + context replay`
+      );
     }
 
     // Fallback: create a new session — conversation context is LOST
@@ -804,7 +825,9 @@ export class AcpSessionManager {
       connection.newSession({ cwd, mcpServers }),
       spawnError,
     ]);
-    log.warn(`[RESUME CHECKPOINT] Created NEW session ${sessionResp.sessionId} (previous session ${acpSessionId} could not be resumed — context lost)`);
+    log.warn(
+      `[RESUME CHECKPOINT] Created NEW session ${sessionResp.sessionId} (previous session ${acpSessionId} could not be resumed — context lost)`
+    );
     return { sessionId: sessionResp.sessionId, sessionResp, resumed: false };
   }
 
@@ -1257,7 +1280,9 @@ export class AcpSessionManager {
           : this.findSessionKeyByConnectionKey(connectionKey);
 
         if (!sessionKey) {
-          log.debug(`[ConnPool] Unroutable sessionUpdate for acpSessionId=${acpSessionId} on ${connectionKey}`);
+          log.debug(
+            `[ConnPool] Unroutable sessionUpdate for acpSessionId=${acpSessionId} on ${connectionKey}`
+          );
           return;
         }
 

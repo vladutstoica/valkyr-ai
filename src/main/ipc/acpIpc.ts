@@ -120,7 +120,9 @@ export function registerAcpIpc(): void {
         mcpServers
       );
       const tSession = performance.now();
-      log.info(`[PERF acp:start] validate=${(tParsed - t0).toFixed(0)}ms mcp=${(tMcp - tParsed).toFixed(0)}ms createSession=${(tSession - tMcp).toFixed(0)}ms total=${(tSession - t0).toFixed(0)}ms provider=${parsed.providerId} resumed=${result.resumed ?? 'n/a'}`);
+      log.info(
+        `[PERF acp:start] validate=${(tParsed - t0).toFixed(0)}ms mcp=${(tMcp - tParsed).toFixed(0)}ms createSession=${(tSession - tMcp).toFixed(0)}ms total=${(tSession - t0).toFixed(0)}ms provider=${parsed.providerId} resumed=${result.resumed ?? 'n/a'}`
+      );
 
       if (result.success && result.sessionKey) {
         // Track ownership for per-session event routing

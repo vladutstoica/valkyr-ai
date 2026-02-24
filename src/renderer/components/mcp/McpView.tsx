@@ -52,9 +52,23 @@ export const McpView: React.FC<McpViewProps> = ({ projectPath }) => {
   const handleImportServer = useCallback(
     async (server: McpServerConfig, scope: 'global' | 'project') => {
       const hook = scope === 'global' ? globalServers : projectServers;
-      const input: McpServerInput = server.transport === 'stdio'
-        ? { name: server.name, transport: 'stdio', enabled: true, command: server.command, args: server.args, env: server.env }
-        : { name: server.name, transport: server.transport, enabled: true, url: server.url, headers: server.headers };
+      const input: McpServerInput =
+        server.transport === 'stdio'
+          ? {
+              name: server.name,
+              transport: 'stdio',
+              enabled: true,
+              command: server.command,
+              args: server.args,
+              env: server.env,
+            }
+          : {
+              name: server.name,
+              transport: server.transport,
+              enabled: true,
+              url: server.url,
+              headers: server.headers,
+            };
       await hook.addServer(input);
       setImportedNames((prev) => new Set(prev).add(server.name));
     },
@@ -142,8 +156,8 @@ export const McpView: React.FC<McpViewProps> = ({ projectPath }) => {
           <h2 className="text-lg font-semibold">MCP Servers</h2>
         </div>
         <p className="text-muted-foreground mt-1 text-sm">
-          Configure Model Context Protocol servers injected into agent sessions.
-          Search the official registry or add servers manually.
+          Configure Model Context Protocol servers injected into agent sessions. Search the official
+          registry or add servers manually.
         </p>
       </div>
 
@@ -170,7 +184,11 @@ export const McpView: React.FC<McpViewProps> = ({ projectPath }) => {
             onClick={handleDetectAgents}
             disabled={isDetecting}
           >
-            {isDetecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+            {isDetecting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Search className="h-3.5 w-3.5" />
+            )}
             {discoveries === null ? 'Detect' : 'Rescan'}
           </Button>
         </div>
@@ -190,7 +208,10 @@ export const McpView: React.FC<McpViewProps> = ({ projectPath }) => {
               <div key={`${discovery.agent}-${discovery.scope}`} className="space-y-2">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-medium">{discovery.agent}</span>
-                  <Badge variant="outline" className="text-muted-foreground text-[10px] font-normal">
+                  <Badge
+                    variant="outline"
+                    className="text-muted-foreground text-[10px] font-normal"
+                  >
                     {discovery.scope}
                   </Badge>
                 </div>
@@ -219,7 +240,12 @@ export const McpView: React.FC<McpViewProps> = ({ projectPath }) => {
                             variant="outline"
                             size="sm"
                             className="h-7 gap-1 text-xs"
-                            onClick={() => void handleImportServer(server, discovery.scope === 'project' ? 'project' : 'global')}
+                            onClick={() =>
+                              void handleImportServer(
+                                server,
+                                discovery.scope === 'project' ? 'project' : 'global'
+                              )
+                            }
                           >
                             <Download className="h-3 w-3" />
                             Import

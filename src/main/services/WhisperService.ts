@@ -6,8 +6,7 @@ import { log } from '../lib/logger';
 
 const MODEL_DIR_NAME = 'voice-models';
 const MODEL_FILE = 'ggml-base.en.bin';
-const MODEL_URL =
-  'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin';
+const MODEL_URL = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin';
 
 type WhisperContext = {
   transcribeData: (

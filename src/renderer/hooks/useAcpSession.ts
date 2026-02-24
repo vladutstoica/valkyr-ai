@@ -187,9 +187,7 @@ function convertHistoryToMessages(events: AcpUpdateEvent[]): UIMessage[] {
         if (!toolCallId) break;
         if (update.status === 'completed' || update.status === 'failed') {
           // Find the matching tool part and update its state
-          const toolPart = currentParts.find(
-            (p: any) => p.toolCallId === toolCallId
-          ) as any;
+          const toolPart = currentParts.find((p: any) => p.toolCallId === toolCallId) as any;
           if (toolPart) {
             toolPart.state = 'output-available';
             toolPart.output =
@@ -294,7 +292,9 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
         if (wasResumed) {
           log.info('[RESUME CHECKPOINT] Session RESUMED successfully');
         } else {
-          log.warn('[RESUME CHECKPOINT] Session NOT resumed — new session created, agent has no prior context');
+          log.warn(
+            '[RESUME CHECKPOINT] Session NOT resumed — new session created, agent has no prior context'
+          );
         }
       }
 
@@ -356,7 +356,9 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
       });
 
       const tReady = performance.now();
-      console.info(`[PERF useAcpSession] ipc(getMessages+acpStart)=${(tIpcDone - tInit0).toFixed(0)}ms msgParse=${(tMsgParsed - tIpcDone).toFixed(0)}ms wireTransport=${(tReady - tMsgParsed).toFixed(0)}ms total=${(tReady - tInit0).toFixed(0)}ms provider=${providerId} resumed=${sessionResult.resumed ?? 'n/a'}`);
+      console.info(
+        `[PERF useAcpSession] ipc(getMessages+acpStart)=${(tIpcDone - tInit0).toFixed(0)}ms msgParse=${(tMsgParsed - tIpcDone).toFixed(0)}ms wireTransport=${(tReady - tMsgParsed).toFixed(0)}ms total=${(tReady - tInit0).toFixed(0)}ms provider=${providerId} resumed=${sessionResult.resumed ?? 'n/a'}`
+      );
     }
 
     init();

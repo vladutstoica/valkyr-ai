@@ -1722,18 +1722,12 @@ declare global {
         data?: import('@shared/mcp/types').McpServerConfig[];
         error?: string;
       }>;
-      mcpDetectAgentServers: (args?: {
-        projectPath?: string;
-      }) => Promise<{
+      mcpDetectAgentServers: (args?: { projectPath?: string }) => Promise<{
         success: boolean;
         data?: AgentMcpDiscovery[];
         error?: string;
       }>;
-      mcpSearchRegistry: (args: {
-        query: string;
-        limit?: number;
-        cursor?: string;
-      }) => Promise<{
+      mcpSearchRegistry: (args: { query: string; limit?: number; cursor?: string }) => Promise<{
         success: boolean;
         data?: {
           servers: McpRegistryServer[];
@@ -2650,18 +2644,12 @@ export interface ElectronAPI {
     data?: import('@shared/mcp/types').McpServerConfig[];
     error?: string;
   }>;
-  mcpDetectAgentServers: (args?: {
-    projectPath?: string;
-  }) => Promise<{
+  mcpDetectAgentServers: (args?: { projectPath?: string }) => Promise<{
     success: boolean;
     data?: AgentMcpDiscovery[];
     error?: string;
   }>;
-  mcpSearchRegistry: (args: {
-    query: string;
-    limit?: number;
-    cursor?: string;
-  }) => Promise<{
+  mcpSearchRegistry: (args: { query: string; limit?: number; cursor?: string }) => Promise<{
     success: boolean;
     data?: {
       servers: McpRegistryServer[];

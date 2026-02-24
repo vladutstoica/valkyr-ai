@@ -104,7 +104,8 @@ export class AcpRegistryService {
     const entry = registry.find((e) => e.id === agentId);
     if (!entry) return { success: false, error: `Agent "${agentId}" not found in registry` };
 
-    const chosenMethod = method || (entry.distribution.npx ? 'npx' : 'binary');
+    // Prefer binary over npx — binaries start ~10x faster (no Node.js/npm overhead)
+    const chosenMethod = method || (entry.distribution.binary ? 'binary' : 'npx');
 
     if (chosenMethod === 'npx') {
       if (!entry.distribution.npx) {

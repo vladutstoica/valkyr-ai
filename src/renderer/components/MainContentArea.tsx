@@ -118,14 +118,7 @@ const MainContentArea: React.FC<MainContentAreaProps> = ({
   }
 
   if (showHomeView) {
-    return (
-      <HomeView
-        onOpenProject={handleOpenProject}
-        onNewProjectClick={handleNewProjectClick}
-        onCloneProjectClick={handleCloneProjectClick}
-        onAddRemoteProject={handleAddRemoteProject}
-      />
-    );
+    return <HomeView />;
   }
 
   if (selectedProject) {

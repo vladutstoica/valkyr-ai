@@ -87,9 +87,7 @@ export function registerMcpIpc() {
 
   ipcMain.handle('mcp:detectAgentServers', async (_event, args: unknown) => {
     try {
-      const { projectPath } = z
-        .object({ projectPath: z.string().optional() })
-        .parse(args ?? {});
+      const { projectPath } = z.object({ projectPath: z.string().optional() }).parse(args ?? {});
       const data = mcpConfigService.detectAgentServers(projectPath);
       return { success: true, data };
     } catch (err: any) {

@@ -1110,7 +1110,11 @@ export const PromptInputSpeechButton = ({
 
   // Notify parent of state changes
   useEffect(() => {
-    const state: SpeechButtonState = isRecording ? 'recording' : isTranscribing ? 'transcribing' : 'idle';
+    const state: SpeechButtonState = isRecording
+      ? 'recording'
+      : isTranscribing
+        ? 'transcribing'
+        : 'idle';
     onStateChangeRef.current?.(state);
   }, [isRecording, isTranscribing]);
 
@@ -1132,7 +1136,7 @@ export const PromptInputSpeechButton = ({
       className={cn(
         'relative transition-all duration-200',
         isRecording &&
-          'bg-red-500/20 text-red-500 hover:bg-red-500/30 hover:text-red-500 animate-pulse',
+          'animate-pulse bg-red-500/20 text-red-500 hover:bg-red-500/30 hover:text-red-500',
         isTranscribing && 'text-muted-foreground opacity-50',
         className
       )}

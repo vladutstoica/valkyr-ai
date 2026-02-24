@@ -160,10 +160,7 @@ export const ReasoningContent = memo(({ className, children, ...props }: Reasoni
     )}
     {...props}
   >
-    <Streamdown
-      shikiTheme={['github-light', 'github-dark']}
-      parseIncompleteMarkdown
-    >
+    <Streamdown shikiTheme={['github-light', 'github-dark']} parseIncompleteMarkdown>
       {children}
     </Streamdown>
   </CollapsibleContent>

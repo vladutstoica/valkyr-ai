@@ -8,13 +8,14 @@ interface TabConfig {
   label: string;
   icon: React.ElementType;
   shortcut: string;
+  beta?: boolean;
 }
 
 const TABS: TabConfig[] = [
   { id: 'agents', label: 'AI Agents', icon: Bot, shortcut: '1' },
-  { id: 'editor', label: 'Editor', icon: Code, shortcut: '2' },
-  { id: 'git', label: 'Git', icon: GitBranch, shortcut: '3' },
-  { id: 'preview', label: 'Preview', icon: Globe, shortcut: '4' },
+  { id: 'editor', label: 'Editor', icon: Code, shortcut: '2', beta: true },
+  { id: 'git', label: 'Git', icon: GitBranch, shortcut: '3', beta: true },
+  { id: 'preview', label: 'Preview', icon: Globe, shortcut: '4', beta: true },
 ];
 
 export function TabBar() {
@@ -48,6 +49,11 @@ export function TabBar() {
               )}
             </span>
             <span className="hidden sm:inline">{tab.label}</span>
+            {tab.beta && (
+              <span className="bg-primary/15 text-primary rounded px-1 py-0.5 text-[9px] leading-none font-semibold tracking-wider uppercase">
+                Beta
+              </span>
+            )}
             {showBadge && (
               <span
                 className={cn(

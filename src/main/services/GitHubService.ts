@@ -478,7 +478,6 @@ export class GitHubService {
     projectPath: string,
     limit: number = 50
   ): Promise<
-
     Array<{
       number: number;
       title: string;
@@ -965,7 +964,11 @@ export class GitHubService {
     owner: string;
     isPrivate: boolean;
   }): Promise<{ url: string; defaultBranch: string; fullName: string }> {
-    log.debug('Creating repository', { name: params.name, owner: params.owner, isPrivate: params.isPrivate });
+    log.debug('Creating repository', {
+      name: params.name,
+      owner: params.owner,
+      isPrivate: params.isPrivate,
+    });
     try {
       const { name, description, owner, isPrivate } = params;
 
