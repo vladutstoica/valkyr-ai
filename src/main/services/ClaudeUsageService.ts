@@ -84,25 +84,61 @@ class ClaudeUsageService {
     }
   }
 
-  private getOAuthTokenMacOS(): Promise<string | null> {
+  /**
+   * Try multiple keychain account names to find the one with claudeAiOauth.
+   * Claude Code stores OAuth under the OS username, but MCP-only creds may
+   * exist under "unknown". Without -a, `security` picks non-deterministically.
+   */
+  private async getOAuthTokenMacOS(): Promise<string | null> {
+    // Build candidate account list: try specific accounts first, then unscoped
+    const candidates: (string | null)[] = [];
+    try {
+      // whoami always works regardless of env vars
+      const whoami = await this.exec('whoami');
+      if (whoami) candidates.push(whoami);
+    } catch {
+      // ignore
+    }
+    // Also try env vars as fallback candidates
+    const envUser = process.env.USER || process.env.USERNAME;
+    if (envUser && !candidates.includes(envUser)) candidates.push(envUser);
+    // Finally try unscoped (no -a flag)
+    candidates.push(null);
+
+    for (const account of candidates) {
+      const token = await this.tryKeychainAccount(account);
+      if (token) return token;
+    }
+    return null;
+  }
+
+  private tryKeychainAccount(account: string | null): Promise<string | null> {
     return new Promise((resolve) => {
-      execFile(
-        'security',
-        ['find-generic-password', '-s', KEYCHAIN_SERVICE, '-w'],
-        { timeout: 5000 },
-        (error, stdout) => {
-          if (error || !stdout.trim()) {
-            resolve(null);
-            return;
-          }
-          try {
-            const parsed = JSON.parse(stdout.trim());
-            resolve(parsed?.claudeAiOauth?.accessToken ?? null);
-          } catch {
-            resolve(null);
-          }
+      const args = ['find-generic-password', '-s', KEYCHAIN_SERVICE];
+      if (account) args.push('-a', account);
+      args.push('-w');
+
+      execFile('security', args, { timeout: 5000 }, (error, stdout) => {
+        if (error || !stdout.trim()) {
+          resolve(null);
+          return;
         }
-      );
+        try {
+          const parsed = JSON.parse(stdout.trim());
+          resolve(parsed?.claudeAiOauth?.accessToken ?? null);
+        } catch {
+          resolve(null);
+        }
+      });
+    });
+  }
+
+  private exec(cmd: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      execFile(cmd, { timeout: 3000 }, (error, stdout) => {
+        if (error) return reject(error);
+        resolve(stdout.trim());
+      });
     });
   }
 }
