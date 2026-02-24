@@ -985,149 +985,147 @@ export const PromptInputSubmit = ({
   );
 };
 
-interface SpeechRecognition extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  start(): void;
-  stop(): void;
-  onstart: ((this: SpeechRecognition, ev: Event) => any) | null;
-  onend: ((this: SpeechRecognition, ev: Event) => any) | null;
-  onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any) | null;
-  onerror: ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => any) | null;
-}
-
-interface SpeechRecognitionEvent extends Event {
-  results: SpeechRecognitionResultList;
-  resultIndex: number;
-}
-
-type SpeechRecognitionResultList = {
-  readonly length: number;
-  item(index: number): SpeechRecognitionResult;
-  [index: number]: SpeechRecognitionResult;
-};
-
-type SpeechRecognitionResult = {
-  readonly length: number;
-  item(index: number): SpeechRecognitionAlternative;
-  [index: number]: SpeechRecognitionAlternative;
-  isFinal: boolean;
-};
-
-type SpeechRecognitionAlternative = {
-  transcript: string;
-  confidence: number;
-};
-
-interface SpeechRecognitionErrorEvent extends Event {
-  error: string;
-}
-
-declare global {
-  interface Window {
-    SpeechRecognition: {
-      new (): SpeechRecognition;
-    };
-    webkitSpeechRecognition: {
-      new (): SpeechRecognition;
-    };
-  }
-}
-
 export type PromptInputSpeechButtonProps = ComponentProps<typeof PromptInputButton> & {
   textareaRef?: RefObject<HTMLTextAreaElement | null>;
   onTranscriptionChange?: (text: string) => void;
 };
 
+/**
+ * Voice-to-text button using local Whisper model via main process.
+ * Captures audio with MediaRecorder, resamples to 16kHz mono PCM,
+ * sends to main process for transcription, and inserts result into textarea.
+ */
 export const PromptInputSpeechButton = ({
   className,
   textareaRef,
   onTranscriptionChange,
   ...props
 }: PromptInputSpeechButtonProps) => {
-  const [isListening, setIsListening] = useState(false);
-  const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
-  useEffect(() => {
-    if (
-      typeof window !== 'undefined' &&
-      ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
-    ) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      const speechRecognition = new SpeechRecognition();
+  const stopRecording = useCallback(async () => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state === 'inactive') return;
 
-      speechRecognition.continuous = true;
-      speechRecognition.interimResults = true;
-      speechRecognition.lang = 'en-US';
+    return new Promise<void>((resolve) => {
+      recorder.onstop = async () => {
+        setIsRecording(false);
 
-      speechRecognition.onstart = () => {
-        setIsListening(true);
-      };
+        const audioBlob = new Blob(chunksRef.current, { type: recorder.mimeType });
+        chunksRef.current = [];
 
-      speechRecognition.onend = () => {
-        setIsListening(false);
-      };
+        if (audioBlob.size === 0) {
+          resolve();
+          return;
+        }
 
-      speechRecognition.onresult = (event) => {
-        let finalTranscript = '';
+        setIsTranscribing(true);
+        try {
+          // Decode audio and resample to 16kHz mono PCM Int16
+          const arrayBuf = await audioBlob.arrayBuffer();
+          const audioCtx = new OfflineAudioContext(1, 1, 16000);
+          const decoded = await audioCtx.decodeAudioData(arrayBuf);
 
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const result = event.results[i];
-          if (result.isFinal) {
-            finalTranscript += result[0]?.transcript ?? '';
+          // Resample to 16kHz mono
+          const offlineCtx = new OfflineAudioContext(1, Math.ceil(decoded.duration * 16000), 16000);
+          const source = offlineCtx.createBufferSource();
+          source.buffer = decoded;
+          source.connect(offlineCtx.destination);
+          source.start(0);
+          const resampled = await offlineCtx.startRendering();
+          const float32 = resampled.getChannelData(0);
+
+          // Convert Float32 (-1..1) to Int16 PCM
+          const int16 = new Int16Array(float32.length);
+          for (let i = 0; i < float32.length; i++) {
+            const s = Math.max(-1, Math.min(1, float32[i]));
+            int16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
           }
+
+          const result = await window.electronAPI.whisperTranscribe(int16.buffer);
+          if (result.success && result.data?.text && textareaRef?.current) {
+            const textarea = textareaRef.current;
+            const currentValue = textarea.value;
+            const transcribed = result.data.text;
+            const newValue = currentValue + (currentValue ? ' ' : '') + transcribed;
+
+            // Use native setter to trigger React's synthetic events
+            const nativeSetter = Object.getOwnPropertyDescriptor(
+              HTMLTextAreaElement.prototype,
+              'value'
+            )?.set;
+            nativeSetter?.call(textarea, newValue);
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+            onTranscriptionChange?.(newValue);
+          } else if (!result.success) {
+            console.error('Whisper transcription failed:', result.error);
+          }
+        } catch (err) {
+          console.error('Voice transcription error:', err);
+        } finally {
+          setIsTranscribing(false);
         }
-
-        if (finalTranscript && textareaRef?.current) {
-          const textarea = textareaRef.current;
-          const currentValue = textarea.value;
-          const newValue = currentValue + (currentValue ? ' ' : '') + finalTranscript;
-
-          textarea.value = newValue;
-          textarea.dispatchEvent(new Event('input', { bubbles: true }));
-          onTranscriptionChange?.(newValue);
-        }
+        resolve();
       };
-
-      speechRecognition.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
-        setIsListening(false);
-      };
-
-      recognitionRef.current = speechRecognition;
-      setRecognition(speechRecognition);
-    }
-
-    return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
-    };
+      recorder.stop();
+      // Stop all tracks to release mic
+      recorder.stream.getTracks().forEach((t) => t.stop());
+    });
   }, [textareaRef, onTranscriptionChange]);
 
-  const toggleListening = useCallback(() => {
-    if (!recognition) {
-      return;
-    }
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      chunksRef.current = [];
 
-    if (isListening) {
-      recognition.stop();
-    } else {
-      recognition.start();
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+
+      recorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.error('Failed to start recording:', err);
     }
-  }, [recognition, isListening]);
+  }, []);
+
+  const toggleRecording = useCallback(async () => {
+    if (isRecording) {
+      await stopRecording();
+    } else {
+      await startRecording();
+    }
+  }, [isRecording, stopRecording, startRecording]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      const recorder = mediaRecorderRef.current;
+      if (recorder && recorder.state !== 'inactive') {
+        recorder.stop();
+        recorder.stream.getTracks().forEach((t) => t.stop());
+      }
+    };
+  }, []);
+
+  const busy = isRecording || isTranscribing;
 
   return (
     <PromptInputButton
       className={cn(
         'relative transition-all duration-200',
-        isListening && 'bg-accent text-accent-foreground animate-pulse',
+        isRecording && 'bg-red-500/20 text-red-500 animate-pulse',
+        isTranscribing && 'text-muted-foreground opacity-50',
         className
       )}
-      disabled={!recognition}
-      onClick={toggleListening}
+      disabled={isTranscribing}
+      onClick={toggleRecording}
+      title={isRecording ? 'Stop recording' : isTranscribing ? 'Transcribing...' : 'Voice input'}
       {...props}
     >
       <MicIcon className="size-4" />

@@ -6,6 +6,7 @@ import {
   AlertCircle,
   ArrowLeftIcon,
   ArrowRightIcon,
+  ArrowUpIcon,
   CheckCircleIcon,
   CheckIcon,
   ChevronDownIcon,
@@ -13,6 +14,7 @@ import {
   CopyIcon,
   DownloadIcon,
   HistoryIcon,
+  ListPlusIcon,
   Loader2,
   MoreHorizontalIcon,
   PaperclipIcon,
@@ -32,6 +34,7 @@ import {
   type AcpConfigOption,
 } from '../lib/acpChatTransport';
 import { Button } from './ui/button';
+import { InputGroupButton } from './ui/input-group';
 import {
   getToolDisplayLabel,
   getToolStepLabel,
@@ -130,6 +133,7 @@ import {
   PromptInputSelectContent,
   PromptInputSelectItem,
   PromptInputSelectValue,
+  PromptInputSpeechButton,
   type PromptInputMessage,
 } from './ai-elements/prompt-input';
 import {
@@ -1114,6 +1118,10 @@ function AcpChatInner({
   const messageQueueRef = useRef<Array<{ text: string; files?: any[] }>>([]);
   const [queuedMessages, setQueuedMessages] = useState<Array<{ text: string; files?: any[] }>>([]);
 
+  // Track whether textarea has content (for interrupt vs queue buttons during streaming)
+  const [inputHasText, setInputHasText] = useState(false);
+  const interruptPayloadRef = useRef<{ text: string; files?: any[] } | null>(null);
+
   // Side-channel state
   const [usage, setUsage] = useState<AcpUsageData | null>(null);
   const [planEntries, setPlanEntries] = useState<AcpPlanEntry[]>([]);
@@ -1302,9 +1310,16 @@ function AcpChatInner({
     return () => document.removeEventListener('keydown', handler);
   }, [transport]);
 
+  // Draft persistence
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draftKey = `valkyr:draft:${conversationId}`;
+
   const handleSubmit = useCallback(
     (message: PromptInputMessage) => {
       if (!message.text.trim() && message.files.length === 0) return;
+      // Clear draft on send
+      localStorage.removeItem(draftKey);
+      if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
       // Track in history for arrow-up recall
       if (message.text.trim()) {
         setMessageHistory((prev) => [...prev, message.text.trim()]);
@@ -1323,22 +1338,70 @@ function AcpChatInner({
       }
       sendMessage(payload);
     },
-    [sendMessage, chatStatus]
+    [sendMessage, chatStatus, draftKey]
   );
+
+  // Drain interrupt payload when chat becomes ready (priority over queue)
+  useEffect(() => {
+    if (chatStatus === 'ready' && interruptPayloadRef.current) {
+      const payload = interruptPayloadRef.current;
+      interruptPayloadRef.current = null;
+      sendMessage(payload);
+    }
+  }, [chatStatus, sendMessage]);
 
   // Drain queued messages when chat becomes ready
   useEffect(() => {
-    if (chatStatus === 'ready' && messageQueueRef.current.length > 0) {
+    if (chatStatus === 'ready' && !interruptPayloadRef.current && messageQueueRef.current.length > 0) {
       const next = messageQueueRef.current.shift()!;
       setQueuedMessages([...messageQueueRef.current]);
       sendMessage(next);
     }
   }, [chatStatus, sendMessage]);
 
+  // Voice input setting
+  const [voiceInputEnabled, setVoiceInputEnabled] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    window.electronAPI.getSettings().then((res) => {
+      if (!cancelled && res.success) {
+        setVoiceInputEnabled(res.settings?.voiceInput?.enabled ?? false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   // Slash command autocomplete
   const [commandFilter, setCommandFilter] = useState<string | null>(null);
   const [commandIndex, setCommandIndex] = useState(0);
   const textareaContainerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Keep textareaRef in sync with the actual textarea inside the container
+  useEffect(() => {
+    const el = textareaContainerRef.current?.querySelector('textarea');
+    if (el) textareaRef.current = el;
+  });
+
+  // Restore draft from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(draftKey);
+    if (!saved) return;
+    // Wait for textarea to be available
+    const tryRestore = () => {
+      const textarea = textareaContainerRef.current?.querySelector('textarea');
+      if (!textarea) return;
+      const nativeSetter = Object.getOwnPropertyDescriptor(
+        HTMLTextAreaElement.prototype,
+        'value'
+      )?.set;
+      nativeSetter?.call(textarea, saved);
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    // Small delay to ensure DOM is ready
+    const timer = setTimeout(tryRestore, 50);
+    return () => clearTimeout(timer);
+  }, [draftKey]);
 
   const filteredCommands =
     commandFilter !== null
@@ -1347,17 +1410,30 @@ function AcpChatInner({
         )
       : [];
 
-  const handleInputChange = useCallback((e: React.FormEvent) => {
-    const textarea = e.target as HTMLTextAreaElement;
-    if (textarea.tagName !== 'TEXTAREA') return;
-    const val = textarea.value;
-    if (val.startsWith('/')) {
-      setCommandFilter(val.slice(1));
-      setCommandIndex(0);
-    } else {
-      setCommandFilter(null);
-    }
-  }, []);
+  const handleInputChange = useCallback(
+    (e: React.FormEvent) => {
+      const textarea = e.target as HTMLTextAreaElement;
+      if (textarea.tagName !== 'TEXTAREA') return;
+      const val = textarea.value;
+      setInputHasText(!!val.trim());
+      if (val.startsWith('/')) {
+        setCommandFilter(val.slice(1));
+        setCommandIndex(0);
+      } else {
+        setCommandFilter(null);
+      }
+      // Debounced draft persistence
+      if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+      draftTimerRef.current = setTimeout(() => {
+        if (val.trim()) {
+          localStorage.setItem(draftKey, val);
+        } else {
+          localStorage.removeItem(draftKey);
+        }
+      }, 300);
+    },
+    [draftKey]
+  );
 
   const selectCommand = useCallback((cmdName: string) => {
     setCommandFilter(null);
@@ -1451,6 +1527,35 @@ function AcpChatInner({
   const handleStop = useCallback(() => {
     stop();
   }, [stop]);
+
+  const clearTextarea = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const nativeSetter = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      'value'
+    )?.set;
+    nativeSetter?.call(textarea, '');
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    setInputHasText(false);
+  }, []);
+
+  const handleQueueFromInput = useCallback(() => {
+    const text = textareaRef.current?.value?.trim();
+    if (!text) return;
+    const payload = { text };
+    messageQueueRef.current.push(payload);
+    setQueuedMessages([...messageQueueRef.current]);
+    clearTextarea();
+  }, [clearTextarea]);
+
+  const handleInterruptAndSend = useCallback(() => {
+    const text = textareaRef.current?.value?.trim();
+    if (!text) return;
+    interruptPayloadRef.current = { text };
+    clearTextarea();
+    stop();
+  }, [stop, clearTextarea]);
 
   const handleModeChange = useCallback(
     (modeId: string) => {
@@ -1945,6 +2050,9 @@ function AcpChatInner({
                   <PromptInputActionAddAttachments />
                 </PromptInputActionMenuContent>
               </PromptInputActionMenu>
+              {voiceInputEnabled && (
+                <PromptInputSpeechButton textareaRef={textareaRef} />
+              )}
 
               {/* Mode selector */}
               {initialModes && initialModes.availableModes.length > 1 && (
@@ -2026,7 +2134,26 @@ function AcpChatInner({
                   </PromptInputSelect>
                 ))}
             </PromptInputTools>
-            {isStreaming ? (
+            {isStreaming && inputHasText ? (
+              <div className="flex items-center gap-1">
+                <InputGroupButton
+                  size="icon-sm"
+                  variant="ghost"
+                  onClick={handleQueueFromInput}
+                  title="Queue message"
+                >
+                  <ListPlusIcon className="size-4" />
+                </InputGroupButton>
+                <InputGroupButton
+                  size="icon-sm"
+                  variant="default"
+                  onClick={handleInterruptAndSend}
+                  title="Interrupt and send"
+                >
+                  <ArrowUpIcon className="size-4" />
+                </InputGroupButton>
+              </div>
+            ) : isStreaming ? (
               <PromptInputSubmit status="streaming" onClick={handleStop} />
             ) : (
               <PromptInputSubmit status={chatStatus} />

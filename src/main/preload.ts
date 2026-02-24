@@ -131,6 +131,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSettings: () => ipcRenderer.invoke('settings:get'),
   updateSettings: (settings: any) => ipcRenderer.invoke('settings:update', settings),
 
+  // Whisper (voice input)
+  whisperDownloadModel: () => ipcRenderer.invoke('whisper:download-model'),
+  whisperDeleteModel: () => ipcRenderer.invoke('whisper:delete-model'),
+  whisperModelStatus: () => ipcRenderer.invoke('whisper:model-status'),
+  whisperTranscribe: (pcmData: ArrayBuffer) => ipcRenderer.invoke('whisper:transcribe', pcmData),
+  onWhisperDownloadProgress: (
+    listener: (data: { percent: number; bytesDownloaded: number; totalBytes: number }) => void
+  ) => {
+    const channel = 'whisper:download-progress';
+    const wrapped = (_: Electron.IpcRendererEvent, data: any) => listener(data);
+    ipcRenderer.on(channel, wrapped);
+    return () => ipcRenderer.removeListener(channel, wrapped);
+  },
+
   // Worktree management
   worktreeCreate: (args: {
     projectPath: string;

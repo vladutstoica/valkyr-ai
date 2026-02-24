@@ -351,6 +351,7 @@ declare global {
             fontFamily: string;
           };
           defaultOpenInApp?: string;
+          voiceInput?: { enabled: boolean };
         };
         error?: string;
       }>;
@@ -432,6 +433,7 @@ declare global {
             fontFamily?: string;
           };
           defaultOpenInApp?: string;
+          voiceInput?: { enabled?: boolean };
         }>
       ) => Promise<{
         success: boolean;
@@ -512,9 +514,27 @@ declare global {
             fontFamily: string;
           };
           defaultOpenInApp?: string;
+          voiceInput?: { enabled: boolean };
         };
         error?: string;
       }>;
+
+      // Whisper (voice input)
+      whisperDownloadModel: () => Promise<{ success: boolean; error?: string }>;
+      whisperDeleteModel: () => Promise<{ success: boolean; error?: string }>;
+      whisperModelStatus: () => Promise<{
+        success: boolean;
+        data?: { downloaded: boolean; sizeBytes?: number };
+        error?: string;
+      }>;
+      whisperTranscribe: (pcmData: ArrayBuffer) => Promise<{
+        success: boolean;
+        data?: { text: string };
+        error?: string;
+      }>;
+      onWhisperDownloadProgress: (
+        listener: (data: { percent: number; bytesDownloaded: number; totalBytes: number }) => void
+      ) => () => void;
 
       // PTY
       ptyStart: (opts: {

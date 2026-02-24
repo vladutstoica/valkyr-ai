@@ -73,6 +73,7 @@
   "dependencies": {
     "@agentclientprotocol/sdk": "0.14.1",
     "@ai-sdk/react": "^3.0.99",
+    "@fugood/whisper.node": "^1.0.16",
     "@isaacs/brace-expansion": "^5.0.1",
     "@monaco-editor/react": "^4.7.0",
     "@radix-ui/react-accordion": "^1.2.12",
@@ -264,7 +265,8 @@
       "sqlite3",
       "node-pty",
       "keytar",
-      "electron"
+      "electron",
+      "@fugood/whisper.node"
     ]
   }
 }

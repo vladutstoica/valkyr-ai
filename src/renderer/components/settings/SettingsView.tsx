@@ -29,6 +29,7 @@ import AcpAgentsList from '../AcpAgentsList';
 import DefaultOpenInSettingsCard from '../DefaultOpenInSettingsCard';
 import TaskSettingsCard from '../TaskSettingsCard';
 import KeyboardSettingsCard from '../KeyboardSettingsCard';
+import VoiceInputSettingsCard from '../VoiceInputSettingsCard';
 import { SshSettingsCard } from '../ssh/SshSettingsCard';
 import { McpView } from '../mcp/McpView';
 import { type SettingsTab, ORDERED_TABS } from '../../hooks/useModalState';
@@ -181,6 +182,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab, onBack, project
           { title: 'Tasks', render: () => <TaskSettingsCard /> },
           { title: 'Notifications', render: () => <NotificationSettingsCard /> },
           { title: 'Project preparation', render: () => <ProjectPrepSettingsCard /> },
+          { title: 'Voice input', render: () => <VoiceInputSettingsCard /> },
           { title: 'Keyboard shortcuts', render: () => <KeyboardSettingsCard /> },
         ],
       },

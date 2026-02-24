@@ -76,6 +76,9 @@ export interface AppSettings {
     fontFamily: string;
   };
   defaultOpenInApp?: OpenInAppId;
+  voiceInput?: {
+    enabled: boolean;
+  };
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -131,6 +134,9 @@ const DEFAULT_SETTINGS: AppSettings = {
     fontFamily: '',
   },
   defaultOpenInApp: 'terminal',
+  voiceInput: {
+    enabled: false,
+  },
 };
 
 function getSettingsPath(): string {
@@ -365,6 +371,12 @@ function normalizeSettings(input: AppSettings): AppSettings {
   out.defaultOpenInApp = isValidOpenInAppId(defaultOpenInApp)
     ? defaultOpenInApp
     : DEFAULT_SETTINGS.defaultOpenInApp!;
+
+  // Voice Input
+  const voiceInput = (input as any)?.voiceInput || {};
+  out.voiceInput = {
+    enabled: Boolean(voiceInput?.enabled ?? DEFAULT_SETTINGS.voiceInput!.enabled),
+  };
 
   return out;
 }
