@@ -221,13 +221,22 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
   };
 
   const handleGoToSettings = (tab?: import('./useModalState').SettingsTab) => {
-    setSelectedProject(null);
+    // Don't clear selectedProject/activeTask — keep task components mounted
+    // so streaming ACP sessions survive navigation to Settings.
     setShowHomeView(false);
     setShowSkillsView(false);
     setShowSettingsView(true);
     setSettingsViewTab(tab ?? 'general');
-    setActiveTask(null);
-    saveActiveIds(null, null);
+  };
+
+  const handleGoBackFromSettings = () => {
+    setShowSettingsView(false);
+    // Previous view state (selectedProject, activeTask, showHomeView) is preserved,
+    // so the user returns exactly where they were before opening Settings.
+    // If no project was selected, show home.
+    if (!selectedProject) {
+      setShowHomeView(true);
+    }
   };
 
   const handleSelectProject = (project: Project) => {
@@ -1137,6 +1146,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
     setShowSettingsView,
     settingsViewTab,
     handleGoToSettings,
+    handleGoBackFromSettings,
     projectBranchOptions,
     projectDefaultBranch,
     setProjectDefaultBranch,

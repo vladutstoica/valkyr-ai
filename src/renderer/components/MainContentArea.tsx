@@ -68,13 +68,48 @@ const MainContentArea: React.FC<MainContentAreaProps> = ({
   handleAddRemoteProject,
   setShowTaskModal,
 }) => {
+  // Settings is rendered as an overlay — task components stay mounted underneath
+  // so ACP transports, useChat state, and IPC listeners survive navigation.
   if (showSettingsView) {
     return (
-      <SettingsView
-        initialTab={settingsViewTab}
-        onBack={handleGoBackFromSettings}
-        projectPath={settingsProjectPath}
-      />
+      <>
+        <SettingsView
+          initialTab={settingsViewTab}
+          onBack={handleGoBackFromSettings}
+          projectPath={settingsProjectPath}
+        />
+        {/* Keep task components alive but hidden while settings is open */}
+        {selectedProject && (
+          <div className="hidden">
+            {allProjects.map((project) => {
+              const tasks = project.tasks || [];
+              return tasks.map((task) => {
+                const isMultiAgent = (task.metadata as any)?.multiAgent?.enabled;
+                return (
+                  <div key={task.id}>
+                    {isMultiAgent ? (
+                      <MultiAgentTask
+                        task={task}
+                        projectName={project.name}
+                        projectId={project.id}
+                        projectPath={project.path}
+                      />
+                    ) : (
+                      <ChatInterface
+                        task={task}
+                        isActive={false}
+                        projectName={project.name}
+                        projectPath={project.path}
+                        className="h-full min-h-0"
+                      />
+                    )}
+                  </div>
+                );
+              });
+            })}
+          </div>
+        )}
+      </>
     );
   }
 

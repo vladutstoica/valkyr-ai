@@ -122,6 +122,7 @@ type SessionCreateResult = {
   acpSessionId?: string;
   modes?: AcpSessionModes;
   models?: AcpSessionModels;
+  historyEvents?: AcpUpdateEvent[];
   error?: string;
 };
 
@@ -149,6 +150,8 @@ export class AcpSessionManager {
   private detachedSessions = new Set<string>(); // Sessions whose renderer has navigated away
   private eventBuffers = new Map<string, AcpUpdateEvent[]>();
   private eventTimers = new Map<string, NodeJS.Timeout>();
+  /** Collects session_update events during loadSession so they can be returned to the renderer. */
+  private historyBuffers = new Map<string, AcpUpdateEvent[]>();
 
   // Callback for sending events to renderer — set by acpIpc.ts
   private eventSender: ((sessionKey: string, events: AcpUpdateEvent[]) => void) | null = null;
@@ -450,17 +453,29 @@ export class AcpSessionManager {
 
       // Try to resume an existing session if we have a stored acpSessionId
       const mcpServerList = mcpServers ?? [];
+      let historyEvents: AcpUpdateEvent[] | undefined;
       if (storedSessionId) {
-        const result = await this.tryResumeOrCreate(
-          connection,
-          spawnError,
-          storedSessionId,
-          cwd,
-          initResp,
-          mcpServerList
-        );
-        acpSessionId = result.sessionId;
-        sessionResp = result.sessionResp;
+        // Start buffering session_update events so loadSession history isn't lost
+        this.historyBuffers.set(sessionKey, []);
+        try {
+          const result = await this.tryResumeOrCreate(
+            connection,
+            spawnError,
+            storedSessionId,
+            cwd,
+            initResp,
+            mcpServerList
+          );
+          acpSessionId = result.sessionId;
+          sessionResp = result.sessionResp;
+        } finally {
+          const buf = this.historyBuffers.get(sessionKey);
+          this.historyBuffers.delete(sessionKey);
+          if (buf && buf.length > 0) {
+            historyEvents = buf;
+            log.info(`Captured ${buf.length} history events from loadSession for ${sessionKey}`);
+          }
+        }
       } else {
         // Create a brand new session
         sessionResp = await Promise.race([
@@ -498,7 +513,7 @@ export class AcpSessionManager {
         log.error(`Failed to persist acpSessionId for ${conversationId}`, err);
       });
 
-      return { success: true, sessionKey, acpSessionId, modes, models };
+      return { success: true, sessionKey, acpSessionId, modes, models, historyEvents };
     } catch (error: any) {
       // Cleanup on failure
       const session = this.sessions.get(sessionKey);
@@ -865,10 +880,16 @@ export class AcpSessionManager {
 
   /**
    * Re-attach a previously detached session (renderer navigated back).
+   * Flushes any events that were buffered while detached so the renderer
+   * catches up on missed streaming output and status changes.
    */
   reattachSession(sessionKey: string): void {
     this.detachedSessions.delete(sessionKey);
     log.info(`ACP session reattached: ${sessionKey}`);
+
+    // Flush any events that accumulated while detached (e.g. prompt_complete,
+    // status_change to 'ready') so the renderer gets the latest state.
+    this.flushEvents(sessionKey);
   }
 
   killSession(sessionKey: string): void {
@@ -929,15 +950,21 @@ export class AcpSessionManager {
         const session = this.sessions.get(sessionKey);
         if (!session) return;
 
+        const event: AcpUpdateEvent = { type: 'session_update', data: params };
+
+        // During loadSession, capture history events instead of forwarding to IPC
+        const historyBuf = this.historyBuffers.get(sessionKey);
+        if (historyBuf) {
+          historyBuf.push(event);
+          return;
+        }
+
         // Transition to streaming on first content
         if (session.status === 'submitted') {
           this.setStatus(sessionKey, 'streaming');
         }
 
-        this.bufferEvent(sessionKey, {
-          type: 'session_update',
-          data: params,
-        });
+        this.bufferEvent(sessionKey, event);
       },
 
       requestPermission: async (

@@ -1174,6 +1174,44 @@ function AcpChatInner({
     },
   });
 
+  // Incrementally persist the latest assistant message during streaming.
+  // This prevents data loss if the component unmounts before onFinish fires
+  // (e.g. navigating to Settings while an agent is streaming).
+  const streamSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    // Only save while actively streaming
+    if (chatStatus !== 'streaming' && chatStatus !== 'submitted') return;
+
+    // Find the last assistant message
+    const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
+    if (!lastAssistant) return;
+
+    // Debounce: save at most every 3 seconds
+    if (streamSaveTimerRef.current) clearTimeout(streamSaveTimerRef.current);
+    streamSaveTimerRef.current = setTimeout(() => {
+      streamSaveTimerRef.current = null;
+      const textContent = getTextFromParts(lastAssistant.parts);
+      window.electronAPI
+        .saveMessage({
+          id: lastAssistant.id,
+          conversationId,
+          content: textContent,
+          sender: 'assistant',
+          parts: JSON.stringify(lastAssistant.parts),
+        })
+        .catch(() => {
+          /* non-fatal */
+        });
+    }, 3000);
+
+    return () => {
+      if (streamSaveTimerRef.current) {
+        clearTimeout(streamSaveTimerRef.current);
+        streamSaveTimerRef.current = null;
+      }
+    };
+  }, [messages, chatStatus, conversationId]);
+
   // Sync restored messages into useChat when they arrive after initial mount
   const restoredRef = useRef(false);
   useEffect(() => {

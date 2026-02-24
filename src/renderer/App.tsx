@@ -138,17 +138,17 @@ const AppContent: React.FC = () => {
 
   const handleToggleSettingsView = useCallback(() => {
     if (projectMgmt.showSettingsView) {
-      projectMgmt.handleGoHome();
+      projectMgmt.handleGoBackFromSettings();
     } else {
       openSettingsView('general');
     }
-  }, [projectMgmt.showSettingsView, projectMgmt.handleGoHome, openSettingsView]);
+  }, [projectMgmt.showSettingsView, projectMgmt.handleGoBackFromSettings, openSettingsView]);
 
   const handleCloseSettingsView = useCallback(() => {
     if (projectMgmt.showSettingsView) {
-      projectMgmt.handleGoHome();
+      projectMgmt.handleGoBackFromSettings();
     }
-  }, [projectMgmt.showSettingsView, projectMgmt.handleGoHome]);
+  }, [projectMgmt.showSettingsView, projectMgmt.handleGoBackFromSettings]);
 
   // Show toast on update availability
   useUpdateNotifier({ checkOnMount: true, onOpenSettings: () => openSettingsView('about') });
@@ -448,7 +448,7 @@ const AppContent: React.FC = () => {
         showSettingsView={projectMgmt.showSettingsView}
         settingsViewTab={projectMgmt.settingsViewTab}
         settingsProjectPath={selectedProject?.path}
-        handleGoBackFromSettings={projectMgmt.handleGoHome}
+        handleGoBackFromSettings={projectMgmt.handleGoBackFromSettings}
         projectDefaultBranch={projectMgmt.projectDefaultBranch}
         projectBranchOptions={projectMgmt.projectBranchOptions}
         isLoadingBranches={projectMgmt.isLoadingBranches}
@@ -473,7 +473,7 @@ const AppContent: React.FC = () => {
       projectMgmt.showSkillsView,
       projectMgmt.showSettingsView,
       projectMgmt.settingsViewTab,
-      projectMgmt.handleGoHome,
+      projectMgmt.handleGoBackFromSettings,
       projectMgmt.projectDefaultBranch,
       projectMgmt.projectBranchOptions,
       projectMgmt.isLoadingBranches,
