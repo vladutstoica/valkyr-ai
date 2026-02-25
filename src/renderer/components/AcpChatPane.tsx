@@ -1,12 +1,4 @@
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { UIMessage } from 'ai';
 import { useChat } from '@ai-sdk/react';
 import * as SelectPrimitive from '@radix-ui/react-select';
@@ -23,11 +15,6 @@ import {
   ClockIcon,
   CopyIcon,
   DownloadIcon,
-  FileEditIcon,
-  FilePlusIcon,
-  FileTextIcon,
-  FolderTreeIcon,
-  GlobeIcon,
   HistoryIcon,
   ListPlusIcon,
   Loader2,
@@ -36,9 +23,7 @@ import {
   PaperclipIcon,
   PlusIcon,
   RefreshCwIcon,
-  SearchIcon,
   SettingsIcon,
-  TerminalIcon,
   Trash2Icon,
   WrenchIcon,
   XCircleIcon,
@@ -51,6 +36,7 @@ import {
   type AcpPlanEntry,
   type AcpCommand,
   type AcpConfigOption,
+  getAcpMeta,
 } from '../lib/acpChatTransport';
 import { Button } from './ui/button';
 import { InputGroupButton } from './ui/input-group';
@@ -59,6 +45,7 @@ import {
   getToolStepLabel,
   getToolIconComponent,
   normalizeToolName,
+  normalizeFromKind,
   getLanguageFromPath,
 } from '../lib/toolRenderer';
 import type {
@@ -168,6 +155,17 @@ import {
   ConfirmationRejected,
 } from './ai-elements/confirmation';
 import { Shimmer } from './ai-elements/shimmer';
+import {
+  Attachment,
+  AttachmentHoverCard,
+  AttachmentHoverCardContent,
+  AttachmentHoverCardTrigger,
+  AttachmentInfo,
+  AttachmentPreview,
+  Attachments,
+  getAttachmentLabel,
+  getMediaCategory,
+} from './ai-elements/attachments';
 import { Suggestions, Suggestion } from './ai-elements/suggestion';
 import { Task, TaskTrigger, TaskContent, TaskItem, TaskItemFile } from './ai-elements/task';
 import {
@@ -226,15 +224,7 @@ import {
   StackTraceContent,
   StackTraceFrames,
 } from './ai-elements/stack-trace';
-import {
-  CodeBlockContainer,
-  CodeBlockHeader,
-  CodeBlockTitle,
-  CodeBlockFilename,
-  CodeBlockActions,
-  CodeBlockContent,
-  CodeBlockCopyButton,
-} from './ai-elements/code-block';
+import { CodeBlockContent } from './ai-elements/code-block';
 import type { BundledLanguage } from 'shiki';
 
 // ---------------------------------------------------------------------------
@@ -396,64 +386,6 @@ function SessionHistoryPopover({
 }
 
 // ---------------------------------------------------------------------------
-// Debug overlay — hover to see raw part data (toggle: Ctrl+Shift+D)
-// ---------------------------------------------------------------------------
-
-const DebugOverlayContext = createContext(false);
-
-/** Wrap any rendered part to show raw JSON on hover when debug mode is on. */
-function DebugWrap({ data, children }: { data: unknown; children: React.ReactNode }) {
-  const debug = useContext(DebugOverlayContext);
-  const [show, setShow] = useState(false);
-  if (!debug) return <>{children}</>;
-
-  // Build a compact summary of the part data
-  const raw = data && typeof data === 'object' ? (data as Record<string, unknown>) : {};
-  const summary: Record<string, unknown> = {};
-  for (const key of ['type', 'toolName', 'state', 'toolCallId']) {
-    if (raw[key] != null) summary[key] = raw[key];
-  }
-  if (raw.input && typeof raw.input === 'object') {
-    const inp = raw.input as Record<string, unknown>;
-    const inputKeys = Object.keys(inp);
-    if (inputKeys.length <= 6) {
-      summary.input = inp;
-    } else {
-      // Show keys + truncated values
-      const trimmed: Record<string, unknown> = {};
-      for (const k of inputKeys.slice(0, 8)) {
-        const v = inp[k];
-        trimmed[k] = typeof v === 'string' && v.length > 80 ? v.slice(0, 80) + '...' : v;
-      }
-      if (inputKeys.length > 8) trimmed['...'] = `+${inputKeys.length - 8} more keys`;
-      summary.input = trimmed;
-    }
-  }
-  if (raw.output != null) {
-    const out = String(raw.output);
-    summary.output = out.length > 120 ? out.slice(0, 120) + `... (${out.length} chars)` : out;
-  }
-  if (raw.errorText) summary.errorText = String(raw.errorText).slice(0, 120);
-
-  return (
-    <div
-      className="relative"
-      onMouseEnter={() => setShow(true)}
-      onMouseLeave={() => setShow(false)}
-    >
-      {children}
-      {/* Blue top-left dot to indicate debug-wrapped element */}
-      <div className="pointer-events-none absolute top-0 left-0 size-1.5 rounded-full bg-blue-500/60" />
-      {show && (
-        <div className="absolute top-full left-0 z-50 mt-1 max-h-80 max-w-lg overflow-auto rounded border border-blue-500/30 bg-zinc-900/95 p-2 font-mono text-[10px] text-zinc-300 shadow-lg backdrop-blur">
-          <pre className="whitespace-pre-wrap">{JSON.stringify(summary, null, 2)}</pre>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Message rendering
 // ---------------------------------------------------------------------------
 
@@ -464,7 +396,10 @@ const STACK_TRACE_PATTERN = /(?:^\s*at\s+.+$[\n\r]*){3,}/m;
 function summarizeToolRun(toolRun: Array<{ part: any }>): string {
   const counts: Record<string, number> = {};
   for (const t of toolRun) {
-    const name = normalizeToolName(t.part.toolName || t.part.type?.replace(/^tool-/, '') || '');
+    const tKind = getAcpMeta(t.part)?.kind;
+    const name = tKind
+      ? normalizeFromKind(tKind)
+      : normalizeToolName(t.part.toolName || t.part.type?.replace(/^tool-/, '') || '');
     counts[name] = (counts[name] || 0) + 1;
   }
   const parts: string[] = [];
@@ -507,8 +442,10 @@ function ToolRunMiniIcons({ toolRun }: { toolRun: Array<{ part: any }> }) {
   return (
     <span className="flex items-center gap-0.5">
       {toolRun.map((t, idx) => {
+        const tKind = getAcpMeta(t.part)?.kind;
         const Icon = getToolIconComponent(
-          t.part.toolName || t.part.type?.replace(/^tool-/, '') || ''
+          t.part.toolName || t.part.type?.replace(/^tool-/, '') || '',
+          tKind
         );
         return <Icon key={idx} className="text-muted-foreground/40 size-2.5" />;
       })}
@@ -732,8 +669,189 @@ function computeDiffStats(
 }
 
 /**
+ * Render detail content for a ChainOfThought step.
+ * Reuses renderToolContent() — same smart content, just no extra wrapper needed.
+ */
+function renderStepDetails(toolPart: any): React.ReactNode | null {
+  return renderToolContent(toolPart);
+}
+
+/**
+ * Render smart content for a tool's expandable area inside <ToolContent>.
+ * Returns syntax-highlighted code blocks, terminal output, match lists, etc.
+ * Falls back to null if there's nothing meaningful to show.
+ */
+function renderToolContent(toolPart: any): React.ReactNode | null {
+  const toolName = toolPart.toolName || toolPart.type?.replace(/^tool-/, '') || '';
+  const contentAcpMeta = getAcpMeta(toolPart);
+  const contentAcpKind = contentAcpMeta?.kind;
+  const normalized = contentAcpKind
+    ? normalizeFromKind(contentAcpKind)
+    : normalizeToolName(toolName);
+  const inputObj = toolPart.input || {};
+  const output = toolPart.output != null ? String(toolPart.output) : '';
+  const filePath = extractFilePath(inputObj);
+
+  switch (normalized) {
+    case 'read_file': {
+      if (!output || !filePath) return null;
+      const language = getLanguageFromPath(filePath) as BundledLanguage;
+      const offset = typeof inputObj.offset === 'number' ? inputObj.offset : null;
+      return (
+        <div className="overflow-hidden pt-1 pb-2">
+          <div className="bg-muted/40 overflow-hidden rounded">
+            <CodeBlockContent
+              code={output}
+              language={language}
+              showLineNumbers
+              lineNumberOffset={offset ? offset - 1 : 0}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    case 'write_file': {
+      const content = typeof inputObj.content === 'string' ? inputObj.content : '';
+      if (!content || !filePath) return null;
+      const language = getLanguageFromPath(filePath) as BundledLanguage;
+      return (
+        <div className="overflow-hidden pt-1 pb-2">
+          <div className="overflow-hidden rounded border border-green-500/20 bg-green-500/5">
+            <CodeBlockContent code={content} language={language} showLineNumbers />
+          </div>
+        </div>
+      );
+    }
+
+    case 'edit_file': {
+      const oldStr = typeof inputObj.old_string === 'string' ? inputObj.old_string : '';
+      const newStr = typeof inputObj.new_string === 'string' ? inputObj.new_string : '';
+      if (!oldStr && !newStr) return null;
+      if (!filePath) return null;
+      const language = getLanguageFromPath(filePath) as BundledLanguage;
+      return (
+        <div className="space-y-0 overflow-hidden pt-1 pb-2">
+          {oldStr && (
+            <div className="overflow-hidden rounded-t border border-red-500/20 bg-red-500/5">
+              <CodeBlockContent code={oldStr} language={language} showLineNumbers />
+            </div>
+          )}
+          {newStr && (
+            <div
+              className={`overflow-hidden border border-green-500/20 bg-green-500/5 ${oldStr ? 'rounded-b border-t-0' : 'rounded'}`}
+            >
+              <CodeBlockContent code={newStr} language={language} showLineNumbers />
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    case 'bash': {
+      if (!output) return null;
+      return (
+        <div className="overflow-hidden pt-1 pb-2">
+          <pre className="max-h-40 overflow-auto rounded bg-zinc-950 p-2 font-mono text-[11px] leading-relaxed text-zinc-100">
+            {output}
+          </pre>
+        </div>
+      );
+    }
+
+    case 'search':
+    case 'list_files': {
+      if (!output) return null;
+      const lines = output.split('\n').filter((l: string) => l.trim());
+      if (lines.length === 0) return null;
+      return (
+        <div className="overflow-hidden pt-1 pb-2">
+          <div className="text-muted-foreground/70 space-y-0.5 font-mono text-[10px]">
+            {lines.slice(0, 8).map((line: string, idx: number) => (
+              <div key={idx} className="truncate">
+                {line}
+              </div>
+            ))}
+            {lines.length > 8 && (
+              <div className="text-muted-foreground/40">...and {lines.length - 8} more</div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    case 'web_search': {
+      if (!output) return null;
+      const lines = output.split('\n').filter((l: string) => l.trim());
+      if (lines.length === 0) return null;
+      return (
+        <div className="overflow-hidden pt-1 pb-2">
+          <div className="text-muted-foreground/70 space-y-0.5 text-[10px]">
+            {lines.slice(0, 5).map((line: string, idx: number) => (
+              <div key={idx} className="truncate">
+                {line}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    case 'web_fetch': {
+      if (!output) return null;
+      return (
+        <div className="overflow-hidden pt-1 pb-2">
+          <pre className="text-muted-foreground/70 max-h-24 overflow-hidden font-mono text-[10px] leading-relaxed">
+            {output.slice(0, 300)}
+            {output.length > 300 ? '...' : ''}
+          </pre>
+        </div>
+      );
+    }
+
+    case 'task': {
+      if (!output) return null;
+      return (
+        <div className="overflow-hidden pt-1 pb-2">
+          <pre className="text-muted-foreground/70 max-h-24 overflow-hidden font-mono text-[10px] leading-relaxed">
+            {output.slice(0, 300)}
+            {output.length > 300 ? '...' : ''}
+          </pre>
+        </div>
+      );
+    }
+
+    default: {
+      // Unknown tools — show whatever output or input we have
+      if (output) {
+        return (
+          <div className="overflow-hidden pt-1 pb-2">
+            <pre className="text-muted-foreground/70 bg-muted/30 max-h-40 overflow-auto rounded p-2 font-mono text-[10px] leading-relaxed whitespace-pre-wrap">
+              {output.slice(0, 2000)}
+              {output.length > 2000 ? '...' : ''}
+            </pre>
+          </div>
+        );
+      }
+      // Show raw input if no output yet
+      const inputKeys = Object.keys(inputObj).filter((k) => k !== 'title');
+      if (inputKeys.length > 0) {
+        return (
+          <div className="overflow-hidden pt-1 pb-2">
+            <pre className="text-muted-foreground/50 bg-muted/30 max-h-24 overflow-auto rounded p-2 font-mono text-[10px] leading-relaxed">
+              {JSON.stringify(inputObj, null, 2).slice(0, 500)}
+            </pre>
+          </div>
+        );
+      }
+      return null;
+    }
+  }
+}
+
+/**
  * Rich tool part renderer.
- * Handles all tool types with spec-compliant compact displays.
+ * Handles all tool types with the <Tool> collapsible shell and smart content inside.
  * Returns a React element, or null if there's not enough data to render.
  */
 function renderRichToolPart(
@@ -742,21 +860,20 @@ function renderRichToolPart(
   sessionKey?: string | null
 ): React.ReactNode | null {
   const toolName = toolPart.toolName || toolPart.type?.replace(/^tool-/, '') || '';
-  const normalized = normalizeToolName(toolName);
+  const acpMeta = getAcpMeta(toolPart);
+  const acpKind = acpMeta?.kind;
+  const acpTitle: string | undefined = toolPart.title;
+  // Use ACP kind for normalization when available (more reliable than guessing from toolName)
+  const normalized = acpKind ? normalizeFromKind(acpKind) : normalizeToolName(toolName);
   const output = toolPart.output != null ? String(toolPart.output) : '';
   const errorText = toolPart.errorText || '';
   const inputObj = toolPart.input || {};
   const key = toolPart.toolCallId || i;
   const isStreaming = toolPart.state === 'partial-call' || toolPart.state === 'call';
-  const isRunning =
-    toolPart.state === 'input-available' || toolPart.state === 'input-streaming' || isStreaming;
-  const isError = toolPart.state === 'output-error' || toolPart.state === 'output-denied';
-  const isDone = toolPart.state === 'output-available';
 
-  // ── 1. Bash/shell ──
+  // ── 1. Bash/shell — uses StreamingTerminal (its own rich component) ──
   if (normalized === 'bash') {
     const command = extractBashCommand(inputObj);
-    const description = ((inputObj.description || '') as string).trim();
 
     // If we have output or are streaming, use the full terminal
     if (output || isStreaming) {
@@ -772,32 +889,25 @@ function renderRichToolPart(
       );
     }
 
-    // In-progress or just input available — show compact command preview
-    if (!command) return null;
+    // No output yet — use Tool shell with command preview
+    const title = getToolDisplayLabel(toolName, inputObj, acpTitle);
+    const Icon = getToolIconComponent(toolName, acpKind);
     return (
-      <div key={key} className="not-prose mb-0.5 w-full">
-        <div
-          className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}
-        >
-          {isRunning ? (
-            <Loader2Icon className="size-3 shrink-0 animate-spin" />
-          ) : (
-            <TerminalIcon className="size-3 shrink-0" />
+      <Tool key={key} defaultOpen>
+        <ToolHeader title={title} type={toolPart.type} state={toolPart.state} icon={Icon} />
+        <ToolContent>
+          <div className="overflow-hidden pt-1 pb-2">
+            <code className="bg-muted/60 text-muted-foreground rounded px-1.5 py-0.5 font-mono text-[11px]">
+              $ {command.length > 100 ? command.slice(0, 100) + '...' : command}
+            </code>
+          </div>
+          {errorText && (
+            <pre className="max-h-16 overflow-hidden font-mono text-[11px] whitespace-pre-wrap text-red-500">
+              {errorText.slice(0, 300)}
+            </pre>
           )}
-          <span className="truncate">{description || 'Run command'}</span>
-          {isError && <XCircleIcon className="size-3 shrink-0 text-red-500" />}
-        </div>
-        <div className="mt-0.5 ml-6">
-          <code className="bg-muted/60 text-muted-foreground rounded px-1.5 py-0.5 font-mono text-[11px]">
-            $ {command.length > 100 ? command.slice(0, 100) + '...' : command}
-          </code>
-        </div>
-        {errorText && (
-          <pre className="mt-1 ml-6 max-h-16 overflow-hidden font-mono text-[11px] whitespace-pre-wrap text-red-500">
-            {errorText.slice(0, 300)}
-          </pre>
-        )}
-      </div>
+        </ToolContent>
+      </Tool>
     );
   }
 
@@ -822,379 +932,102 @@ function renderRichToolPart(
     );
   }
 
-  // ── 3. Read file ──
-  if (normalized === 'read_file') {
-    const filePath = extractFilePath(inputObj);
-    if (!filePath) return null;
-    const filename = filePath.split('/').pop() ?? '';
-    const lineCount = output ? output.split('\n').length : 0;
-
-    // With output → collapsible CodeBlock
-    if (output && output.length > 0) {
-      const language = getLanguageFromPath(filePath) as BundledLanguage;
-      return (
-        <CodeBlockContainer key={key} language={language}>
-          <CodeBlockHeader>
-            <CodeBlockTitle>
-              <span>
-                Read <span className="font-medium">{filename}</span>
-              </span>
-              {lineCount > 0 && (
-                <span className="text-muted-foreground/60 ml-1.5 text-[10px]">
-                  {lineCount} lines
-                </span>
-              )}
-            </CodeBlockTitle>
-            <CodeBlockActions>
-              <CodeBlockCopyButton />
-            </CodeBlockActions>
-          </CodeBlockHeader>
-          <CodeBlockContent code={output} language={language} showLineNumbers />
-        </CodeBlockContainer>
-      );
-    }
-
-    // No output yet — compact inline
-    return (
-      <div key={key} className="not-prose mb-0.5 w-full">
-        <div
-          className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}
-        >
-          {isRunning ? (
-            <Loader2Icon className="size-3 shrink-0 animate-spin" />
-          ) : (
-            <FileTextIcon className="size-3 shrink-0" />
-          )}
-          <span>
-            Read <span className="font-medium">{filename}</span>
-          </span>
-          {isError && <XCircleIcon className="size-3 shrink-0 text-red-500" />}
-        </div>
-        <div className="text-muted-foreground/50 ml-6 truncate text-[10px]">{filePath}</div>
-      </div>
-    );
-  }
-
-  // ── 4. Edit file ──
-  if (normalized === 'edit_file') {
-    const filePath = extractFilePath(inputObj);
-    if (!filePath) return null;
-    const filename = filePath.split('/').pop() ?? '';
-    const diffStats = computeDiffStats(inputObj);
-
-    // With output → CodeBlock
-    if (output && output.length > 0) {
-      const language = getLanguageFromPath(filePath) as BundledLanguage;
-      return (
-        <CodeBlockContainer key={key} language={language}>
-          <CodeBlockHeader>
-            <CodeBlockTitle>
-              <span>
-                Edit <span className="font-medium">{filename}</span>
-              </span>
-              {diffStats && (
-                <span className="ml-1.5 text-[10px]">
-                  <span className="text-green-500">+{diffStats.added}</span>{' '}
-                  <span className="text-red-500">-{diffStats.removed}</span>
-                </span>
-              )}
-            </CodeBlockTitle>
-            <CodeBlockActions>
-              <CodeBlockCopyButton />
-            </CodeBlockActions>
-          </CodeBlockHeader>
-          <CodeBlockContent code={output} language={language} showLineNumbers />
-        </CodeBlockContainer>
-      );
-    }
-
-    // No output — compact inline with diff stats
-    return (
-      <div key={key} className="not-prose mb-0.5 w-full">
-        <div
-          className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}
-        >
-          {isRunning ? (
-            <Loader2Icon className="size-3 shrink-0 animate-spin" />
-          ) : isDone ? (
-            <CheckCircleIcon className="size-3 shrink-0 text-green-500" />
-          ) : (
-            <FileEditIcon className="size-3 shrink-0" />
-          )}
-          <span>
-            Edit <span className="font-medium">{filename}</span>
-          </span>
-          {diffStats && (
-            <span className="text-[10px]">
-              <span className="text-green-500">+{diffStats.added}</span>{' '}
-              <span className="text-red-500">-{diffStats.removed}</span>
-            </span>
-          )}
-          {isError && <XCircleIcon className="size-3 shrink-0 text-red-500" />}
-        </div>
-        <div className="text-muted-foreground/50 ml-6 truncate text-[10px]">{filePath}</div>
-        {errorText && (
-          <pre className="mt-1 ml-6 max-h-12 overflow-hidden font-mono text-[11px] whitespace-pre-wrap text-red-500">
-            {errorText.slice(0, 200)}
-          </pre>
-        )}
-      </div>
-    );
-  }
-
-  // ── 5. Write / Create file ──
-  if (normalized === 'write_file') {
-    const filePath = extractFilePath(inputObj);
-    if (!filePath) return null;
-    const filename = filePath.split('/').pop() ?? '';
-    const content = typeof inputObj.content === 'string' ? inputObj.content : '';
-    const lineCount = content ? content.split('\n').length : output ? output.split('\n').length : 0;
-
-    // With output → CodeBlock
-    if (output && output.length > 0) {
-      const language = getLanguageFromPath(filePath) as BundledLanguage;
-      return (
-        <CodeBlockContainer key={key} language={language}>
-          <CodeBlockHeader>
-            <CodeBlockTitle>
-              <span>
-                Create <span className="font-medium">{filename}</span>
-              </span>
-              {lineCount > 0 && (
-                <span className="ml-1.5 text-[10px] text-green-500">+{lineCount} lines</span>
-              )}
-            </CodeBlockTitle>
-            <CodeBlockActions>
-              <CodeBlockCopyButton />
-            </CodeBlockActions>
-          </CodeBlockHeader>
-          <CodeBlockContent code={output} language={language} showLineNumbers />
-        </CodeBlockContainer>
-      );
-    }
-
-    // No output — compact inline
-    return (
-      <div key={key} className="not-prose mb-0.5 w-full">
-        <div
-          className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}
-        >
-          {isRunning ? (
-            <Loader2Icon className="size-3 shrink-0 animate-spin" />
-          ) : (
-            <FilePlusIcon className="size-3 shrink-0" />
-          )}
-          <span>
-            Create <span className="font-medium">{filename}</span>
-          </span>
-          {lineCount > 0 && <span className="text-[10px] text-green-500">+{lineCount} lines</span>}
-          {isError && <XCircleIcon className="size-3 shrink-0 text-red-500" />}
-        </div>
-        <div className="text-muted-foreground/50 ml-6 truncate text-[10px]">{filePath}</div>
-      </div>
-    );
-  }
-
-  // ── 6. Search / Grep ──
-  if (normalized === 'search') {
-    const pattern = ((inputObj.pattern || inputObj.query || inputObj.regex || '') as string).trim();
-    if (!pattern) return null;
-    const scope = ((inputObj.glob || inputObj.path || inputObj.directory || '') as string).trim();
-    const matchCount = output ? output.split('\n').filter((l: string) => l.trim()).length : 0;
-
-    return (
-      <div key={key} className="not-prose mb-0.5 w-full">
-        <div
-          className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}
-        >
-          {isRunning ? (
-            <Loader2Icon className="size-3 shrink-0 animate-spin" />
-          ) : (
-            <SearchIcon className="size-3 shrink-0" />
-          )}
-          <span>
-            Search for{' '}
-            <code className="bg-muted/60 rounded px-1 py-0.5 font-mono text-[11px]">
-              {pattern.length > 40 ? pattern.slice(0, 40) + '...' : pattern}
-            </code>
-          </span>
-          {isDone && matchCount > 0 && (
-            <span className="text-muted-foreground/60 shrink-0 text-[10px]">
-              {matchCount} match{matchCount > 1 ? 'es' : ''}
-            </span>
-          )}
-          {isError && <XCircleIcon className="size-3 shrink-0 text-red-500" />}
-        </div>
-        {scope && (
-          <div className="text-muted-foreground/50 ml-6 truncate text-[10px]">in {scope}</div>
-        )}
-      </div>
-    );
-  }
-
-  // ── 7. List files / Glob ──
-  if (normalized === 'list_files') {
-    const pattern = (
-      (inputObj.pattern || inputObj.path || inputObj.directory || '') as string
-    ).trim();
-    if (!pattern) return null;
-    const fileCount = output ? output.split('\n').filter((l: string) => l.trim()).length : 0;
-
-    return (
-      <div key={key} className="not-prose mb-0.5 w-full">
-        <div
-          className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}
-        >
-          {isRunning ? (
-            <Loader2Icon className="size-3 shrink-0 animate-spin" />
-          ) : (
-            <FolderTreeIcon className="size-3 shrink-0" />
-          )}
-          <span>
-            List{' '}
-            <code className="bg-muted/60 rounded px-1 py-0.5 font-mono text-[11px]">{pattern}</code>
-          </span>
-          {isDone && fileCount > 0 && (
-            <span className="text-muted-foreground/60 shrink-0 text-[10px]">
-              {fileCount} file{fileCount > 1 ? 's' : ''}
-            </span>
-          )}
-          {isError && <XCircleIcon className="size-3 shrink-0 text-red-500" />}
-        </div>
-      </div>
-    );
-  }
-
-  // ── 8. Web search ──
-  if (normalized === 'web_search') {
-    const query = ((inputObj.query || '') as string).trim();
-    if (!query) return null;
-    return (
-      <div key={key} className="not-prose mb-0.5 w-full">
-        <div
-          className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}
-        >
-          {isRunning ? (
-            <Loader2Icon className="size-3 shrink-0 animate-spin" />
-          ) : (
-            <GlobeIcon className="size-3 shrink-0" />
-          )}
-          <span>
-            Search web for <span className="font-medium">&ldquo;{query.slice(0, 60)}&rdquo;</span>
-          </span>
-        </div>
-      </div>
-    );
-  }
-
-  // ── 9. Web fetch ──
-  if (normalized === 'web_fetch') {
-    const url = ((inputObj.url || '') as string).trim();
-    if (!url) return null;
-    let hostname = url;
-    try {
-      hostname = new URL(url).hostname;
-    } catch {
-      /* use raw url */
-    }
-    return (
-      <div key={key} className="not-prose mb-0.5 w-full">
-        <div
-          className={`text-muted-foreground flex items-center gap-1.5 px-1.5 py-1 text-xs ${isError ? 'text-red-500' : ''}`}
-        >
-          {isRunning ? (
-            <Loader2Icon className="size-3 shrink-0 animate-spin" />
-          ) : (
-            <GlobeIcon className="size-3 shrink-0" />
-          )}
-          <span>
-            Fetch <span className="font-medium">{hostname}</span>
-          </span>
-        </div>
-      </div>
-    );
-  }
-
-  // ── 10. Task / sub-agent ──
+  // ── 3. Task / sub-agent — uses its own component ──
   if (normalized === 'task') {
     return (
       <SubAgentTool key={key} toolCallId={toolPart.toolCallId || `tool-${i}`} toolPart={toolPart} />
     );
   }
 
-  // No rich match — fall through
-  return null;
-}
+  // ── 4. All other tools — use <Tool> shell with smart content ──
+  const title = getToolDisplayLabel(toolName, inputObj, acpTitle);
+  const Icon = getToolIconComponent(toolName, acpKind);
 
-function renderToolPart(toolPart: any, i: number, sessionKey?: string | null) {
-  const toolName = toolPart.toolName || toolPart.type?.replace(/^tool-/, '') || '';
-  if (!toolName) return null;
-
-  // Try rich rendering first
-  const rich = renderRichToolPart(toolPart, i, sessionKey);
-  if (rich) {
-    return (
-      <DebugWrap key={`dbg-${toolPart.toolCallId || i}`} data={toolPart}>
-        {rich}
-      </DebugWrap>
-    );
-  }
-
-  const title = getToolDisplayLabel(toolName, toolPart.input || {});
-  const Icon = getToolIconComponent(toolName);
-
-  // No label means we don't have enough info to show anything meaningful — skip
-  if (!title) return null;
-
-  // Check if this tool has meaningful expandable content
-  const inputObj = toolPart.input || {};
-  const hasInput = typeof inputObj === 'object' && Object.keys(inputObj).length > 0;
-  const hasOutput = toolPart.output && String(toolPart.output).length > 80;
-  const hasError = !!toolPart.errorText;
-  const hasContent = hasInput || hasOutput || hasError;
-
-  // Extract a brief subtitle hint from output (avoids needing to expand)
+  // Build subtitle hint
   let subtitle: string | undefined;
-  if (toolPart.output) {
-    const outputStr = String(toolPart.output);
-    const normalized = normalizeToolName(toolName);
+  if (output) {
     if (normalized === 'read_file') {
-      const lineCount = outputStr.split('\n').length;
+      const lineCount = output.split('\n').length;
       if (lineCount > 1) subtitle = `${lineCount} lines`;
+    } else if (normalized === 'write_file') {
+      const content = typeof inputObj.content === 'string' ? inputObj.content : '';
+      const lineCount = content ? content.split('\n').length : 0;
+      if (lineCount > 0) subtitle = `+${lineCount} lines`;
+    } else if (normalized === 'edit_file') {
+      const diffStats = computeDiffStats(inputObj);
+      if (diffStats) subtitle = `+${diffStats.added} -${diffStats.removed}`;
     } else if (normalized === 'search') {
-      const matchCount = outputStr.split('\n').filter((l: string) => l.trim()).length;
+      const matchCount = output.split('\n').filter((l: string) => l.trim()).length;
       if (matchCount > 0) subtitle = `${matchCount} match${matchCount > 1 ? 'es' : ''}`;
     } else if (normalized === 'list_files') {
-      const fileCount = outputStr.split('\n').filter((l: string) => l.trim()).length;
+      const fileCount = output.split('\n').filter((l: string) => l.trim()).length;
       if (fileCount > 0) subtitle = `${fileCount} file${fileCount > 1 ? 's' : ''}`;
     }
   }
 
-  // Compact inline display for tools with no useful detail
+  const smartContent = renderToolContent(toolPart);
+  const hasExpandableContent = !!smartContent || !!errorText;
+
+  // No expandable content — use compact inline
+  if (!hasExpandableContent) {
+    return <ToolInline key={key} title={title} state={toolPart.state} icon={Icon} />;
+  }
+
+  return (
+    <Tool key={key} defaultOpen>
+      <ToolHeader
+        title={title}
+        subtitle={subtitle}
+        type={toolPart.type}
+        state={toolPart.state}
+        icon={Icon}
+      />
+      <ToolContent>
+        {smartContent}
+        {errorText && (
+          <div className="pb-2">
+            <pre className="max-h-16 overflow-hidden font-mono text-[11px] whitespace-pre-wrap text-red-500">
+              {errorText.slice(0, 300)}
+            </pre>
+          </div>
+        )}
+      </ToolContent>
+    </Tool>
+  );
+}
+
+function renderToolPart(toolPart: any, i: number, sessionKey?: string | null) {
+  const toolName = toolPart.toolName || toolPart.type?.replace(/^tool-/, '') || '';
+
+  // Try rich rendering first
+  const rich = renderRichToolPart(toolPart, i, sessionKey);
+  if (rich) return rich;
+
+  // Fallback for unknown/MCP tools — use Tool shell with generic JSON content
+  const acpMeta = getAcpMeta(toolPart);
+  const title = getToolDisplayLabel(toolName, toolPart.input || {}, toolPart.title);
+  const Icon = getToolIconComponent(toolName, acpMeta?.kind);
+
+  const inputObj = toolPart.input || {};
+  const hasInput = typeof inputObj === 'object' && Object.keys(inputObj).length > 0;
+  const hasOutput = toolPart.output && String(toolPart.output).length > 0;
+  const hasError = !!toolPart.errorText;
+  const hasContent = hasInput || hasOutput || hasError;
+
   if (!hasContent) {
     return (
-      <DebugWrap key={`dbg-${toolPart.toolCallId || i}`} data={toolPart}>
-        <ToolInline title={title} state={toolPart.state} icon={Icon} />
-      </DebugWrap>
+      <ToolInline key={toolPart.toolCallId || i} title={title} state={toolPart.state} icon={Icon} />
     );
   }
 
   return (
-    <DebugWrap key={`dbg-${toolPart.toolCallId || i}`} data={toolPart}>
-      <Tool defaultOpen={hasError}>
-        <ToolHeader
-          title={title}
-          subtitle={subtitle}
-          type={toolPart.type}
-          state={toolPart.state}
-          icon={Icon}
-        />
-        <ToolContent>
-          <ToolInput input={inputObj} />
-          <ToolOutput output={toolPart.output} errorText={toolPart.errorText} />
-        </ToolContent>
-      </Tool>
-    </DebugWrap>
+    <Tool key={toolPart.toolCallId || i} defaultOpen>
+      <ToolHeader title={title} type={toolPart.type} state={toolPart.state} icon={Icon} />
+      <ToolContent>
+        <ToolInput input={inputObj} />
+        <ToolOutput output={toolPart.output} errorText={toolPart.errorText} />
+      </ToolContent>
+    </Tool>
   );
 }
 
@@ -1308,9 +1141,14 @@ function StreamingToolGroup({
         <ChainOfThoughtContent>
           {completed.map((t) => {
             const toolName = t.part.toolName || t.part.type?.replace(/^tool-/, '') || '';
-            const label = getToolStepLabel(toolName, t.part.input || {});
-            if (!label) return null;
-            const Icon = getToolIconComponent(toolName);
+            const tAcpMeta = getAcpMeta(t.part);
+            const label = getToolStepLabel(
+              toolName,
+              t.part.input || {},
+              t.part.output,
+              t.part.title
+            );
+            const Icon = getToolIconComponent(toolName, tAcpMeta?.kind);
             const status = mapToolStateToStepStatus(t.part.state);
             return (
               <ChainOfThoughtStep
@@ -1318,7 +1156,9 @@ function StreamingToolGroup({
                 icon={Icon}
                 label={label}
                 status={status}
-              />
+              >
+                {renderStepDetails(t.part)}
+              </ChainOfThoughtStep>
             );
           })}
         </ChainOfThoughtContent>
@@ -1374,9 +1214,14 @@ function MessageParts({
           <ChainOfThoughtContent>
             {toolRun.map((t) => {
               const toolName = t.part.toolName || t.part.type?.replace(/^tool-/, '') || '';
-              const label = getToolStepLabel(toolName, t.part.input || {});
-              if (!label) return null;
-              const Icon = getToolIconComponent(toolName);
+              const tAcpMeta = getAcpMeta(t.part);
+              const label = getToolStepLabel(
+                toolName,
+                t.part.input || {},
+                t.part.output,
+                t.part.title
+              );
+              const Icon = getToolIconComponent(toolName, tAcpMeta?.kind);
               const status = mapToolStateToStepStatus(t.part.state);
               return (
                 <ChainOfThoughtStep
@@ -1384,7 +1229,9 @@ function MessageParts({
                   icon={Icon}
                   label={label}
                   status={status}
-                />
+                >
+                  {renderStepDetails(t.part)}
+                </ChainOfThoughtStep>
               );
             })}
           </ChainOfThoughtContent>
@@ -1448,7 +1295,8 @@ function MessageParts({
         // Approval lifecycle tools break out of grouping
         flushToolRun();
         const toolName = toolPart.toolName || toolPart.type?.replace(/^tool-/, '') || '';
-        const title = getToolDisplayLabel(toolName, toolPart.input || {});
+        const approvalAcpMeta = getAcpMeta(toolPart);
+        const title = getToolDisplayLabel(toolName, toolPart.input || {}, toolPart.title);
         const approval =
           toolPart.state === 'output-denied'
             ? { id: toolPart.toolCallId, approved: false as const }
@@ -1522,30 +1370,70 @@ function MessageParts({
           );
         }
 
-        // Build a detail preview for tool inputs so the user knows what they're approving
+        // Build a detail preview for tool inputs so the user knows what they're approving.
+        // Try smart rendering first (same as post-approval), then fall back to text preview.
         const toolInput = toolPart.input || {};
-        const normalized = normalizeToolName(toolName);
+        const normalized = approvalAcpMeta?.kind
+          ? normalizeFromKind(approvalAcpMeta.kind)
+          : normalizeToolName(toolName);
+        let inputPreviewJsx: React.ReactNode | null = null;
         let inputPreview: string | null = null;
         if (!isModeSwitch) {
-          if (normalized === 'bash') {
-            const cmd = (toolInput.command || toolInput.cmd || '') as string;
-            if (cmd) inputPreview = cmd;
-          } else if (normalized === 'edit_file' || normalized === 'write_file') {
-            const fp = (toolInput.file_path || toolInput.path || toolInput.file || '') as string;
-            if (fp) inputPreview = fp;
-          } else if (normalized === 'read_file') {
-            const fp = (toolInput.file_path || toolInput.path || toolInput.file || '') as string;
-            if (fp) inputPreview = fp;
-          }
-          // If we still have no preview and there is raw input, show it as JSON
-          // so the user can always see exactly what they're approving
-          if (!inputPreview && toolInput && Object.keys(toolInput).length > 0) {
-            // Filter out the 'title' key which is our own metadata
-            const displayInput = Object.fromEntries(
-              Object.entries(toolInput).filter(([k]) => k !== 'title')
-            );
-            if (Object.keys(displayInput).length > 0) {
-              inputPreview = JSON.stringify(displayInput, null, 2);
+          // Try smart rendering — shows code blocks, diffs, terminal commands, etc.
+          inputPreviewJsx = renderToolContent(toolPart);
+
+          // If no smart content, build a text preview
+          if (!inputPreviewJsx) {
+            if (normalized === 'bash') {
+              const cmd = (toolInput.command || toolInput.cmd || '') as string;
+              if (cmd) inputPreview = `$ ${cmd}`;
+            } else if (normalized === 'edit_file') {
+              const fp = (toolInput.file_path || toolInput.path || toolInput.file || '') as string;
+              const oldStr = typeof toolInput.old_string === 'string' ? toolInput.old_string : '';
+              const newStr = typeof toolInput.new_string === 'string' ? toolInput.new_string : '';
+              if (fp) inputPreview = fp;
+              if (oldStr || newStr) {
+                inputPreview =
+                  (inputPreview ? inputPreview + '\n\n' : '') +
+                  (oldStr ? `- ${oldStr.slice(0, 200)}` : '') +
+                  (oldStr && newStr ? '\n' : '') +
+                  (newStr ? `+ ${newStr.slice(0, 200)}` : '');
+              }
+            } else if (normalized === 'write_file') {
+              const fp = (toolInput.file_path || toolInput.path || toolInput.file || '') as string;
+              const content = typeof toolInput.content === 'string' ? toolInput.content : '';
+              inputPreview = fp || null;
+              if (content) {
+                inputPreview = (inputPreview ? inputPreview + '\n\n' : '') + content.slice(0, 300);
+              }
+            } else if (normalized === 'read_file') {
+              const fp = (toolInput.file_path || toolInput.path || toolInput.file || '') as string;
+              if (fp) inputPreview = fp;
+            }
+
+            // If we still have no preview, extract from ACP title or show raw input as JSON
+            if (!inputPreview) {
+              // Use the AI SDK title field (from ACP ToolCall.title) or fallback to input.title
+              const acpTitleStr =
+                toolPart.title || (typeof toolInput.title === 'string' ? toolInput.title : '');
+              if (acpTitleStr) {
+                // For bash, strip "Run " prefix to show just the command
+                if (normalized === 'bash' && acpTitleStr.startsWith('Run ')) {
+                  inputPreview = `$ ${acpTitleStr.slice(4)}`;
+                } else {
+                  inputPreview = acpTitleStr;
+                }
+              }
+            }
+
+            // Last resort: show raw input as JSON
+            if (!inputPreview && toolInput && Object.keys(toolInput).length > 0) {
+              const displayInput = Object.fromEntries(
+                Object.entries(toolInput).filter(([k]) => k !== 'title')
+              );
+              if (Object.keys(displayInput).length > 0) {
+                inputPreview = JSON.stringify(displayInput, null, 2);
+              }
             }
           }
         }
@@ -1553,14 +1441,24 @@ function MessageParts({
         // Use title for after-the-fact labels, fall back to toolName
         const displayTitle = title || toolName || 'tool call';
 
+        const hasPreview = planPreviewContent || inputPreviewJsx || inputPreview;
+
         elements.push(
           <Confirmation key={toolPart.toolCallId || i} state={toolPart.state} approval={approval}>
             <ConfirmationTitle>{confirmTitle}</ConfirmationTitle>
-            {(planPreviewContent || inputPreview) && (
+            {hasPreview && (
               <ConfirmationBody className="border-border/50 bg-muted/30 max-h-72 overflow-y-auto rounded border p-3">
-                <pre className="text-muted-foreground font-mono text-xs leading-relaxed whitespace-pre-wrap">
-                  {planPreviewContent || inputPreview}
-                </pre>
+                {planPreviewContent ? (
+                  <pre className="text-muted-foreground font-mono text-xs leading-relaxed whitespace-pre-wrap">
+                    {planPreviewContent}
+                  </pre>
+                ) : inputPreviewJsx ? (
+                  inputPreviewJsx
+                ) : (
+                  <pre className="text-muted-foreground font-mono text-xs leading-relaxed whitespace-pre-wrap">
+                    {inputPreview}
+                  </pre>
+                )}
               </ConfirmationBody>
             )}
             <ConfirmationRequest>
@@ -1649,8 +1547,33 @@ function MessageParts({
             </Reasoning>
           );
           break;
-        default:
+        default: {
+          // Render unknown part types so nothing is silently dropped
+          const unknownPart = part as any;
+          const content = unknownPart.text || unknownPart.content || unknownPart.value;
+          if (content && typeof content === 'string') {
+            elements.push(
+              <div
+                key={i}
+                className="text-muted-foreground rounded border px-3 py-2 font-mono text-xs whitespace-pre-wrap"
+              >
+                <span className="text-muted-foreground/50 text-[10px] uppercase">{part.type}</span>
+                <div className="mt-1">
+                  {content.slice(0, 1000)}
+                  {content.length > 1000 ? '...' : ''}
+                </div>
+              </div>
+            );
+          } else if (unknownPart.type) {
+            // Even if there's no text content, show the part type so users know something happened
+            elements.push(
+              <div key={i} className="text-muted-foreground/60 px-1 text-[10px]">
+                [{unknownPart.type}]
+              </div>
+            );
+          }
           break;
+        }
       }
     }
   });
@@ -1671,7 +1594,7 @@ function MessageParts({
 
       {/* Sources (grouped) */}
       {allSources.length > 0 && (
-        <Sources>
+        <Sources defaultOpen>
           <SourcesTrigger count={allSources.length} />
           <SourcesContent>
             {allSources.map((src, i) => (
@@ -1740,19 +1663,6 @@ function AcpChatInner({
   const [currentModeId, setCurrentModeId] = useState(initialModes?.currentModeId ?? '');
   const [currentModelId, setCurrentModelId] = useState(initialModels?.currentModelId ?? '');
   const [hoveredModel, setHoveredModel] = useState<AcpSessionModel | null>(null);
-
-  // Debug overlay toggle (Ctrl+Shift+D) — shows raw part data on hover
-  const [debugOverlay, setDebugOverlay] = useState(false);
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && e.key === 'D') {
-        e.preventDefault();
-        setDebugOverlay((prev) => !prev);
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, []);
 
   // Sync mode/model when initial data arrives (useState only captures the first value)
   useEffect(() => {
@@ -2199,28 +2109,70 @@ function AcpChatInner({
     setInputHasText(false);
   }, []);
 
-  const handleQueueFromInput = useCallback(() => {
+  const handleQueueFromInput = useCallback(async () => {
     const text = textareaRef.current?.value?.trim();
     if (!text) return;
     const currentFiles = promptAttachmentsRef.current?.files;
-    const payload = {
-      text,
-      files: currentFiles && currentFiles.length > 0 ? [...currentFiles] : undefined,
-    };
+    // Convert blob URLs to data URLs before clearing (which revokes blob URLs)
+    let files: typeof currentFiles | undefined;
+    if (currentFiles && currentFiles.length > 0) {
+      files = await Promise.all(
+        currentFiles.map(async (f: { url: string; mediaType: string; filename?: string }) => {
+          if (f.url?.startsWith('blob:')) {
+            try {
+              const resp = await fetch(f.url);
+              const blob = await resp.blob();
+              const dataUrl = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.onerror = () => reject(new Error('FileReader failed'));
+                reader.readAsDataURL(blob);
+              });
+              return { ...f, url: dataUrl };
+            } catch {
+              return f;
+            }
+          }
+          return f;
+        })
+      );
+    }
+    const payload = { text, files };
     messageQueueRef.current.push(payload);
     setQueuedMessages([...messageQueueRef.current]);
     clearTextarea();
     promptAttachmentsRef.current?.clear();
   }, [clearTextarea]);
 
-  const handleInterruptAndSend = useCallback(() => {
+  const handleInterruptAndSend = useCallback(async () => {
     const text = textareaRef.current?.value?.trim();
     if (!text) return;
     const currentFiles = promptAttachmentsRef.current?.files;
-    interruptPayloadRef.current = {
-      text,
-      files: currentFiles && currentFiles.length > 0 ? [...currentFiles] : undefined,
-    };
+    // Convert blob URLs to data URLs before clearing (which revokes blob URLs)
+    let files: typeof currentFiles | undefined;
+    if (currentFiles && currentFiles.length > 0) {
+      files = await Promise.all(
+        currentFiles.map(async (f: { url: string; mediaType: string; filename?: string }) => {
+          if (f.url?.startsWith('blob:')) {
+            try {
+              const resp = await fetch(f.url);
+              const blob = await resp.blob();
+              const dataUrl = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.onerror = () => reject(new Error('FileReader failed'));
+                reader.readAsDataURL(blob);
+              });
+              return { ...f, url: dataUrl };
+            } catch {
+              return f;
+            }
+          }
+          return f;
+        })
+      );
+    }
+    interruptPayloadRef.current = { text, files };
     clearTextarea();
     promptAttachmentsRef.current?.clear();
     stop();
@@ -2428,212 +2380,238 @@ function AcpChatInner({
       </div>
 
       {/* Messages area */}
-      <DebugOverlayContext.Provider value={debugOverlay}>
-        {debugOverlay && (
-          <div className="border-b border-blue-500/30 bg-blue-500/10 px-3 py-1 text-[10px] text-blue-400">
-            Debug overlay ON — hover parts to inspect raw data (Ctrl+Shift+D to toggle)
-          </div>
-        )}
-        <Conversation>
-          <ConversationContent className="gap-3 p-3">
-            {messages.length === 0 && chatStatus === 'ready' && (
-              <>
-                <ConversationEmptyState
-                  title="Start a conversation"
-                  description="Send a message to begin working with this agent"
+      <Conversation>
+        <ConversationContent className="gap-3 p-3">
+          {messages.length === 0 && chatStatus === 'ready' && (
+            <>
+              <ConversationEmptyState
+                title="Start a conversation"
+                description="Send a message to begin working with this agent"
+              />
+              <Suggestions className="justify-center px-4">
+                <Suggestion
+                  suggestion="Explain this codebase"
+                  onClick={(s) => sendMessage({ text: s })}
                 />
-                <Suggestions className="justify-center px-4">
-                  <Suggestion
-                    suggestion="Explain this codebase"
-                    onClick={(s) => sendMessage({ text: s })}
-                  />
-                  <Suggestion
-                    suggestion="Find and fix bugs"
-                    onClick={(s) => sendMessage({ text: s })}
-                  />
-                  <Suggestion suggestion="Write tests" onClick={(s) => sendMessage({ text: s })} />
-                  <Suggestion
-                    suggestion="Refactor code"
-                    onClick={(s) => sendMessage({ text: s })}
-                  />
-                </Suggestions>
-              </>
-            )}
+                <Suggestion
+                  suggestion="Find and fix bugs"
+                  onClick={(s) => sendMessage({ text: s })}
+                />
+                <Suggestion suggestion="Write tests" onClick={(s) => sendMessage({ text: s })} />
+                <Suggestion suggestion="Refactor code" onClick={(s) => sendMessage({ text: s })} />
+              </Suggestions>
+            </>
+          )}
 
-            {messages.map((msg, msgIdx) => (
-              <div key={msg.id}>
-                {/* Checkpoint separator between conversation turns */}
-                {msgIdx > 0 &&
-                  msg.role === 'user' &&
-                  messages[msgIdx - 1]?.role === 'assistant' && (
-                    <Checkpoint className="my-1">
-                      <CheckpointIcon />
-                      <CheckpointTrigger
-                        className="text-[10px] whitespace-nowrap"
-                        tooltip="Restore to this point"
-                        disabled={isStreaming}
-                        onClick={() => setMessages(messages.slice(0, msgIdx))}
-                      >
-                        Turn {messages.slice(0, msgIdx).filter((m) => m.role === 'user').length + 1}
-                      </CheckpointTrigger>
-                    </Checkpoint>
-                  )}
-                <Message from={msg.role}>
-                  <MessageContent>
-                    {msg.role === 'user' ? (
-                      <>
-                        {msg.parts
-                          .filter(
-                            (
-                              p
-                            ): p is {
-                              type: 'file';
-                              url: string;
-                              mediaType: string;
-                              filename?: string;
-                            } => p.type === 'file'
-                          )
-                          .map((filePart, i) =>
-                            filePart.mediaType.startsWith('image/') ? (
-                              <img
-                                key={i}
-                                src={filePart.url}
-                                alt={filePart.filename || 'Attached image'}
-                                className="border-border/50 max-h-64 max-w-full rounded-md border"
-                              />
-                            ) : (
-                              <div
-                                key={i}
-                                className="border-border/50 text-muted-foreground flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs"
-                              >
-                                <PaperclipIcon className="size-3" />
-                                {filePart.filename || 'Attachment'}
-                              </div>
-                            )
-                          )}
-                        <p className="whitespace-pre-wrap">{getTextFromParts(msg.parts)}</p>
-                      </>
-                    ) : (
-                      <MessageParts
-                        message={msg}
-                        chatStatus={chatStatus}
-                        sessionKey={sessionKey}
-                        currentModeId={currentModeId}
-                      />
-                    )}
-                  </MessageContent>
-                  {/* Message actions (visible on hover) */}
-                  {msg.role === 'assistant' && chatStatus === 'ready' && (
-                    <MessageActions className="mt-1 opacity-0 transition-opacity group-hover:opacity-100">
-                      <MessageAction
-                        tooltip="Copy"
-                        onClick={() => {
-                          const text = getTextFromParts(msg.parts);
-                          navigator.clipboard.writeText(text);
-                        }}
-                      >
-                        <CopyIcon className="size-3" />
-                      </MessageAction>
-                      <MessageAction
-                        tooltip="Retry"
-                        onClick={() => {
-                          const msgIndex = messages.indexOf(msg);
-                          const prevUserMsg = messages
-                            .slice(0, msgIndex)
-                            .reverse()
-                            .find((m) => m.role === 'user');
-                          if (prevUserMsg) {
-                            const text = getTextFromParts(prevUserMsg.parts);
-                            if (text) sendMessage({ text });
-                          }
-                        }}
-                      >
-                        <RefreshCwIcon className="size-3" />
-                      </MessageAction>
-                    </MessageActions>
-                  )}
-                </Message>
-
-                {/* Resume checkpoint — shown after the last restored message */}
-                {resumed !== null &&
-                  initialMessages.length > 0 &&
-                  msgIdx === initialMessages.length - 1 && (
-                    <Checkpoint className="my-1">
-                      <CheckpointIcon />
-                      <CheckpointTrigger className="text-[10px] whitespace-nowrap" disabled>
-                        {resumed ? 'Session resumed' : 'New session — context resumed'}
-                      </CheckpointTrigger>
-                    </Checkpoint>
-                  )}
-              </div>
-            ))}
-
-            {/* Streaming / thinking indicator */}
-            {isStreaming && messages[messages.length - 1]?.role !== 'assistant' && (
-              <Message from="assistant">
+          {messages.map((msg, msgIdx) => (
+            <div key={msg.id}>
+              {/* Checkpoint separator between conversation turns */}
+              {msgIdx > 0 && msg.role === 'user' && messages[msgIdx - 1]?.role === 'assistant' && (
+                <Checkpoint className="my-1">
+                  <CheckpointIcon />
+                  <CheckpointTrigger
+                    className="text-[10px] whitespace-nowrap"
+                    tooltip="Restore to this point"
+                    disabled={isStreaming}
+                    onClick={() => setMessages(messages.slice(0, msgIdx))}
+                  >
+                    Turn {messages.slice(0, msgIdx).filter((m) => m.role === 'user').length + 1}
+                  </CheckpointTrigger>
+                </Checkpoint>
+              )}
+              <Message from={msg.role}>
                 <MessageContent>
-                  {chatStatus === 'submitted' ? (
-                    <Shimmer className="text-sm">Thinking…</Shimmer>
+                  {msg.role === 'user' ? (
+                    <>
+                      {(() => {
+                        const fileParts = msg.parts.filter(
+                          (
+                            p
+                          ): p is {
+                            type: 'file';
+                            url: string;
+                            mediaType: string;
+                            filename?: string;
+                          } => p.type === 'file'
+                        );
+                        if (fileParts.length === 0) return null;
+                        return (
+                          <Attachments variant="inline">
+                            {fileParts.map((filePart, i) => {
+                              const attachmentData = {
+                                ...filePart,
+                                id: `msg-${i}`,
+                              };
+                              const mediaCategory = getMediaCategory(attachmentData);
+                              const label = getAttachmentLabel(attachmentData);
+                              return (
+                                <AttachmentHoverCard key={i}>
+                                  <AttachmentHoverCardTrigger>
+                                    <Attachment data={attachmentData}>
+                                      <AttachmentPreview />
+                                      <AttachmentInfo />
+                                    </Attachment>
+                                  </AttachmentHoverCardTrigger>
+                                  <AttachmentHoverCardContent>
+                                    <div className="space-y-3">
+                                      {mediaCategory === 'image' && filePart.url && (
+                                        <div className="flex max-h-96 w-80 items-center justify-center overflow-hidden rounded-md border">
+                                          <img
+                                            alt={label}
+                                            className="max-h-full max-w-full object-contain"
+                                            height={384}
+                                            src={filePart.url}
+                                            width={320}
+                                          />
+                                        </div>
+                                      )}
+                                      <div className="space-y-1 px-0.5">
+                                        <h4 className="text-sm leading-none font-semibold">
+                                          {label}
+                                        </h4>
+                                        {filePart.mediaType && (
+                                          <p className="text-muted-foreground font-mono text-xs">
+                                            {filePart.mediaType}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </AttachmentHoverCardContent>
+                                </AttachmentHoverCard>
+                              );
+                            })}
+                          </Attachments>
+                        );
+                      })()}
+                      <p className="whitespace-pre-wrap">{getTextFromParts(msg.parts)}</p>
+                    </>
                   ) : (
-                    <Loader />
+                    <MessageParts
+                      message={msg}
+                      chatStatus={chatStatus}
+                      sessionKey={sessionKey}
+                      currentModeId={currentModeId}
+                    />
                   )}
+                  {/* Trailing activity indicator while streaming (hide when waiting for user approval) */}
+                  {isStreaming &&
+                    !hasPendingApprovals &&
+                    msg === messages[messages.length - 1] &&
+                    msg.role === 'assistant' && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <Loader className="text-muted-foreground size-4" />
+                      </div>
+                    )}
                 </MessageContent>
+                {/* Message actions (visible on hover) */}
+                {msg.role === 'assistant' && chatStatus === 'ready' && (
+                  <MessageActions className="mt-1 opacity-0 transition-opacity group-hover:opacity-100">
+                    <MessageAction
+                      tooltip="Copy"
+                      onClick={() => {
+                        const text = getTextFromParts(msg.parts);
+                        navigator.clipboard.writeText(text);
+                      }}
+                    >
+                      <CopyIcon className="size-3" />
+                    </MessageAction>
+                    <MessageAction
+                      tooltip="Retry"
+                      onClick={() => {
+                        const msgIndex = messages.indexOf(msg);
+                        const prevUserMsg = messages
+                          .slice(0, msgIndex)
+                          .reverse()
+                          .find((m) => m.role === 'user');
+                        if (prevUserMsg) {
+                          const text = getTextFromParts(prevUserMsg.parts);
+                          if (text) sendMessage({ text });
+                        }
+                      }}
+                    >
+                      <RefreshCwIcon className="size-3" />
+                    </MessageAction>
+                  </MessageActions>
+                )}
               </Message>
-            )}
 
-            {/* Inline plan */}
-            {planEntries.length > 0 && (
-              <div className="px-2">
-                <Plan isStreaming={isStreaming} defaultOpen>
-                  <PlanTrigger
-                    completed={planEntries.filter((e) => e.status === 'completed').length}
-                    total={planEntries.length}
-                  />
-                  <PlanContent>
-                    <ul className="space-y-1 text-xs">
-                      {planEntries.map((entry, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <span className="mt-0.5 shrink-0">
-                            {entry.status === 'completed' ? (
-                              <CheckCircleIcon className="size-3.5 text-green-500" />
-                            ) : entry.status === 'in_progress' ? (
-                              <Loader2 className="text-primary size-3.5 animate-spin" />
-                            ) : (
-                              <ClockIcon className="text-muted-foreground size-3.5" />
-                            )}
-                          </span>
-                          <span
-                            className={
-                              entry.status === 'completed'
-                                ? 'text-muted-foreground line-through'
-                                : ''
-                            }
-                          >
-                            {entry.content}
-                          </span>
-                          {entry.priority === 'high' && (
-                            <span className="ml-auto shrink-0 rounded bg-red-500/15 px-1 text-[10px] text-red-400">
-                              high
-                            </span>
+              {/* Resume checkpoint — shown after the last restored message */}
+              {resumed !== null &&
+                initialMessages.length > 0 &&
+                msgIdx === initialMessages.length - 1 && (
+                  <Checkpoint className="my-1">
+                    <CheckpointIcon />
+                    <CheckpointTrigger className="text-[10px] whitespace-nowrap" disabled>
+                      {resumed ? 'Session resumed' : 'New session — context resumed'}
+                    </CheckpointTrigger>
+                  </Checkpoint>
+                )}
+            </div>
+          ))}
+
+          {/* Streaming / thinking indicator */}
+          {isStreaming && messages[messages.length - 1]?.role !== 'assistant' && (
+            <Message from="assistant">
+              <MessageContent>
+                {chatStatus === 'submitted' ? (
+                  <Shimmer className="text-sm">Thinking…</Shimmer>
+                ) : (
+                  <Loader />
+                )}
+              </MessageContent>
+            </Message>
+          )}
+
+          {/* Inline plan */}
+          {planEntries.length > 0 && (
+            <div className="px-2">
+              <Plan isStreaming={isStreaming} defaultOpen>
+                <PlanTrigger
+                  completed={planEntries.filter((e) => e.status === 'completed').length}
+                  total={planEntries.length}
+                />
+                <PlanContent>
+                  <ul className="space-y-1 text-xs">
+                    {planEntries.map((entry, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <span className="mt-0.5 shrink-0">
+                          {entry.status === 'completed' ? (
+                            <CheckCircleIcon className="size-3.5 text-green-500" />
+                          ) : entry.status === 'in_progress' ? (
+                            <Loader2 className="text-primary size-3.5 animate-spin" />
+                          ) : (
+                            <ClockIcon className="text-muted-foreground size-3.5" />
                           )}
-                        </li>
-                      ))}
-                    </ul>
-                  </PlanContent>
-                </Plan>
-              </div>
-            )}
+                        </span>
+                        <span
+                          className={
+                            entry.status === 'completed' ? 'text-muted-foreground line-through' : ''
+                          }
+                        >
+                          {entry.content}
+                        </span>
+                        {entry.priority === 'high' && (
+                          <span className="ml-auto shrink-0 rounded bg-red-500/15 px-1 text-[10px] text-red-400">
+                            high
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </PlanContent>
+              </Plan>
+            </div>
+          )}
 
-            {/* Error display */}
-            {chatStatus === 'error' && chatError && (
-              <div className="mx-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-                <p>{chatError.message}</p>
-              </div>
-            )}
-          </ConversationContent>
-          <ConversationScrollButton />
-        </Conversation>
-      </DebugOverlayContext.Provider>
+          {/* Error display */}
+          {chatStatus === 'error' && chatError && (
+            <div className="mx-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              <p>{chatError.message}</p>
+            </div>
+          )}
+        </ConversationContent>
+        <ConversationScrollButton />
+      </Conversation>
 
       {/* Queued messages */}
       {queuedMessages.length > 0 && (
