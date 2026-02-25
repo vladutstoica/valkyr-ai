@@ -2,8 +2,9 @@
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
-import { ListTodoIcon, ChevronDownIcon } from 'lucide-react';
-import type { ComponentProps, ReactNode } from 'react';
+import { Slot } from '@radix-ui/react-slot';
+import { ChevronDownIcon } from 'lucide-react';
+import type { ComponentProps } from 'react';
 import { createContext, useContext } from 'react';
 import { Shimmer } from './shimmer';
 
@@ -21,56 +22,96 @@ const usePlan = () => {
   return context;
 };
 
+// ── Root ──
+
 export type PlanProps = ComponentProps<typeof Collapsible> & {
   isStreaming?: boolean;
 };
 
 export const Plan = ({ className, isStreaming = false, children, ...props }: PlanProps) => (
   <PlanContext.Provider value={{ isStreaming }}>
-    <Collapsible className={cn('not-prose mb-2', className)} data-slot="plan" {...props}>
+    <Collapsible className={cn('not-prose', className)} data-slot="plan" {...props}>
       {children}
     </Collapsible>
   </PlanContext.Provider>
 );
 
-export type PlanTriggerProps = ComponentProps<typeof CollapsibleTrigger> & {
-  completed?: number;
-  total?: number;
-};
+// ── Header ──
 
-export const PlanTrigger = ({ className, completed, total, ...props }: PlanTriggerProps) => {
+export type PlanHeaderProps = ComponentProps<'div'>;
+
+export const PlanHeader = ({ className, ...props }: PlanHeaderProps) => (
+  <div
+    className={cn('flex items-start justify-between gap-3', className)}
+    data-slot="plan-header"
+    {...props}
+  />
+);
+
+// ── Title ──
+
+export type PlanTitleProps = ComponentProps<'h3'>;
+
+export const PlanTitle = ({ className, children, ...props }: PlanTitleProps) => {
   const { isStreaming } = usePlan();
-  const hasProgress = typeof completed === 'number' && typeof total === 'number';
 
   return (
-    <CollapsibleTrigger
-      className={cn(
-        'group text-muted-foreground hover:text-foreground flex w-full items-center gap-2 text-sm transition-colors',
-        className
+    <h3 className={cn('text-sm font-semibold', className)} data-slot="plan-title" {...props}>
+      {isStreaming && typeof children === 'string' ? (
+        <Shimmer duration={1}>{children}</Shimmer>
+      ) : (
+        children
       )}
-      data-slot="plan-trigger"
-      {...props}
-    >
-      <ListTodoIcon className="size-4 shrink-0" />
-      <span className="flex items-center gap-1.5">
-        {isStreaming ? <Shimmer duration={1}>Planning...</Shimmer> : 'Plan'}
-        {hasProgress && (
-          <span className="text-muted-foreground/70 text-xs">
-            ({completed}/{total})
-          </span>
-        )}
-      </span>
-      <ChevronDownIcon className="size-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
-    </CollapsibleTrigger>
+    </h3>
   );
 };
+
+// ── Description ──
+
+export type PlanDescriptionProps = ComponentProps<'p'>;
+
+export const PlanDescription = ({ className, children, ...props }: PlanDescriptionProps) => {
+  const { isStreaming } = usePlan();
+
+  return (
+    <p
+      className={cn('text-muted-foreground text-xs', className)}
+      data-slot="plan-description"
+      {...props}
+    >
+      {isStreaming && typeof children === 'string' ? (
+        <Shimmer duration={1}>{children}</Shimmer>
+      ) : (
+        children
+      )}
+    </p>
+  );
+};
+
+// ── Trigger ──
+
+export type PlanTriggerProps = ComponentProps<typeof CollapsibleTrigger>;
+
+export const PlanTrigger = ({ className, ...props }: PlanTriggerProps) => (
+  <CollapsibleTrigger
+    className={cn(
+      'text-muted-foreground hover:text-foreground group shrink-0 rounded-md p-1 transition-colors',
+      className
+    )}
+    data-slot="plan-trigger"
+    {...props}
+  >
+    <ChevronDownIcon className="size-4 transition-transform group-data-[state=open]:rotate-180" />
+  </CollapsibleTrigger>
+);
+
+// ── Content ──
 
 export type PlanContentProps = ComponentProps<typeof CollapsibleContent>;
 
 export const PlanContent = ({ className, ...props }: PlanContentProps) => (
   <CollapsibleContent
     className={cn(
-      'border-border mt-2 ml-6 border-l pl-3',
       'data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 data-[state=closed]:animate-out data-[state=open]:animate-in outline-none',
       className
     )}
@@ -79,7 +120,20 @@ export const PlanContent = ({ className, ...props }: PlanContentProps) => (
   />
 );
 
-// Keep legacy exports for backward compat (unused but prevents import errors)
-export const PlanHeader = ({ children }: { children?: ReactNode }) => <>{children}</>;
-export const PlanTitle = ({ children }: { children?: ReactNode }) => <>{children}</>;
-export const PlanFooter = ({ children }: { children?: ReactNode }) => <>{children}</>;
+// ── Footer ──
+
+export type PlanFooterProps = ComponentProps<'div'>;
+
+export const PlanFooter = ({ className, ...props }: PlanFooterProps) => (
+  <div
+    className={cn('flex items-center gap-2 pt-2', className)}
+    data-slot="plan-footer"
+    {...props}
+  />
+);
+
+// ── Action ──
+
+export type PlanActionProps = ComponentProps<typeof Slot>;
+
+export const PlanAction = (props: PlanActionProps) => <Slot {...props} />;

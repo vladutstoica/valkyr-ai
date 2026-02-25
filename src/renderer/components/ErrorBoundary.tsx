@@ -9,6 +9,8 @@ type ErrorBoundaryState = {
 type ErrorBoundaryProps = {
   children?: React.ReactNode;
   componentName?: string;
+  /** 'page' = full-screen crash (default), 'panel' = compact inline fallback */
+  variant?: 'page' | 'panel';
 };
 
 export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
@@ -45,10 +47,32 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
     } catch {}
   };
 
+  handleRetry = () => {
+    this.setState({ hasError: false, error: null });
+  };
+
   render() {
     if (!this.state.hasError) return this.props.children as React.ReactElement;
 
     const message = this.state.error?.message || 'An unexpected error occurred.';
+    const variant = this.props.variant ?? 'page';
+    const label = this.props.componentName || 'This section';
+
+    if (variant === 'panel') {
+      return (
+        <div className="text-muted-foreground flex h-full w-full flex-col items-center justify-center gap-2 p-4">
+          <p className="text-sm font-medium">{label} crashed</p>
+          <p className="max-w-sm text-center text-xs break-all opacity-70">{message}</p>
+          <button
+            type="button"
+            className="border-input bg-secondary text-secondary-foreground mt-2 inline-flex h-7 items-center justify-center rounded-sm border px-3 text-xs font-medium"
+            onClick={this.handleRetry}
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
 
     return (
       <div className="bg-background flex h-screen w-screen items-center justify-center p-6">

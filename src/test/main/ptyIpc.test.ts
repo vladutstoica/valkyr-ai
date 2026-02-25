@@ -44,7 +44,10 @@ const killPtyMock = vi.fn((id: string) => {
 });
 const getAllWindowsMock = vi.fn(() => [
   {
+    id: 1,
     isFocused: () => false,
+    on: vi.fn(),
+    once: vi.fn(),
     webContents: { isDestroyed: () => false, send: vi.fn() },
   },
 ]);

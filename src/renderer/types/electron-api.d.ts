@@ -255,6 +255,10 @@ declare global {
       getAppVersion: () => Promise<string>;
       getElectronVersion: () => Promise<string>;
       getPlatform: () => Promise<string>;
+      checkPrerequisites: () => Promise<{
+        success: boolean;
+        data: { git: boolean; agents: string[] };
+      }>;
       listInstalledFonts: (args?: {
         refresh?: boolean;
       }) => Promise<{ success: boolean; fonts?: string[]; cached?: boolean; error?: string }>;
@@ -803,6 +807,12 @@ declare global {
             baseRef?: string;
           };
         }>;
+        rootGitInfo?: {
+          isGitRepo: boolean;
+          remote?: string;
+          branch?: string;
+          baseRef?: string;
+        };
         error?: string;
       }>;
 
@@ -2154,6 +2164,12 @@ export interface ElectronAPI {
         baseRef?: string;
       };
     }>;
+    rootGitInfo?: {
+      isGitRepo: boolean;
+      remote?: string;
+      branch?: string;
+      baseRef?: string;
+    };
     error?: string;
   }>;
   listRemoteBranches: (args: { projectPath: string; remote?: string }) => Promise<{

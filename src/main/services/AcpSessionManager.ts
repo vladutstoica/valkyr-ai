@@ -656,8 +656,12 @@ export class AcpSessionManager {
       let historyEvents: AcpUpdateEvent[] | undefined;
       let resumed = false;
       if (storedSessionId) {
+        // Pre-register the stored session ID so events arriving during loadSession
+        // are routed correctly instead of being logged as "Unroutable"
+        this.acpSessionIdToSessionKey.set(storedSessionId, sessionKey);
         // Start buffering session_update events so loadSession history isn't lost
         this.historyBuffers.set(sessionKey, []);
+        let preRegisteredId: string | null = storedSessionId;
         try {
           const result = await this.tryResumeOrCreate(
             connection,
@@ -670,7 +674,15 @@ export class AcpSessionManager {
           acpSessionId = result.sessionId;
           sessionResp = result.sessionResp;
           resumed = result.resumed;
+          // If the actual session ID matches the pre-registered one, no cleanup needed
+          if (acpSessionId === storedSessionId) {
+            preRegisteredId = null;
+          }
         } finally {
+          // Clean up pre-registered mapping if the session ID changed or an error occurred
+          if (preRegisteredId !== null) {
+            this.acpSessionIdToSessionKey.delete(preRegisteredId);
+          }
           const buf = this.historyBuffers.get(sessionKey);
           this.historyBuffers.delete(sessionKey);
           if (buf && buf.length > 0) {

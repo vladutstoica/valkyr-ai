@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { ConnectionState } from '../components/ssh';
 import type { Project } from '../types/app';
+import { toast } from './use-toast';
 
 export interface UseRemoteProjectResult {
   isRemote: boolean;
@@ -100,6 +101,7 @@ export function useRemoteProject(project: Project | null): UseRemoteProjectResul
     } catch (err) {
       if (isMountedRef.current) {
         console.error('Failed to disconnect:', err);
+        toast({ title: 'Failed to disconnect from remote', variant: 'destructive' });
       }
     } finally {
       if (isMountedRef.current) {

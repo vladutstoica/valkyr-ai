@@ -2,8 +2,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { UIMessage } from 'ai';
 import { useChat } from '@ai-sdk/react';
 import * as SelectPrimitive from '@radix-ui/react-select';
+import { Streamdown } from 'streamdown';
+import { getContext, contextHealth } from 'tokenlens';
 import {
   AlertCircle,
+  AlertTriangleIcon,
   ArrowLeftIcon,
   ArrowRightIcon,
   ArrowUpIcon,
@@ -36,6 +39,7 @@ import {
   type AcpPlanEntry,
   type AcpCommand,
   type AcpConfigOption,
+  type AcpToolMetadata,
   getAcpMeta,
 } from '../lib/acpChatTransport';
 import { Button } from './ui/button';
@@ -101,8 +105,16 @@ import {
   messagesToMarkdown,
   type ConversationMessage,
 } from './ai-elements/conversation';
-import { Loader } from './ai-elements/loader';
-import { Plan, PlanContent, PlanTrigger } from './ai-elements/plan';
+import { useStickToBottomContext } from 'use-stick-to-bottom';
+import {
+  Plan,
+  PlanHeader,
+  PlanTitle,
+  PlanDescription,
+  PlanTrigger,
+  PlanContent,
+  PlanFooter,
+} from './ai-elements/plan';
 import { Sources, SourcesTrigger, SourcesContent, Source } from './ai-elements/sources';
 import { Checkpoint, CheckpointIcon, CheckpointTrigger } from './ai-elements/checkpoint';
 import {
@@ -226,6 +238,71 @@ import {
 } from './ai-elements/stack-trace';
 import { CodeBlockContent } from './ai-elements/code-block';
 import type { BundledLanguage } from 'shiki';
+import { getProvider, type ProviderId } from '@shared/providers/registry';
+
+// ---------------------------------------------------------------------------
+// ACP Error Card — renders API/server errors as a styled inline card
+// ---------------------------------------------------------------------------
+
+/** Parse an ACP error string to extract status code and clean message */
+function parseAcpError(raw: string): { statusCode: number | null; message: string } {
+  // Match patterns like "API Error: 500 {...json...}" or "Internal error: API Error: 500 {...}"
+  const statusMatch = raw.match(/API Error:\s*(\d{3})/);
+  const statusCode = statusMatch ? parseInt(statusMatch[1], 10) : null;
+
+  // Try to extract a human-readable message from JSON payload
+  const jsonMatch = raw.match(/\{.*"message"\s*:\s*"([^"]+)".*\}/);
+  const message = jsonMatch ? jsonMatch[1] : raw;
+
+  return { statusCode, message };
+}
+
+function AcpErrorCard({ error }: { error: string }) {
+  const { statusCode, message } = parseAcpError(error);
+  const [showRaw, setShowRaw] = React.useState(false);
+
+  return (
+    <div className="rounded-lg border border-red-500/30 bg-red-500/8 px-3.5 py-3">
+      <div className="flex items-start gap-2.5">
+        <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-400" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-red-300">
+              {statusCode ? `Server Error (${statusCode})` : 'Error'}
+            </span>
+          </div>
+          <p className="mt-0.5 text-sm text-red-300/80">{message}</p>
+          {error !== message && (
+            <button
+              type="button"
+              onClick={() => setShowRaw((v) => !v)}
+              className="mt-1.5 text-[11px] text-red-400/60 hover:text-red-400/90 transition-colors"
+            >
+              {showRaw ? 'Hide details' : 'Show details'}
+            </button>
+          )}
+          {showRaw && (
+            <pre className="mt-1.5 max-h-32 overflow-auto rounded bg-red-500/5 p-2 font-mono text-[11px] text-red-300/60 whitespace-pre-wrap">
+              {error}
+            </pre>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Scroll bridge — exposes scrollToBottom from StickToBottom context via ref
+// ---------------------------------------------------------------------------
+
+function ScrollBridge({ scrollRef }: { scrollRef: React.MutableRefObject<(() => void) | null> }) {
+  const { scrollToBottom } = useStickToBottomContext();
+  useEffect(() => {
+    scrollRef.current = scrollToBottom;
+  }, [scrollRef, scrollToBottom]);
+  return null;
+}
 
 // ---------------------------------------------------------------------------
 // Props
@@ -677,6 +754,101 @@ function renderStepDetails(toolPart: any): React.ReactNode | null {
 }
 
 /**
+ * Render ACP structured content items (diffs, text blocks, terminals).
+ * Returns rendered elements, or null if no structured content is available.
+ */
+function renderAcpContent(
+  acpContent: NonNullable<AcpToolMetadata['content']>
+): React.ReactNode | null {
+  const elements: React.ReactNode[] = [];
+
+  for (let i = 0; i < acpContent.length; i++) {
+    const item = acpContent[i];
+
+    if (item.type === 'diff') {
+      const language = getLanguageFromPath(item.path) as BundledLanguage;
+      elements.push(
+        <div key={`diff-${i}`} className="space-y-0 overflow-hidden pt-1 pb-2">
+          <div className="text-muted-foreground mb-1 truncate font-mono text-[10px]">
+            {item.path}
+          </div>
+          {item.oldText && (
+            <div className="overflow-hidden rounded-t border border-red-500/20 bg-red-500/5">
+              <CodeBlockContent code={item.oldText} language={language} showLineNumbers />
+            </div>
+          )}
+          {item.newText && (
+            <div
+              className={`overflow-hidden border border-green-500/20 bg-green-500/5 ${item.oldText ? 'rounded-b border-t-0' : 'rounded'}`}
+            >
+              <CodeBlockContent code={item.newText} language={language} showLineNumbers />
+            </div>
+          )}
+        </div>
+      );
+    } else if (item.type === 'content') {
+      const inner = item.content;
+      if (inner.type === 'text' && inner.text) {
+        elements.push(
+          <div key={`content-${i}`} className="overflow-hidden pt-1 pb-2">
+            <pre className="text-muted-foreground/70 bg-muted/30 max-h-40 overflow-auto rounded p-2 font-mono text-[10px] leading-relaxed whitespace-pre-wrap">
+              {inner.text.slice(0, 2000)}
+              {inner.text.length > 2000 ? '...' : ''}
+            </pre>
+          </div>
+        );
+      } else if (inner.type === 'image' && inner.data && inner.mimeType) {
+        elements.push(
+          <div key={`content-${i}`} className="overflow-hidden pt-1 pb-2">
+            <img
+              src={`data:${inner.mimeType};base64,${inner.data}`}
+              alt=""
+              className="max-h-64 rounded-md border object-contain"
+            />
+          </div>
+        );
+      }
+    } else if (item.type === 'terminal') {
+      elements.push(
+        <div key={`terminal-${i}`} className="overflow-hidden pt-1 pb-2">
+          <div className="text-muted-foreground/50 rounded bg-zinc-950 p-2 font-mono text-[10px]">
+            Terminal: {item.terminalId}
+          </div>
+        </div>
+      );
+    }
+  }
+
+  return elements.length > 0 ? <>{elements}</> : null;
+}
+
+/**
+ * Render ACP file locations as small pills.
+ */
+function renderAcpLocations(
+  locations: NonNullable<AcpToolMetadata['locations']>
+): React.ReactNode | null {
+  if (locations.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1 pt-1 pb-1">
+      {locations.map((loc, i) => {
+        const filename = loc.path.split('/').pop() || loc.path;
+        const label = loc.line ? `${filename}:${loc.line}` : filename;
+        return (
+          <span
+            key={i}
+            className="bg-muted text-muted-foreground inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[10px]"
+            title={loc.line ? `${loc.path}:${loc.line}` : loc.path}
+          >
+            {label}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
  * Render smart content for a tool's expandable area inside <ToolContent>.
  * Returns syntax-highlighted code blocks, terminal output, match lists, etc.
  * Falls back to null if there's nothing meaningful to show.
@@ -691,6 +863,12 @@ function renderToolContent(toolPart: any): React.ReactNode | null {
   const inputObj = toolPart.input || {};
   const output = toolPart.output != null ? String(toolPart.output) : '';
   const filePath = extractFilePath(inputObj);
+
+  // Prefer ACP structured content when available (diffs, text blocks, terminals)
+  if (contentAcpMeta?.content?.length) {
+    const acpRendered = renderAcpContent(contentAcpMeta.content);
+    if (acpRendered) return acpRendered;
+  }
 
   switch (normalized) {
     case 'read_file': {
@@ -966,7 +1144,10 @@ function renderRichToolPart(
   }
 
   const smartContent = renderToolContent(toolPart);
-  const hasExpandableContent = !!smartContent || !!errorText;
+  const locationsContent = acpMeta?.locations?.length
+    ? renderAcpLocations(acpMeta.locations)
+    : null;
+  const hasExpandableContent = !!smartContent || !!errorText || !!locationsContent;
 
   // No expandable content — use compact inline
   if (!hasExpandableContent) {
@@ -983,6 +1164,7 @@ function renderRichToolPart(
         icon={Icon}
       />
       <ToolContent>
+        {locationsContent}
         {smartContent}
         {errorText && (
           <div className="pb-2">
@@ -1357,7 +1539,7 @@ function MessageParts({
         } else if (title) {
           confirmTitle = (
             <>
-              Allow <strong>{title}</strong>?
+              Approve <strong>{title}</strong>?
             </>
           );
         } else {
@@ -1365,7 +1547,7 @@ function MessageParts({
           // can at least see the tool type rather than a blank prompt
           confirmTitle = (
             <>
-              Allow <strong>{toolName || 'tool call'}</strong>?
+              Approve <strong>{toolName || 'tool call'}</strong>?
             </>
           );
         }
@@ -1467,36 +1649,36 @@ function MessageParts({
                   <kbd className="border-border/50 bg-muted/50 rounded border px-1.5 py-0.5 font-mono text-[10px]">
                     Enter
                   </kbd>{' '}
-                  to allow
+                  to approve
                   {' \u00b7 '}
                   <kbd className="border-border/50 bg-muted/50 rounded border px-1.5 py-0.5 font-mono text-[10px]">
                     Esc
                   </kbd>{' '}
-                  to deny
+                  to reject
                 </span>
                 <span className="flex items-center gap-2">
+                  <ConfirmationAction
+                    variant="outline"
+                    data-tool-call-id={toolPart.toolCallId}
+                    data-action="deny"
+                  >
+                    Reject
+                  </ConfirmationAction>
                   <ConfirmationAction
                     variant="default"
                     data-tool-call-id={toolPart.toolCallId}
                     data-action="approve"
                   >
-                    Allow
-                  </ConfirmationAction>
-                  <ConfirmationAction
-                    variant="destructive"
-                    data-tool-call-id={toolPart.toolCallId}
-                    data-action="deny"
-                  >
-                    Deny
+                    Approve
                   </ConfirmationAction>
                 </span>
               </ConfirmationActions>
             </ConfirmationRequest>
             <ConfirmationAccepted>
-              Allowed <strong>{displayTitle}</strong>
+              Approved <strong>{displayTitle}</strong>
             </ConfirmationAccepted>
             <ConfirmationRejected>
-              Denied <strong>{displayTitle}</strong>
+              Rejected <strong>{displayTitle}</strong>
             </ConfirmationRejected>
           </Confirmation>
         );
@@ -1507,6 +1689,13 @@ function MessageParts({
       flushToolRun();
       switch (part.type) {
         case 'text': {
+          // Detect ACP error markers and render as styled card
+          const acpErrorMarker = '<!---acp-error--->';
+          if (part.text.includes(acpErrorMarker)) {
+            const errorRaw = part.text.split(acpErrorMarker).pop()?.trim() || 'Unknown error';
+            elements.push(<AcpErrorCard key={i} error={errorRaw} />);
+            break;
+          }
           // Try to extract a trailing "Sources:" section from the last text part
           let textContent = part.text;
           const extracted =
@@ -1636,6 +1825,86 @@ type AcpChatInnerProps = {
   className: string;
 };
 
+/**
+ * Map ACP model aliases (e.g. "default", "opus") to real model IDs that tokenlens can resolve.
+ * Uses the description hint (e.g. "Sonnet 4.6 · Best for everyday tasks") as the primary signal.
+ */
+const MODEL_HINT_MAP: Record<string, string> = {
+  'sonnet 4.6': 'claude-sonnet-4-20250514',
+  'sonnet 4.5': 'claude-sonnet-4-20250514',
+  'sonnet 4': 'claude-sonnet-4-20250514',
+  'opus 4.6': 'claude-opus-4-20250514',
+  'opus 4.5': 'claude-opus-4-20250514',
+  'opus 4': 'claude-opus-4-20250514',
+  'haiku 4.5': 'claude-3-5-haiku-20241022',
+  'haiku 4': 'claude-3-5-haiku-20241022',
+  'haiku 3.5': 'claude-3-5-haiku-20241022',
+  'gpt-4o': 'gpt-4o',
+  'gpt-4.1': 'gpt-4.1',
+  'o3': 'o3',
+  'o4-mini': 'o4-mini',
+  'gemini 2.5': 'gemini-2.5-pro',
+};
+
+const ALIAS_MAP: Record<string, string> = {
+  default: 'claude-sonnet-4-20250514',
+  sonnet: 'claude-sonnet-4-20250514',
+  opus: 'claude-opus-4-20250514',
+  haiku: 'claude-3-5-haiku-20241022',
+};
+
+function resolveModelId(
+  acpModelId: string,
+  description?: string,
+): string {
+  // 1. Try to extract a hint from the description (e.g. "Sonnet 4.6 · ...")
+  if (description) {
+    const lower = description.toLowerCase();
+    for (const [hint, realId] of Object.entries(MODEL_HINT_MAP)) {
+      if (lower.includes(hint)) return realId;
+    }
+  }
+
+  // 2. Try direct alias mapping
+  const aliased = ALIAS_MAP[acpModelId.toLowerCase()];
+  if (aliased) return aliased;
+
+  // 3. If the ID already looks like a real model ID, pass it through
+  return acpModelId;
+}
+
+const CHARS_PER_TOKEN = 4;
+const MESSAGE_OVERHEAD_CHARS = 16; // ~4 tokens per message for role/separator markers
+
+/** Rough client-side token estimate from the UI message array. */
+function estimateTokensFromMessages(messages: UIMessage[]): {
+  total: number;
+  inputTokens: number;
+  outputTokens: number;
+} {
+  let inputChars = 0;
+  let outputChars = 0;
+  for (const msg of messages) {
+    let msgChars = MESSAGE_OVERHEAD_CHARS;
+    for (const part of msg.parts ?? []) {
+      if (part.type === 'text' || part.type === 'reasoning') {
+        msgChars += part.text.length;
+      } else if (part.type.startsWith('tool-')) {
+        // Tool parts have toolCallId, title, input, output — estimate from serialised form
+        msgChars += JSON.stringify(part).length;
+      }
+    }
+    if (msg.role === 'assistant') {
+      outputChars += msgChars;
+    } else {
+      inputChars += msgChars;
+    }
+  }
+  const inputTokens = Math.ceil(inputChars / CHARS_PER_TOKEN);
+  const outputTokens = Math.ceil(outputChars / CHARS_PER_TOKEN);
+  return { total: inputTokens + outputTokens, inputTokens, outputTokens };
+}
+
 function AcpChatInner({
   conversationId,
   providerId,
@@ -1672,8 +1941,13 @@ function AcpChatInner({
     if (initialModels?.currentModelId) setCurrentModelId(initialModels.currentModelId);
   }, [initialModels?.currentModelId]);
 
-  // Arrow-up message recall
-  const [messageHistory, setMessageHistory] = useState<string[]>([]);
+  // Resolve ACP alias (e.g. "default") to a real model ID for tokenlens
+  const resolvedModelId = useMemo(() => {
+    if (!currentModelId) return undefined;
+    const currentModel = initialModels?.availableModels.find((m) => m.id === currentModelId);
+    return resolveModelId(currentModelId, currentModel?.description);
+  }, [currentModelId, initialModels?.availableModels]);
+
   const historyIndexRef = useRef(-1);
 
   // Message queue for rapid sends
@@ -1686,10 +1960,32 @@ function AcpChatInner({
 
   // External ref to PromptInput attachments — synced by AttachmentSync below
   const promptAttachmentsRef = useRef<{ files: any[]; clear: () => void } | null>(null);
+  const scrollToBottomRef = useRef<(() => void) | null>(null);
 
   // Side-channel state
   const [usage, setUsage] = useState<AcpUsageData | null>(null);
   const [planEntries, setPlanEntries] = useState<AcpPlanEntry[]>([]);
+  const [planDismissed, setPlanDismissed] = useState(false);
+  // DEBUG: expose plan state for dev testing — remove before release
+  useEffect(() => {
+    const arr = ((window as any).__planDebug = (window as any).__planDebug || []);
+    const entry = { setPlanEntries, setPendingPlanApproval, setPlanDismissed, id: conversationId };
+    arr.push(entry);
+    return () => { const idx = arr.indexOf(entry); if (idx >= 0) arr.splice(idx, 1); };
+  }, [conversationId]);
+  // Auto-show when a new plan arrives (entries change from empty to non-empty)
+  const prevPlanLengthRef = useRef(0);
+  useEffect(() => {
+    if (planEntries.length > 0 && prevPlanLengthRef.current === 0) {
+      setPlanDismissed(false);
+    }
+    prevPlanLengthRef.current = planEntries.length;
+  }, [planEntries]);
+  // When ExitPlanMode needs approval, store the toolCallId + plan content here
+  const [pendingPlanApproval, setPendingPlanApproval] = useState<{
+    toolCallId: string;
+    content: string | null;
+  } | null>(null);
   const [availableCommands, setAvailableCommands] = useState<AcpCommand[]>([]);
   const [sessionTitle, setSessionTitle] = useState<string | null>(null);
   const [configOptions, setConfigOptions] = useState<Map<string, AcpConfigOption>>(new Map());
@@ -1786,6 +2082,16 @@ function AcpChatInner({
     };
   }, [messages, chatStatus, conversationId]);
 
+  // Arrow-up message recall — derived from messages, always in sync
+  const messageHistory = useMemo(
+    () =>
+      messages
+        .filter((m) => m.role === 'user')
+        .map((m) => getTextFromParts(m.parts))
+        .filter(Boolean),
+    [messages]
+  );
+
   // Sync restored messages into useChat when they arrive after initial mount
   const restoredRef = useRef(false);
   useEffect(() => {
@@ -1798,14 +2104,86 @@ function AcpChatInner({
     }
   }, [initialMessages, messages.length, setMessages]);
 
-  // Auto-prune: when context usage > 90%, keep only the last 10 messages
+  // ── Track pending ExitPlanMode approvals → surface in Plan component ──
   useEffect(() => {
-    if (!usage || !usage.size || !usage.used) return;
-    if (usage.used / usage.size > 0.9 && messages.length > 12) {
-      const pruned = messages.slice(-10);
-      setMessages(pruned);
+    // Scan the last assistant message for an ExitPlanMode tool awaiting approval
+    for (let mi = messages.length - 1; mi >= 0; mi--) {
+      const msg = messages[mi];
+      if (msg.role !== 'assistant') continue;
+      for (let pi = (msg.parts?.length ?? 0) - 1; pi >= 0; pi--) {
+        const part = msg.parts[pi] as any;
+        if (part?.type !== 'tool-invocation') continue;
+        const name = part.toolName || '';
+        if (name !== 'ExitPlanMode' && name !== 'switch_mode') continue;
+        if (part.state === 'approval-requested') {
+          // Extract plan content from preceding parts
+          let content: string | null = null;
+          for (let j = pi - 1; j >= 0; j--) {
+            const prev = msg.parts[j] as any;
+            if (prev?.type === 'text' && prev.text?.length > 100) {
+              content = prev.text;
+              break;
+            }
+          }
+          if (!content && part.output && String(part.output).length > 50) {
+            content = String(part.output);
+          }
+          setPendingPlanApproval({ toolCallId: part.toolCallId, content });
+          return;
+        }
+      }
+      break; // Only check the most recent assistant message
     }
-  }, [usage, messages, setMessages]);
+    // No pending approval found — clear
+    setPendingPlanApproval(null);
+  }, [messages]);
+
+  // ── Client-side context usage estimation ──
+  const estimated = useMemo(() => estimateTokensFromMessages(messages), [messages]);
+  const providerDef = useMemo(() => getProvider(providerId as ProviderId), [providerId]);
+  const tokenlensContext = useMemo(() => {
+    if (!resolvedModelId) return undefined;
+    try {
+      return getContext({ modelId: resolvedModelId });
+    } catch {
+      return undefined;
+    }
+  }, [resolvedModelId]);
+  const maxTokens =
+    usage?.size ?? tokenlensContext?.maxTotal ?? providerDef?.contextWindow ?? 200_000;
+  const effectiveUsed = usage?.used ?? estimated.total;
+  const isEstimated = usage?.used == null;
+  const usagePercent = maxTokens > 0 ? effectiveUsed / maxTokens : 0;
+  const effectiveUsage = useMemo(
+    () => ({
+      inputTokens: estimated.inputTokens,
+      inputTokenDetails: {
+        noCacheTokens: undefined,
+        cacheReadTokens: undefined,
+        cacheWriteTokens: undefined,
+      },
+      outputTokens: estimated.outputTokens,
+      outputTokenDetails: {
+        textTokens: undefined,
+        reasoningTokens: undefined,
+      },
+      totalTokens: estimated.total,
+    }),
+    [estimated]
+  );
+
+  // tokenlens context health — drives the compact warning bar
+  const health = useMemo(() => {
+    if (!resolvedModelId) return undefined;
+    try {
+      return contextHealth({
+        modelId: resolvedModelId,
+        usage: { input: effectiveUsed, output: 0 },
+      });
+    } catch {
+      return undefined;
+    }
+  }, [resolvedModelId, effectiveUsed]);
 
   const effectiveStatus: AcpSessionStatus =
     chatStatus === 'error' ? 'error' : (chatStatus as AcpSessionStatus);
@@ -1886,11 +2264,8 @@ function AcpChatInner({
       // Clear draft on send
       localStorage.removeItem(draftKey);
       if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
-      // Track in history for arrow-up recall
-      if (message.text.trim()) {
-        setMessageHistory((prev) => [...prev, message.text.trim()]);
-        historyIndexRef.current = -1;
-      }
+      // Reset history navigation on send
+      historyIndexRef.current = -1;
 
       const payload = {
         text: message.text,
@@ -1903,6 +2278,8 @@ function AcpChatInner({
         return;
       }
       sendMessage(payload);
+      // Scroll to bottom so the user sees their message immediately
+      scrollToBottomRef.current?.();
     },
     [sendMessage, chatStatus, draftKey]
   );
@@ -2051,8 +2428,9 @@ function AcpChatInner({
       if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
       const textarea = e.currentTarget.querySelector('textarea') as HTMLTextAreaElement | null;
       if (!textarea) return;
-      // Only activate when textarea is empty (ArrowUp) or navigating history (ArrowDown)
-      if (e.key === 'ArrowUp' && textarea.value === '' && messageHistory.length > 0) {
+      // ArrowUp: navigate history when cursor is at the start (or textarea is empty)
+      const atStart = textarea.selectionStart === 0 && textarea.selectionEnd === 0;
+      if (e.key === 'ArrowUp' && (atStart || historyIndexRef.current >= 0) && messageHistory.length > 0) {
         e.preventDefault();
         e.stopPropagation();
         const newIndex =
@@ -2274,6 +2652,7 @@ function AcpChatInner({
                       providerId={providerId}
                       providerName={agent.name}
                       modelName={hoveredModel.name}
+                      modelDescription={hoveredModel.description}
                       providerIcon={agent.logo}
                       invertIconInDark={agent.invertInDark}
                     />
@@ -2379,46 +2758,139 @@ function AcpChatInner({
         </div>
       </div>
 
+      {/* Plan — fixed above the scrollable conversation area */}
+      {(planEntries.length > 0 || pendingPlanApproval) && planDismissed && (
+        <button
+          type="button"
+          className="text-muted-foreground hover:text-foreground hover:bg-muted/50 border-border/50 flex w-full shrink-0 items-center justify-center gap-1.5 border-b px-3 py-1 text-xs transition-colors"
+          onClick={() => setPlanDismissed(false)}
+        >
+          <ListPlusIcon className="size-3" />
+          Show last plan
+        </button>
+      )}
+      {(planEntries.length > 0 || pendingPlanApproval) && !planDismissed && (
+        <div className="border-border/50 shrink-0 border-b px-3 py-2">
+          <Plan
+            isStreaming={isStreaming}
+            defaultOpen={false}
+            {...(pendingPlanApproval ? { open: true } : {})}
+          >
+            <PlanHeader>
+              <div>
+                <div className="flex items-center gap-2">
+                  <PlanTitle>
+                    {pendingPlanApproval ? 'Plan ready for review' : 'Agent Plan'}
+                  </PlanTitle>
+                  {planEntries.length > 0 && !pendingPlanApproval && (
+                    <PlanDescription>
+                      {planEntries.filter((e) => e.status === 'completed').length}/{planEntries.length} completed
+                    </PlanDescription>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                {!pendingPlanApproval && <PlanTrigger />}
+                {!pendingPlanApproval && (
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground shrink-0 rounded-md p-1 transition-colors"
+                    onClick={() => setPlanDismissed(true)}
+                    title="Dismiss plan"
+                  >
+                    <XIcon className="size-4" />
+                  </button>
+                )}
+              </div>
+            </PlanHeader>
+            <PlanContent className="mt-2">
+              {/* Plan preview content from ExitPlanMode */}
+              {pendingPlanApproval?.content && (
+                <div className="border-border/50 bg-muted/30 mb-2 max-h-80 overflow-y-auto rounded border p-3 text-sm [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                  <Streamdown shikiTheme={['github-light', 'github-dark']}>
+                    {pendingPlanApproval.content}
+                  </Streamdown>
+                </div>
+              )}
+              {/* Task entries using Queue components */}
+              {planEntries.length > 0 && (
+                <QueueList className="mt-0 -mb-0">
+                  {planEntries.map((entry, i) => (
+                    <QueueItem key={i} className="py-1 px-0">
+                      <div className="flex items-center gap-2">
+                        <span className="shrink-0">
+                          {entry.status === 'completed' ? (
+                            <CheckCircleIcon className="size-3.5 text-green-500" />
+                          ) : entry.status === 'in_progress' ? (
+                            <Loader2 className="text-primary size-3.5 animate-spin" />
+                          ) : (
+                            <ClockIcon className="text-muted-foreground size-3.5" />
+                          )}
+                        </span>
+                        <QueueItemContent completed={entry.status === 'completed'}>
+                          {entry.content}
+                        </QueueItemContent>
+                        {entry.priority === 'high' && (
+                          <span className="ml-auto shrink-0 rounded bg-red-500/15 px-1 text-[10px] text-red-400">
+                            high
+                          </span>
+                        )}
+                      </div>
+                    </QueueItem>
+                  ))}
+                </QueueList>
+              )}
+            </PlanContent>
+            {/* Approve/Reject footer when ExitPlanMode awaits approval */}
+            {pendingPlanApproval && (
+              <PlanFooter className="justify-between border-t pt-2 mt-2">
+                <span className="text-muted-foreground/60 text-xs">
+                  <kbd className="border-border/50 bg-muted/50 rounded border px-1.5 py-0.5 font-mono text-[10px]">
+                    Enter
+                  </kbd>{' '}
+                  to approve
+                  {' \u00b7 '}
+                  <kbd className="border-border/50 bg-muted/50 rounded border px-1.5 py-0.5 font-mono text-[10px]">
+                    Esc
+                  </kbd>{' '}
+                  to reject
+                </span>
+                <span className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    data-tool-call-id={pendingPlanApproval.toolCallId}
+                    data-action="deny"
+                  >
+                    Reject
+                  </Button>
+                  <Button
+                    size="sm"
+                    data-tool-call-id={pendingPlanApproval.toolCallId}
+                    data-action="approve"
+                  >
+                    Approve
+                  </Button>
+                </span>
+              </PlanFooter>
+            )}
+          </Plan>
+        </div>
+      )}
+
       {/* Messages area */}
       <Conversation>
+        <ScrollBridge scrollRef={scrollToBottomRef} />
         <ConversationContent className="gap-3 p-3">
           {messages.length === 0 && chatStatus === 'ready' && (
-            <>
-              <ConversationEmptyState
-                title="Start a conversation"
-                description="Send a message to begin working with this agent"
-              />
-              <Suggestions className="justify-center px-4">
-                <Suggestion
-                  suggestion="Explain this codebase"
-                  onClick={(s) => sendMessage({ text: s })}
-                />
-                <Suggestion
-                  suggestion="Find and fix bugs"
-                  onClick={(s) => sendMessage({ text: s })}
-                />
-                <Suggestion suggestion="Write tests" onClick={(s) => sendMessage({ text: s })} />
-                <Suggestion suggestion="Refactor code" onClick={(s) => sendMessage({ text: s })} />
-              </Suggestions>
-            </>
+            <ConversationEmptyState
+              title="Start a conversation"
+              description="Send a message to begin working with this agent"
+            />
           )}
 
           {messages.map((msg, msgIdx) => (
             <div key={msg.id}>
-              {/* Checkpoint separator between conversation turns */}
-              {msgIdx > 0 && msg.role === 'user' && messages[msgIdx - 1]?.role === 'assistant' && (
-                <Checkpoint className="my-1">
-                  <CheckpointIcon />
-                  <CheckpointTrigger
-                    className="text-[10px] whitespace-nowrap"
-                    tooltip="Restore to this point"
-                    disabled={isStreaming}
-                    onClick={() => setMessages(messages.slice(0, msgIdx))}
-                  >
-                    Turn {messages.slice(0, msgIdx).filter((m) => m.role === 'user').length + 1}
-                  </CheckpointTrigger>
-                </Checkpoint>
-              )}
               <Message from={msg.role}>
                 <MessageContent>
                   {msg.role === 'user' ? (
@@ -2499,7 +2971,7 @@ function AcpChatInner({
                     msg === messages[messages.length - 1] &&
                     msg.role === 'assistant' && (
                       <div className="mt-2 flex items-center gap-2">
-                        <Loader className="text-muted-foreground size-4" />
+                        <Shimmer className="text-sm">Working…</Shimmer>
                       </div>
                     )}
                 </MessageContent>
@@ -2553,61 +3025,16 @@ function AcpChatInner({
           {isStreaming && messages[messages.length - 1]?.role !== 'assistant' && (
             <Message from="assistant">
               <MessageContent>
-                {chatStatus === 'submitted' ? (
-                  <Shimmer className="text-sm">Thinking…</Shimmer>
-                ) : (
-                  <Loader />
-                )}
+                <Shimmer className="text-sm">
+                  {chatStatus === 'submitted' ? 'Thinking…' : 'Working…'}
+                </Shimmer>
               </MessageContent>
             </Message>
           )}
 
-          {/* Inline plan */}
-          {planEntries.length > 0 && (
-            <div className="px-2">
-              <Plan isStreaming={isStreaming} defaultOpen>
-                <PlanTrigger
-                  completed={planEntries.filter((e) => e.status === 'completed').length}
-                  total={planEntries.length}
-                />
-                <PlanContent>
-                  <ul className="space-y-1 text-xs">
-                    {planEntries.map((entry, i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <span className="mt-0.5 shrink-0">
-                          {entry.status === 'completed' ? (
-                            <CheckCircleIcon className="size-3.5 text-green-500" />
-                          ) : entry.status === 'in_progress' ? (
-                            <Loader2 className="text-primary size-3.5 animate-spin" />
-                          ) : (
-                            <ClockIcon className="text-muted-foreground size-3.5" />
-                          )}
-                        </span>
-                        <span
-                          className={
-                            entry.status === 'completed' ? 'text-muted-foreground line-through' : ''
-                          }
-                        >
-                          {entry.content}
-                        </span>
-                        {entry.priority === 'high' && (
-                          <span className="ml-auto shrink-0 rounded bg-red-500/15 px-1 text-[10px] text-red-400">
-                            high
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </PlanContent>
-              </Plan>
-            </div>
-          )}
-
           {/* Error display */}
           {chatStatus === 'error' && chatError && (
-            <div className="mx-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-              <p>{chatError.message}</p>
-            </div>
+            <AcpErrorCard error={chatError.message} />
           )}
         </ConversationContent>
         <ConversationScrollButton />
@@ -2654,21 +3081,30 @@ function AcpChatInner({
       )}
 
       {/* Context usage + plan usage (hover card) */}
-      {usage && usage.size && usage.used != null && (
+      {messages.length > 0 && (
         <div className="border-border/50 flex items-center justify-end gap-1 border-t px-2 pt-1">
           {claudeUsageLimits && (
             <PlanUsageHoverCard limits={claudeUsageLimits} side="top" align="end" />
           )}
-          <Context usedTokens={usage.used} maxTokens={usage.size} cost={usage.cost}>
+          <Context
+            usedTokens={effectiveUsed}
+            maxTokens={maxTokens}
+            usage={effectiveUsage}
+            modelId={resolvedModelId || undefined}
+            cost={usage?.cost}
+            estimated={isEstimated}
+          >
             <ContextTrigger />
             <ContextContent side="top" align="end">
               <ContextContentHeader />
-              <ContextContentBody>
-                <ContextInputUsage />
-                <ContextOutputUsage />
-                <ContextReasoningUsage />
-                <ContextCacheUsage />
-              </ContextContentBody>
+              {!isEstimated && (
+                <ContextContentBody>
+                  <ContextInputUsage />
+                  <ContextOutputUsage />
+                  <ContextReasoningUsage />
+                  <ContextCacheUsage />
+                </ContextContentBody>
+              )}
               {claudeUsageLimits && (
                 <PlanUsageContent limits={claudeUsageLimits} className="border-t" />
               )}
@@ -2676,6 +3112,39 @@ function AcpChatInner({
             </ContextContent>
           </Context>
         </div>
+      )}
+
+      {/* Compact warning bar — tokenlens contextHealth drives visibility + severity */}
+      {(health ? health.status !== 'ok' : usagePercent >= 0.8) && (
+        <div
+          className={`flex items-center gap-2 border-t px-3 py-1.5 text-xs ${
+            (health?.status === 'compact' || (!health && usagePercent >= 0.95))
+              ? 'border-red-500/30 bg-red-500/10 text-red-400'
+              : 'border-amber-500/30 bg-amber-500/10 text-amber-400'
+          }`}
+        >
+          <AlertTriangleIcon className="size-3.5 shrink-0" />
+          <span>
+            {(health?.status === 'compact' || (!health && usagePercent >= 0.95))
+              ? 'Context is nearly full. Type /compact now to avoid errors.'
+              : `Context is ~${Math.round((health?.percentUsed ?? usagePercent) * 100)}% full. Type /compact to free space.`}
+          </span>
+        </div>
+      )}
+
+      {messages.length === 0 && chatStatus === 'ready' && (
+        <Suggestions className="flex-wrap justify-start px-3 pb-2">
+          <Suggestion
+            suggestion="Explain this codebase"
+            onClick={(s) => sendMessage({ text: s })}
+          />
+          <Suggestion
+            suggestion="Find and fix bugs"
+            onClick={(s) => sendMessage({ text: s })}
+          />
+          <Suggestion suggestion="Write tests" onClick={(s) => sendMessage({ text: s })} />
+          <Suggestion suggestion="Refactor code" onClick={(s) => sendMessage({ text: s })} />
+        </Suggestions>
       )}
 
       {/* Input area */}
@@ -2735,14 +3204,8 @@ function AcpChatInner({
             )}
             <PromptInputTextarea
               className="min-h-10 pb-0"
-              placeholder={
-                chatStatus === 'error'
-                  ? 'Session error'
-                  : !transport.isReady
-                    ? 'Connecting...'
-                    : 'Type a message...'
-              }
-              disabled={chatStatus !== 'ready' && !isStreaming}
+              placeholder={chatStatus === 'error' ? 'Session error' : 'Type a message...'}
+              disabled={(chatStatus !== 'ready' && !isStreaming) && transport.isReady}
             />
           </div>
           <PromptInputFooter className="pt-0">

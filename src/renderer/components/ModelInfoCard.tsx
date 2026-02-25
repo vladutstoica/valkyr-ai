@@ -7,6 +7,7 @@ type ModelInfoCardProps = {
   providerId: string;
   providerName: string;
   modelName: string;
+  modelDescription?: string;
   providerIcon?: string;
   invertIconInDark?: boolean;
 };
@@ -42,6 +43,7 @@ export function ModelInfoCard({
   providerId,
   providerName,
   modelName,
+  modelDescription,
   providerIcon,
   invertIconInDark,
 }: ModelInfoCardProps) {
@@ -76,9 +78,9 @@ export function ModelInfoCard({
       </div>
 
       {/* Description */}
-      {metadata?.description && (
+      {(metadata?.description || modelDescription) && (
         <p className="text-muted-foreground line-clamp-3 text-[11px] leading-relaxed">
-          {metadata.description}
+          {metadata?.description ?? modelDescription}
         </p>
       )}
 

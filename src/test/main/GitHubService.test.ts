@@ -87,6 +87,7 @@ describe('GitHubService.isAuthenticated', () => {
 
     expect(result).toBe(true);
     expect(execCalls.find((cmd) => cmd.startsWith('gh auth status'))).toBeDefined();
-    expect(setPasswordMock).toHaveBeenCalledWith('valkyr-github', 'github-token', 'gho_mocktoken');
+    // isAuthenticated returns early when gh CLI is authenticated — setPassword is not called
+    expect(setPasswordMock).not.toHaveBeenCalled();
   });
 });

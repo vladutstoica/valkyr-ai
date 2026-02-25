@@ -6,6 +6,8 @@ import CommandPaletteWrapper from './components/CommandPaletteWrapper';
 import ErrorBoundary from './components/ErrorBoundary';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { GithubDeviceFlowModal } from './components/GithubDeviceFlowModal';
+import { KeyboardShortcutsDialog } from './components/KeyboardShortcutsDialog';
+import { PrerequisiteModal } from './components/PrerequisiteModal';
 import LeftSidebar from './components/LeftSidebar';
 import MainContentArea from './components/MainContentArea';
 import { NewProjectModal } from './components/NewProjectModal';
@@ -68,6 +70,31 @@ const AppContent: React.FC = () => {
     handleWelcomeGetStarted,
   } = modals;
   const [showRemoteProjectModal, setShowRemoteProjectModal] = useState<boolean>(false);
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
+  const [prerequisiteModal, setPrerequisiteModal] = useState<{
+    open: boolean;
+    gitMissing: boolean;
+    agents: string[];
+  }>({ open: false, gitMissing: false, agents: [] });
+
+  // Run prerequisite check after welcome screen is dismissed
+  const originalWelcomeGetStarted = handleWelcomeGetStarted;
+  const handleWelcomeWithPrereqCheck = useCallback(() => {
+    originalWelcomeGetStarted();
+    window.electronAPI.checkPrerequisites().then((result) => {
+      if (result.success) {
+        const { git, agents } = result.data;
+        if (!git) {
+          setPrerequisiteModal({ open: true, gitMissing: true, agents });
+        } else if (agents.length === 0) {
+          toast({
+            title: 'No coding agents detected',
+            description: 'Install at least one agent (e.g. Claude Code, Codex) to get started.',
+          });
+        }
+      }
+    });
+  }, [originalWelcomeGetStarted, toast]);
 
   // --- App initialization (version, platform, loadAppData) ---
   // The callbacks here execute inside a useEffect (after render), so all hooks
@@ -318,6 +345,13 @@ const AppContent: React.FC = () => {
   const { selectedProject } = projectMgmt;
   const { activeTask, activeTaskAgent } = taskMgmt;
 
+  // Refresh sub-repo branch data after a branch switch in the StatusBar
+  const handleBranchChange = useCallback(() => {
+    if (selectedProject) {
+      projectMgmt.refreshProjectSubRepos(selectedProject);
+    }
+  }, [selectedProject, projectMgmt.refreshProjectSubRepos]);
+
   // Titlebar component for AppLayout
   const titlebar = useMemo(
     () => (
@@ -507,7 +541,7 @@ const AppContent: React.FC = () => {
           />
 
           {showWelcomeScreen ? (
-            <WelcomeScreen onGetStarted={handleWelcomeGetStarted} />
+            <WelcomeScreen onGetStarted={handleWelcomeWithPrereqCheck} />
           ) : (
             <AppLayout
               leftSidebar={leftSidebar}
@@ -518,6 +552,7 @@ const AppContent: React.FC = () => {
               projectDefaultBranch={projectMgmt.projectDefaultBranch}
               titlebar={titlebar}
               showTitlebar={true}
+              onBranchChange={handleBranchChange}
             />
           )}
 
@@ -531,7 +566,7 @@ const AppContent: React.FC = () => {
             handleGoHome={projectMgmt.handleGoHome}
             handleOpenProject={projectMgmt.handleOpenProject}
             handleOpenSettings={openSettingsView}
-            handleOpenKeyboardShortcuts={handleOpenKeyboardShortcuts}
+            handleOpenKeyboardShortcuts={() => setShowKeyboardShortcuts(true)}
           />
           <TaskModal
             isOpen={showTaskModal}
@@ -569,6 +604,16 @@ const AppContent: React.FC = () => {
             onClose={github.handleDeviceFlowClose}
             onSuccess={github.handleDeviceFlowSuccess}
             onError={github.handleDeviceFlowError}
+          />
+          <KeyboardShortcutsDialog
+            isOpen={showKeyboardShortcuts}
+            onClose={() => setShowKeyboardShortcuts(false)}
+          />
+          <PrerequisiteModal
+            isOpen={prerequisiteModal.open}
+            onClose={() => setPrerequisiteModal((prev) => ({ ...prev, open: false }))}
+            gitMissing={prerequisiteModal.gitMissing}
+            detectedAgents={prerequisiteModal.agents}
           />
           <Toaster />
         </RightSidebarProvider>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { SshConnection, SshConnectionConfig } from '../components/ssh';
 import type { ConnectionState, SshConfigHost } from '../../shared/ssh/types';
+import { toast } from './use-toast';
 
 export interface UseSshConnectionsResult {
   connections: SshConnection[];
@@ -42,6 +43,7 @@ export function useSshConnections(): UseSshConnectionsResult {
       }
     } catch (err) {
       console.error('Failed to fetch SSH connections:', err);
+      toast({ title: 'Failed to load SSH connections', variant: 'destructive' });
       throw err;
     }
   }, []);

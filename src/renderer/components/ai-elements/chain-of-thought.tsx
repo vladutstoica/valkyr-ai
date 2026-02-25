@@ -32,7 +32,7 @@ export const ChainOfThought = memo(
   ({
     className,
     open,
-    defaultOpen = false,
+    defaultOpen = true,
     onOpenChange,
     children,
     ...props
@@ -149,7 +149,75 @@ export const ChainOfThoughtContent = memo(
   }
 );
 
+export type ChainOfThoughtSearchResultsProps = ComponentProps<'div'>;
+
+export const ChainOfThoughtSearchResults = memo(
+  ({ className, children, ...props }: ChainOfThoughtSearchResultsProps) => (
+    <div className={cn('flex flex-wrap gap-1.5', className)} {...props}>
+      {children}
+    </div>
+  )
+);
+
+export type ChainOfThoughtSearchResultProps = ComponentProps<'a'> & {
+  url: string;
+  label?: string;
+};
+
+export const ChainOfThoughtSearchResult = memo(
+  ({ className, url, label, ...props }: ChainOfThoughtSearchResultProps) => {
+    const hostname = (() => {
+      try {
+        return new URL(url).hostname.replace(/^www\./, '');
+      } catch {
+        return url;
+      }
+    })();
+
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={cn(
+          'bg-muted text-muted-foreground hover:bg-muted/80 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors',
+          className
+        )}
+        {...props}
+      >
+        {label ?? hostname}
+      </a>
+    );
+  }
+);
+
+export type ChainOfThoughtImageProps = ComponentProps<'figure'> & {
+  src: string;
+  alt?: string;
+  caption?: ReactNode;
+};
+
+export const ChainOfThoughtImage = memo(
+  ({ className, src, alt, caption, children, ...props }: ChainOfThoughtImageProps) => (
+    <figure className={cn('space-y-2', className)} {...props}>
+      {children ?? (
+        <img
+          src={src}
+          alt={alt ?? ''}
+          className="max-h-64 rounded-md border object-contain"
+        />
+      )}
+      {caption && (
+        <figcaption className="text-muted-foreground text-xs">{caption}</figcaption>
+      )}
+    </figure>
+  )
+);
+
 ChainOfThought.displayName = 'ChainOfThought';
 ChainOfThoughtHeader.displayName = 'ChainOfThoughtHeader';
 ChainOfThoughtStep.displayName = 'ChainOfThoughtStep';
 ChainOfThoughtContent.displayName = 'ChainOfThoughtContent';
+ChainOfThoughtSearchResults.displayName = 'ChainOfThoughtSearchResults';
+ChainOfThoughtSearchResult.displayName = 'ChainOfThoughtSearchResult';
+ChainOfThoughtImage.displayName = 'ChainOfThoughtImage';
