@@ -276,13 +276,13 @@ function AcpErrorCard({ error }: { error: string }) {
             <button
               type="button"
               onClick={() => setShowRaw((v) => !v)}
-              className="mt-1.5 text-[11px] text-red-400/60 hover:text-red-400/90 transition-colors"
+              className="mt-1.5 text-[11px] text-red-400/60 transition-colors hover:text-red-400/90"
             >
               {showRaw ? 'Hide details' : 'Show details'}
             </button>
           )}
           {showRaw && (
-            <pre className="mt-1.5 max-h-32 overflow-auto rounded bg-red-500/5 p-2 font-mono text-[11px] text-red-300/60 whitespace-pre-wrap">
+            <pre className="mt-1.5 max-h-32 overflow-auto rounded bg-red-500/5 p-2 font-mono text-[11px] whitespace-pre-wrap text-red-300/60">
               {error}
             </pre>
           )}
@@ -1841,7 +1841,7 @@ const MODEL_HINT_MAP: Record<string, string> = {
   'haiku 3.5': 'claude-3-5-haiku-20241022',
   'gpt-4o': 'gpt-4o',
   'gpt-4.1': 'gpt-4.1',
-  'o3': 'o3',
+  o3: 'o3',
   'o4-mini': 'o4-mini',
   'gemini 2.5': 'gemini-2.5-pro',
 };
@@ -1853,10 +1853,7 @@ const ALIAS_MAP: Record<string, string> = {
   haiku: 'claude-3-5-haiku-20241022',
 };
 
-function resolveModelId(
-  acpModelId: string,
-  description?: string,
-): string {
+function resolveModelId(acpModelId: string, description?: string): string {
   // 1. Try to extract a hint from the description (e.g. "Sonnet 4.6 · ...")
   if (description) {
     const lower = description.toLowerCase();
@@ -1971,7 +1968,10 @@ function AcpChatInner({
     const arr = ((window as any).__planDebug = (window as any).__planDebug || []);
     const entry = { setPlanEntries, setPendingPlanApproval, setPlanDismissed, id: conversationId };
     arr.push(entry);
-    return () => { const idx = arr.indexOf(entry); if (idx >= 0) arr.splice(idx, 1); };
+    return () => {
+      const idx = arr.indexOf(entry);
+      if (idx >= 0) arr.splice(idx, 1);
+    };
   }, [conversationId]);
   // Auto-show when a new plan arrives (entries change from empty to non-empty)
   const prevPlanLengthRef = useRef(0);
@@ -2430,7 +2430,11 @@ function AcpChatInner({
       if (!textarea) return;
       // ArrowUp: navigate history when cursor is at the start (or textarea is empty)
       const atStart = textarea.selectionStart === 0 && textarea.selectionEnd === 0;
-      if (e.key === 'ArrowUp' && (atStart || historyIndexRef.current >= 0) && messageHistory.length > 0) {
+      if (
+        e.key === 'ArrowUp' &&
+        (atStart || historyIndexRef.current >= 0) &&
+        messageHistory.length > 0
+      ) {
         e.preventDefault();
         e.stopPropagation();
         const newIndex =
@@ -2784,7 +2788,8 @@ function AcpChatInner({
                   </PlanTitle>
                   {planEntries.length > 0 && !pendingPlanApproval && (
                     <PlanDescription>
-                      {planEntries.filter((e) => e.status === 'completed').length}/{planEntries.length} completed
+                      {planEntries.filter((e) => e.status === 'completed').length}/
+                      {planEntries.length} completed
                     </PlanDescription>
                   )}
                 </div>
@@ -2816,7 +2821,7 @@ function AcpChatInner({
               {planEntries.length > 0 && (
                 <QueueList className="mt-0 -mb-0">
                   {planEntries.map((entry, i) => (
-                    <QueueItem key={i} className="py-1 px-0">
+                    <QueueItem key={i} className="px-0 py-1">
                       <div className="flex items-center gap-2">
                         <span className="shrink-0">
                           {entry.status === 'completed' ? (
@@ -2843,7 +2848,7 @@ function AcpChatInner({
             </PlanContent>
             {/* Approve/Reject footer when ExitPlanMode awaits approval */}
             {pendingPlanApproval && (
-              <PlanFooter className="justify-between border-t pt-2 mt-2">
+              <PlanFooter className="mt-2 justify-between border-t pt-2">
                 <span className="text-muted-foreground/60 text-xs">
                   <kbd className="border-border/50 bg-muted/50 rounded border px-1.5 py-0.5 font-mono text-[10px]">
                     Enter
@@ -3033,9 +3038,7 @@ function AcpChatInner({
           )}
 
           {/* Error display */}
-          {chatStatus === 'error' && chatError && (
-            <AcpErrorCard error={chatError.message} />
-          )}
+          {chatStatus === 'error' && chatError && <AcpErrorCard error={chatError.message} />}
         </ConversationContent>
         <ConversationScrollButton />
       </Conversation>
@@ -3118,14 +3121,14 @@ function AcpChatInner({
       {(health ? health.status !== 'ok' : usagePercent >= 0.8) && (
         <div
           className={`flex items-center gap-2 border-t px-3 py-1.5 text-xs ${
-            (health?.status === 'compact' || (!health && usagePercent >= 0.95))
+            health?.status === 'compact' || (!health && usagePercent >= 0.95)
               ? 'border-red-500/30 bg-red-500/10 text-red-400'
               : 'border-amber-500/30 bg-amber-500/10 text-amber-400'
           }`}
         >
           <AlertTriangleIcon className="size-3.5 shrink-0" />
           <span>
-            {(health?.status === 'compact' || (!health && usagePercent >= 0.95))
+            {health?.status === 'compact' || (!health && usagePercent >= 0.95)
               ? 'Context is nearly full. Type /compact now to avoid errors.'
               : `Context is ~${Math.round((health?.percentUsed ?? usagePercent) * 100)}% full. Type /compact to free space.`}
           </span>
@@ -3138,10 +3141,7 @@ function AcpChatInner({
             suggestion="Explain this codebase"
             onClick={(s) => sendMessage({ text: s })}
           />
-          <Suggestion
-            suggestion="Find and fix bugs"
-            onClick={(s) => sendMessage({ text: s })}
-          />
+          <Suggestion suggestion="Find and fix bugs" onClick={(s) => sendMessage({ text: s })} />
           <Suggestion suggestion="Write tests" onClick={(s) => sendMessage({ text: s })} />
           <Suggestion suggestion="Refactor code" onClick={(s) => sendMessage({ text: s })} />
         </Suggestions>
@@ -3205,7 +3205,7 @@ function AcpChatInner({
             <PromptInputTextarea
               className="min-h-10 pb-0"
               placeholder={chatStatus === 'error' ? 'Session error' : 'Type a message...'}
-              disabled={(chatStatus !== 'ready' && !isStreaming) && transport.isReady}
+              disabled={chatStatus !== 'ready' && !isStreaming && transport.isReady}
             />
           </div>
           <PromptInputFooter className="pt-0">

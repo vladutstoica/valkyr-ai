@@ -201,15 +201,9 @@ export const ChainOfThoughtImage = memo(
   ({ className, src, alt, caption, children, ...props }: ChainOfThoughtImageProps) => (
     <figure className={cn('space-y-2', className)} {...props}>
       {children ?? (
-        <img
-          src={src}
-          alt={alt ?? ''}
-          className="max-h-64 rounded-md border object-contain"
-        />
+        <img src={src} alt={alt ?? ''} className="max-h-64 rounded-md border object-contain" />
       )}
-      {caption && (
-        <figcaption className="text-muted-foreground text-xs">{caption}</figcaption>
-      )}
+      {caption && <figcaption className="text-muted-foreground text-xs">{caption}</figcaption>}
     </figure>
   )
 );
