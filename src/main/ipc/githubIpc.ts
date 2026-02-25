@@ -502,8 +502,6 @@ export function registerGithubIpc() {
           description,
         });
 
-        // TODO: Add .gitignore if template specified (for future enhancement)
-
         return {
           success: true,
           projectPath: localPath,

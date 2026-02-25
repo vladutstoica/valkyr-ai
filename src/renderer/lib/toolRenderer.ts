@@ -100,11 +100,39 @@ export function normalizeToolName(toolName: string): NormalizedToolName {
   return (TOOL_NAME_MAP[toolName] as NormalizedToolName) || 'unknown';
 }
 
+/**
+ * Map ACP ToolKind to a NormalizedToolName.
+ * Use this when the tool part has `callProviderMetadata.acp.kind`
+ * to get a more reliable normalization than guessing from toolName.
+ */
+const KIND_TO_NORMALIZED: Record<string, NormalizedToolName> = {
+  read: 'read_file',
+  edit: 'edit_file',
+  delete: 'edit_file',
+  move: 'edit_file',
+  search: 'search',
+  execute: 'bash',
+  think: 'search',
+  fetch: 'web_fetch',
+  switch_mode: 'unknown',
+  other: 'unknown',
+};
+
+export function normalizeFromKind(kind: string): NormalizedToolName {
+  return KIND_TO_NORMALIZED[kind] || 'unknown';
+}
+
 /** Extract just the filename from a path string. */
 function extractFilename(val: unknown): string {
   if (typeof val !== 'string' || !val) return '';
   const parts = val.split('/');
   return parts[parts.length - 1];
+}
+
+/** Count non-empty lines in a string. */
+function countLines(val: unknown): number {
+  if (typeof val !== 'string' || !val) return 0;
+  return val.split('\n').filter((l) => l.trim()).length;
 }
 
 /** Extract a non-empty string from args, trying multiple keys. */
@@ -118,13 +146,22 @@ function extractArg(args: Record<string, unknown>, ...keys: string[]): string {
 
 /**
  * Get a display-friendly label for a tool invocation.
- * Returns null when there is not enough information to produce a meaningful label.
+ * Always returns a non-empty string — never drops a tool silently.
+ *
+ * @param toolName - The raw tool name (e.g. "Read", "bash", "mcp__playwright__click")
+ * @param args - Tool input arguments (rawInput from ACP)
+ * @param acpTitle - Optional AI SDK title field (from ACP ToolCall.title, passed via providerMetadata)
  */
 export function getToolDisplayLabel(
   toolName: string,
-  args: Record<string, unknown>
-): string | null {
-  // ACP provides a human-readable title (e.g. "Read src/renderer/components/AcpChatPane.tsx")
+  args: Record<string, unknown>,
+  acpTitle?: string
+): string {
+  // ACP title from AI SDK (set via tool-input-available chunk's title field)
+  // takes priority — it's the authoritative human-readable description from the agent.
+  if (acpTitle) return acpTitle;
+
+  // Fallback: check if the title was stuffed into args (legacy path)
   const title = extractArg(args, 'title');
   if (title) return title;
 
@@ -133,39 +170,39 @@ export function getToolDisplayLabel(
   switch (normalized) {
     case 'read_file': {
       const fp = extractArg(args, 'file_path', 'path', 'file');
-      return fp ? `Read ${fp}` : null;
+      return fp ? `Read ${fp}` : 'Read file';
     }
     case 'write_file': {
       const fp = extractArg(args, 'file_path', 'path', 'file');
-      return fp ? `Write ${fp}` : null;
+      return fp ? `Write ${fp}` : 'Write file';
     }
     case 'edit_file': {
       const fp = extractArg(args, 'file_path', 'path', 'file');
-      return fp ? `Edit ${fp}` : null;
+      return fp ? `Edit ${fp}` : 'Edit file';
     }
     case 'bash': {
       const cmd = extractArg(args, 'command', 'cmd');
-      return cmd ? `Run ${cmd.slice(0, 80)}` : null;
+      return cmd ? `Run ${cmd.slice(0, 80)}` : 'Run command';
     }
     case 'list_files': {
       const target = extractArg(args, 'pattern', 'path', 'directory');
-      return target ? `List ${target}` : null;
+      return target ? `List ${target}` : 'List files';
     }
     case 'search': {
       const q = extractArg(args, 'pattern', 'query', 'regex');
-      return q ? `Search "${q}"` : null;
+      return q ? `Search "${q}"` : 'Search';
     }
     case 'web_search': {
       const q = extractArg(args, 'query');
-      return q ? `Search web: ${q.slice(0, 60)}` : null;
+      return q ? `Search web: ${q.slice(0, 60)}` : 'Web search';
     }
     case 'web_fetch': {
       const url = extractArg(args, 'url');
-      return url ? `Fetch ${url}` : null;
+      return url ? `Fetch ${url}` : 'Fetch URL';
     }
     case 'notebook_edit': {
       const nb = extractArg(args, 'notebook_path', 'path');
-      return nb ? `Edit ${nb}` : null;
+      return nb ? `Edit ${nb}` : 'Edit notebook';
     }
     case 'task': {
       const agentType = extractArg(args, 'subagent_type');
@@ -173,83 +210,121 @@ export function getToolDisplayLabel(
       if (agentType && desc) return `${agentType}: ${desc.slice(0, 60)}`;
       if (agentType) return agentType;
       if (desc) return desc.slice(0, 60);
-      return null;
+      return 'Agent task';
     }
     default: {
       if (toolName === 'switch_mode') {
         const mode = extractArg(args, 'mode_slug', 'mode', 'title');
-        return mode ? `Switch to ${mode} mode` : null;
+        return mode ? `Switch to ${mode} mode` : 'Switch mode';
       }
-      return null;
+      // For MCP or any other named tool, humanize the tool name so nothing is silently dropped
+      return humanizeToolName(toolName);
     }
   }
 }
 
 /**
+ * Humanize a raw tool name into a display-friendly string.
+ * Strips MCP prefixes, converts separators to spaces, and title-cases.
+ * Returns a fallback string ('Tool call') if the name is empty or generic.
+ */
+function humanizeToolName(toolName: string): string {
+  if (!toolName || toolName === 'tool' || toolName === 'unknown') return 'Tool call';
+  const humanized = toolName
+    .replace(/^mcp__[^_]+__/, '') // strip MCP server prefix (e.g. mcp__playwright__)
+    .replace(/_/g, ' ')
+    .replace(/-/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .toLowerCase()
+    .trim();
+  if (humanized.length <= 2) return toolName; // keep raw name if humanization is too short
+  return humanized.charAt(0).toUpperCase() + humanized.slice(1);
+}
+
+/**
  * Get a short, human-readable step label for a tool invocation (used in ChainOfThought).
- * Returns null when there is not enough information to produce a meaningful label.
+ * Always returns a non-empty string — never drops a tool silently.
  *
  * Priority:
- * 1. ACP `title` field — already a human-readable description from the agent
- * 2. Bash `description` field — a short human-readable summary
- * 3. Smart extraction from tool args (filename from path, truncated commands, etc.)
+ * 1. ACP `title` from AI SDK (the authoritative label from the agent)
+ * 2. ACP `title` from args (legacy fallback)
+ * 3. Bash `description` field — a short human-readable summary
+ * 4. Smart extraction from tool args (filename from path, truncated commands, etc.)
+ * 5. Humanized tool name as ultimate fallback
  */
-export function getToolStepLabel(toolName: string, args: Record<string, unknown>): string | null {
-  // ACP provides a human-readable title — use it first
+export function getToolStepLabel(
+  toolName: string,
+  args: Record<string, unknown>,
+  output?: unknown,
+  acpTitle?: string
+): string {
+  const lines = countLines(output);
+  const suffix = lines > 0 ? ` (${lines} lines)` : '';
+
+  // ACP title from AI SDK takes priority
+  if (acpTitle) return acpTitle + suffix;
+
+  // Fallback: ACP title stuffed into args (legacy path)
   const title = extractArg(args, 'title');
-  if (title) return title;
+  if (title) return title + suffix;
 
   // Bash description field is a short human-readable summary
   const desc = extractArg(args, 'description');
-  if (desc) return desc;
+  if (desc) return desc + suffix;
 
   const normalized = normalizeToolName(toolName);
 
   switch (normalized) {
     case 'read_file': {
       const name = extractFilename(args.file_path || args.path || args.file);
-      return name ? `Read ${name}` : null;
+      return name ? `Read ${name}${suffix}` : `Read file${suffix}`;
     }
     case 'write_file': {
       const name = extractFilename(args.file_path || args.path || args.file);
-      return name ? `Write ${name}` : null;
+      return name ? `Write ${name}${suffix}` : `Write file${suffix}`;
     }
     case 'edit_file': {
       const name = extractFilename(args.file_path || args.path || args.file);
-      return name ? `Edit ${name}` : null;
+      const added = countLines(args.new_string);
+      const removed = countLines(args.old_string);
+      const diffSuffix = added || removed ? ` (+${added} -${removed})` : suffix;
+      return name ? `Edit ${name}${diffSuffix}` : `Edit file${diffSuffix}`;
     }
     case 'bash': {
       const cmd = extractArg(args, 'command', 'cmd');
-      return cmd ? `Run \`${cmd.slice(0, 50)}\`` : null;
+      return cmd ? `Run \`${cmd.slice(0, 50)}\`${suffix}` : `Run command${suffix}`;
     }
     case 'list_files': {
       const pattern = extractArg(args, 'pattern');
-      if (pattern) return `List ${pattern}`;
+      const matchSuffix = lines > 0 ? ` (${lines} matches)` : '';
+      if (pattern) return `List ${pattern}${matchSuffix}`;
       const dir = extractFilename(args.path || args.directory);
-      return dir ? `List ${dir}/` : null;
+      return dir ? `List ${dir}/${matchSuffix}` : `List files${matchSuffix}`;
     }
     case 'search': {
       const q = extractArg(args, 'pattern', 'query', 'regex');
-      return q ? `Search for "${q.slice(0, 40)}"` : null;
+      const matchSuffix = lines > 0 ? ` (${lines} matches)` : '';
+      return q ? `Search for "${q.slice(0, 40)}"${matchSuffix}` : `Search${matchSuffix}`;
     }
     case 'web_search': {
       const q = extractArg(args, 'query');
-      return q ? `Search web for "${q.slice(0, 40)}"` : null;
+      const resultSuffix = lines > 0 ? ` (${lines} results)` : '';
+      return q ? `Search web for "${q.slice(0, 40)}"${resultSuffix}` : `Web search${resultSuffix}`;
     }
     case 'web_fetch': {
       const url = extractArg(args, 'url');
       if (url) {
         try {
-          return `Fetch ${new URL(url).hostname}`;
+          return `Fetch ${new URL(url).hostname}${suffix}`;
         } catch {
-          return `Fetch ${url.slice(0, 40)}`;
+          return `Fetch ${url.slice(0, 40)}${suffix}`;
         }
       }
-      return null;
+      return `Fetch URL${suffix}`;
     }
     case 'notebook_edit': {
       const nb = extractFilename(args.notebook_path || args.path);
-      return nb ? `Edit ${nb}` : null;
+      return nb ? `Edit ${nb}` : 'Edit notebook';
     }
     case 'task': {
       const agentType = extractArg(args, 'subagent_type');
@@ -257,34 +332,24 @@ export function getToolStepLabel(toolName: string, args: Record<string, unknown>
       if (agentType && taskDesc) return `${agentType}: ${taskDesc.slice(0, 50)}`;
       if (agentType) return agentType;
       if (taskDesc) return taskDesc.slice(0, 50);
-      return null;
+      return 'Agent task';
     }
     default: {
       if (toolName === 'switch_mode') {
         const mode = extractArg(args, 'mode_slug', 'mode');
-        return mode ? `Switch to ${mode} mode` : null;
+        return mode ? `Switch to ${mode} mode` : 'Switch mode';
       }
-      // For MCP or other named tools, humanize the tool name only if it's meaningful
-      if (toolName && toolName !== 'tool' && toolName !== 'unknown') {
-        const humanized = toolName
-          .replace(/^mcp__[^_]+__/, '') // strip MCP prefix
-          .replace(/_/g, ' ')
-          .replace(/([a-z])([A-Z])/g, '$1 $2')
-          .toLowerCase();
-        const result = humanized.charAt(0).toUpperCase() + humanized.slice(1);
-        // Only return if we got something meaningful (not just "execute", "other", etc.)
-        if (result.length > 2) return result;
-      }
-      return null;
+      return humanizeToolName(toolName) + suffix;
     }
   }
 }
 
 /**
  * Get the Lucide icon component for a tool.
+ * When ACP kind is available, use it for more reliable icon mapping.
  */
-export function getToolIconComponent(toolName: string): LucideIcon {
-  const normalized = normalizeToolName(toolName);
+export function getToolIconComponent(toolName: string, acpKind?: string): LucideIcon {
+  const normalized = acpKind ? normalizeFromKind(acpKind) : normalizeToolName(toolName);
   switch (normalized) {
     case 'read_file':
       return FileTextIcon;

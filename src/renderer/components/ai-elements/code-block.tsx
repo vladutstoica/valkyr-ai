@@ -237,10 +237,12 @@ const CodeBlockBody = memo(
   ({
     tokenized,
     showLineNumbers,
+    lineNumberOffset = 0,
     className,
   }: {
     tokenized: TokenizedCode;
     showLineNumbers: boolean;
+    lineNumberOffset?: number;
     className?: string;
   }) => {
     const preStyle = useMemo(
@@ -253,6 +255,9 @@ const CodeBlockBody = memo(
 
     const keyedLines = useMemo(() => addKeysToTokens(tokenized.tokens), [tokenized.tokens]);
 
+    // CSS counter reset: start counting from (offset - 1) so first line shows offset
+    const counterReset = showLineNumbers ? `line ${lineNumberOffset}` : undefined;
+
     return (
       <pre
         className={cn(
@@ -262,10 +267,8 @@ const CodeBlockBody = memo(
         style={preStyle}
       >
         <code
-          className={cn(
-            'font-mono text-sm',
-            showLineNumbers && '[counter-increment:line_0] [counter-reset:line]'
-          )}
+          className={cn('font-mono text-sm', showLineNumbers && '[counter-increment:line_0]')}
+          style={counterReset ? { counterReset } : undefined}
         >
           {keyedLines.map((keyedLine) => (
             <LineSpan key={keyedLine.key} keyedLine={keyedLine} showLineNumbers={showLineNumbers} />
@@ -277,6 +280,7 @@ const CodeBlockBody = memo(
   (prevProps, nextProps) =>
     prevProps.tokenized === nextProps.tokenized &&
     prevProps.showLineNumbers === nextProps.showLineNumbers &&
+    prevProps.lineNumberOffset === nextProps.lineNumberOffset &&
     prevProps.className === nextProps.className
 );
 
@@ -353,10 +357,12 @@ export const CodeBlockContent = ({
   code,
   language,
   showLineNumbers = false,
+  lineNumberOffset = 0,
 }: {
   code: string;
   language: BundledLanguage;
   showLineNumbers?: boolean;
+  lineNumberOffset?: number;
 }) => {
   // Memoized raw tokens for immediate display
   const rawTokens = useMemo(() => createRawTokens(code), [code]);
@@ -386,7 +392,11 @@ export const CodeBlockContent = ({
 
   return (
     <div className="relative overflow-auto">
-      <CodeBlockBody showLineNumbers={showLineNumbers} tokenized={tokenized} />
+      <CodeBlockBody
+        showLineNumbers={showLineNumbers}
+        lineNumberOffset={lineNumberOffset}
+        tokenized={tokenized}
+      />
     </div>
   );
 };

@@ -474,6 +474,45 @@ export function registerAppIpc() {
     }
   });
 
+  // Prerequisite checker
+  ipcMain.handle('app:checkPrerequisites', async () => {
+    const results: { git: boolean; agents: string[] } = { git: false, agents: [] };
+
+    // Check git
+    try {
+      await new Promise<void>((resolve, reject) => {
+        execFile('git', ['--version'], (err) => (err ? reject(err) : resolve()));
+      });
+      results.git = true;
+    } catch {
+      results.git = false;
+    }
+
+    // Check common agent CLIs
+    const agentChecks = [
+      { name: 'claude', cmd: 'claude' },
+      { name: 'codex', cmd: 'codex' },
+      { name: 'amp', cmd: 'amp' },
+      { name: 'gemini', cmd: 'gemini' },
+      { name: 'gh copilot', cmd: 'gh' },
+      { name: 'aider', cmd: 'aider' },
+      { name: 'goose', cmd: 'goose' },
+    ];
+
+    for (const agent of agentChecks) {
+      try {
+        await new Promise<void>((resolve, reject) => {
+          execFile('which', [agent.cmd], (err) => (err ? reject(err) : resolve()));
+        });
+        results.agents.push(agent.name);
+      } catch {
+        // Agent not installed, skip
+      }
+    }
+
+    return { success: true, data: results };
+  });
+
   // App metadata
   ipcMain.handle('app:getAppVersion', () => getCachedAppVersion());
   ipcMain.handle('app:getElectronVersion', () => process.versions.electron);

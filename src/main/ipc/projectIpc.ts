@@ -295,6 +295,38 @@ export function registerProjectIpc() {
     try {
       const resolvedProjectPath = await fs.promises.realpath(projectPath).catch(() => projectPath);
 
+      // Also fetch fresh git info for the root path itself
+      let rootGitInfo:
+        | { isGitRepo: boolean; remote?: string; branch?: string; baseRef?: string }
+        | undefined;
+      const rootGitPath = join(resolvedProjectPath, '.git');
+      if (fs.existsSync(rootGitPath)) {
+        let rootRemote: string | undefined;
+        let rootBranch: string | undefined;
+        let rootBaseRef: string | undefined;
+        try {
+          const { stdout } = await execAsync('git remote get-url origin', {
+            cwd: resolvedProjectPath,
+          });
+          rootRemote = stdout.trim() || undefined;
+        } catch {}
+        try {
+          const { stdout } = await execAsync('git branch --show-current', {
+            cwd: resolvedProjectPath,
+          });
+          rootBranch = stdout.trim() || undefined;
+        } catch {}
+        if (rootBranch || rootRemote) {
+          rootBaseRef = computeBaseRef(rootRemote, rootBranch);
+        }
+        rootGitInfo = {
+          isGitRepo: true,
+          remote: rootRemote,
+          branch: rootBranch,
+          baseRef: rootBaseRef,
+        };
+      }
+
       // Read immediate children of the project folder
       const entries = await fs.promises.readdir(resolvedProjectPath, { withFileTypes: true });
       const subRepos: Array<{
@@ -353,7 +385,7 @@ export function registerProjectIpc() {
         });
       }
 
-      return { success: true, subRepos };
+      return { success: true, subRepos, rootGitInfo };
     } catch (error) {
       console.error('Failed to detect sub-repos:', error);
       return { success: false, error: 'Failed to detect sub-repositories', subRepos: [] };

@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useToast } from '@/hooks/use-toast';
+import { toast, useToast } from '@/hooks/use-toast';
 import { useFileChanges } from '@/hooks/useFileChanges';
 import { useTheme } from '@/hooks/useTheme';
 import { useGitState, type FileStatus } from '@/hooks/useGitState';
@@ -378,6 +378,7 @@ export function GitTab({
         }
       } catch (err) {
         console.error('Failed to fetch diff for', filePath, err);
+        toast({ title: 'Failed to load diff', variant: 'destructive' });
       } finally {
         loadingDiffsRef.current.delete(filePath);
         setLoadingDiffs(new Set(loadingDiffsRef.current));

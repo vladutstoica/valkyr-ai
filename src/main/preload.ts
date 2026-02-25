@@ -31,6 +31,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppVersion: () => ipcRenderer.invoke('app:getAppVersion'),
   getElectronVersion: () => ipcRenderer.invoke('app:getElectronVersion'),
   getPlatform: () => ipcRenderer.invoke('app:getPlatform'),
+  checkPrerequisites: () =>
+    ipcRenderer.invoke('app:checkPrerequisites') as Promise<{
+      success: boolean;
+      data: { git: boolean; agents: string[] };
+    }>,
   listInstalledFonts: (args?: { refresh?: boolean }) =>
     ipcRenderer.invoke('app:listInstalledFonts', args),
   // Updater

@@ -1,7 +1,12 @@
 import React from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { ChevronDown } from 'lucide-react';
 import { Button } from '../ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { getAppById, isValidOpenInAppId, type OpenInAppId } from '@shared/openInApps';
 import { useOpenInApps } from '../../hooks/useOpenInApps';
@@ -13,23 +18,16 @@ interface OpenInMenuProps {
   sshConnectionId?: string | null;
 }
 
-const menuItemBase =
-  'flex w-full select-none items-center gap-2 rounded px-2.5 py-2 text-sm transition-colors cursor-pointer hover:bg-accent hover:text-accent-foreground';
-
 const OpenInMenu: React.FC<OpenInMenuProps> = ({
   path,
   align = 'right',
   isRemote = false,
   sshConnectionId = null,
 }) => {
-  const [open, setOpen] = React.useState(false);
   const [defaultApp, setDefaultApp] = React.useState<OpenInAppId | null>(null);
-  const containerRef = React.useRef<HTMLDivElement | null>(null);
-  const shouldReduceMotion = useReducedMotion();
   const { toast } = useToast();
   const { icons, installedApps, availability, loading } = useOpenInApps();
 
-  // Fetch default app setting on mount and listen for changes
   React.useEffect(() => {
     const fetchDefaultApp = async () => {
       try {
@@ -46,7 +44,6 @@ const OpenInMenu: React.FC<OpenInMenuProps> = ({
     };
     void fetchDefaultApp();
 
-    // Listen for changes from settings
     const handleChange = (e: CustomEvent<OpenInAppId>) => {
       if (isValidOpenInAppId(e.detail)) {
         setDefaultApp(e.detail);
@@ -57,15 +54,6 @@ const OpenInMenu: React.FC<OpenInMenuProps> = ({
       window.removeEventListener('defaultOpenInAppChanged', handleChange as EventListener);
     };
   }, []);
-
-  React.useEffect(() => {
-    function onDocClick(e: MouseEvent) {
-      if (!containerRef.current) return;
-      if (!containerRef.current.contains(e.target as Node)) setOpen(false);
-    }
-    if (open) document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
-  }, [open]);
 
   const callOpen = async (appId: OpenInAppId) => {
     const appConfig = getAppById(appId);
@@ -95,10 +83,8 @@ const OpenInMenu: React.FC<OpenInMenuProps> = ({
         variant: 'destructive',
       });
     }
-    setOpen(false);
   };
 
-  // Sort installed apps with default first
   const sortedApps = React.useMemo(() => {
     if (!defaultApp) return installedApps;
     return [...installedApps].sort((a, b) => {
@@ -108,7 +94,6 @@ const OpenInMenu: React.FC<OpenInMenuProps> = ({
     });
   }, [defaultApp, installedApps]);
 
-  // Determine which icon to show on the button (default if installed, otherwise first installed)
   const buttonAppId = React.useMemo(() => {
     if (defaultApp && installedApps.some((app) => app.id === defaultApp)) {
       return defaultApp;
@@ -117,86 +102,52 @@ const OpenInMenu: React.FC<OpenInMenuProps> = ({
   }, [defaultApp, installedApps]);
 
   return (
-    <div ref={containerRef} className="relative">
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className={[
-          'text-muted-foreground hover:bg-background/70 hover:text-foreground h-7 gap-1.5 px-2 text-[13px] leading-none font-medium',
-          open ? 'bg-background/80 text-foreground' : '',
-        ].join(' ')}
-        onClick={async () => {
-          const newState = !open;
-          void import('../../lib/telemetryClient').then(({ captureTelemetry }) => {
-            captureTelemetry('toolbar_open_in_menu_clicked', {
-              state: newState ? 'open' : 'closed',
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground hover:bg-background/70 hover:text-foreground data-[state=open]:bg-background/80 data-[state=open]:text-foreground h-7 gap-1.5 px-2 text-[13px] leading-none font-medium"
+          onClick={() => {
+            void import('../../lib/telemetryClient').then(({ captureTelemetry }) => {
+              captureTelemetry('toolbar_open_in_menu_clicked', { state: 'open' });
             });
-          });
-          setOpen(newState);
-        }}
-        aria-expanded={open}
-        aria-haspopup
-      >
-        <span>Open in</span>
-        {buttonAppId && icons[buttonAppId] && (
-          <img
-            src={icons[buttonAppId]}
-            alt={getAppById(buttonAppId)?.label}
-            className="h-4 w-4 rounded"
-          />
-        )}
-        <ChevronDown
-          className={`h-3 w-3 opacity-50 transition-transform duration-200 ${
-            open ? 'rotate-180' : ''
-          }`}
-        />
-      </Button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            role="menu"
-            className={[
-              'border-border bg-popover absolute z-50 mt-1 min-w-[180px] rounded-md border p-1 shadow-md',
-              align === 'right' ? 'right-0' : 'left-0',
-            ].join(' ')}
-            style={{ transformOrigin: align === 'right' ? 'top right' : 'top left' }}
-            initial={shouldReduceMotion ? false : { opacity: 0, y: 6, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={
-              shouldReduceMotion
-                ? { opacity: 1, y: 0, scale: 1 }
-                : { opacity: 0, y: 4, scale: 0.98 }
-            }
-            transition={
-              shouldReduceMotion ? { duration: 0 } : { duration: 0.16, ease: [0.22, 1, 0.36, 1] }
-            }
-          >
-            {sortedApps.map((app) => {
-              // While loading, disable apps that aren't confirmed installed
-              const isAvailable = loading ? availability[app.id] === true : true;
-              return (
-                <button
-                  key={app.id}
-                  className={`${menuItemBase} ${!isAvailable ? 'cursor-not-allowed opacity-50' : ''}`}
-                  role="menuitem"
-                  onClick={() => isAvailable && callOpen(app.id)}
-                  disabled={!isAvailable}
-                >
-                  {icons[app.id] ? (
-                    <img src={icons[app.id]} alt={app.label} className="h-4 w-4 rounded" />
-                  ) : null}
-                  <span>{app.label}</span>
-                  {app.id === defaultApp && (
-                    <span className="text-muted-foreground ml-auto text-xs">Default</span>
-                  )}
-                </button>
-              );
-            })}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+          }}
+        >
+          <span>Open in</span>
+          {buttonAppId && icons[buttonAppId] && (
+            <img
+              src={icons[buttonAppId]}
+              alt={getAppById(buttonAppId)?.label}
+              className="h-4 w-4 rounded-md"
+            />
+          )}
+          <ChevronDown className="h-3 w-3 opacity-50 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align={align === 'right' ? 'end' : 'start'} className="min-w-[180px]">
+        {sortedApps.map((app) => {
+          const isAvailable = loading ? availability[app.id] === true : true;
+          return (
+            <DropdownMenuItem
+              key={app.id}
+              onClick={() => callOpen(app.id)}
+              disabled={!isAvailable}
+              className="gap-2"
+            >
+              {icons[app.id] && (
+                <img src={icons[app.id]} alt={app.label} className="h-4 w-4 rounded-md" />
+              )}
+              <span>{app.label}</span>
+              {app.id === defaultApp && (
+                <span className="text-muted-foreground ml-auto text-xs">Default</span>
+              )}
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 

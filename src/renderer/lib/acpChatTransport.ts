@@ -119,11 +119,20 @@ class ChunkMapper {
         // since kind values like "execute"/"think" are categories, not tool names.
         const firstWord = update.title?.split(/\s/)[0] || '';
         const toolName = firstWord || update.kind || 'tool';
+
+        // Build ACP metadata to pass through AI SDK's providerMetadata
+        const acpMeta: AcpToolMetadata = {};
+        if (update.kind) acpMeta.kind = update.kind;
+        if (update.locations?.length) acpMeta.locations = update.locations;
+        if (update.content?.length) acpMeta.content = update.content;
+
         chunks.push({
           type: 'tool-input-available',
           toolCallId,
           toolName,
           input: update.rawInput ?? { title: update.title },
+          title: update.title,
+          providerMetadata: Object.keys(acpMeta).length > 0 ? { acp: acpMeta as any } : undefined,
         });
         break;
       }
@@ -156,6 +165,12 @@ class ChunkMapper {
 
       // -- Usage update (tokens, cost) --
       case 'usage_update': {
+        // Side-channel: not mapped to UIMessageChunk
+        break;
+      }
+
+      // -- Compact boundary (agent finished compacting) --
+      case 'compact_boundary': {
         // Side-channel: not mapped to UIMessageChunk
         break;
       }
@@ -224,6 +239,40 @@ class ChunkMapper {
   }
 }
 
+// ---------------------------------------------------------------------------
+// ACP metadata passed through AI SDK's providerMetadata field
+// ---------------------------------------------------------------------------
+
+/**
+ * Structured ACP tool metadata preserved from the original ToolCall/ToolCallUpdate.
+ * Passed via `providerMetadata.acp` on tool-input-available chunks, and accessible
+ * on the rendered part as `toolPart.callProviderMetadata?.acp`.
+ */
+export interface AcpToolMetadata {
+  [key: string]: unknown;
+  /** ACP ToolKind category (read, edit, execute, search, etc.) */
+  kind?: string;
+  /** File locations affected by this tool call */
+  locations?: Array<{ path: string; line?: number | null }>;
+  /** Structured tool output content (diffs, terminals, text blocks) */
+  content?: Array<
+    | {
+        type: 'content';
+        content: { type: string; text?: string; data?: string; mimeType?: string };
+      }
+    | { type: 'diff'; path: string; oldText?: string | null; newText: string }
+    | { type: 'terminal'; terminalId: string }
+  >;
+}
+
+/**
+ * Extract ACP metadata from a tool part's callProviderMetadata.
+ * Returns undefined if no ACP metadata is present.
+ */
+export function getAcpMeta(toolPart: any): AcpToolMetadata | undefined {
+  return toolPart?.callProviderMetadata?.acp;
+}
+
 // Side-channel event types (not part of UIMessageChunk stream)
 export type AcpUsageData = {
   size?: number; // total context window size (tokens)
@@ -259,6 +308,8 @@ export type AcpSideChannelEvents = {
   onModeUpdate?: (modeId: string) => void;
   onConfigOptionUpdate?: (option: AcpConfigOption) => void;
   onSessionInfoUpdate?: (info: { title?: string; timestamp?: string }) => void;
+  /** Fired when the agent completes a compaction (manual or auto). */
+  onCompactComplete?: () => void;
 };
 
 export type AcpTransportOptions = {
@@ -338,6 +389,9 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
       return true;
     } else if (updateType === 'session_info_update' && sc.onSessionInfoUpdate) {
       sc.onSessionInfoUpdate({ title: update.title, timestamp: update.timestamp });
+      return true;
+    } else if (updateType === 'compact_boundary' && sc.onCompactComplete) {
+      sc.onCompactComplete();
       return true;
     }
     return false;
@@ -485,6 +539,8 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
                   title: update.title,
                   timestamp: update.timestamp,
                 });
+              } else if (updateType === 'compact_boundary' && sideChannel.onCompactComplete) {
+                sideChannel.onCompactComplete();
               }
 
               const chunks = mapper.map(event.data);
@@ -518,11 +574,21 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
                   const firstWord = tc.title?.split(/\s/)[0] || '';
                   const toolName = firstWord || tc.kind || 'tool';
                   emittedToolCalls.add(event.toolCallId);
+
+                  // Build ACP metadata from permission request's toolCall
+                  const permAcpMeta: AcpToolMetadata = {};
+                  if (tc.kind) permAcpMeta.kind = tc.kind;
+                  if (tc.locations?.length) permAcpMeta.locations = tc.locations;
+                  if (tc.content?.length) permAcpMeta.content = tc.content;
+
                   controller.enqueue({
                     type: 'tool-input-available',
                     toolCallId: event.toolCallId,
                     toolName,
                     input: tc.rawInput ?? { title: tc.title },
+                    title: tc.title ?? undefined,
+                    providerMetadata:
+                      Object.keys(permAcpMeta).length > 0 ? { acp: permAcpMeta as any } : undefined,
                   });
                 }
 
@@ -549,7 +615,7 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
 
             case 'prompt_error': {
               log.warn('Prompt error', { sessionKey, error: event.error });
-              // Recoverable error — show error as text, close stream cleanly
+              // Recoverable error — show as text with marker prefix for styled rendering
               for (const chunk of mapper.endAll()) {
                 controller.enqueue(chunk);
               }
@@ -558,7 +624,7 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
               controller.enqueue({
                 type: 'text-delta',
                 id: errorId,
-                delta: `\n\n**Error:** ${event.error}`,
+                delta: `\n\n<!---acp-error--->\n${event.error}`,
               });
               controller.enqueue({ type: 'text-end', id: errorId });
               controller.enqueue({ type: 'finish', finishReason: 'error' });

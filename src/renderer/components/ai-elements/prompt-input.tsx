@@ -1,3 +1,4 @@
+// @refresh reset
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -38,7 +39,6 @@ import {
   Loader2Icon,
   MicIcon,
   PaperclipIcon,
-  PlusIcon,
   SquareIcon,
   XIcon,
 } from 'lucide-react';
@@ -927,7 +927,7 @@ export const PromptInputActionMenuTrigger = ({
       variant="ghost"
       {...props}
     >
-      {children ?? <PlusIcon className="size-4" />}
+      {children ?? <PaperclipIcon className="size-4" />}
     </Button>
   </DropdownMenuTrigger>
 );

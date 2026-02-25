@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { AUTO_SAVE_DELAY } from '@/constants/file-explorer';
 import { dispatchFileChangeEvent } from '@/lib/fileChangeEvents';
+import { toast } from '@/hooks/use-toast';
 
 export interface ManagedFile {
   path: string;
@@ -102,9 +103,11 @@ export function useFileManager(options: UseFileManagerOptions): UseFileManagerRe
           setActiveFilePath(filePath);
         } else {
           console.error('Failed to load file:', result.error);
+          toast({ title: 'Failed to open file', variant: 'destructive' });
         }
       } catch (error) {
         console.error('Error loading file:', error);
+        toast({ title: 'Failed to open file', variant: 'destructive' });
       }
     },
     [taskPath, isImageFile]
@@ -154,11 +157,11 @@ export function useFileManager(options: UseFileManagerOptions): UseFileManagerRe
           }
         } else {
           console.error('Failed to save:', result.error);
-          alert(`Failed to save file: ${result.error}`);
+          toast({ title: 'Failed to save file', variant: 'destructive' });
         }
       } catch (error) {
         console.error('Error saving file:', error);
-        alert(`Error saving file: ${error}`);
+        toast({ title: 'Failed to save file', variant: 'destructive' });
       } finally {
         setIsSaving(false);
       }

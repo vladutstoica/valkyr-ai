@@ -31,7 +31,6 @@
     "test:watch": "vitest",
     "docs": "cd docs && pnpm run dev",
     "docs:build": "cd docs && pnpm run build",
-    "prepare": "husky",
     "prepare": "husky"
   },
   "keywords": [
@@ -147,6 +146,7 @@
     "ssh2": "^1.17.0",
     "streamdown": "^1.3.0",
     "tailwind-merge": "^2.6.0",
+    "tokenlens": "^1.3.1",
     "tsconfig-paths": "^3.15.0",
     "tw-animate-css": "^1.2.5",
     "use-stick-to-bottom": "^1.1.3",

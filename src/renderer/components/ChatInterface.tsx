@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { Plus, X } from 'lucide-react';
-import { useToast } from '../hooks/use-toast';
+import { toast, useToast } from '../hooks/use-toast';
 import { useTheme } from '../hooks/useTheme';
 import InstallBanner from './InstallBanner';
 import { agentMeta } from '../providers/meta';
@@ -290,6 +290,7 @@ const ChatInterface: React.FC<Props> = ({
           return true;
         } catch (error) {
           console.error('Failed to run install command', error);
+          toast({ title: 'Failed to run install command', variant: 'destructive' });
           return false;
         }
       };

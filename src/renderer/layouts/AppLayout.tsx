@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { TabBar } from '@/components/navigation/TabBar';
 import { TabContainer } from '@/components/tabs/TabContainer';
 import { EditorTab } from '@/components/tabs/EditorTab';
@@ -8,7 +9,7 @@ import { StatusBar } from '@/components/navigation/StatusBar';
 import { TerminalPanel } from '@/components/terminal/TerminalPanel';
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 import { useTabState } from '@/hooks/useTabState';
-import type { Project, Task } from '@/types/app';
+import type { Project, SubRepo, Task } from '@/types/app';
 import type { Agent } from '@/types';
 
 // Layout dimensions
@@ -127,25 +128,58 @@ export function AppLayout({
         </div>
       );
     }
-    return <EditorTab taskPath={taskPath} taskName={activeTask?.name} />;
+    return (
+      <ErrorBoundary componentName="Editor" variant="panel">
+        <EditorTab taskPath={taskPath} taskName={activeTask?.name} />
+      </ErrorBoundary>
+    );
   }, [taskPath, activeTask?.name]);
 
   // Render Git tab content
   const gitContent = useMemo(() => {
     return (
-      <GitTab
-        taskId={taskId}
-        taskPath={taskPath}
-        activeTask={activeTask}
-        selectedProject={selectedProject}
-      />
+      <ErrorBoundary componentName="Git" variant="panel">
+        <GitTab
+          taskId={taskId}
+          taskPath={taskPath}
+          activeTask={activeTask}
+          selectedProject={selectedProject}
+        />
+      </ErrorBoundary>
     );
   }, [taskId, taskPath, activeTask, selectedProject]);
 
   // Render Preview tab content
   const previewContent = useMemo(() => {
-    return <PreviewTab taskId={taskId} />;
+    return (
+      <ErrorBoundary componentName="Preview" variant="panel">
+        <PreviewTab taskId={taskId} />
+      </ErrorBoundary>
+    );
   }, [taskId]);
+
+  // When a multi-repo task is active, use worktree paths from repoMappings
+  // instead of the project's original subRepos paths
+  const effectiveSubRepos = useMemo((): SubRepo[] | null | undefined => {
+    const repoMappings = activeTask?.metadata?.multiRepo?.repoMappings;
+    if (!repoMappings || repoMappings.length === 0) {
+      return selectedProject?.subRepos;
+    }
+    // Map worktree repoMappings to SubRepo format with worktree paths
+    return repoMappings.map((mapping) => ({
+      path: mapping.targetPath,
+      name: mapping.relativePath === '.' ? selectedProject?.name || '(root)' : mapping.relativePath,
+      relativePath: mapping.relativePath,
+      gitInfo: {
+        isGitRepo: true,
+        branch: mapping.branch,
+      },
+    }));
+  }, [
+    activeTask?.metadata?.multiRepo?.repoMappings,
+    selectedProject?.subRepos,
+    selectedProject?.name,
+  ]);
 
   return (
     <div
@@ -163,7 +197,11 @@ export function AppLayout({
       {/* Main content area */}
       <div className={`flex flex-1 overflow-hidden ${showTitlebar ? 'pt-[var(--tb)]' : ''}`}>
         {/* Left Sidebar - Fixed width */}
-        <div className="w-[280px] flex-shrink-0 overflow-hidden border-r">{leftSidebar}</div>
+        <div className="w-[280px] flex-shrink-0 overflow-hidden border-r">
+          <ErrorBoundary componentName="Sidebar" variant="panel">
+            {leftSidebar}
+          </ErrorBoundary>
+        </div>
 
         {/* Main Panel with Tabs */}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -172,7 +210,11 @@ export function AppLayout({
 
           {/* Tab Content */}
           <TabContainer
-            agentsContent={agentsContent}
+            agentsContent={
+              <ErrorBoundary componentName="Chat" variant="panel">
+                {agentsContent}
+              </ErrorBoundary>
+            }
             editorContent={editorContent}
             gitContent={gitContent}
             previewContent={previewContent}
@@ -180,7 +222,13 @@ export function AppLayout({
           />
 
           {/* Bottom Terminal Panel */}
-          <TerminalPanel taskPath={taskPath} taskId={taskId} projectPath={selectedProject?.path} />
+          <ErrorBoundary componentName="Terminal" variant="panel">
+            <TerminalPanel
+              taskPath={taskPath}
+              taskId={taskId}
+              projectPath={selectedProject?.path}
+            />
+          </ErrorBoundary>
         </div>
       </div>
 
@@ -197,7 +245,7 @@ export function AppLayout({
         worktreePath={statusBarData.worktreePath}
         taskPath={taskPath}
         projectId={selectedProject?.id}
-        subRepos={selectedProject?.subRepos}
+        subRepos={effectiveSubRepos}
         onAgentClick={onAgentClick}
         onBranchChange={onBranchChange}
         onChangesClick={handleChangesClick}
