@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'child_process';
+import * as crypto from 'crypto';
 import * as path from 'path';
 import * as fsp from 'fs/promises';
 // ACP SDK is ESM-only — use type imports statically, runtime imports dynamically
@@ -12,6 +13,16 @@ import type {
   ReadTextFileResponse,
   WriteTextFileRequest,
   WriteTextFileResponse,
+  CreateTerminalRequest,
+  CreateTerminalResponse,
+  TerminalOutputRequest,
+  TerminalOutputResponse,
+  WaitForTerminalExitRequest,
+  WaitForTerminalExitResponse,
+  KillTerminalCommandRequest,
+  KillTerminalCommandResponse,
+  ReleaseTerminalRequest,
+  ReleaseTerminalResponse,
 } from '@agentclientprotocol/sdk';
 import { log } from '../lib/logger';
 import { getProvider, type ProviderId } from '../../shared/providers/registry';
@@ -113,6 +124,54 @@ type AcpConnection = {
 };
 
 // ---------------------------------------------------------------------------
+// AcpTerminal — non-interactive command execution for ACP terminal protocol
+// ---------------------------------------------------------------------------
+
+const MAX_TERMINALS_PER_SESSION = 10;
+const DEFAULT_OUTPUT_BYTE_LIMIT = 10 * 1024 * 1024; // 10 MB
+const KILL_TIMEOUT_MS = 5000;
+
+type AcpTerminal = {
+  id: string;
+  process: ChildProcess;
+  outputBuffer: string;
+  outputByteLimit: number;
+  truncated: boolean;
+  exitStatus: { exitCode: number | null; signal: string | null } | null;
+  exitPromise: Promise<{ exitCode: number | null; signal: string | null }>;
+};
+
+/** Append data to terminal output buffer, truncating from start if over byte limit. */
+function appendTerminalOutput(terminal: AcpTerminal, chunk: string): void {
+  terminal.outputBuffer += chunk;
+  if (terminal.outputByteLimit > 0) {
+    const bytes = Buffer.byteLength(terminal.outputBuffer, 'utf-8');
+    if (bytes > terminal.outputByteLimit) {
+      const buf = Buffer.from(terminal.outputBuffer, 'utf-8');
+      let cutPoint = bytes - terminal.outputByteLimit;
+      // Advance to next UTF-8 character boundary
+      while (cutPoint < buf.length && (buf[cutPoint] & 0xc0) === 0x80) {
+        cutPoint++;
+      }
+      terminal.outputBuffer = buf.subarray(cutPoint).toString('utf-8');
+      terminal.truncated = true;
+    }
+  }
+}
+
+/** Kill all terminals for a session and clear the map. */
+function cleanupSessionTerminals(session: AcpSession): void {
+  for (const [, terminal] of session.terminals) {
+    try {
+      if (!terminal.process.killed) terminal.process.kill('SIGTERM');
+    } catch {
+      /* already dead */
+    }
+  }
+  session.terminals.clear();
+}
+
+// ---------------------------------------------------------------------------
 // AcpSession — one ACP session on a shared (or dedicated) connection
 // ---------------------------------------------------------------------------
 
@@ -139,6 +198,8 @@ type AcpSession = {
     message: string;
     files?: Array<{ url: string; mediaType: string; filename?: string }>;
   } | null;
+  /** ACP terminal instances (non-interactive command execution). */
+  terminals: Map<string, AcpTerminal>;
 };
 
 type SessionCreateResult = {
@@ -451,6 +512,7 @@ export class AcpSessionManager {
             readTextFile: true,
             writeTextFile: true,
           },
+          terminal: true,
         },
       }),
       spawnError,
@@ -486,6 +548,9 @@ export class AcpSessionManager {
     for (const [sessionKey, session] of this.sessions) {
       if (session.connectionKey !== connectionKey) continue;
       if (this.finalizedSessions.has(sessionKey)) continue;
+
+      // Kill all terminals belonging to this session
+      cleanupSessionTerminals(session);
 
       if (this.detachedSessions.has(sessionKey)) {
         log.info(`[ConnPool] Connection died while session detached: ${sessionKey}`);
@@ -651,6 +716,7 @@ export class AcpSessionManager {
         models: null,
         pendingPermissions: new Map(),
         pendingPrompt: null,
+        terminals: new Map(),
       };
       this.sessions.set(sessionKey, session);
 
@@ -987,7 +1053,7 @@ export class AcpSessionManager {
   async approvePermission(
     sessionKey: string,
     toolCallId: string,
-    approved: boolean
+    optionId: string | null
   ): Promise<{ success: boolean; error?: string }> {
     const session = this.sessions.get(sessionKey);
     if (!session) {
@@ -1004,15 +1070,9 @@ export class AcpSessionManager {
     }
 
     session.pendingPermissions.delete(toolCallId);
-    if (approved) {
-      const allowOption = pending.options.find(
-        (o) => o.kind === 'allow_once' || o.kind === 'allow_always'
-      );
+    if (optionId) {
       pending.resolve({
-        outcome: {
-          outcome: 'selected',
-          optionId: allowOption?.optionId || pending.options[0]?.optionId || 'allow',
-        },
+        outcome: { outcome: 'selected', optionId },
       });
     } else {
       pending.resolve({
@@ -1249,6 +1309,9 @@ export class AcpSessionManager {
     // Discard any queued prompt
     session.pendingPrompt = null;
 
+    // Kill all terminals
+    cleanupSessionTerminals(session);
+
     // Reject any pending permissions
     for (const [, pending] of session.pendingPermissions) {
       pending.resolve({ outcome: { outcome: 'cancelled' } });
@@ -1379,7 +1442,18 @@ export class AcpSessionManager {
           throw new Error(`Path traversal blocked: ${params.path}`);
         }
 
-        const content = await fsp.readFile(resolved, 'utf-8');
+        let content = await fsp.readFile(resolved, 'utf-8');
+
+        // ACP spec: optional line (1-based start) and limit (max lines)
+        const line = (params as any).line as number | undefined | null;
+        const limit = (params as any).limit as number | undefined | null;
+        if (line != null || limit != null) {
+          const lines = content.split('\n');
+          const start = Math.max(0, (line ?? 1) - 1);
+          const sliced = limit != null ? lines.slice(start, start + limit) : lines.slice(start);
+          content = sliced.join('\n');
+        }
+
         return { content };
       },
 
@@ -1402,6 +1476,154 @@ export class AcpSessionManager {
 
         await fsp.mkdir(path.dirname(resolved), { recursive: true });
         await fsp.writeFile(resolved, params.content, 'utf-8');
+        return {};
+      },
+
+      // ----- Terminal protocol -----
+
+      createTerminal: async (params: CreateTerminalRequest): Promise<CreateTerminalResponse> => {
+        const acpSessionId = (params as any).sessionId;
+        const sessionKey = acpSessionId
+          ? this.acpSessionIdToSessionKey.get(acpSessionId)
+          : this.findSessionKeyByConnectionKey(connectionKey);
+
+        const session = sessionKey ? this.sessions.get(sessionKey) : null;
+        if (!session) throw new Error('Session not found');
+
+        if (session.terminals.size >= MAX_TERMINALS_PER_SESSION) {
+          throw new Error(`Maximum of ${MAX_TERMINALS_PER_SESSION} concurrent terminals reached`);
+        }
+
+        // Validate cwd within session worktree
+        const cwd = params.cwd ? path.resolve(session.cwd, params.cwd) : session.cwd;
+        if (!cwd.startsWith(session.cwd)) {
+          throw new Error(`Path traversal blocked: ${params.cwd}`);
+        }
+
+        // Build env from array of { name, value }
+        const env: Record<string, string> = { ...process.env } as Record<string, string>;
+        if (params.env) {
+          for (const v of params.env) {
+            env[v.name] = v.value;
+          }
+        }
+
+        const terminalId = crypto.randomUUID();
+        const child = spawn(params.command, params.args ?? [], {
+          cwd,
+          env,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        });
+
+        const outputByteLimit = params.outputByteLimit ?? DEFAULT_OUTPUT_BYTE_LIMIT;
+
+        const exitPromise = new Promise<{ exitCode: number | null; signal: string | null }>(
+          (resolve) => {
+            child.on('close', (code, signal) => {
+              terminal.exitStatus = { exitCode: code, signal: signal ?? null };
+              resolve({ exitCode: code, signal: signal ?? null });
+            });
+          }
+        );
+
+        const terminal: AcpTerminal = {
+          id: terminalId,
+          process: child,
+          outputBuffer: '',
+          outputByteLimit,
+          truncated: false,
+          exitStatus: null,
+          exitPromise,
+        };
+
+        child.stdout?.on('data', (chunk: Buffer) => appendTerminalOutput(terminal, chunk.toString('utf-8')));
+        child.stderr?.on('data', (chunk: Buffer) => appendTerminalOutput(terminal, chunk.toString('utf-8')));
+
+        session.terminals.set(terminalId, terminal);
+        log.debug(`[AcpTerminal] Created terminal ${terminalId} for session ${sessionKey}: ${params.command}`);
+
+        return { terminalId };
+      },
+
+      terminalOutput: async (params: TerminalOutputRequest): Promise<TerminalOutputResponse> => {
+        const acpSessionId = (params as any).sessionId;
+        const sessionKey = acpSessionId
+          ? this.acpSessionIdToSessionKey.get(acpSessionId)
+          : this.findSessionKeyByConnectionKey(connectionKey);
+
+        const session = sessionKey ? this.sessions.get(sessionKey) : null;
+        if (!session) throw new Error('Session not found');
+
+        const terminal = session.terminals.get(params.terminalId);
+        if (!terminal) throw new Error(`Terminal not found: ${params.terminalId}`);
+
+        return {
+          output: terminal.outputBuffer,
+          truncated: terminal.truncated,
+          exitStatus: terminal.exitStatus ?? undefined,
+        };
+      },
+
+      waitForTerminalExit: async (params: WaitForTerminalExitRequest): Promise<WaitForTerminalExitResponse> => {
+        const acpSessionId = (params as any).sessionId;
+        const sessionKey = acpSessionId
+          ? this.acpSessionIdToSessionKey.get(acpSessionId)
+          : this.findSessionKeyByConnectionKey(connectionKey);
+
+        const session = sessionKey ? this.sessions.get(sessionKey) : null;
+        if (!session) throw new Error('Session not found');
+
+        const terminal = session.terminals.get(params.terminalId);
+        if (!terminal) throw new Error(`Terminal not found: ${params.terminalId}`);
+
+        const result = await terminal.exitPromise;
+        return { exitCode: result.exitCode, signal: result.signal };
+      },
+
+      killTerminal: async (params: KillTerminalCommandRequest): Promise<KillTerminalCommandResponse> => {
+        const acpSessionId = (params as any).sessionId;
+        const sessionKey = acpSessionId
+          ? this.acpSessionIdToSessionKey.get(acpSessionId)
+          : this.findSessionKeyByConnectionKey(connectionKey);
+
+        const session = sessionKey ? this.sessions.get(sessionKey) : null;
+        if (!session) throw new Error('Session not found');
+
+        const terminal = session.terminals.get(params.terminalId);
+        if (!terminal) throw new Error(`Terminal not found: ${params.terminalId}`);
+
+        if (!terminal.process.killed) {
+          terminal.process.kill('SIGTERM');
+          // Fallback to SIGKILL after timeout
+          setTimeout(() => {
+            try { if (!terminal.process.killed) terminal.process.kill('SIGKILL'); } catch { /* already dead */ }
+          }, KILL_TIMEOUT_MS);
+        }
+
+        return {};
+      },
+
+      releaseTerminal: async (params: ReleaseTerminalRequest): Promise<ReleaseTerminalResponse> => {
+        const acpSessionId = (params as any).sessionId;
+        const sessionKey = acpSessionId
+          ? this.acpSessionIdToSessionKey.get(acpSessionId)
+          : this.findSessionKeyByConnectionKey(connectionKey);
+
+        const session = sessionKey ? this.sessions.get(sessionKey) : null;
+        if (!session) throw new Error('Session not found');
+
+        const terminal = session.terminals.get(params.terminalId);
+        if (!terminal) throw new Error(`Terminal not found: ${params.terminalId}`);
+
+        // Kill if still running
+        if (!terminal.process.killed) {
+          terminal.process.kill('SIGTERM');
+          setTimeout(() => {
+            try { if (!terminal.process.killed) terminal.process.kill('SIGKILL'); } catch { /* already dead */ }
+          }, KILL_TIMEOUT_MS);
+        }
+
+        session.terminals.delete(params.terminalId);
         return {};
       },
     };

@@ -783,7 +783,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   acpCancel: (args: { sessionKey: string }) => ipcRenderer.invoke('acp:cancel', args),
   acpKill: (args: { sessionKey: string }) => ipcRenderer.invoke('acp:kill', args),
   acpDetach: (args: { sessionKey: string }) => ipcRenderer.invoke('acp:detach', args),
-  acpApprove: (args: { sessionKey: string; toolCallId: string; approved: boolean }) =>
+  acpApprove: (args: { sessionKey: string; toolCallId: string; optionId: string | null }) =>
     ipcRenderer.invoke('acp:approve', args),
   acpSetMode: (args: { sessionKey: string; mode: string }) =>
     ipcRenderer.invoke('acp:setMode', args),

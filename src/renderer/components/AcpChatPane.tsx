@@ -15,6 +15,7 @@ import {
   CheckIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  ChevronUpIcon,
   ClockIcon,
   CopyIcon,
   DownloadIcon,
@@ -349,6 +350,33 @@ function ScrollBridge({ scrollRef }: { scrollRef: React.MutableRefObject<(() => 
     scrollRef.current = scrollToBottom;
   }, [scrollRef, scrollToBottom]);
   return null;
+}
+
+function UserMessageNavButton({
+  onNavigate,
+  onResetNav,
+}: {
+  onNavigate: () => void;
+  onResetNav: () => void;
+}) {
+  const { isAtBottom } = useStickToBottomContext();
+
+  // Reset navigation index whenever the user returns to the bottom
+  useEffect(() => {
+    if (isAtBottom) onResetNav();
+  }, [isAtBottom, onResetNav]);
+
+  if (isAtBottom) return null;
+  return (
+    <button
+      type="button"
+      className="pointer-events-auto bg-background/80 border-border/50 text-muted-foreground hover:text-foreground hover:bg-background absolute right-4 bottom-14 z-10 inline-flex size-7 items-center justify-center rounded-full border shadow-sm backdrop-blur-sm transition-colors"
+      onClick={onNavigate}
+      title="Previous message you sent"
+    >
+      <ChevronUpIcon className="size-3.5" />
+    </button>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -2020,6 +2048,45 @@ function AcpChatInner({
   const promptAttachmentsRef = useRef<{ files: any[]; clear: () => void } | null>(null);
   const scrollToBottomRef = useRef<(() => void) | null>(null);
 
+  // User message navigation — jump between your own messages
+  const userMessageNavRef = useRef<number>(-1); // -1 = not navigating, 0 = latest user msg, 1 = second latest, etc.
+
+  const navigateUserMessages = useCallback(
+    (direction: 'prev' | 'next') => {
+      const userMsgEls = Array.from(
+        document.querySelectorAll<HTMLElement>('[data-message-role="user"]')
+      );
+      if (userMsgEls.length === 0) return;
+
+      // Work in reverse order: last user message = index 0
+      const reversed = [...userMsgEls].reverse();
+      let idx = userMessageNavRef.current;
+
+      if (direction === 'prev') {
+        // Go to older (higher index)
+        idx = Math.min(idx + 1, reversed.length - 1);
+      } else {
+        // Go to newer (lower index)
+        idx = idx - 1;
+        if (idx < 0) {
+          // Back to bottom
+          userMessageNavRef.current = -1;
+          scrollToBottomRef.current?.();
+          return;
+        }
+      }
+
+      userMessageNavRef.current = idx;
+      reversed[idx]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    },
+    []
+  );
+
+  // Reset navigation index when user scrolls to bottom or sends a message
+  const resetUserNav = useCallback(() => {
+    userMessageNavRef.current = -1;
+  }, []);
+
   // Side-channel state
   const [usage, setUsage] = useState<AcpUsageData | null>(null);
   const [planEntries, setPlanEntries] = useState<AcpPlanEntry[]>([]);
@@ -2366,6 +2433,7 @@ function AcpChatInner({
   // Uses a ref so callers never hit a stale closure or TDZ during HMR.
   const safeSendRef = useRef<(payload: { text: string; files?: any[] }) => void>(() => {});
   safeSendRef.current = (payload: { text: string; files?: any[] }) => {
+    resetUserNav();
     if (chatStatus !== 'ready') {
       messageQueueRef.current.push(payload);
       setQueuedMessages([...messageQueueRef.current]);
@@ -3124,7 +3192,7 @@ function AcpChatInner({
           )}
 
           {messages.map((msg, msgIdx) => (
-            <div key={msg.id}>
+            <div key={msg.id} data-message-id={msg.id} data-message-role={msg.role}>
               <Message from={msg.role}>
                 <MessageContent>
                   {msg.role === 'user' ? (
@@ -3279,6 +3347,7 @@ function AcpChatInner({
           {/* Error display */}
           {chatStatus === 'error' && chatError && <AcpErrorCard error={chatError.message} />}
         </ConversationContent>
+        <UserMessageNavButton onNavigate={() => navigateUserMessages('prev')} onResetNav={resetUserNav} />
         <ConversationScrollButton />
       </Conversation>
 

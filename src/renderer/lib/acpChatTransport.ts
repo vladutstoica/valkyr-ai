@@ -12,6 +12,24 @@ function nextPartId(): string {
   return `part-${Date.now()}-${partIdCounter++}`;
 }
 
+/** Map ACP stopReason to AI SDK finishReason. */
+function mapStopReason(
+  stopReason: string | undefined
+): 'stop' | 'length' | 'content-filter' | 'error' {
+  switch (stopReason) {
+    case 'end_turn':
+    case 'cancelled':
+    case 'max_turn_requests':
+      return 'stop';
+    case 'max_tokens':
+      return 'length';
+    case 'refusal':
+      return 'content-filter';
+    default:
+      return 'stop';
+  }
+}
+
 /**
  * Tracks active text/reasoning streams so multiple chunks
  * are concatenated into a single part instead of creating
@@ -225,9 +243,14 @@ class ChunkMapper {
     const parts: string[] = [];
     for (const item of content) {
       if (item.type === 'content' && item.content) {
-        // ContentBlock: could be text, image, etc.
+        // ContentBlock: text, image, audio, etc.
         if (item.content.type === 'text' && item.content.text) {
           parts.push(item.content.text);
+        } else if (item.content.type === 'image' && item.content.data) {
+          const mime = item.content.mimeType || 'image/png';
+          parts.push(`![image](data:${mime};base64,${item.content.data})`);
+        } else if (item.content.type === 'audio') {
+          parts.push('[Audio content]');
         }
       } else if (item.type === 'diff' && item.diff) {
         parts.push(item.diff);
@@ -356,6 +379,9 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
 
   /** When true, permission requests are auto-approved without UI confirmation. */
   autoApprove = false;
+
+  /** Stored permission options keyed by toolCallId, for resolving optionId on approve/deny. */
+  private permissionOptions = new Map<string, Array<{ optionId: string; kind: string; name?: string }>>();
 
   constructor(options: AcpTransportOptions) {
     this.sessionKey = options.sessionKey;
@@ -501,6 +527,7 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
     this.activeCleanup?.();
     this.activeCleanup = null;
 
+    const permOptionMap = this.permissionOptions;
     return new ReadableStream<UIMessageChunk>({
       start(controller) {
         const mapper = new ChunkMapper();
@@ -560,10 +587,23 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
                 autoApprove: getAutoApprove(),
               });
               if (getAutoApprove()) {
-                // Auto-approve without showing UI
-                api().acpApprove({ sessionKey, toolCallId: event.toolCallId, approved: true });
+                // Auto-approve: pick the first allow_once/allow_always option
+                const options = event.data?.options ?? [];
+                const allowOpt = options.find(
+                  (o: any) => o.kind === 'allow_once' || o.kind === 'allow_always'
+                );
+                const optionId = allowOpt?.optionId ?? options[0]?.optionId ?? null;
+                api().acpApprove({ sessionKey, toolCallId: event.toolCallId, optionId });
               } else {
                 acpStatusStore.setStatus(sessionKey, 'streaming', true);
+
+                // Store permission options for later resolution
+                const permOptions = (event.data?.options ?? []).map((o: any) => ({
+                  optionId: o.optionId,
+                  kind: o.kind,
+                  name: o.name,
+                }));
+                permOptionMap.set(event.toolCallId, permOptions);
 
                 // Emit a tool-input-available chunk so the ai-sdk has a tool
                 // part with name + input before the approval state change.
@@ -607,7 +647,10 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
               for (const chunk of mapper.endAll()) {
                 controller.enqueue(chunk);
               }
-              controller.enqueue({ type: 'finish', finishReason: 'stop' });
+              controller.enqueue({
+                type: 'finish',
+                finishReason: mapStopReason(event.stopReason),
+              });
               controller.close();
               cleanupUpdate();
               break;
@@ -687,9 +730,28 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
   /**
    * Forward tool approval to ACP session.
    */
-  approve(toolCallId: string, approved: boolean): void {
+  /**
+   * Resolve a permission decision. Pass a specific optionId, or `true`/`false`
+   * to auto-resolve from stored permission options (allow_once on true, cancel on false).
+   */
+  approve(toolCallId: string, optionIdOrApproved: string | boolean | null): void {
     acpStatusStore.setStatus(this.sessionKey, 'streaming', false);
-    api().acpApprove({ sessionKey: this.sessionKey, toolCallId, approved });
+
+    let optionId: string | null;
+    if (typeof optionIdOrApproved === 'boolean') {
+      if (optionIdOrApproved) {
+        const opts = this.permissionOptions.get(toolCallId) ?? [];
+        const allowOpt = opts.find((o) => o.kind === 'allow_once' || o.kind === 'allow_always');
+        optionId = allowOpt?.optionId ?? opts[0]?.optionId ?? null;
+      } else {
+        optionId = null;
+      }
+    } else {
+      optionId = optionIdOrApproved;
+    }
+
+    this.permissionOptions.delete(toolCallId);
+    api().acpApprove({ sessionKey: this.sessionKey, toolCallId, optionId });
   }
 
   /**
@@ -844,8 +906,8 @@ export class LazyAcpChatTransport implements ChatTransport<UIMessage> {
     return null;
   }
 
-  approve(toolCallId: string, approved: boolean): void {
-    this.inner?.approve(toolCallId, approved);
+  approve(toolCallId: string, optionIdOrApproved: string | boolean | null): void {
+    this.inner?.approve(toolCallId, optionIdOrApproved);
   }
 
   cleanupListeners(): void {

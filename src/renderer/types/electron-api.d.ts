@@ -1864,7 +1864,7 @@ declare global {
       acpApprove: (args: {
         sessionKey: string;
         toolCallId: string;
-        approved: boolean;
+        optionId: string | null;
       }) => Promise<{ success: boolean; error?: string }>;
       acpSetMode: (args: {
         sessionKey: string;
@@ -2791,7 +2791,7 @@ export interface ElectronAPI {
   acpApprove: (args: {
     sessionKey: string;
     toolCallId: string;
-    approved: boolean;
+    optionId: string | null;
   }) => Promise<{ success: boolean; error?: string }>;
   acpSetMode: (args: {
     sessionKey: string;

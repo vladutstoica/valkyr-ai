@@ -37,7 +37,7 @@ const AcpSessionKeySchema = z.object({
 const AcpApproveSchema = z.object({
   sessionKey: z.string().min(1),
   toolCallId: z.string().min(1),
-  approved: z.boolean(),
+  optionId: z.string().nullable(),
 });
 
 const AcpSetModeSchema = z.object({
@@ -245,7 +245,7 @@ export function registerAcpIpc(): void {
       return await acpSessionManager.approvePermission(
         parsed.sessionKey,
         parsed.toolCallId,
-        parsed.approved
+        parsed.optionId
       );
     } catch (error: any) {
       if (error instanceof z.ZodError) {
