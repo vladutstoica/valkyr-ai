@@ -24,7 +24,7 @@ test('detailed session rename debug', async () => {
 
   // Log initial state
   console.log('=== INITIAL STATE ===');
-  let inputCount = await page.locator('input[type="text"]').count();
+  const inputCount = await page.locator('input[type="text"]').count();
   console.log(`Inputs before: ${inputCount}`);
 
   // Hover over session

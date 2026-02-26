@@ -241,6 +241,52 @@ import type { BundledLanguage } from 'shiki';
 import { getProvider, type ProviderId } from '@shared/providers/registry';
 
 // ---------------------------------------------------------------------------
+// Plan file content extraction — scan messages for Write/Read of /plans/*.md
+// ---------------------------------------------------------------------------
+
+/** Scan all messages backwards for the last Write or Read of a /plans/*.md file. */
+/**
+ * Scan all messages backwards for plan file content or path.
+ * Returns { content, path } — content is set if the tool part has inline data,
+ * path is set if we found a Write tool output referencing a /plans/*.md file.
+ */
+function findPlanFileInfo(messages: UIMessage[]): { content: string | null; path: string | null } {
+  for (let mi = messages.length - 1; mi >= 0; mi--) {
+    const msg = messages[mi];
+    if (msg.role !== 'assistant') continue;
+    const parts = msg.parts ?? [];
+    for (let pi = parts.length - 1; pi >= 0; pi--) {
+      const part = parts[pi] as any;
+      // AI SDK uses both 'tool-invocation' and 'tool-{name}' type formats
+      if (!part?.type?.startsWith('tool-') && part?.type !== 'tool-invocation') continue;
+      const prevName = normalizeToolName(part.toolName || '');
+      const acpKind = getAcpMeta(part)?.kind;
+      const fp = String(part.input?.file_path || part.input?.path || '');
+
+      // Check inline content from input (non-ACP path, e.g. local agents)
+      if (fp.includes('/plans/') && fp.endsWith('.md')) {
+        if ((prevName === 'write_file' || acpKind === 'edit') && typeof part.input?.content === 'string' && part.input.content) {
+          return { content: part.input.content, path: fp };
+        }
+        if ((prevName === 'read_file' || acpKind === 'read') && part.output) {
+          return { content: String(part.output), path: fp };
+        }
+      }
+
+      // ACP: Write tool output contains the file path but no content
+      const output = typeof part.output === 'string' ? part.output : '';
+      if (output.includes('/plans/') && output.includes('.md')) {
+        const match = output.match(/(?:at|to|:)\s*(\/[^\s]+\/plans\/[^\s]+\.md)/);
+        if (match) {
+          return { content: null, path: match[1] };
+        }
+      }
+    }
+  }
+  return { content: null, path: null };
+}
+
+// ---------------------------------------------------------------------------
 // ACP Error Card — renders API/server errors as a styled inline card
 // ---------------------------------------------------------------------------
 
@@ -1352,14 +1398,18 @@ function StreamingToolGroup({
 
 function MessageParts({
   message,
+  messages,
   chatStatus,
   sessionKey,
   currentModeId,
+  pendingPlanApproval,
 }: {
   message: UIMessage;
+  messages: UIMessage[];
   chatStatus: string;
   sessionKey?: string | null;
   currentModeId?: string;
+  pendingPlanApproval?: { toolCallId: string } | null;
 }) {
   // Collect source parts for grouped rendering
   const sourceParts = message.parts.filter(
@@ -1485,37 +1535,41 @@ function MessageParts({
             : { id: toolPart.toolCallId };
 
         const isModeSwitch =
-          toolName === 'switch_mode' || toolName === 'ExitPlanMode' || toolName === 'EnterPlanMode';
+          toolName === 'switch_mode' || toolName === 'ExitPlanMode' || toolName === 'EnterPlanMode' ||
+          approvalAcpMeta?.kind === 'switch_mode';
         const targetMode = (toolPart.input?.mode_slug || toolPart.input?.mode || '') as string;
 
-        // For mode switches, find the preceding plan file content to show inline
+        // For mode switches, find the plan content to show inline
         let planPreviewContent: string | null = null;
         if (isModeSwitch) {
-          for (let j = i - 1; j >= 0; j--) {
-            const prev = message.parts[j] as any;
-            // Check text parts for plan content (agents often output plan as text before ExitPlanMode)
-            if (prev?.type === 'text' && prev.text && prev.text.length > 100) {
-              planPreviewContent = prev.text;
-              break;
-            }
-            const prevToolName = prev?.toolName || prev?.type?.replace(/^tool-/, '') || '';
-            const prevNormalized = normalizeToolName(prevToolName);
-            if (prevNormalized === 'edit_file' || prevNormalized === 'write_file') {
-              const filePath = (prev.input?.file_path ||
-                prev.input?.path ||
-                prev.input?.file ||
-                prev.input?.title ||
-                '') as string;
-              if (filePath.endsWith('.md') && prev.output) {
-                planPreviewContent = String(prev.output);
+          // 1. Prefer input.plan (ACP SDK ≥ 0.1.54)
+          if (typeof toolPart.input?.plan === 'string' && (toolPart.input.plan as string).length > 0) {
+            planPreviewContent = toolPart.input.plan as string;
+          }
+          // 2. Scan all messages for plan file content (inline data or path)
+          if (!planPreviewContent) {
+            const planInfo = findPlanFileInfo(messages);
+            planPreviewContent = planInfo.content ?? null;
+          }
+          // 3. Fallback: scan preceding parts in current message for large text
+          if (!planPreviewContent) {
+            for (let j = i - 1; j >= 0; j--) {
+              const prev = message.parts[j] as any;
+              if (prev?.type === 'text' && prev.text && prev.text.length > 100) {
+                planPreviewContent = prev.text;
                 break;
               }
             }
           }
-          // Also check the tool's own output
+          // 4. Last resort: check the tool's own output
           if (!planPreviewContent && toolPart.output && String(toolPart.output).length > 50) {
             planPreviewContent = String(toolPart.output);
           }
+        }
+
+        // Skip inline confirmation for mode switches — the Plan card handles approval
+        if (isModeSwitch && pendingPlanApproval?.toolCallId === toolPart.toolCallId) {
+          return;
         }
 
         // Build confirmation title based on tool type
@@ -1963,6 +2017,14 @@ function AcpChatInner({
   const [usage, setUsage] = useState<AcpUsageData | null>(null);
   const [planEntries, setPlanEntries] = useState<AcpPlanEntry[]>([]);
   const [planDismissed, setPlanDismissed] = useState(false);
+  const [planOpen, setPlanOpen] = useState(false);
+  // When ExitPlanMode needs approval, store the toolCallId + plan content here
+  const [pendingPlanApproval, setPendingPlanApproval] = useState<{
+    toolCallId: string;
+    content: string | null;
+    fromMode?: string;
+    toMode?: string;
+  } | null>(null);
   // DEBUG: expose plan state for dev testing — remove before release
   useEffect(() => {
     const arr = ((window as any).__planDebug = (window as any).__planDebug || []);
@@ -1978,41 +2040,24 @@ function AcpChatInner({
   useEffect(() => {
     if (planEntries.length > 0 && prevPlanLengthRef.current === 0) {
       setPlanDismissed(false);
+      setPlanOpen(true);
     }
     prevPlanLengthRef.current = planEntries.length;
   }, [planEntries]);
-  // When ExitPlanMode needs approval, store the toolCallId + plan content here
-  const [pendingPlanApproval, setPendingPlanApproval] = useState<{
-    toolCallId: string;
-    content: string | null;
-  } | null>(null);
+  // Auto-open plan card when pending approval appears
+  const prevPendingRef = useRef<string | null>(null);
+  useEffect(() => {
+    const id = pendingPlanApproval?.toolCallId ?? null;
+    if (id && id !== prevPendingRef.current) {
+      setPlanOpen(true);
+      setPlanDismissed(false);
+    }
+    prevPendingRef.current = id;
+  }, [pendingPlanApproval]);
   const [availableCommands, setAvailableCommands] = useState<AcpCommand[]>([]);
   const [sessionTitle, setSessionTitle] = useState<string | null>(null);
   const [configOptions, setConfigOptions] = useState<Map<string, AcpConfigOption>>(new Map());
-
-  // Wire side-channel callbacks on transport
-  useEffect(() => {
-    // eslint-disable-next-line -- false positive: ESLint internal error on setter assignment
-    transport.sideChannel = {
-      onUsageUpdate: (data) => setUsage(data),
-      onPlanUpdate: (entries) => setPlanEntries(entries),
-      onCommandsUpdate: (cmds) => setAvailableCommands(cmds),
-      onModeUpdate: (modeId) => setCurrentModeId(modeId),
-      onConfigOptionUpdate: (option) => {
-        setConfigOptions((prev) => {
-          const next = new Map(prev);
-          next.set(option.optionId, option);
-          return next;
-        });
-      },
-      onSessionInfoUpdate: (info) => {
-        if (info.title) setSessionTitle(info.title);
-      },
-    };
-    return () => {
-      transport.sideChannel = {};
-    };
-  }, [transport]);
+  const [compactBoundaryMsgId, setCompactBoundaryMsgId] = useState<string | null>(null);
 
   const agent = agentConfig[providerId as Agent];
   const claudeUsageLimits = useClaudeUsageLimits(providerId);
@@ -2043,6 +2088,37 @@ function AcpChatInner({
         });
     },
   });
+
+  // Wire side-channel callbacks on transport
+  useEffect(() => {
+    // eslint-disable-next-line -- false positive: ESLint internal error on setter assignment
+    transport.sideChannel = {
+      onUsageUpdate: (data) => setUsage(data),
+      onPlanUpdate: (entries) => setPlanEntries(entries),
+      onCommandsUpdate: (cmds) => setAvailableCommands(cmds),
+      onModeUpdate: (modeId) => setCurrentModeId(modeId),
+      onConfigOptionUpdate: (option) => {
+        setConfigOptions((prev) => {
+          const next = new Map(prev);
+          next.set(option.optionId, option);
+          return next;
+        });
+      },
+      onSessionInfoUpdate: (info) => {
+        if (info.title) setSessionTitle(info.title);
+      },
+      onCompactComplete: () => {
+        setMessages((prev) => {
+          const lastMsg = prev[prev.length - 1];
+          if (lastMsg) setCompactBoundaryMsgId(lastMsg.id);
+          return prev;
+        });
+      },
+    };
+    return () => {
+      transport.sideChannel = {};
+    };
+  }, [transport]);
 
   // Incrementally persist the latest assistant message during streaming.
   // This prevents data loss if the component unmounts before onFinish fires
@@ -2112,23 +2188,60 @@ function AcpChatInner({
       if (msg.role !== 'assistant') continue;
       for (let pi = (msg.parts?.length ?? 0) - 1; pi >= 0; pi--) {
         const part = msg.parts[pi] as any;
-        if (part?.type !== 'tool-invocation') continue;
+        // AI SDK uses both 'tool-invocation' and 'tool-{name}' type formats
+        if (!part?.type?.startsWith('tool-') && part?.type !== 'tool-invocation') continue;
+        const partAcpMeta = getAcpMeta(part);
         const name = part.toolName || '';
-        if (name !== 'ExitPlanMode' && name !== 'switch_mode') continue;
+        const isModeSwitch = name === 'ExitPlanMode' || name === 'switch_mode' || partAcpMeta?.kind === 'switch_mode';
+        if (!isModeSwitch) continue;
         if (part.state === 'approval-requested') {
-          // Extract plan content from preceding parts
+          // Extract mode switch info
+          const targetMode = (part.input?.mode_slug || part.input?.mode || 'code') as string;
+
+          // Extract plan content with layered fallbacks
           let content: string | null = null;
-          for (let j = pi - 1; j >= 0; j--) {
-            const prev = msg.parts[j] as any;
-            if (prev?.type === 'text' && prev.text?.length > 100) {
-              content = prev.text;
-              break;
+
+          // 1. Prefer input.plan (ACP SDK ≥ 0.1.54)
+          if (typeof part.input?.plan === 'string' && part.input.plan.length > 0) {
+            content = part.input.plan;
+          }
+
+          // 2. Scan all messages for plan file content or path
+          if (!content) {
+            const planInfo = findPlanFileInfo(messages);
+            if (planInfo.content) {
+              content = planInfo.content;
+            } else if (planInfo.path) {
+              // Read the plan file asynchronously via IPC
+              const dir = planInfo.path.substring(0, planInfo.path.lastIndexOf('/'));
+              const file = planInfo.path.substring(planInfo.path.lastIndexOf('/') + 1);
+              setPendingPlanApproval({ toolCallId: part.toolCallId, content: 'Loading plan...', fromMode: 'plan', toMode: targetMode });
+              window.electronAPI?.fsRead(dir, file).then((result) => {
+                if (result.success && result.content) {
+                  setPendingPlanApproval({ toolCallId: part.toolCallId, content: result.content, fromMode: 'plan', toMode: targetMode });
+                }
+              }).catch(() => { /* ignore read errors */ });
+              return;
             }
           }
+
+          // 3. Fallback: scan preceding text parts > 100 chars
+          if (!content) {
+            for (let j = pi - 1; j >= 0; j--) {
+              const prev = msg.parts[j] as any;
+              if (prev?.type === 'text' && prev.text?.length > 100) {
+                content = prev.text;
+                break;
+              }
+            }
+          }
+
+          // 4. Last resort: tool output
           if (!content && part.output && String(part.output).length > 50) {
             content = String(part.output);
           }
-          setPendingPlanApproval({ toolCallId: part.toolCallId, content });
+
+          setPendingPlanApproval({ toolCallId: part.toolCallId, content, fromMode: 'plan', toMode: targetMode });
           return;
         }
       }
@@ -2188,12 +2301,31 @@ function AcpChatInner({
   const effectiveStatus: AcpSessionStatus =
     chatStatus === 'error' ? 'error' : (chatStatus as AcpSessionStatus);
 
+  // Queue-or-send helper — used by handleSubmit, retry, appendFn, etc.
+  // If the chat is busy, queues locally for the UX chips; the backend also
+  // queues as a safety net if the renderer status is stale.
+  // Uses a ref so callers never hit a stale closure or TDZ during HMR.
+  const safeSendRef = useRef<(payload: { text: string; files?: any[] }) => void>(() => {});
+  safeSendRef.current = (payload: { text: string; files?: any[] }) => {
+    if (chatStatus !== 'ready') {
+      messageQueueRef.current.push(payload);
+      setQueuedMessages([...messageQueueRef.current]);
+      return;
+    }
+    sendMessage(payload);
+    scrollToBottomRef.current?.();
+  };
+  const safeSend = useCallback(
+    (payload: { text: string; files?: any[] }) => safeSendRef.current(payload),
+    []
+  );
+
   // Expose append for external callers
   const appendFn = useCallback(
     async (msg: { content: string }) => {
-      sendMessage({ text: msg.content });
+      safeSend({ text: msg.content });
     },
-    [sendMessage]
+    [safeSend]
   );
 
   useEffect(() => {
@@ -2271,17 +2403,9 @@ function AcpChatInner({
         text: message.text,
         files: message.files.length > 0 ? message.files : undefined,
       };
-      // Queue if the chat is busy processing a previous message
-      if (chatStatus !== 'ready') {
-        messageQueueRef.current.push(payload);
-        setQueuedMessages([...messageQueueRef.current]);
-        return;
-      }
-      sendMessage(payload);
-      // Scroll to bottom so the user sees their message immediately
-      scrollToBottomRef.current?.();
+      safeSend(payload);
     },
-    [sendMessage, chatStatus, draftKey]
+    [safeSend, draftKey]
   );
 
   // Drain interrupt payload or queued messages when chat becomes ready
@@ -2777,8 +2901,8 @@ function AcpChatInner({
         <div className="border-border/50 shrink-0 border-b px-3 py-2">
           <Plan
             isStreaming={isStreaming}
-            defaultOpen={false}
-            {...(pendingPlanApproval ? { open: true } : {})}
+            open={planOpen}
+            onOpenChange={setPlanOpen}
           >
             <PlanHeader>
               <div>
@@ -2795,7 +2919,7 @@ function AcpChatInner({
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                {!pendingPlanApproval && <PlanTrigger />}
+                <PlanTrigger />
                 {!pendingPlanApproval && (
                   <button
                     type="button"
@@ -2810,12 +2934,25 @@ function AcpChatInner({
             </PlanHeader>
             <PlanContent className="mt-2">
               {/* Plan preview content from ExitPlanMode */}
-              {pendingPlanApproval?.content && (
+              {pendingPlanApproval?.content && pendingPlanApproval.content !== 'Loading plan...' && (
                 <div className="border-border/50 bg-muted/30 mb-2 max-h-80 overflow-y-auto rounded border p-3 text-sm [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
                   <Streamdown shikiTheme={['github-light', 'github-dark']}>
                     {pendingPlanApproval.content}
                   </Streamdown>
                 </div>
+              )}
+              {pendingPlanApproval?.content === 'Loading plan...' && (
+                <div className="border-border/50 bg-muted/30 mb-2 flex items-center gap-2 rounded border p-3 text-sm">
+                  <Loader2 className="text-muted-foreground size-4 animate-spin" />
+                  <span className="text-muted-foreground">Loading plan...</span>
+                </div>
+              )}
+              {/* Mode switch heading — after plan content, before approve/reject */}
+              {pendingPlanApproval?.fromMode && (
+                <p className="mt-2 mb-0 text-sm font-medium">
+                  Switch from <strong>{pendingPlanApproval.fromMode}</strong> to{' '}
+                  <strong>{pendingPlanApproval.toMode || 'code'}</strong> mode?
+                </p>
               )}
               {/* Task entries using Queue components */}
               {planEntries.length > 0 && (
@@ -2965,9 +3102,11 @@ function AcpChatInner({
                   ) : (
                     <MessageParts
                       message={msg}
+                      messages={messages}
                       chatStatus={chatStatus}
                       sessionKey={sessionKey}
                       currentModeId={currentModeId}
+                      pendingPlanApproval={pendingPlanApproval}
                     />
                   )}
                   {/* Trailing activity indicator while streaming (hide when waiting for user approval) */}
@@ -3002,7 +3141,7 @@ function AcpChatInner({
                           .find((m) => m.role === 'user');
                         if (prevUserMsg) {
                           const text = getTextFromParts(prevUserMsg.parts);
-                          if (text) sendMessage({ text });
+                          if (text) safeSend({ text });
                         }
                       }}
                     >
@@ -3023,6 +3162,14 @@ function AcpChatInner({
                     </CheckpointTrigger>
                   </Checkpoint>
                 )}
+              {compactBoundaryMsgId === msg.id && (
+                <Checkpoint className="my-1">
+                  <CheckpointIcon />
+                  <CheckpointTrigger className="text-[10px] whitespace-nowrap" disabled>
+                    Context compacted — earlier messages may be summarized
+                  </CheckpointTrigger>
+                </Checkpoint>
+              )}
             </div>
           ))}
 
@@ -3139,11 +3286,11 @@ function AcpChatInner({
         <Suggestions className="flex-wrap justify-start px-3 pb-2">
           <Suggestion
             suggestion="Explain this codebase"
-            onClick={(s) => sendMessage({ text: s })}
+            onClick={(s) => safeSend({ text: s })}
           />
-          <Suggestion suggestion="Find and fix bugs" onClick={(s) => sendMessage({ text: s })} />
-          <Suggestion suggestion="Write tests" onClick={(s) => sendMessage({ text: s })} />
-          <Suggestion suggestion="Refactor code" onClick={(s) => sendMessage({ text: s })} />
+          <Suggestion suggestion="Find and fix bugs" onClick={(s) => safeSend({ text: s })} />
+          <Suggestion suggestion="Write tests" onClick={(s) => safeSend({ text: s })} />
+          <Suggestion suggestion="Refactor code" onClick={(s) => safeSend({ text: s })} />
         </Suggestions>
       )}
 

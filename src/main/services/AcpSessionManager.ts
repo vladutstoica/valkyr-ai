@@ -134,6 +134,11 @@ type AcpSession = {
       options: Array<{ optionId: string; kind: string; name: string }>;
     }
   >;
+  /** Queued prompt to send when session becomes ready (avoids status desync errors). */
+  pendingPrompt: {
+    message: string;
+    files?: Array<{ url: string; mediaType: string; filename?: string }>;
+  } | null;
 };
 
 type SessionCreateResult = {
@@ -645,6 +650,7 @@ export class AcpSessionManager {
         modes: null,
         models: null,
         pendingPermissions: new Map(),
+        pendingPrompt: null,
       };
       this.sessions.set(sessionKey, session);
 
@@ -896,11 +902,15 @@ export class AcpSessionManager {
     if (!session) {
       return { success: false, error: 'Session not found' };
     }
-    if (session.status !== 'ready') {
-      return { success: false, error: `Cannot send prompt in status: ${session.status}` };
-    }
     if (!session.acpSessionId) {
       return { success: false, error: 'No ACP session ID' };
+    }
+
+    // Queue the prompt if the session is busy — drain happens in setStatus when ready
+    if (session.status !== 'ready') {
+      log.info(`Queueing prompt for ${sessionKey} (status: ${session.status})`);
+      session.pendingPrompt = { message, files };
+      return { success: true };
     }
 
     const conn = this.connections.get(session.connectionKey);
@@ -1236,6 +1246,9 @@ export class AcpSessionManager {
     const session = this.sessions.get(sessionKey);
     if (!session) return;
 
+    // Discard any queued prompt
+    session.pendingPrompt = null;
+
     // Reject any pending permissions
     for (const [, pending] of session.pendingPermissions) {
       pending.resolve({ outcome: { outcome: 'cancelled' } });
@@ -1419,6 +1432,19 @@ export class AcpSessionManager {
       type: 'status_change',
       status,
     });
+
+    // Auto-drain queued prompt when session becomes ready
+    if (status === 'ready' && session.pendingPrompt) {
+      const { message, files } = session.pendingPrompt;
+      session.pendingPrompt = null;
+      log.info(`Draining pending prompt for ${sessionKey}`);
+      // Use nextTick so the ready status event flushes before the new prompt starts
+      process.nextTick(() => {
+        this.sendPrompt(sessionKey, message, files).catch((err) => {
+          log.error(`Failed to drain pending prompt for ${sessionKey}`, err);
+        });
+      });
+    }
   }
 }
 
