@@ -24,6 +24,7 @@ import {
   Loader2Icon,
   MoreHorizontalIcon,
   PaperclipIcon,
+  PencilIcon,
   PlusIcon,
   RefreshCwIcon,
   SettingsIcon,
@@ -360,6 +361,8 @@ type AcpChatPaneProps = {
   providerId: string;
   cwd: string;
   projectPath?: string;
+  conversationTitle?: string;
+  onConversationTitleChange?: (title: string) => void;
   onStatusChange?: (status: AcpSessionStatus, sessionKey: string) => void;
   onAppendRef?: (fn: ((msg: { content: string }) => Promise<void>) | null) => void;
   onOpenAgentSettings?: () => void;
@@ -1866,6 +1869,8 @@ type AcpChatInnerProps = {
   resumed: boolean | null;
   modes: AcpSessionModes;
   models: AcpSessionModels;
+  conversationTitle?: string;
+  onConversationTitleChange?: (title: string) => void;
   onStatusChange?: (status: AcpSessionStatus, sessionKey: string) => void;
   onAppendRef?: (fn: ((msg: { content: string }) => Promise<void>) | null) => void;
   onCreateNewChat?: () => void;
@@ -1971,6 +1976,8 @@ function AcpChatInner({
   onStatusChange,
   onAppendRef,
   onCreateNewChat,
+  conversationTitle,
+  onConversationTitleChange,
   onResumeSession,
   onClearChat,
   onDeleteChat,
@@ -2059,7 +2066,34 @@ function AcpChatInner({
   const [configOptions, setConfigOptions] = useState<Map<string, AcpConfigOption>>(new Map());
   const [compactBoundaryMsgId, setCompactBoundaryMsgId] = useState<string | null>(null);
 
+  // Editable conversation title state
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  // Track whether we already auto-generated a title for this conversation
+  const titleAutoSetRef = useRef(false);
+
   const agent = agentConfig[providerId as Agent];
+
+  /** Check if a title is still the generic "AgentName" or "AgentName N" pattern */
+  const isGenericTitle = useCallback(
+    (title?: string) => {
+      if (!title) return true;
+      const agentName = agent?.name || providerId;
+      // Matches "Claude Code", "Claude Code 2", "Resumed: Claude Code", etc.
+      return /^(Resumed:\s*)?/.test(title) && title.replace(/^Resumed:\s*/, '').replace(/\s+\d+$/, '') === agentName;
+    },
+    [agent?.name, providerId]
+  );
+
+  /** Persist a new title to DB and notify parent */
+  const updateTitle = useCallback(
+    (newTitle: string) => {
+      if (!newTitle.trim()) return;
+      window.electronAPI.updateConversationTitle({ conversationId, title: newTitle.trim() }).catch(() => {});
+      onConversationTitleChange?.(newTitle.trim());
+    },
+    [conversationId, onConversationTitleChange]
+  );
   const claudeUsageLimits = useClaudeUsageLimits(providerId);
   const {
     messages,
@@ -2086,6 +2120,26 @@ function AcpChatInner({
         .catch(() => {
           /* non-fatal */
         });
+
+      // Auto-generate conversation title from first user message if still generic
+      if (!titleAutoSetRef.current && isGenericTitle(conversationTitle)) {
+        titleAutoSetRef.current = true;
+        // Find the first user message text
+        const allMsgs = [...(initialMessages.length > 0 ? initialMessages : []), message];
+        const firstUserMsg = allMsgs.find((m) => m.role === 'user');
+        if (firstUserMsg) {
+          const userText = getTextFromParts(firstUserMsg.parts).trim();
+          if (userText) {
+            // Truncate at word boundary around 60 chars
+            const maxLen = 60;
+            const truncated =
+              userText.length <= maxLen
+                ? userText
+                : userText.substring(0, userText.lastIndexOf(' ', maxLen) || maxLen) + '...';
+            updateTitle(truncated);
+          }
+        }
+      }
     },
   });
 
@@ -2105,7 +2159,12 @@ function AcpChatInner({
         });
       },
       onSessionInfoUpdate: (info) => {
-        if (info.title) setSessionTitle(info.title);
+        if (info.title) {
+          setSessionTitle(info.title);
+          // Persist agent-provided title to conversation DB
+          updateTitle(info.title);
+          titleAutoSetRef.current = true;
+        }
       },
       onCompactComplete: () => {
         setMessages((prev) => {
@@ -2713,12 +2772,45 @@ function AcpChatInner({
 
   return (
     <div className={`flex h-full flex-col ${className}`} onClick={handleApprovalClick}>
-      {/* Session title */}
-      {sessionTitle && (
-        <div className="border-border/50 text-muted-foreground shrink-0 truncate border-b px-3 py-1.5 text-xs font-medium">
-          {sessionTitle}
+      {/* Conversation topic title — editable on click */}
+      {(conversationTitle && !isGenericTitle(conversationTitle)) || sessionTitle ? (
+        <div className="border-border/50 group shrink-0 border-b px-3 py-1.5">
+          {isEditingTitle ? (
+            <input
+              ref={titleInputRef}
+              type="text"
+              defaultValue={conversationTitle || sessionTitle || ''}
+              className="bg-transparent text-foreground w-full border-none text-xs font-medium outline-none"
+              onBlur={(e) => {
+                const val = e.target.value.trim();
+                if (val && val !== conversationTitle) updateTitle(val);
+                setIsEditingTitle(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.currentTarget.blur();
+                } else if (e.key === 'Escape') {
+                  setIsEditingTitle(false);
+                }
+              }}
+              autoFocus
+            />
+          ) : (
+            <button
+              type="button"
+              className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 truncate text-xs font-medium transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsEditingTitle(true);
+              }}
+              title="Click to rename"
+            >
+              <span className="truncate">{conversationTitle || sessionTitle}</span>
+              <PencilIcon className="size-2.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-60" />
+            </button>
+          )}
         </div>
-      )}
+      ) : null}
 
       {/* Toolbar */}
       <div className="border-border/50 flex shrink-0 items-center justify-between border-b p-3">
@@ -3488,6 +3580,8 @@ export function AcpChatPane({
   providerId,
   cwd,
   projectPath,
+  conversationTitle,
+  onConversationTitleChange,
   onStatusChange,
   onAppendRef,
   onOpenAgentSettings,
@@ -3606,6 +3700,8 @@ export function AcpChatPane({
       resumed={resumed}
       modes={modes}
       models={models}
+      conversationTitle={conversationTitle}
+      onConversationTitleChange={onConversationTitleChange}
       onStatusChange={onStatusChange}
       onAppendRef={onAppendRef}
       onCreateNewChat={onCreateNewChat}

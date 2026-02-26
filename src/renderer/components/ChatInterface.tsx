@@ -920,6 +920,12 @@ const ChatInterface: React.FC<Props> = ({
                       providerId={convAgent}
                       cwd={terminalCwd || task.path || '.'}
                       projectPath={projectPath || undefined}
+                      conversationTitle={conv.title}
+                      onConversationTitleChange={(title) => {
+                        setConversations((prev) =>
+                          prev.map((c) => (c.id === conv.id ? { ...c, title } : c))
+                        );
+                      }}
                       onStatusChange={(status) => {
                         try {
                           window.localStorage.setItem(`agent:locked:${task.id}`, convAgent);
