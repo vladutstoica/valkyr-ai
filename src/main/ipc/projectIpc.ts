@@ -291,101 +291,74 @@ export function registerProjectIpc() {
   });
 
   // Detect sub-repositories in a multi-repo project folder
+  /** Fetch git remote + branch for a directory in parallel. */
+  async function getGitInfoForPath(
+    cwd: string
+  ): Promise<{ remote?: string; branch?: string; baseRef?: string }> {
+    const [remoteResult, branchResult] = await Promise.all([
+      execAsync('git remote get-url origin', { cwd }).catch(() => ({ stdout: '' })),
+      execAsync('git branch --show-current', { cwd }).catch(() => ({ stdout: '' })),
+    ]);
+    const remote = remoteResult.stdout.trim() || undefined;
+    const branch = branchResult.stdout.trim() || undefined;
+    const baseRef = branch || remote ? computeBaseRef(remote, branch) : undefined;
+    return { remote, branch, baseRef };
+  }
+
+  // Cache for detectSubRepos results — avoids repeated filesystem scans on rapid project clicks.
+  // Same pattern as branchCache in gitIpc.ts.
+  const subRepoCache = new Map<string, { result: any; fetchedAt: number }>();
+  const SUB_REPO_CACHE_TTL_MS = 30_000;
+
   ipcMain.handle('git:detectSubRepos', async (_, projectPath: string) => {
     try {
+      const cached = subRepoCache.get(projectPath);
+      if (cached && Date.now() - cached.fetchedAt < SUB_REPO_CACHE_TTL_MS) {
+        return cached.result;
+      }
       const resolvedProjectPath = await fs.promises.realpath(projectPath).catch(() => projectPath);
 
-      // Also fetch fresh git info for the root path itself
-      let rootGitInfo:
-        | { isGitRepo: boolean; remote?: string; branch?: string; baseRef?: string }
-        | undefined;
+      // Fetch root git info and directory entries in parallel
       const rootGitPath = join(resolvedProjectPath, '.git');
-      if (fs.existsSync(rootGitPath)) {
-        let rootRemote: string | undefined;
-        let rootBranch: string | undefined;
-        let rootBaseRef: string | undefined;
-        try {
-          const { stdout } = await execAsync('git remote get-url origin', {
-            cwd: resolvedProjectPath,
-          });
-          rootRemote = stdout.trim() || undefined;
-        } catch {}
-        try {
-          const { stdout } = await execAsync('git branch --show-current', {
-            cwd: resolvedProjectPath,
-          });
-          rootBranch = stdout.trim() || undefined;
-        } catch {}
-        if (rootBranch || rootRemote) {
-          rootBaseRef = computeBaseRef(rootRemote, rootBranch);
-        }
-        rootGitInfo = {
-          isGitRepo: true,
-          remote: rootRemote,
-          branch: rootBranch,
-          baseRef: rootBaseRef,
-        };
-      }
+      const hasRootGit = fs.existsSync(rootGitPath);
 
-      // Read immediate children of the project folder
-      const entries = await fs.promises.readdir(resolvedProjectPath, { withFileTypes: true });
-      const subRepos: Array<{
-        path: string;
-        name: string;
-        relativePath: string;
-        gitInfo: {
-          isGitRepo: boolean;
-          remote?: string;
-          branch?: string;
-          baseRef?: string;
-        };
-      }> = [];
+      const [rootInfo, entries] = await Promise.all([
+        hasRootGit ? getGitInfoForPath(resolvedProjectPath) : Promise.resolve(undefined),
+        fs.promises.readdir(resolvedProjectPath, { withFileTypes: true }),
+      ]);
 
+      const rootGitInfo = hasRootGit && rootInfo
+        ? { isGitRepo: true, ...rootInfo }
+        : undefined;
+
+      // Collect sub-repo paths first (cheap fs.existsSync), then fetch git info in parallel
+      const subRepoPaths: Array<{ subPath: string; name: string }> = [];
       for (const entry of entries) {
-        if (!entry.isDirectory()) continue;
-        // Skip hidden directories (except we check for .git inside)
-        if (entry.name.startsWith('.')) continue;
-
+        if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
         const subPath = join(resolvedProjectPath, entry.name);
-        const gitPath = join(subPath, '.git');
-
-        // Check if this subdirectory is a git repo
-        if (!fs.existsSync(gitPath)) continue;
-
-        // Get git info for this sub-repo
-        let remote: string | undefined;
-        let branch: string | undefined;
-        let baseRef: string | undefined;
-
-        try {
-          const { stdout } = await execAsync('git remote get-url origin', { cwd: subPath });
-          remote = stdout.trim() || undefined;
-        } catch {}
-
-        try {
-          const { stdout } = await execAsync('git branch --show-current', { cwd: subPath });
-          branch = stdout.trim() || undefined;
-        } catch {}
-
-        // Compute baseRef for this sub-repo
-        if (branch || remote) {
-          baseRef = computeBaseRef(remote, branch);
+        if (fs.existsSync(join(subPath, '.git'))) {
+          subRepoPaths.push({ subPath, name: entry.name });
         }
-
-        subRepos.push({
-          path: subPath,
-          name: entry.name,
-          relativePath: entry.name,
-          gitInfo: {
-            isGitRepo: true,
-            remote,
-            branch,
-            baseRef,
-          },
-        });
       }
 
-      return { success: true, subRepos, rootGitInfo };
+      // Parallel git info fetch for all sub-repos
+      const subRepoInfos = await Promise.all(
+        subRepoPaths.map(({ subPath }) => getGitInfoForPath(subPath))
+      );
+
+      const subRepos = subRepoPaths.map(({ subPath, name }, i) => ({
+        path: subPath,
+        name,
+        relativePath: name,
+        gitInfo: {
+          isGitRepo: true,
+          ...subRepoInfos[i],
+        },
+      }));
+
+      const result = { success: true, subRepos, rootGitInfo };
+      subRepoCache.set(projectPath, { result, fetchedAt: Date.now() });
+      return result;
     } catch (error) {
       console.error('Failed to detect sub-repos:', error);
       return { success: false, error: 'Failed to detect sub-repositories', subRepos: [] };
@@ -409,44 +382,44 @@ export function registerProjectIpc() {
         return { success: false, error: 'Project not found' };
       }
 
-      const repos: RepoStatus[] = [];
+      // Collect all repo paths, then fetch status in parallel
+      const statusPromises: Array<Promise<RepoStatus>> = [];
 
-      // Check if the main project path is a git repo
       const mainGitPath = join(project.path, '.git');
       const mainIsGitRepo = fs.existsSync(mainGitPath);
 
       if (mainIsGitRepo) {
-        // Single repo project - get status for main repo
-        const mainStatus = await getRepoStatusForPath(project.path, project.name, true);
-        repos.push(mainStatus);
+        statusPromises.push(getRepoStatusForPath(project.path, project.name, true));
       }
 
-      // Get sub-repos from project settings (already parsed by DatabaseService)
       if (project.subRepos && Array.isArray(project.subRepos)) {
         for (const subRepo of project.subRepos) {
           if (subRepo.gitInfo?.isGitRepo && fs.existsSync(subRepo.path)) {
-            const subStatus = await getRepoStatusForPath(subRepo.path, subRepo.name, false);
-            repos.push(subStatus);
+            statusPromises.push(getRepoStatusForPath(subRepo.path, subRepo.name, false));
           }
         }
       }
 
-      // If no repos found, try to detect sub-repos dynamically
-      if (repos.length === 0 && !mainIsGitRepo) {
+      let repos: RepoStatus[] = [];
+
+      if (statusPromises.length > 0) {
+        repos = await Promise.all(statusPromises);
+      } else if (!mainIsGitRepo) {
+        // If no repos found, try to detect sub-repos dynamically
         try {
           const entries = await fs.promises.readdir(project.path, { withFileTypes: true });
+          const dynamicPromises: Array<Promise<RepoStatus>> = [];
+          let isFirst = true;
           for (const entry of entries) {
             if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
             const subPath = join(project.path, entry.name);
-            const subGitPath = join(subPath, '.git');
-            if (fs.existsSync(subGitPath)) {
-              const subStatus = await getRepoStatusForPath(
-                subPath,
-                entry.name,
-                repos.length === 0 // First one found is treated as "main"
-              );
-              repos.push(subStatus);
+            if (fs.existsSync(join(subPath, '.git'))) {
+              dynamicPromises.push(getRepoStatusForPath(subPath, entry.name, isFirst));
+              isFirst = false;
             }
+          }
+          if (dynamicPromises.length > 0) {
+            repos = await Promise.all(dynamicPromises);
           }
         } catch {
           // Failed to scan directory

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { pickDefaultBranch } from '../components/BranchSelect';
 import { saveActiveIds, getProjectLastTaskId, saveProjectLastTaskId } from '../constants/layout';
 import { createLogger } from '../lib/logger';
@@ -62,6 +62,9 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
   >([]);
   const [projectDefaultBranch, setProjectDefaultBranch] = useState<string>('main');
   const [isLoadingBranches, setIsLoadingBranches] = useState(false);
+
+  // Tracks the latest project requested for sub-repo refresh, so stale results are discarded
+  const latestSubRepoProjectRef = useRef<string | null>(null);
 
   // Persist activeWorkspaceId to localStorage + DB
   useEffect(() => {
@@ -131,8 +134,8 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
         });
     }
 
-    // Re-scan for nested git repos (catches added/removed repos)
-    refreshProjectSubRepos(project);
+    // Re-scan for nested git repos after the UI paints (deferred to avoid blocking switch)
+    setTimeout(() => refreshProjectSubRepos(project), 0);
   }, []);
 
   /**
@@ -140,8 +143,11 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
    * Uses fresh `git branch --show-current` for both the root and nested repos.
    */
   const refreshProjectSubRepos = useCallback(async (project: Project) => {
+    latestSubRepoProjectRef.current = project.id;
     try {
       const result = await window.electronAPI.detectSubRepos(project.path);
+      // Discard stale results if the user already switched to a different project
+      if (latestSubRepoProjectRef.current !== project.id) return;
       if (!result.success) return;
       log.debug('Sub-repos detected', { projectId: project.id, count: result.subRepos.length });
       const isGitRoot = project.gitInfo?.isGitRepo;
@@ -179,22 +185,60 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
       // Also update the project's own gitInfo if we got fresh root data
       const freshGitInfo = result.rootGitInfo || undefined;
 
-      // Use functional updater to avoid overwriting concurrent state changes
+      // Use functional updater to avoid overwriting concurrent state changes.
+      // Bail out (return prev) if nothing actually changed to avoid cascading re-renders.
       setSelectedProject((prev) => {
         if (!prev || prev.id !== project.id) return prev;
+
+        // Check if gitInfo actually changed
+        const gitInfoChanged = freshGitInfo && (
+          prev.gitInfo?.remote !== freshGitInfo.remote ||
+          prev.gitInfo?.branch !== freshGitInfo.branch ||
+          prev.gitInfo?.baseRef !== freshGitInfo.baseRef
+        );
+
+        // Check if subRepos actually changed (compare by length + paths)
+        const prevSubs = prev.subRepos;
+        const subReposChanged =
+          (prevSubs?.length ?? 0) !== (newSubRepos?.length ?? 0) ||
+          (newSubRepos ?? []).some((s, i) =>
+            s.path !== prevSubs?.[i]?.path ||
+            s.gitInfo?.branch !== prevSubs?.[i]?.gitInfo?.branch
+          );
+
+        if (!gitInfoChanged && !subReposChanged) return prev;
+
         let updated = prev;
-        // Update gitInfo with fresh branch data
-        if (freshGitInfo) {
+        if (gitInfoChanged) {
           updated = { ...updated, gitInfo: { ...updated.gitInfo, ...freshGitInfo } };
         }
-        updated = { ...updated, subRepos: newSubRepos };
+        if (subReposChanged) {
+          updated = { ...updated, subRepos: newSubRepos };
+        }
         return updated;
       });
       setProjects((prev) => {
         const target = prev.find((p) => p.id === project.id);
         if (!target) return prev;
+
+        // Same bail-out check for projects array
+        const gitInfoChanged = freshGitInfo && (
+          target.gitInfo?.remote !== freshGitInfo.remote ||
+          target.gitInfo?.branch !== freshGitInfo.branch ||
+          target.gitInfo?.baseRef !== freshGitInfo.baseRef
+        );
+        const prevSubs = target.subRepos;
+        const subReposChanged =
+          (prevSubs?.length ?? 0) !== (newSubRepos?.length ?? 0) ||
+          (newSubRepos ?? []).some((s, i) =>
+            s.path !== prevSubs?.[i]?.path ||
+            s.gitInfo?.branch !== prevSubs?.[i]?.gitInfo?.branch
+          );
+
+        if (!gitInfoChanged && !subReposChanged) return prev;
+
         let updatedProject = { ...target, subRepos: newSubRepos };
-        if (freshGitInfo) {
+        if (gitInfoChanged) {
           updatedProject = { ...updatedProject, gitInfo: { ...target.gitInfo, ...freshGitInfo } };
         }
         return prev.map((p) => (p.id === project.id ? updatedProject : p));
@@ -1092,17 +1136,24 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
     }
   };
 
-  // Load branch options when project is selected
+  // Load branch options when project changes (by ID, not object reference —
+  // refreshProjectSubRepos updates the object without changing the project).
+  const selectedProjectId = selectedProject?.id ?? null;
+  const selectedProjectPath = selectedProject?.path ?? null;
+  const selectedProjectBaseRef = selectedProject?.gitInfo?.baseRef;
+  // Keep a ref so the async callback inside the effect always reads the latest baseRef,
+  // even though the effect only re-runs when the project ID changes.
+  const baseRefRef = useRef(selectedProjectBaseRef);
+  baseRefRef.current = selectedProjectBaseRef;
   useEffect(() => {
-    if (!selectedProject) {
+    if (!selectedProjectId || !selectedProjectPath) {
       setProjectBranchOptions([]);
       setProjectDefaultBranch('main');
       return;
     }
 
     // Show current baseRef immediately while loading full list, or reset to defaults
-    const currentRef = selectedProject.gitInfo?.baseRef;
-    const initialBranch = currentRef || 'main';
+    const initialBranch = baseRefRef.current || 'main';
     setProjectBranchOptions([{ value: initialBranch, label: initialBranch }]);
     setProjectDefaultBranch(initialBranch);
 
@@ -1111,7 +1162,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
       setIsLoadingBranches(true);
       try {
         const res = await window.electronAPI.listRemoteBranches({
-          projectPath: selectedProject.path,
+          projectPath: selectedProjectPath,
         });
         if (cancelled) return;
         if (res.success && res.branches) {
@@ -1120,8 +1171,9 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
             label: b.remote ? b.label : `${b.branch} (local)`,
           }));
           setProjectBranchOptions(options);
-          const defaultBranch = pickDefaultBranch(options, currentRef);
-          setProjectDefaultBranch(defaultBranch ?? currentRef ?? 'main');
+          const currentBaseRef = baseRefRef.current;
+          const defaultBranch = pickDefaultBranch(options, currentBaseRef);
+          setProjectDefaultBranch(defaultBranch ?? currentBaseRef ?? 'main');
         }
       } catch (error) {
         log.error('Failed to load branches:', error);
@@ -1132,11 +1184,15 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
       }
     };
 
-    void loadBranches();
+    // Defer branch loading so the project view paints first — the main process
+    // already has a 60s TTL cache, so the IPC round-trip is fast on repeat visits.
+    const timerId = setTimeout(() => void loadBranches(), 150);
     return () => {
       cancelled = true;
+      clearTimeout(timerId);
     };
-  }, [selectedProject]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProjectId]);
 
   return {
     projects,
