@@ -88,6 +88,40 @@ export async function getMultiRepoStatus(repoMappings: RepoMapping[]): Promise<G
   return allChanges;
 }
 
+/** Parse `git diff --numstat` output into a map of filePath → {additions, deletions}. */
+function parseNumstat(stdout: string): Map<string, { additions: number; deletions: number }> {
+  const map = new Map<string, { additions: number; deletions: number }>();
+  if (!stdout || !stdout.trim()) return map;
+  for (const line of stdout.trim().split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const parts = trimmed.split('\t');
+    if (parts.length < 3) continue;
+    const additions = parts[0] === '-' ? 0 : parseInt(parts[0], 10) || 0;
+    const deletions = parts[1] === '-' ? 0 : parseInt(parts[1], 10) || 0;
+    // Handle renames: "old => new" or "{old => new}/path"
+    let filePath = parts.slice(2).join('\t');
+    if (filePath.includes(' => ')) {
+      // git numstat uses "old => new" for renames
+      const match = filePath.match(/\{.*? => (.*?)\}/);
+      if (match) {
+        filePath = filePath.replace(/\{.*? => .*?\}/, match[1]);
+      } else {
+        const renameParts = filePath.split(' => ');
+        filePath = renameParts[renameParts.length - 1].trim();
+      }
+    }
+    const existing = map.get(filePath);
+    if (existing) {
+      existing.additions += additions;
+      existing.deletions += deletions;
+    } else {
+      map.set(filePath, { additions, deletions });
+    }
+  }
+  return map;
+}
+
 export async function getStatus(taskPath: string): Promise<GitChange[]> {
   try {
     await execFileAsync('git', ['rev-parse', '--is-inside-work-tree'], {
@@ -107,11 +141,28 @@ export async function getStatus(taskPath: string): Promise<GitChange[]> {
 
   if (!statusOutput.trim()) return [];
 
-  const changes: GitChange[] = [];
   const statusLines = statusOutput
     .split('\n')
     .map((l) => l.replace(/\r$/, ''))
     .filter((l) => l.length > 0);
+
+  // Batch: fetch numstat for ALL files at once (2 calls total instead of 2×N)
+  const [stagedResult, unstagedResult] = await Promise.all([
+    execFileAsync('git', ['diff', '--numstat', '--cached'], { cwd: taskPath }).catch(() => ({
+      stdout: '',
+      stderr: '',
+    })),
+    execFileAsync('git', ['diff', '--numstat'], { cwd: taskPath }).catch(() => ({
+      stdout: '',
+      stderr: '',
+    })),
+  ]);
+
+  const stagedStats = parseNumstat(stagedResult.stdout);
+  const unstagedStats = parseNumstat(unstagedResult.stdout);
+
+  const changes: GitChange[] = [];
+  const untrackedPaths: Array<{ filePath: string; index: number }> = [];
 
   for (const line of statusLines) {
     const statusCode = line.substring(0, 2);
@@ -127,52 +178,35 @@ export async function getStatus(taskPath: string): Promise<GitChange[]> {
     else if (statusCode.includes('R')) status = 'renamed';
     else if (statusCode.includes('M')) status = 'modified';
 
-    // Check if file is staged (first character of status code indicates staged changes)
     const isStaged = statusCode[0] !== ' ' && statusCode[0] !== '?';
-    let additions = 0;
-    let deletions = 0;
 
-    const sumNumstat = (stdout: string) => {
-      const lines = stdout
-        .trim()
-        .split('\n')
-        .filter((l) => l.trim().length > 0);
-      for (const l of lines) {
-        const p = l.split('\t');
-        if (p.length >= 2) {
-          const addStr = p[0];
-          const delStr = p[1];
-          const a = addStr === '-' ? 0 : parseInt(addStr, 10) || 0;
-          const d = delStr === '-' ? 0 : parseInt(delStr, 10) || 0;
-          additions += a;
-          deletions += d;
-        }
-      }
-    };
-
-    try {
-      const staged = await execFileAsync('git', ['diff', '--numstat', '--cached', '--', filePath], {
-        cwd: taskPath,
-      });
-      if (staged.stdout && staged.stdout.trim()) sumNumstat(staged.stdout);
-    } catch {}
-
-    try {
-      const unstaged = await execFileAsync('git', ['diff', '--numstat', '--', filePath], {
-        cwd: taskPath,
-      });
-      if (unstaged.stdout && unstaged.stdout.trim()) sumNumstat(unstaged.stdout);
-    } catch {}
+    // Look up from batch results instead of spawning per-file git commands
+    const staged = stagedStats.get(filePath);
+    const unstaged = unstagedStats.get(filePath);
+    let additions = (staged?.additions ?? 0) + (unstaged?.additions ?? 0);
+    let deletions = (staged?.deletions ?? 0) + (unstaged?.deletions ?? 0);
 
     if (additions === 0 && deletions === 0 && statusCode.includes('?')) {
-      const absPath = path.join(taskPath, filePath);
-      const count = await countFileNewlinesCapped(absPath, MAX_UNTRACKED_LINECOUNT_BYTES);
-      if (typeof count === 'number') {
-        additions = count;
-      }
+      // Defer untracked file line counting (need async I/O)
+      untrackedPaths.push({ filePath, index: changes.length });
     }
 
     changes.push({ path: filePath, status, additions, deletions, isStaged });
+  }
+
+  // Count lines for untracked files in parallel
+  if (untrackedPaths.length > 0) {
+    const counts = await Promise.all(
+      untrackedPaths.map(({ filePath }) =>
+        countFileNewlinesCapped(path.join(taskPath, filePath), MAX_UNTRACKED_LINECOUNT_BYTES)
+      )
+    );
+    for (let i = 0; i < untrackedPaths.length; i++) {
+      const count = counts[i];
+      if (typeof count === 'number') {
+        changes[untrackedPaths[i].index].additions = count;
+      }
+    }
   }
 
   return changes;

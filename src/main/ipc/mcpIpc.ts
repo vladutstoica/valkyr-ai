@@ -61,7 +61,7 @@ export function registerMcpIpc() {
   ipcMain.handle('mcp:getProjectServers', async (_event, args: unknown) => {
     try {
       const { projectPath } = z.object({ projectPath: z.string().min(1) }).parse(args);
-      const data = mcpConfigService.getProjectServers(projectPath);
+      const data = await mcpConfigService.getProjectServers(projectPath);
       return { success: true, data };
     } catch (err: any) {
       log.error('mcp:getProjectServers failed:', err);
@@ -77,7 +77,7 @@ export function registerMcpIpc() {
           servers: McpServersArraySchema,
         })
         .parse(args);
-      const data = mcpConfigService.saveProjectServers(projectPath, servers);
+      const data = await mcpConfigService.saveProjectServers(projectPath, servers);
       return { success: true, data };
     } catch (err: any) {
       log.error('mcp:saveProjectServers failed:', err);
@@ -88,7 +88,7 @@ export function registerMcpIpc() {
   ipcMain.handle('mcp:detectAgentServers', async (_event, args: unknown) => {
     try {
       const { projectPath } = z.object({ projectPath: z.string().optional() }).parse(args ?? {});
-      const data = mcpConfigService.detectAgentServers(projectPath);
+      const data = await mcpConfigService.detectAgentServers(projectPath);
       return { success: true, data };
     } catch (err: any) {
       log.error('mcp:detectAgentServers failed:', err);

@@ -17,6 +17,8 @@ export type UseAcpSessionOptions = {
   providerId: string;
   cwd: string;
   projectPath?: string;
+  /** When false, session init is deferred until the task becomes active. */
+  isActive?: boolean;
 };
 
 export type UseAcpSessionReturn = {
@@ -233,7 +235,12 @@ function extractToolContent(content: any[] | undefined | null): string | undefin
  * for the ACP subprocess to start.
  */
 export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionReturn {
-  const { conversationId, providerId, cwd, projectPath } = options;
+  const { conversationId, providerId, cwd, projectPath, isActive = true } = options;
+
+  // Track whether this session has ever been activated.  Once true, stays true
+  // so background agents keep running after the user switches away.
+  const [activated, setActivated] = useState(isActive);
+  if (isActive && !activated) setActivated(true);
 
   const [sessionKey, setSessionKey] = useState<string | null>(null);
   const [acpSessionId, setAcpSessionId] = useState<string | null>(null);
@@ -258,6 +265,10 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
   }, [conversationId, providerId, restartCount]);
 
   useEffect(() => {
+    // Defer session init until the task has been activated at least once.
+    // This prevents N simultaneous acpStart calls when the app loads with many tasks.
+    if (!activated) return;
+
     // Per-effect cancel flag — prevents stale init from wiring wrong transport
     // after restartSession() is called while a previous init is still in-flight.
     let cancelled = false;
@@ -298,22 +309,27 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
         }
       }
 
-      // Prefer ACP history events (from loadSession) over DB messages,
-      // since they include the full conversation including user messages.
-      if (sessionResult.historyEvents && sessionResult.historyEvents.length > 0) {
-        const historyMessages = convertHistoryToMessages(sessionResult.historyEvents);
-        log.debug('Restored messages from ACP history', { count: historyMessages.length });
-        if (historyMessages.length > 0) {
-          setInitialMessages(historyMessages);
-        }
-      } else if (msgResult.success && (msgResult as any).messages) {
-        // Fallback: restore from DB (may be missing user messages)
-        const restored: UIMessage[] = (msgResult as any).messages.map((m: any) => ({
+      // Prefer DB messages (already parsed, fast) over ACP history (requires
+      // expensive event-stream parsing that blocks the main thread).  Fall back
+      // to ACP history only when DB has no messages (e.g. first launch after
+      // migration, or if DB save failed).
+      const dbMessages = msgResult.success ? (msgResult as any).messages : undefined;
+      if (dbMessages && dbMessages.length > 0) {
+        const restored: UIMessage[] = dbMessages.map((m: any) => ({
           id: m.id,
           role: m.sender === 'user' ? ('user' as const) : ('assistant' as const),
           parts: safeParseMessageParts(m),
         }));
         setInitialMessages(restored);
+      } else if (sessionResult.historyEvents && sessionResult.historyEvents.length > 0) {
+        // Fallback: parse ACP history events (slower — iterates full event stream)
+        const historyMessages = convertHistoryToMessages(sessionResult.historyEvents);
+        log.debug('Restored messages from ACP history (no DB messages)', {
+          count: historyMessages.length,
+        });
+        if (historyMessages.length > 0) {
+          setInitialMessages(historyMessages);
+        }
       }
 
       // Handle session creation result
@@ -346,6 +362,17 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
       const realTransport = new AcpChatTransport({ sessionKey: key, conversationId });
       innerTransportRef.current = realTransport;
       transportRef.current?.setTransport(realTransport);
+
+      // Replay side-channel events (available_commands_update, mode, config, etc.)
+      // captured during loadSession — deferred to avoid blocking the main thread
+      // during the critical session-ready path.
+      if (sessionResult.historyEvents && sessionResult.historyEvents.length > 0) {
+        const events = sessionResult.historyEvents;
+        setTimeout(() => {
+          if (cancelled) return;
+          transportRef.current?.replaySideChannelEvents(events);
+        }, 0);
+      }
 
       // Subscribe to ACP status changes
       cleanupStatus = api().onAcpStatus(key, (newStatus: AcpSessionStatus) => {
@@ -380,7 +407,7 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
       innerTransportRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId, providerId, cwd, restartCount]);
+  }, [conversationId, providerId, cwd, restartCount, activated]);
 
   const restartSession = useCallback(() => {
     log.debug('Restart requested', { sessionKey: sessionKeyRef.current });

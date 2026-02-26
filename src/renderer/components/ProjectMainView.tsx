@@ -42,7 +42,7 @@ const normalizeBaseRef = (ref?: string | null): string | undefined => {
   return trimmed.length > 0 ? trimmed : undefined;
 };
 
-function TaskRow({
+const TaskRow = React.memo(function TaskRow({
   ws,
   active,
   onClick,
@@ -190,7 +190,7 @@ function TaskRow({
       </div>
     </div>
   );
-}
+});
 
 interface ProjectMainViewProps {
   project: Project;

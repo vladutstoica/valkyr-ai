@@ -1065,6 +1065,83 @@ current branch '${currentBranch}' ahead of base '${baseRef}'.`,
     }
   });
 
+  // Branch cache: return cached branches instantly, fetch in background
+  const branchCache = new Map<
+    string,
+    {
+      branches: Array<{ ref: string; remote: string; branch: string; label: string }>;
+      fetchedAt: number;
+    }
+  >();
+  const BRANCH_CACHE_TTL_MS = 60_000; // 60 seconds
+
+  /** List branches from local refs (no network). */
+  async function listBranchesFromRefs(
+    projectPath: string,
+    remote: string,
+    hasRemote: boolean
+  ): Promise<Array<{ ref: string; remote: string; branch: string; label: string }>> {
+    let branches: Array<{ ref: string; remote: string; branch: string; label: string }> = [];
+
+    if (hasRemote) {
+      // List remote + local branches in parallel
+      const [remoteResult, localResult] = await Promise.all([
+        execFileAsync(
+          GIT,
+          ['for-each-ref', '--format=%(refname:short)', `refs/remotes/${remote}`],
+          { cwd: projectPath }
+        ).catch(() => ({ stdout: '' })),
+        execFileAsync(GIT, ['for-each-ref', '--format=%(refname:short)', 'refs/heads/'], {
+          cwd: projectPath,
+        }).catch(() => ({ stdout: '' })),
+      ]);
+
+      branches =
+        remoteResult.stdout
+          ?.split('\n')
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0)
+          .filter((line) => !line.endsWith('/HEAD'))
+          .map((ref) => {
+            const [remoteAlias, ...rest] = ref.split('/');
+            const branch = rest.join('/') || ref;
+            return {
+              ref,
+              remote: remoteAlias || remote,
+              branch,
+              label: `${remoteAlias || remote}/${branch}`,
+            };
+          }) ?? [];
+
+      // Add local-only branches
+      const remoteBranchNames = new Set(branches.map((b) => b.branch));
+      const localOnly =
+        localResult.stdout
+          ?.split('\n')
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0)
+          .filter((branch) => !remoteBranchNames.has(branch))
+          .map((branch) => ({ ref: branch, remote: '', branch, label: branch })) ?? [];
+
+      branches = [...branches, ...localOnly];
+    } else {
+      const { stdout } = await execFileAsync(
+        GIT,
+        ['for-each-ref', '--format=%(refname:short)', 'refs/heads/'],
+        { cwd: projectPath }
+      ).catch(() => ({ stdout: '' }));
+
+      branches =
+        stdout
+          ?.split('\n')
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0)
+          .map((branch) => ({ ref: branch, remote: '', branch, label: branch })) ?? [];
+    }
+
+    return branches;
+  }
+
   ipcMain.handle(
     'git:list-remote-branches',
     async (_, args: { projectPath: string; remote?: string }) => {
@@ -1079,99 +1156,42 @@ current branch '${currentBranch}' ahead of base '${baseRef}'.`,
       }
 
       try {
-        // Check if remote exists before attempting to fetch
         let hasRemote = false;
         try {
           await execFileAsync(GIT, ['remote', 'get-url', remote], { cwd: projectPath });
           hasRemote = true;
-          // Remote exists, try to fetch
-          try {
-            await execFileAsync(GIT, ['fetch', '--prune', remote], { cwd: projectPath });
-          } catch (fetchError) {
-            log.warn('Failed to fetch remote before listing branches', fetchError);
-          }
         } catch {
-          // Remote doesn't exist, skip fetch and will use local branches instead
           log.debug(`Remote '${remote}' not found, will use local branches`);
         }
 
-        let branches: Array<{ ref: string; remote: string; branch: string; label: string }> = [];
+        // Return cached branches if fresh enough
+        const cacheKey = `${projectPath}:${remote}`;
+        const cached = branchCache.get(cacheKey);
+        if (cached && Date.now() - cached.fetchedAt < BRANCH_CACHE_TTL_MS) {
+          // Refresh in background (fire-and-forget) if remote exists
+          if (hasRemote) {
+            execFileAsync(GIT, ['fetch', '--prune', remote], { cwd: projectPath })
+              .then(() => listBranchesFromRefs(projectPath, remote, true))
+              .then((branches) => {
+                branchCache.set(cacheKey, { branches, fetchedAt: Date.now() });
+              })
+              .catch(() => {});
+          }
+          return { success: true, branches: cached.branches };
+        }
 
+        // First call or cache expired: list from local refs immediately (no fetch)
+        const branches = await listBranchesFromRefs(projectPath, remote, hasRemote);
+        branchCache.set(cacheKey, { branches, fetchedAt: Date.now() });
+
+        // Fetch in background for next call
         if (hasRemote) {
-          // List remote branches
-          const { stdout } = await execFileAsync(
-            GIT,
-            ['for-each-ref', '--format=%(refname:short)', `refs/remotes/${remote}`],
-            { cwd: projectPath }
-          );
-
-          branches =
-            stdout
-              ?.split('\n')
-              .map((line) => line.trim())
-              .filter((line) => line.length > 0)
-              .filter((line) => !line.endsWith('/HEAD'))
-              .map((ref) => {
-                const [remoteAlias, ...rest] = ref.split('/');
-                const branch = rest.join('/') || ref;
-                return {
-                  ref,
-                  remote: remoteAlias || remote,
-                  branch,
-                  label: `${remoteAlias || remote}/${branch}`,
-                };
-              }) ?? [];
-
-          // Also include local-only branches (not on remote)
-          try {
-            const { stdout: localStdout } = await execFileAsync(
-              GIT,
-              ['for-each-ref', '--format=%(refname:short)', 'refs/heads/'],
-              { cwd: projectPath }
-            );
-
-            const remoteBranchNames = new Set(branches.map((b) => b.branch));
-
-            const localOnlyBranches =
-              localStdout
-                ?.split('\n')
-                .map((line) => line.trim())
-                .filter((line) => line.length > 0)
-                .filter((branch) => !remoteBranchNames.has(branch))
-                .map((branch) => ({
-                  ref: branch,
-                  remote: '',
-                  branch,
-                  label: branch,
-                })) ?? [];
-
-            branches = [...branches, ...localOnlyBranches];
-          } catch (localBranchError) {
-            log.warn('Failed to list local branches', localBranchError);
-          }
-        } else {
-          // No remote - list local branches instead
-          try {
-            const { stdout } = await execFileAsync(
-              GIT,
-              ['for-each-ref', '--format=%(refname:short)', 'refs/heads/'],
-              { cwd: projectPath }
-            );
-
-            branches =
-              stdout
-                ?.split('\n')
-                .map((line) => line.trim())
-                .filter((line) => line.length > 0)
-                .map((branch) => ({
-                  ref: branch,
-                  remote: '', // No remote
-                  branch,
-                  label: branch, // Just the branch name, no remote prefix
-                })) ?? [];
-          } catch (localBranchError) {
-            log.warn('Failed to list local branches', localBranchError);
-          }
+          execFileAsync(GIT, ['fetch', '--prune', remote], { cwd: projectPath })
+            .then(() => listBranchesFromRefs(projectPath, remote, true))
+            .then((freshBranches) => {
+              branchCache.set(cacheKey, { branches: freshBranches, fetchedAt: Date.now() });
+            })
+            .catch(() => {});
         }
 
         return { success: true, branches };

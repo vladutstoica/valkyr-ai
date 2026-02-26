@@ -13,6 +13,8 @@ class ActivityStore {
   private timers = new Map<string, ReturnType<typeof setTimeout>>();
   private busySince = new Map<string, number>();
   private subscribedIds = new Set<string>();
+  // Shared PTY listeners: created once per task, torn down when last subscriber leaves
+  private ptyCleanups = new Map<string, Array<() => void>>();
 
   private armTimer(wsId: string) {
     const prev = this.timers.get(wsId);
@@ -101,23 +103,21 @@ class ActivityStore {
     this.idleListeners.set(wsId, set);
     // emit current
     fn(this.idleStates.get(wsId) || false);
+    // Attach shared PTY listeners (no-op if already attached for this task)
+    this.ensurePtyListeners(wsId);
     return () => {
       const s = this.idleListeners.get(wsId);
       if (s) {
         s.delete(fn);
         if (s.size === 0) this.idleListeners.delete(wsId);
       }
+      this.teardownPtyListeners(wsId);
     };
   }
 
-  subscribe(wsId: string, fn: Listener) {
-    this.subscribedIds.add(wsId);
-    const set = this.listeners.get(wsId) || new Set<Listener>();
-    set.add(fn);
-    this.listeners.set(wsId, set);
-    // emit current
-    fn(this.states.get(wsId) || false);
-    // Fallback: also listen directly to this task's main PTY data in case global broadcast is missing
+  /** Ensure shared PTY listeners exist for a task (created once, shared across subscribers). */
+  private ensurePtyListeners(wsId: string) {
+    if (this.ptyCleanups.has(wsId)) return;
     const offDirect: Array<() => void> = [];
     try {
       const api: any = (window as any).electronAPI;
@@ -138,6 +138,31 @@ class ActivityStore {
         if (off) offDirect.push(off);
       }
     } catch {}
+    this.ptyCleanups.set(wsId, offDirect);
+  }
+
+  /** Tear down shared PTY listeners when no subscribers remain for a task. */
+  private teardownPtyListeners(wsId: string) {
+    const hasListeners = (this.listeners.get(wsId)?.size ?? 0) > 0;
+    const hasIdleListeners = (this.idleListeners.get(wsId)?.size ?? 0) > 0;
+    if (hasListeners || hasIdleListeners) return;
+    const cleanups = this.ptyCleanups.get(wsId);
+    if (!cleanups) return;
+    try {
+      for (const off of cleanups) off?.();
+    } catch {}
+    this.ptyCleanups.delete(wsId);
+  }
+
+  subscribe(wsId: string, fn: Listener) {
+    this.subscribedIds.add(wsId);
+    const set = this.listeners.get(wsId) || new Set<Listener>();
+    set.add(fn);
+    this.listeners.set(wsId, set);
+    // emit current
+    fn(this.states.get(wsId) || false);
+    // Attach shared PTY listeners (no-op if already attached for this task)
+    this.ensurePtyListeners(wsId);
 
     return () => {
       const s = this.listeners.get(wsId);
@@ -145,10 +170,7 @@ class ActivityStore {
         s.delete(fn);
         if (s.size === 0) this.listeners.delete(wsId);
       }
-      try {
-        for (const off of offDirect) off?.();
-      } catch {}
-      // keep subscribedIds to avoid thrash; optional cleanup could remove when no listeners
+      this.teardownPtyListeners(wsId);
     };
   }
 }

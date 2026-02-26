@@ -52,6 +52,10 @@ const ChatInterface: React.FC<Props> = ({
   className,
   initialAgent,
 }) => {
+  // Defer heavy IPC work until the task has been activated at least once.
+  const [activated, setActivated] = useState(isActive);
+  if (isActive && !activated) setActivated(true);
+
   const { effectiveTheme } = useTheme();
   const { toast } = useToast();
   const [isAgentInstalled, setIsAgentInstalled] = useState<boolean | null>(null);
@@ -132,28 +136,39 @@ const ChatInterface: React.FC<Props> = ({
   // Auto-scroll to bottom when this task becomes active
   useAutoScrollOnTaskSwitch(isActive, task.id);
 
-  // Load conversations when task changes
+  // Load conversations when task changes (deferred until first activation)
   useEffect(() => {
+    if (!activated) return;
     const loadConversations = async () => {
       setConversationsLoaded(false);
       const result = await window.electronAPI.getConversations(task.id);
 
       if (result.success && result.conversations && result.conversations.length > 0) {
-        setConversations(result.conversations);
+        const convs = result.conversations;
+        setConversations(convs);
 
-        // Set active conversation
-        const active = result.conversations.find((c: Conversation) => c.isActive);
-        const chosen = active || result.conversations[0];
-        if (!active) {
-          await window.electronAPI.setActiveConversation({
-            taskId: task.id,
-            conversationId: chosen.id,
-          });
-        }
-        setActiveConversationId(chosen.id);
+        // Preserve the current active conversation if it still exists in the result
+        // (prevents resetting when this effect re-fires, e.g. on task.agentId change)
+        let chosen: Conversation | undefined;
+        setActiveConversationId((prev) => {
+          if (prev && convs.some((c: Conversation) => c.id === prev)) {
+            chosen = convs.find((c: Conversation) => c.id === prev);
+            return prev; // keep current selection
+          }
+          // Otherwise pick the DB-active or first conversation
+          const active = convs.find((c: Conversation) => c.isActive);
+          chosen = active || convs[0]!;
+          if (!active && chosen) {
+            window.electronAPI.setActiveConversation({
+              taskId: task.id,
+              conversationId: chosen.id,
+            });
+          }
+          return chosen?.id ?? null;
+        });
 
         // Update agent: prefer conversation provider, then localStorage, then defaults
-        if (chosen.provider) {
+        if (chosen?.provider) {
           setAgent(chosen.provider as Agent);
         } else {
           // Fallback to localStorage
@@ -201,7 +216,7 @@ const ChatInterface: React.FC<Props> = ({
 
     loadConversations();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [task.id, task.agentId]); // initialAgent accessed via ref to avoid re-triggering on isActive changes
+  }, [task.id, task.agentId, activated]); // initialAgent accessed via ref to avoid re-triggering on isActive changes
 
   // ACP initial prompt injection refs
   const acpAppendRef = useRef<((msg: { content: string }) => Promise<void>) | null>(null);
@@ -580,6 +595,7 @@ const ChatInterface: React.FC<Props> = ({
   }, [agent, currentAgentStatus]);
 
   useEffect(() => {
+    if (!activated) return;
     let cancelled = false;
     let refreshCheckRequested = false;
     const api: any = (window as any).electronAPI;
@@ -657,7 +673,7 @@ const ChatInterface: React.FC<Props> = ({
       cancelled = true;
       off?.();
     };
-  }, [agent, task.id]);
+  }, [agent, task.id, activated]);
 
   // Switch active chat/agent via global shortcuts (Cmd+Shift+J/K)
   useEffect(() => {
@@ -920,6 +936,7 @@ const ChatInterface: React.FC<Props> = ({
                       providerId={convAgent}
                       cwd={terminalCwd || task.path || '.'}
                       projectPath={projectPath || undefined}
+                      isActive={isActive}
                       conversationTitle={conv.title}
                       onConversationTitleChange={(title) => {
                         setConversations((prev) =>

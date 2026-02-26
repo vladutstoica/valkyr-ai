@@ -13,12 +13,11 @@ const lastActivity = new Map<string, number>();
 
 // Inactivity delay before flipping back to idle
 const IDLE_AFTER_MS = 12_000;
-let tickStarted = false;
+let tickerHandle: ReturnType<typeof setInterval> | null = null;
 
 function ensureTicker() {
-  if (tickStarted) return;
-  tickStarted = true;
-  setInterval(() => {
+  if (tickerHandle) return;
+  tickerHandle = setInterval(() => {
     const now = Date.now();
     for (const [tid, ts] of lastActivity.entries()) {
       const cur = statusByTask.get(tid) || 'idle';
@@ -26,7 +25,18 @@ function ensureTicker() {
         setStatusInternal(tid, 'idle');
       }
     }
+    // Stop the ticker when no tasks have listeners (nothing to check)
+    if (listenersByTask.size === 0 && lastActivity.size === 0) {
+      stopTicker();
+    }
   }, 2_000);
+}
+
+function stopTicker() {
+  if (tickerHandle) {
+    clearInterval(tickerHandle);
+    tickerHandle = null;
+  }
 }
 
 function setStatusInternal(taskId: string, next: Derived) {

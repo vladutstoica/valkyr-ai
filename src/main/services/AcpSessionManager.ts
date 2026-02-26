@@ -134,7 +134,8 @@ const KILL_TIMEOUT_MS = 5000;
 type AcpTerminal = {
   id: string;
   process: ChildProcess;
-  outputBuffer: string;
+  outputChunks: string[];
+  outputBytes: number;
   outputByteLimit: number;
   truncated: boolean;
   exitStatus: { exitCode: number | null; signal: string | null } | null;
@@ -143,20 +144,34 @@ type AcpTerminal = {
 
 /** Append data to terminal output buffer, truncating from start if over byte limit. */
 function appendTerminalOutput(terminal: AcpTerminal, chunk: string): void {
-  terminal.outputBuffer += chunk;
-  if (terminal.outputByteLimit > 0) {
-    const bytes = Buffer.byteLength(terminal.outputBuffer, 'utf-8');
-    if (bytes > terminal.outputByteLimit) {
-      const buf = Buffer.from(terminal.outputBuffer, 'utf-8');
-      let cutPoint = bytes - terminal.outputByteLimit;
-      // Advance to next UTF-8 character boundary
+  const chunkBytes = Buffer.byteLength(chunk, 'utf-8');
+  terminal.outputChunks.push(chunk);
+  terminal.outputBytes += chunkBytes;
+
+  if (terminal.outputByteLimit > 0 && terminal.outputBytes > terminal.outputByteLimit) {
+    // Drop whole chunks from the front until we're under the limit
+    while (terminal.outputChunks.length > 1 && terminal.outputBytes > terminal.outputByteLimit) {
+      const dropped = terminal.outputChunks.shift()!;
+      terminal.outputBytes -= Buffer.byteLength(dropped, 'utf-8');
+    }
+    // If a single remaining chunk still exceeds the limit, slice it at a UTF-8 boundary
+    if (terminal.outputChunks.length === 1 && terminal.outputBytes > terminal.outputByteLimit) {
+      const buf = Buffer.from(terminal.outputChunks[0], 'utf-8');
+      let cutPoint = terminal.outputBytes - terminal.outputByteLimit;
+      // Advance past any UTF-8 continuation bytes to a character boundary
       while (cutPoint < buf.length && (buf[cutPoint] & 0xc0) === 0x80) {
         cutPoint++;
       }
-      terminal.outputBuffer = buf.subarray(cutPoint).toString('utf-8');
-      terminal.truncated = true;
+      terminal.outputChunks[0] = buf.subarray(cutPoint).toString('utf-8');
+      terminal.outputBytes = Buffer.byteLength(terminal.outputChunks[0], 'utf-8');
     }
+    terminal.truncated = true;
   }
+}
+
+/** Get the full output buffer as a string (joins chunks lazily). */
+function getTerminalOutput(terminal: AcpTerminal): string {
+  return terminal.outputChunks.join('');
 }
 
 /** Kill all terminals for a session and clear the map. */
@@ -1529,7 +1544,8 @@ export class AcpSessionManager {
         const terminal: AcpTerminal = {
           id: terminalId,
           process: child,
-          outputBuffer: '',
+          outputChunks: [],
+          outputBytes: 0,
           outputByteLimit,
           truncated: false,
           exitStatus: null,
@@ -1558,7 +1574,7 @@ export class AcpSessionManager {
         if (!terminal) throw new Error(`Terminal not found: ${params.terminalId}`);
 
         return {
-          output: terminal.outputBuffer,
+          output: getTerminalOutput(terminal),
           truncated: terminal.truncated,
           exitStatus: terminal.exitStatus ?? undefined,
         };

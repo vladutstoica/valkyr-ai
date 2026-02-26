@@ -859,6 +859,31 @@ export class LazyAcpChatTransport implements ChatTransport<UIMessage> {
     }
   }
 
+  /**
+   * Replay side-channel events from history (e.g. available_commands_update captured
+   * during loadSession). These events are not part of the message stream and would
+   * otherwise be lost when converting history to UIMessages.
+   */
+  replaySideChannelEvents(events: AcpUpdateEvent[]): void {
+    const sc = this.inner ? this.inner.sideChannel : this._sideChannel;
+    for (const event of events) {
+      if (event.type !== 'session_update') continue;
+      const update = event.data?.update;
+      const updateType = update?.sessionUpdate;
+      if (!updateType) continue;
+
+      if (updateType === 'available_commands_update' && sc.onCommandsUpdate) {
+        sc.onCommandsUpdate(update.availableCommands || update.commands || []);
+      } else if (updateType === 'current_mode_update' && sc.onModeUpdate) {
+        sc.onModeUpdate(update.modeId || update.currentModeId || '');
+      } else if (updateType === 'config_option_update' && sc.onConfigOptionUpdate) {
+        sc.onConfigOptionUpdate(update);
+      } else if (updateType === 'session_info_update' && sc.onSessionInfoUpdate) {
+        sc.onSessionInfoUpdate({ title: update.title, timestamp: update.timestamp });
+      }
+    }
+  }
+
   async sendMessages(
     options: Parameters<AcpChatTransport['sendMessages']>[0]
   ): Promise<ReadableStream<UIMessageChunk>> {

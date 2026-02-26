@@ -2,7 +2,8 @@ import { app } from 'electron';
 // Optional build-time defaults for distribution bundles
 // Resolve robustly across dev and packaged layouts.
 let appConfig: { posthogHost?: string; posthogKey?: string } = {};
-import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
+import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 
 function loadAppConfig(): { posthogHost?: string; posthogKey?: string } {
@@ -138,16 +139,16 @@ function getInstanceIdPath(): string {
   return join(dir, 'telemetry.json');
 }
 
-function loadOrCreateState(): {
+async function loadOrCreateState(): Promise<{
   instanceId: string;
   enabledOverride?: boolean;
   onboardingSeen?: boolean;
   lastActiveDate?: string;
-} {
+}> {
   try {
     const file = getInstanceIdPath();
     if (existsSync(file)) {
-      const raw = readFileSync(file, 'utf8');
+      const raw = await readFile(file, 'utf8');
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed.instanceId === 'string' && parsed.instanceId.length > 0) {
         const enabledOverride =
@@ -169,7 +170,7 @@ function loadOrCreateState(): {
   }
   const newId = cryptoRandomId();
   try {
-    writeFileSync(getInstanceIdPath(), JSON.stringify({ instanceId: newId }, null, 2), 'utf8');
+    await writeFile(getInstanceIdPath(), JSON.stringify({ instanceId: newId }, null, 2), 'utf8');
   } catch {
     // ignore
   }
@@ -358,7 +359,7 @@ export async function init(options?: InitOptions) {
   );
   installSource = options?.installSource || env.INSTALL_SOURCE || undefined;
 
-  const state = loadOrCreateState();
+  const state = await loadOrCreateState();
   instanceId = state.instanceId;
   sessionStartMs = Date.now();
   // If enabledOverride is explicitly false, user opted out; otherwise leave undefined
@@ -446,35 +447,38 @@ export function getTelemetryStatus() {
 
 export function setTelemetryEnabledViaUser(enabledFlag: boolean) {
   userOptOut = !enabledFlag;
-  // Persist alongside instanceId
-  try {
-    const file = getInstanceIdPath();
-    let state: any = {};
-    if (existsSync(file)) {
-      try {
-        state = JSON.parse(readFileSync(file, 'utf8')) || {};
-      } catch {
-        state = {};
+  // Persist alongside instanceId (fire-and-forget)
+  (async () => {
+    try {
+      const file = getInstanceIdPath();
+      let state: any = {};
+      if (existsSync(file)) {
+        try {
+          state = JSON.parse(await readFile(file, 'utf8')) || {};
+        } catch {
+          state = {};
+        }
       }
+      state.instanceId = instanceId || state.instanceId || cryptoRandomId();
+      state.enabled = enabledFlag; // store explicit preference
+      state.updatedAt = new Date().toISOString();
+      await writeFile(file, JSON.stringify(state, null, 2), 'utf8');
+    } catch {
+      // ignore
     }
-    state.instanceId = instanceId || state.instanceId || cryptoRandomId();
-    state.enabled = enabledFlag; // store explicit preference
-    state.updatedAt = new Date().toISOString();
-    writeFileSync(file, JSON.stringify(state, null, 2), 'utf8');
-  } catch {
-    // ignore
-  }
+  })();
 }
 
-function persistState(state: {
+async function persistState(state: {
   instanceId: string;
   enabledOverride?: boolean;
   onboardingSeen?: boolean;
   lastActiveDate?: string;
-}) {
+}): Promise<void> {
   try {
-    const existing = existsSync(getInstanceIdPath())
-      ? JSON.parse(readFileSync(getInstanceIdPath(), 'utf8'))
+    const filePath = getInstanceIdPath();
+    const existing = existsSync(filePath)
+      ? JSON.parse(await readFile(filePath, 'utf8'))
       : {};
     const merged = {
       ...existing,
@@ -488,7 +492,7 @@ function persistState(state: {
       createdAt: existing.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    writeFileSync(getInstanceIdPath(), JSON.stringify(merged, null, 2), 'utf8');
+    await writeFile(filePath, JSON.stringify(merged, null, 2), 'utf8');
   } catch {
     // ignore
   }
@@ -530,7 +534,7 @@ async function checkDailyActiveUser(): Promise<void> {
       lastActiveDate = today;
 
       // Persist the new date to storage
-      persistState({
+      await persistState({
         instanceId: instanceId || cryptoRandomId(),
         enabledOverride: userOptOut === undefined ? undefined : !userOptOut,
         onboardingSeen,
@@ -552,13 +556,9 @@ export async function checkAndReportDailyActiveUser(): Promise<void> {
 
 export function setOnboardingSeen(flag: boolean) {
   onboardingSeen = Boolean(flag);
-  try {
-    persistState({
-      instanceId: instanceId || cryptoRandomId(),
-      onboardingSeen,
-      enabledOverride: userOptOut === undefined ? undefined : !userOptOut,
-    });
-  } catch {
-    // ignore
-  }
+  void persistState({
+    instanceId: instanceId || cryptoRandomId(),
+    onboardingSeen,
+    enabledOverride: userOptOut === undefined ? undefined : !userOptOut,
+  });
 }

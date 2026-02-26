@@ -229,8 +229,20 @@ export function useEditorDiffDecorations({
     // Initial update with a small delay to ensure editor is ready
     const initialTimer = setTimeout(updateDecorations, DIFF_CONSTANTS.INITIAL_DELAY_MS);
 
-    // Set up interval to check for changes periodically
-    const interval = setInterval(updateDecorations, DIFF_CONSTANTS.REFRESH_INTERVAL_MS);
+    // Set up interval to check for changes periodically — only when page is visible
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const startPolling = () => {
+      if (!interval) interval = setInterval(updateDecorations, DIFF_CONSTANTS.REFRESH_INTERVAL_MS);
+    };
+    const stopPolling = () => {
+      if (interval) { clearInterval(interval); interval = null; }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') startPolling();
+      else stopPolling();
+    };
+    if (document.visibilityState === 'visible') startPolling();
+    document.addEventListener('visibilitychange', onVisibility);
 
     // Listen for model content changes
     let debounceTimer: NodeJS.Timeout | null = null;
@@ -245,7 +257,8 @@ export function useEditorDiffDecorations({
 
     return () => {
       clearTimeout(initialTimer);
-      clearInterval(interval);
+      stopPolling();
+      document.removeEventListener('visibilitychange', onVisibility);
       disposable?.dispose();
       // Clear decorations on cleanup
       if (editor && !editor.isDisposed?.()) {

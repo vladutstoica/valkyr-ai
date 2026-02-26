@@ -389,6 +389,8 @@ type AcpChatPaneProps = {
   providerId: string;
   cwd: string;
   projectPath?: string;
+  /** Whether this pane's task is the active/visible one. Used to defer session init. */
+  isActive?: boolean;
   conversationTitle?: string;
   onConversationTitleChange?: (title: string) => void;
   onStatusChange?: (status: AcpSessionStatus, sessionKey: string) => void;
@@ -1892,6 +1894,7 @@ type AcpChatInnerProps = {
   projectPath?: string;
   transport: LazyAcpChatTransport;
   initialMessages: UIMessage[];
+  sessionStatus: AcpSessionStatus;
   sessionKey: string | null;
   acpSessionId: string | null;
   resumed: boolean | null;
@@ -1996,6 +1999,7 @@ function AcpChatInner({
   projectPath,
   transport,
   initialMessages,
+  sessionStatus: parentSessionStatus,
   sessionKey,
   acpSessionId,
   resumed,
@@ -3184,7 +3188,19 @@ function AcpChatInner({
       <Conversation>
         <ScrollBridge scrollRef={scrollToBottomRef} />
         <ConversationContent className="gap-3 p-3">
-          {messages.length === 0 && chatStatus === 'ready' && (
+          {messages.length === 0 && parentSessionStatus === 'initializing' && (
+            <div className="flex size-full flex-col items-center justify-center gap-4 p-8">
+              <div className="w-full max-w-md space-y-3">
+                <div className="bg-muted h-4 w-3/4 animate-pulse rounded" />
+                <div className="bg-muted h-4 w-full animate-pulse rounded" />
+                <div className="bg-muted h-4 w-5/6 animate-pulse rounded" />
+                <div className="bg-muted mt-6 h-4 w-2/3 animate-pulse rounded" />
+                <div className="bg-muted h-4 w-full animate-pulse rounded" />
+              </div>
+              <p className="text-muted-foreground text-xs">Resuming session…</p>
+            </div>
+          )}
+          {messages.length === 0 && parentSessionStatus !== 'initializing' && chatStatus === 'ready' && (
             <ConversationEmptyState
               title="Start a conversation"
               description="Send a message to begin working with this agent"
@@ -3443,7 +3459,7 @@ function AcpChatInner({
         </div>
       )}
 
-      {messages.length === 0 && chatStatus === 'ready' && (
+      {messages.length === 0 && parentSessionStatus !== 'initializing' && chatStatus === 'ready' && (
         <Suggestions className="flex-wrap justify-start px-3 pb-2">
           <Suggestion
             suggestion="Explain this codebase"
@@ -3649,6 +3665,7 @@ export function AcpChatPane({
   providerId,
   cwd,
   projectPath,
+  isActive,
   conversationTitle,
   onConversationTitleChange,
   onStatusChange,
@@ -3675,7 +3692,7 @@ export function AcpChatPane({
     modes,
     models,
     restartSession,
-  } = useAcpSession({ conversationId, providerId, cwd, projectPath });
+  } = useAcpSession({ conversationId, providerId, cwd, projectPath, isActive });
 
   // Register this conversation with unifiedStatusStore for sidebar aggregation
   useEffect(() => {
@@ -3764,6 +3781,7 @@ export function AcpChatPane({
       projectPath={projectPath}
       transport={transport}
       initialMessages={initialMessages}
+      sessionStatus={sessionStatus}
       sessionKey={sessionKey ?? null}
       acpSessionId={acpSessionId ?? null}
       resumed={resumed}

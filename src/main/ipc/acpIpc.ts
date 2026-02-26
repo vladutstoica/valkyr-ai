@@ -109,7 +109,7 @@ export function registerAcpIpc(): void {
     try {
       const parsed = AcpStartSchema.parse(args);
       const tParsed = performance.now();
-      const mcpServers = mcpConfigService.getMergedServersForSession(parsed.projectPath);
+      const mcpServers = await mcpConfigService.getMergedServersForSession(parsed.projectPath);
       const tMcp = performance.now();
       const result = await acpSessionManager.createSession(
         parsed.conversationId,

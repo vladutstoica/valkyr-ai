@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync } from 'fs';
+import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { homedir } from 'os';
 import { getAppSettings, updateAppSettings } from '../settings';
@@ -77,11 +78,11 @@ export class McpConfigService {
 
   // ---- Project servers (.valkyr.json) ----
 
-  getProjectServers(projectPath: string): McpServerConfig[] {
+  async getProjectServers(projectPath: string): Promise<McpServerConfig[]> {
     const configPath = join(projectPath, '.valkyr.json');
     if (!existsSync(configPath)) return [];
     try {
-      const raw = JSON.parse(readFileSync(configPath, 'utf8'));
+      const raw = JSON.parse(await readFile(configPath, 'utf8'));
       return Array.isArray(raw.mcpServers) ? raw.mcpServers : [];
     } catch (err) {
       log.error(`Failed to read MCP servers from ${configPath}:`, err);
@@ -89,27 +90,27 @@ export class McpConfigService {
     }
   }
 
-  saveProjectServers(projectPath: string, servers: McpServerConfig[]): McpServerConfig[] {
+  async saveProjectServers(projectPath: string, servers: McpServerConfig[]): Promise<McpServerConfig[]> {
     const configPath = join(projectPath, '.valkyr.json');
     let raw: any = {};
     if (existsSync(configPath)) {
       try {
-        raw = JSON.parse(readFileSync(configPath, 'utf8'));
+        raw = JSON.parse(await readFile(configPath, 'utf8'));
       } catch {
         // Start fresh if parsing fails
       }
     }
     raw.mcpServers = servers;
-    writeFileSync(configPath, JSON.stringify(raw, null, 2), 'utf8');
+    await writeFile(configPath, JSON.stringify(raw, null, 2), 'utf8');
     return servers;
   }
 
   // ---- Merge + adapter for ACP injection ----
 
-  getMergedServersForSession(projectPath?: string): AcpMcpServer[] {
+  async getMergedServersForSession(projectPath?: string): Promise<AcpMcpServer[]> {
     const globalServers = this.getGlobalServers().filter((s) => s.enabled);
     const projectServers = projectPath
-      ? this.getProjectServers(projectPath).filter((s) => s.enabled)
+      ? (await this.getProjectServers(projectPath)).filter((s) => s.enabled)
       : [];
 
     // Project servers override global ones with the same name
@@ -129,7 +130,7 @@ export class McpConfigService {
    * Scans known agent config files for MCP server definitions.
    * Returns discovered servers grouped by agent, converted to Valkyr format.
    */
-  detectAgentServers(projectPath?: string): AgentMcpDiscovery[] {
+  async detectAgentServers(projectPath?: string): Promise<AgentMcpDiscovery[]> {
     const home = homedir();
     const results: AgentMcpDiscovery[] = [];
 
@@ -140,13 +141,14 @@ export class McpConfigService {
       { agent: 'Windsurf', path: join(home, '.codeium', 'windsurf', 'mcp_config.json') },
     ];
 
-    // Global configs
-    for (const { agent, path: configPath } of agentGlobalConfigs) {
-      const servers = this.readAgentMcpFile(configPath);
-      if (servers.length > 0) {
-        results.push({ agent, scope: 'global', configPath, servers });
-      }
-    }
+    // Global configs — read all in parallel
+    const globalResults = await Promise.all(
+      agentGlobalConfigs.map(async ({ agent, path: configPath }) => {
+        const servers = await this.readAgentMcpFile(configPath);
+        return servers.length > 0 ? { agent, scope: 'global' as const, configPath, servers } : null;
+      })
+    );
+    for (const r of globalResults) if (r) results.push(r);
 
     // Project-level configs (per-project .mcp.json, .cursor/mcp.json, etc.)
     if (projectPath) {
@@ -154,12 +156,13 @@ export class McpConfigService {
         { agent: 'Claude Code', path: join(projectPath, '.mcp.json') },
         { agent: 'Cursor', path: join(projectPath, '.cursor', 'mcp.json') },
       ];
-      for (const { agent, path: configPath } of projectConfigs) {
-        const servers = this.readAgentMcpFile(configPath);
-        if (servers.length > 0) {
-          results.push({ agent, scope: 'project', configPath, servers });
-        }
-      }
+      const projectResults = await Promise.all(
+        projectConfigs.map(async ({ agent, path: configPath }) => {
+          const servers = await this.readAgentMcpFile(configPath);
+          return servers.length > 0 ? { agent, scope: 'project' as const, configPath, servers } : null;
+        })
+      );
+      for (const r of projectResults) if (r) results.push(r);
     }
 
     return results;
@@ -169,10 +172,10 @@ export class McpConfigService {
    * Reads an agent's MCP config file and converts to Valkyr McpServerConfig[].
    * Handles the common { mcpServers: { name: { type, command, args, env, url } } } format.
    */
-  private readAgentMcpFile(configPath: string): McpServerConfig[] {
+  private async readAgentMcpFile(configPath: string): Promise<McpServerConfig[]> {
     if (!existsSync(configPath)) return [];
     try {
-      const raw = JSON.parse(readFileSync(configPath, 'utf8'));
+      const raw = JSON.parse(await readFile(configPath, 'utf8'));
       const mcpServers = raw.mcpServers;
       if (!mcpServers || typeof mcpServers !== 'object') return [];
 

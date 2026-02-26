@@ -1,5 +1,6 @@
 import { app } from 'electron';
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { existsSync, readFileSync, mkdirSync } from 'fs';
+import { writeFile } from 'fs/promises';
 import { dirname, join } from 'path';
 import { homedir } from 'os';
 import type { ProviderId } from '@shared/providers/registry';
@@ -196,8 +197,12 @@ export function persistSettings(settings: AppSettings) {
     const file = getSettingsPath();
     const dir = dirname(file);
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-    writeFileSync(file, JSON.stringify(settings, null, 2), 'utf8');
-  } catch {}
+    // Fire-and-forget async write — never blocks the main thread
+    void writeFile(file, JSON.stringify(settings, null, 2), 'utf8').catch(() => {});
+  } catch {
+    // mkdirSync can fail on invalid paths or permission issues — swallow to
+    // match the previous behaviour and avoid crashing the main process.
+  }
 }
 
 /**

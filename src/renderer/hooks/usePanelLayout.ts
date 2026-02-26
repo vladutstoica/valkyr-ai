@@ -126,7 +126,7 @@ export function usePanelLayout(opts: UsePanelLayoutOptions) {
     if (!autoRightSidebarBehavior || !isInitialLoadComplete) return;
 
     const isHomePage = showHomeView;
-    const isRepoHomePage = selectedProject !== null && activeTask === null;
+    const isRepoHomePage = !!selectedProject && activeTask === null;
     const shouldCollapse = isHomePage || isRepoHomePage;
 
     if (shouldCollapse) {
@@ -134,7 +134,9 @@ export function usePanelLayout(opts: UsePanelLayoutOptions) {
     } else if (activeTask !== null) {
       rightSidebarSetCollapsedRef.current?.(false);
     }
-  }, [autoRightSidebarBehavior, isInitialLoadComplete, showHomeView, selectedProject, activeTask]);
+    // Only re-run when project existence or task changes — not on every project object update
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRightSidebarBehavior, isInitialLoadComplete, showHomeView, selectedProject?.id, activeTask]);
 
   // Sync right sidebar panel with collapsed state
   useEffect(() => {

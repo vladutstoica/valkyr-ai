@@ -117,51 +117,67 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
     [selectedProject?.tasks]
   );
 
-  const handleSelectTask = (task: Task) => {
+  // Keep refs synced for stable callbacks (avoid recreating on every state change)
+  const allTasksRef = useRef(allTasks);
+  allTasksRef.current = allTasks;
+  const activeTaskRef = useRef(activeTask);
+  activeTaskRef.current = activeTask;
+  const selectedProjectRef = useRef(selectedProject);
+  selectedProjectRef.current = selectedProject;
+
+  const handleSelectTask = useCallback((task: Task) => {
     log.debug('Task selected', { taskId: task.id, name: task.name });
     setActiveTask(task);
     setActiveTaskAgent(getAgentForTask(task));
     saveActiveIds(task.projectId, task.id);
     saveProjectLastTaskId(task.projectId, task.id);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleNextTask = useCallback(() => {
-    if (allTasks.length === 0) return;
-    const currentIndex = activeTask
-      ? allTasks.findIndex((t: { task: Task; project: Project }) => t.task.id === activeTask.id)
+    const tasks = allTasksRef.current;
+    const current = activeTaskRef.current;
+    if (tasks.length === 0) return;
+    const currentIndex = current
+      ? tasks.findIndex((t: { task: Task; project: Project }) => t.task.id === current.id)
       : -1;
-    const nextIndex = (currentIndex + 1) % allTasks.length;
-    const { task, project } = allTasks[nextIndex];
+    const nextIndex = (currentIndex + 1) % tasks.length;
+    const { task, project } = tasks[nextIndex];
     setSelectedProject(project);
     setShowHomeView(false);
     setActiveTask(task);
     setActiveTaskAgent(getAgentForTask(task));
     saveActiveIds(project.id, task.id);
     saveProjectLastTaskId(project.id, task.id);
-  }, [allTasks, activeTask]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handlePrevTask = useCallback(() => {
-    if (allTasks.length === 0) return;
-    const currentIndex = activeTask
-      ? allTasks.findIndex((t: { task: Task; project: Project }) => t.task.id === activeTask.id)
+    const tasks = allTasksRef.current;
+    const current = activeTaskRef.current;
+    if (tasks.length === 0) return;
+    const currentIndex = current
+      ? tasks.findIndex((t: { task: Task; project: Project }) => t.task.id === current.id)
       : -1;
-    const prevIndex = currentIndex <= 0 ? allTasks.length - 1 : currentIndex - 1;
-    const { task, project } = allTasks[prevIndex];
+    const prevIndex = currentIndex <= 0 ? tasks.length - 1 : currentIndex - 1;
+    const { task, project } = tasks[prevIndex];
     setSelectedProject(project);
     setShowHomeView(false);
     setActiveTask(task);
     setActiveTaskAgent(getAgentForTask(task));
     saveActiveIds(project.id, task.id);
     saveProjectLastTaskId(project.id, task.id);
-  }, [allTasks, activeTask]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleNewTask = useCallback(() => {
-    // Only open modal if a project is selected
-    if (selectedProject) {
-      log.debug('New task requested', { projectId: selectedProject.id });
+    const project = selectedProjectRef.current;
+    if (project) {
+      log.debug('New task requested', { projectId: project.id });
       setShowTaskModal(true);
     }
-  }, [selectedProject]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleStartCreateTaskFromSidebar = useCallback(
     (project: Project) => {

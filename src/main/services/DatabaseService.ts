@@ -293,17 +293,17 @@ export class DatabaseService {
   async updateProjectOrder(projectIds: string[]): Promise<void> {
     if (this.disabled) return;
     const { db } = await getDrizzleClient();
+    const now = new Date().toISOString();
 
     await db.transaction(async (tx) => {
-      for (let i = 0; i < projectIds.length; i++) {
-        await tx
-          .update(projectsTable)
-          .set({
-            displayOrder: i,
-            updatedAt: new Date().toISOString(),
-          })
-          .where(eq(projectsTable.id, projectIds[i]));
-      }
+      await Promise.all(
+        projectIds.map((id, i) =>
+          tx
+            .update(projectsTable)
+            .set({ displayOrder: i, updatedAt: now })
+            .where(eq(projectsTable.id, id))
+        )
+      );
     });
   }
 
@@ -773,12 +773,14 @@ export class DatabaseService {
     const { db } = await getDrizzleClient();
 
     await db.transaction(async (tx) => {
-      for (let i = 0; i < conversationIds.length; i++) {
-        await tx
-          .update(conversationsTable)
-          .set({ displayOrder: i })
-          .where(eq(conversationsTable.id, conversationIds[i]));
-      }
+      await Promise.all(
+        conversationIds.map((id, i) =>
+          tx
+            .update(conversationsTable)
+            .set({ displayOrder: i })
+            .where(eq(conversationsTable.id, id))
+        )
+      );
     });
   }
 
@@ -955,13 +957,16 @@ export class DatabaseService {
   async updateProjectGroupOrder(groupIds: string[]): Promise<void> {
     if (this.disabled) return;
     const { db } = await getDrizzleClient();
+    const now = new Date().toISOString();
     await db.transaction(async (tx) => {
-      for (let i = 0; i < groupIds.length; i++) {
-        await tx
-          .update(projectGroupsTable)
-          .set({ displayOrder: i, updatedAt: new Date().toISOString() })
-          .where(eq(projectGroupsTable.id, groupIds[i]));
-      }
+      await Promise.all(
+        groupIds.map((id, i) =>
+          tx
+            .update(projectGroupsTable)
+            .set({ displayOrder: i, updatedAt: now })
+            .where(eq(projectGroupsTable.id, id))
+        )
+      );
     });
   }
 
@@ -1115,13 +1120,16 @@ export class DatabaseService {
   async updateWorkspaceOrder(workspaceIds: string[]): Promise<void> {
     if (this.disabled) return;
     const { db } = await getDrizzleClient();
+    const now = new Date().toISOString();
     await db.transaction(async (tx) => {
-      for (let i = 0; i < workspaceIds.length; i++) {
-        await tx
-          .update(workspacesTable)
-          .set({ displayOrder: i, updatedAt: new Date().toISOString() })
-          .where(eq(workspacesTable.id, workspaceIds[i]));
-      }
+      await Promise.all(
+        workspaceIds.map((id, i) =>
+          tx
+            .update(workspacesTable)
+            .set({ displayOrder: i, updatedAt: now })
+            .where(eq(workspacesTable.id, id))
+        )
+      );
     });
   }
 
