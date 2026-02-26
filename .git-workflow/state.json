@@ -1,0 +1,18 @@
+{
+  "target_branch": "main",
+  "status": "in_progress",
+  "flags": {
+    "skip_tests": false,
+    "draft_pr": false,
+    "no_push": false,
+    "squash": false,
+    "conventional": true,
+    "trunk_based": false
+  },
+  "current_step": 1,
+  "current_phase": 1,
+  "completed_steps": [],
+  "files_created": [".git-workflow/00-git-context.md"],
+  "started_at": "2026-02-25T00:00:00.000Z",
+  "last_updated": "2026-02-25T00:00:00.000Z"
+}
