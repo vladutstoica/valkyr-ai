@@ -51,8 +51,15 @@ describe('WorktreePoolService', () => {
   let tempDir: string;
   let projectPath: string;
   let pool: WorktreePoolService;
+  const savedGitEnv: Record<string, string | undefined> = {};
 
   beforeEach(() => {
+    // Strip git env vars that husky/pre-commit hooks inject — they cause
+    // child git commands to target the wrong repo.
+    for (const key of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_PREFIX']) {
+      savedGitEnv[key] = process.env[key];
+      delete process.env[key];
+    }
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'worktree-pool-test-'));
     projectPath = path.join(tempDir, 'project');
     fs.mkdirSync(projectPath, { recursive: true });
@@ -84,6 +91,11 @@ describe('WorktreePoolService', () => {
   afterEach(async () => {
     await pool.cleanup();
     fs.rmSync(tempDir, { recursive: true, force: true });
+    // Restore git env vars
+    for (const [key, val] of Object.entries(savedGitEnv)) {
+      if (val === undefined) delete process.env[key];
+      else process.env[key] = val;
+    }
   });
 
   it('preserves configured ignored files when claiming a reserve worktree', async () => {

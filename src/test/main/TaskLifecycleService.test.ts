@@ -269,7 +269,12 @@ describe('TaskLifecycleService', () => {
     const projectPath = '/tmp/project';
 
     const setupPromise = taskLifecycleService.runSetup(taskId, taskPath, projectPath);
-    await new Promise((resolve) => setTimeout(resolve, 25));
+    // Wait until spawn is actually called (async env build may take longer
+    // under load, e.g. when invoked via husky pre-commit hooks).
+    for (let i = 0; i < 20; i++) {
+      if (spawnMock.mock.calls.length > 0) break;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
     child.emit('error', new Error('spawn failed'));
     child.emit('exit', 0);
 
@@ -299,7 +304,12 @@ describe('TaskLifecycleService', () => {
     const projectPath = '/tmp/project';
 
     void taskLifecycleService.runSetup(taskId, taskPath, projectPath);
-    await new Promise((resolve) => setTimeout(resolve, 25));
+    // Wait until the finite process is tracked (async env build may take
+    // longer under load, e.g. when invoked via husky pre-commit hooks).
+    for (let i = 0; i < 20; i++) {
+      if (serviceAny.finiteProcesses.has(taskId)) break;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
 
     expect(serviceAny.finiteProcesses.has(taskId)).toBe(true);
     taskLifecycleService.clearTask(taskId);
