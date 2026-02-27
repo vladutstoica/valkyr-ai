@@ -327,9 +327,7 @@ export function registerProjectIpc() {
         fs.promises.readdir(resolvedProjectPath, { withFileTypes: true }),
       ]);
 
-      const rootGitInfo = hasRootGit && rootInfo
-        ? { isGitRepo: true, ...rootInfo }
-        : undefined;
+      const rootGitInfo = hasRootGit && rootInfo ? { isGitRepo: true, ...rootInfo } : undefined;
 
       // Collect sub-repo paths first (cheap fs.existsSync), then fetch git info in parallel
       const subRepoPaths: Array<{ subPath: string; name: string }> = [];

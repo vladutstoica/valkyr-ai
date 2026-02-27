@@ -267,7 +267,11 @@ function findPlanFileInfo(messages: UIMessage[]): { content: string | null; path
 
       // Check inline content from input (non-ACP path, e.g. local agents)
       if (fp.includes('/plans/') && fp.endsWith('.md')) {
-        if ((prevName === 'write_file' || acpKind === 'edit') && typeof part.input?.content === 'string' && part.input.content) {
+        if (
+          (prevName === 'write_file' || acpKind === 'edit') &&
+          typeof part.input?.content === 'string' &&
+          part.input.content
+        ) {
           return { content: part.input.content, path: fp };
         }
         if ((prevName === 'read_file' || acpKind === 'read') && part.output) {
@@ -370,7 +374,7 @@ function UserMessageNavButton({
   return (
     <button
       type="button"
-      className="pointer-events-auto bg-background/80 border-border/50 text-muted-foreground hover:text-foreground hover:bg-background absolute right-4 bottom-14 z-10 inline-flex size-7 items-center justify-center rounded-full border shadow-sm backdrop-blur-sm transition-colors"
+      className="bg-background/80 border-border/50 text-muted-foreground hover:text-foreground hover:bg-background pointer-events-auto absolute right-4 bottom-14 z-10 inline-flex size-7 items-center justify-center rounded-full border shadow-sm backdrop-blur-sm transition-colors"
       onClick={onNavigate}
       title="Previous message you sent"
     >
@@ -1568,7 +1572,9 @@ function MessageParts({
             : { id: toolPart.toolCallId };
 
         const isModeSwitch =
-          toolName === 'switch_mode' || toolName === 'ExitPlanMode' || toolName === 'EnterPlanMode' ||
+          toolName === 'switch_mode' ||
+          toolName === 'ExitPlanMode' ||
+          toolName === 'EnterPlanMode' ||
           approvalAcpMeta?.kind === 'switch_mode';
         const targetMode = (toolPart.input?.mode_slug || toolPart.input?.mode || '') as string;
 
@@ -1576,7 +1582,10 @@ function MessageParts({
         let planPreviewContent: string | null = null;
         if (isModeSwitch) {
           // 1. Prefer input.plan (ACP SDK ≥ 0.1.54)
-          if (typeof toolPart.input?.plan === 'string' && (toolPart.input.plan as string).length > 0) {
+          if (
+            typeof toolPart.input?.plan === 'string' &&
+            (toolPart.input.plan as string).length > 0
+          ) {
             planPreviewContent = toolPart.input.plan as string;
           }
           // 2. Scan all messages for plan file content (inline data or path)
@@ -2055,36 +2064,33 @@ function AcpChatInner({
   // User message navigation — jump between your own messages
   const userMessageNavRef = useRef<number>(-1); // -1 = not navigating, 0 = latest user msg, 1 = second latest, etc.
 
-  const navigateUserMessages = useCallback(
-    (direction: 'prev' | 'next') => {
-      const userMsgEls = Array.from(
-        document.querySelectorAll<HTMLElement>('[data-message-role="user"]')
-      );
-      if (userMsgEls.length === 0) return;
+  const navigateUserMessages = useCallback((direction: 'prev' | 'next') => {
+    const userMsgEls = Array.from(
+      document.querySelectorAll<HTMLElement>('[data-message-role="user"]')
+    );
+    if (userMsgEls.length === 0) return;
 
-      // Work in reverse order: last user message = index 0
-      const reversed = [...userMsgEls].reverse();
-      let idx = userMessageNavRef.current;
+    // Work in reverse order: last user message = index 0
+    const reversed = [...userMsgEls].reverse();
+    let idx = userMessageNavRef.current;
 
-      if (direction === 'prev') {
-        // Go to older (higher index)
-        idx = Math.min(idx + 1, reversed.length - 1);
-      } else {
-        // Go to newer (lower index)
-        idx = idx - 1;
-        if (idx < 0) {
-          // Back to bottom
-          userMessageNavRef.current = -1;
-          scrollToBottomRef.current?.();
-          return;
-        }
+    if (direction === 'prev') {
+      // Go to older (higher index)
+      idx = Math.min(idx + 1, reversed.length - 1);
+    } else {
+      // Go to newer (lower index)
+      idx = idx - 1;
+      if (idx < 0) {
+        // Back to bottom
+        userMessageNavRef.current = -1;
+        scrollToBottomRef.current?.();
+        return;
       }
+    }
 
-      userMessageNavRef.current = idx;
-      reversed[idx]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    },
-    []
-  );
+    userMessageNavRef.current = idx;
+    reversed[idx]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
 
   // Reset navigation index when user scrolls to bottom or sends a message
   const resetUserNav = useCallback(() => {
@@ -2151,7 +2157,10 @@ function AcpChatInner({
       if (!title) return true;
       const agentName = agent?.name || providerId;
       // Matches "Claude Code", "Claude Code 2", "Resumed: Claude Code", etc.
-      return /^(Resumed:\s*)?/.test(title) && title.replace(/^Resumed:\s*/, '').replace(/\s+\d+$/, '') === agentName;
+      return (
+        /^(Resumed:\s*)?/.test(title) &&
+        title.replace(/^Resumed:\s*/, '').replace(/\s+\d+$/, '') === agentName
+      );
     },
     [agent?.name, providerId]
   );
@@ -2160,7 +2169,9 @@ function AcpChatInner({
   const updateTitle = useCallback(
     (newTitle: string) => {
       if (!newTitle.trim()) return;
-      window.electronAPI.updateConversationTitle({ conversationId, title: newTitle.trim() }).catch(() => {});
+      window.electronAPI
+        .updateConversationTitle({ conversationId, title: newTitle.trim() })
+        .catch(() => {});
       onConversationTitleChange?.(newTitle.trim());
     },
     [conversationId, onConversationTitleChange]
@@ -2322,7 +2333,8 @@ function AcpChatInner({
         if (!part?.type?.startsWith('tool-') && part?.type !== 'tool-invocation') continue;
         const partAcpMeta = getAcpMeta(part);
         const name = part.toolName || '';
-        const isModeSwitch = name === 'ExitPlanMode' || name === 'switch_mode' || partAcpMeta?.kind === 'switch_mode';
+        const isModeSwitch =
+          name === 'ExitPlanMode' || name === 'switch_mode' || partAcpMeta?.kind === 'switch_mode';
         if (!isModeSwitch) continue;
         if (part.state === 'approval-requested') {
           // Extract mode switch info
@@ -2345,12 +2357,27 @@ function AcpChatInner({
               // Read the plan file asynchronously via IPC
               const dir = planInfo.path.substring(0, planInfo.path.lastIndexOf('/'));
               const file = planInfo.path.substring(planInfo.path.lastIndexOf('/') + 1);
-              setPendingPlanApproval({ toolCallId: part.toolCallId, content: 'Loading plan...', fromMode: 'plan', toMode: targetMode });
-              window.electronAPI?.fsRead(dir, file).then((result) => {
-                if (result.success && result.content) {
-                  setPendingPlanApproval({ toolCallId: part.toolCallId, content: result.content, fromMode: 'plan', toMode: targetMode });
-                }
-              }).catch(() => { /* ignore read errors */ });
+              setPendingPlanApproval({
+                toolCallId: part.toolCallId,
+                content: 'Loading plan...',
+                fromMode: 'plan',
+                toMode: targetMode,
+              });
+              window.electronAPI
+                ?.fsRead(dir, file)
+                .then((result) => {
+                  if (result.success && result.content) {
+                    setPendingPlanApproval({
+                      toolCallId: part.toolCallId,
+                      content: result.content,
+                      fromMode: 'plan',
+                      toMode: targetMode,
+                    });
+                  }
+                })
+                .catch(() => {
+                  /* ignore read errors */
+                });
               return;
             }
           }
@@ -2371,7 +2398,12 @@ function AcpChatInner({
             content = String(part.output);
           }
 
-          setPendingPlanApproval({ toolCallId: part.toolCallId, content, fromMode: 'plan', toMode: targetMode });
+          setPendingPlanApproval({
+            toolCallId: part.toolCallId,
+            content,
+            fromMode: 'plan',
+            toMode: targetMode,
+          });
           return;
         }
       }
@@ -2852,7 +2884,7 @@ function AcpChatInner({
               ref={titleInputRef}
               type="text"
               defaultValue={conversationTitle || sessionTitle || ''}
-              className="bg-transparent text-foreground w-full border-none text-xs font-medium outline-none"
+              className="text-foreground w-full border-none bg-transparent text-xs font-medium outline-none"
               onBlur={(e) => {
                 const val = e.target.value.trim();
                 if (val && val !== conversationTitle) updateTitle(val);
@@ -3063,11 +3095,7 @@ function AcpChatInner({
       )}
       {(planEntries.length > 0 || pendingPlanApproval) && !planDismissed && (
         <div className="border-border/50 shrink-0 border-b px-3 py-2">
-          <Plan
-            isStreaming={isStreaming}
-            open={planOpen}
-            onOpenChange={setPlanOpen}
-          >
+          <Plan isStreaming={isStreaming} open={planOpen} onOpenChange={setPlanOpen}>
             <PlanHeader>
               <div>
                 <div className="flex items-center gap-2">
@@ -3098,13 +3126,14 @@ function AcpChatInner({
             </PlanHeader>
             <PlanContent className="mt-2">
               {/* Plan preview content from ExitPlanMode */}
-              {pendingPlanApproval?.content && pendingPlanApproval.content !== 'Loading plan...' && (
-                <div className="border-border/50 bg-muted/30 mb-2 max-h-80 overflow-y-auto rounded border p-3 text-sm [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                  <Streamdown shikiTheme={['github-light', 'github-dark']}>
-                    {pendingPlanApproval.content}
-                  </Streamdown>
-                </div>
-              )}
+              {pendingPlanApproval?.content &&
+                pendingPlanApproval.content !== 'Loading plan...' && (
+                  <div className="border-border/50 bg-muted/30 mb-2 max-h-80 overflow-y-auto rounded border p-3 text-sm [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                    <Streamdown shikiTheme={['github-light', 'github-dark']}>
+                      {pendingPlanApproval.content}
+                    </Streamdown>
+                  </div>
+                )}
               {pendingPlanApproval?.content === 'Loading plan...' && (
                 <div className="border-border/50 bg-muted/30 mb-2 flex items-center gap-2 rounded border p-3 text-sm">
                   <Loader2 className="text-muted-foreground size-4 animate-spin" />
@@ -3200,12 +3229,14 @@ function AcpChatInner({
               <p className="text-muted-foreground text-xs">Resuming session…</p>
             </div>
           )}
-          {messages.length === 0 && parentSessionStatus !== 'initializing' && chatStatus === 'ready' && (
-            <ConversationEmptyState
-              title="Start a conversation"
-              description="Send a message to begin working with this agent"
-            />
-          )}
+          {messages.length === 0 &&
+            parentSessionStatus !== 'initializing' &&
+            chatStatus === 'ready' && (
+              <ConversationEmptyState
+                title="Start a conversation"
+                description="Send a message to begin working with this agent"
+              />
+            )}
 
           {messages.map((msg, msgIdx) => (
             <div key={msg.id} data-message-id={msg.id} data-message-role={msg.role}>
@@ -3363,7 +3394,10 @@ function AcpChatInner({
           {/* Error display */}
           {chatStatus === 'error' && chatError && <AcpErrorCard error={chatError.message} />}
         </ConversationContent>
-        <UserMessageNavButton onNavigate={() => navigateUserMessages('prev')} onResetNav={resetUserNav} />
+        <UserMessageNavButton
+          onNavigate={() => navigateUserMessages('prev')}
+          onResetNav={resetUserNav}
+        />
         <ConversationScrollButton />
       </Conversation>
 
@@ -3459,17 +3493,16 @@ function AcpChatInner({
         </div>
       )}
 
-      {messages.length === 0 && parentSessionStatus !== 'initializing' && chatStatus === 'ready' && (
-        <Suggestions className="flex-wrap justify-start px-3 pb-2">
-          <Suggestion
-            suggestion="Explain this codebase"
-            onClick={(s) => safeSend({ text: s })}
-          />
-          <Suggestion suggestion="Find and fix bugs" onClick={(s) => safeSend({ text: s })} />
-          <Suggestion suggestion="Write tests" onClick={(s) => safeSend({ text: s })} />
-          <Suggestion suggestion="Refactor code" onClick={(s) => safeSend({ text: s })} />
-        </Suggestions>
-      )}
+      {messages.length === 0 &&
+        parentSessionStatus !== 'initializing' &&
+        chatStatus === 'ready' && (
+          <Suggestions className="flex-wrap justify-start px-3 pb-2">
+            <Suggestion suggestion="Explain this codebase" onClick={(s) => safeSend({ text: s })} />
+            <Suggestion suggestion="Find and fix bugs" onClick={(s) => safeSend({ text: s })} />
+            <Suggestion suggestion="Write tests" onClick={(s) => safeSend({ text: s })} />
+            <Suggestion suggestion="Refactor code" onClick={(s) => safeSend({ text: s })} />
+          </Suggestions>
+        )}
 
       {/* Input area */}
       <div className="border-border/50 shrink-0 border-t p-3 [&_[data-slot=input-group-addon]]:!px-0 [&_[data-slot=input-group-addon]]:!pt-0 [&_[data-slot=input-group-addon]]:!pb-0 [&_[data-slot=input-group]]:items-stretch [&_[data-slot=input-group]]:!border-0 [&_[data-slot=input-group]]:!bg-transparent [&_[data-slot=input-group]]:!ring-0 [&_[data-slot=input-group]]:![box-shadow:none] [&_[data-slot=input-group]]:dark:!bg-transparent [&_textarea]:!px-0 [&_textarea]:!py-1.5 [&_textarea]:!ring-offset-0 [&_textarea]:!outline-none">

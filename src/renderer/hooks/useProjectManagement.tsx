@@ -191,19 +191,19 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
         if (!prev || prev.id !== project.id) return prev;
 
         // Check if gitInfo actually changed
-        const gitInfoChanged = freshGitInfo && (
-          prev.gitInfo?.remote !== freshGitInfo.remote ||
-          prev.gitInfo?.branch !== freshGitInfo.branch ||
-          prev.gitInfo?.baseRef !== freshGitInfo.baseRef
-        );
+        const gitInfoChanged =
+          freshGitInfo &&
+          (prev.gitInfo?.remote !== freshGitInfo.remote ||
+            prev.gitInfo?.branch !== freshGitInfo.branch ||
+            prev.gitInfo?.baseRef !== freshGitInfo.baseRef);
 
         // Check if subRepos actually changed (compare by length + paths)
         const prevSubs = prev.subRepos;
         const subReposChanged =
           (prevSubs?.length ?? 0) !== (newSubRepos?.length ?? 0) ||
-          (newSubRepos ?? []).some((s, i) =>
-            s.path !== prevSubs?.[i]?.path ||
-            s.gitInfo?.branch !== prevSubs?.[i]?.gitInfo?.branch
+          (newSubRepos ?? []).some(
+            (s, i) =>
+              s.path !== prevSubs?.[i]?.path || s.gitInfo?.branch !== prevSubs?.[i]?.gitInfo?.branch
           );
 
         if (!gitInfoChanged && !subReposChanged) return prev;
@@ -222,17 +222,17 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
         if (!target) return prev;
 
         // Same bail-out check for projects array
-        const gitInfoChanged = freshGitInfo && (
-          target.gitInfo?.remote !== freshGitInfo.remote ||
-          target.gitInfo?.branch !== freshGitInfo.branch ||
-          target.gitInfo?.baseRef !== freshGitInfo.baseRef
-        );
+        const gitInfoChanged =
+          freshGitInfo &&
+          (target.gitInfo?.remote !== freshGitInfo.remote ||
+            target.gitInfo?.branch !== freshGitInfo.branch ||
+            target.gitInfo?.baseRef !== freshGitInfo.baseRef);
         const prevSubs = target.subRepos;
         const subReposChanged =
           (prevSubs?.length ?? 0) !== (newSubRepos?.length ?? 0) ||
-          (newSubRepos ?? []).some((s, i) =>
-            s.path !== prevSubs?.[i]?.path ||
-            s.gitInfo?.branch !== prevSubs?.[i]?.gitInfo?.branch
+          (newSubRepos ?? []).some(
+            (s, i) =>
+              s.path !== prevSubs?.[i]?.path || s.gitInfo?.branch !== prevSubs?.[i]?.gitInfo?.branch
           );
 
         if (!gitInfoChanged && !subReposChanged) return prev;

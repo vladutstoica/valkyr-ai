@@ -1552,11 +1552,17 @@ export class AcpSessionManager {
           exitPromise,
         };
 
-        child.stdout?.on('data', (chunk: Buffer) => appendTerminalOutput(terminal, chunk.toString('utf-8')));
-        child.stderr?.on('data', (chunk: Buffer) => appendTerminalOutput(terminal, chunk.toString('utf-8')));
+        child.stdout?.on('data', (chunk: Buffer) =>
+          appendTerminalOutput(terminal, chunk.toString('utf-8'))
+        );
+        child.stderr?.on('data', (chunk: Buffer) =>
+          appendTerminalOutput(terminal, chunk.toString('utf-8'))
+        );
 
         session.terminals.set(terminalId, terminal);
-        log.debug(`[AcpTerminal] Created terminal ${terminalId} for session ${sessionKey}: ${params.command}`);
+        log.debug(
+          `[AcpTerminal] Created terminal ${terminalId} for session ${sessionKey}: ${params.command}`
+        );
 
         return { terminalId };
       },
@@ -1580,7 +1586,9 @@ export class AcpSessionManager {
         };
       },
 
-      waitForTerminalExit: async (params: WaitForTerminalExitRequest): Promise<WaitForTerminalExitResponse> => {
+      waitForTerminalExit: async (
+        params: WaitForTerminalExitRequest
+      ): Promise<WaitForTerminalExitResponse> => {
         const acpSessionId = (params as any).sessionId;
         const sessionKey = acpSessionId
           ? this.acpSessionIdToSessionKey.get(acpSessionId)
@@ -1596,7 +1604,9 @@ export class AcpSessionManager {
         return { exitCode: result.exitCode, signal: result.signal };
       },
 
-      killTerminal: async (params: KillTerminalCommandRequest): Promise<KillTerminalCommandResponse> => {
+      killTerminal: async (
+        params: KillTerminalCommandRequest
+      ): Promise<KillTerminalCommandResponse> => {
         const acpSessionId = (params as any).sessionId;
         const sessionKey = acpSessionId
           ? this.acpSessionIdToSessionKey.get(acpSessionId)
@@ -1612,7 +1622,11 @@ export class AcpSessionManager {
           terminal.process.kill('SIGTERM');
           // Fallback to SIGKILL after timeout
           setTimeout(() => {
-            try { if (!terminal.process.killed) terminal.process.kill('SIGKILL'); } catch { /* already dead */ }
+            try {
+              if (!terminal.process.killed) terminal.process.kill('SIGKILL');
+            } catch {
+              /* already dead */
+            }
           }, KILL_TIMEOUT_MS);
         }
 
@@ -1635,7 +1649,11 @@ export class AcpSessionManager {
         if (!terminal.process.killed) {
           terminal.process.kill('SIGTERM');
           setTimeout(() => {
-            try { if (!terminal.process.killed) terminal.process.kill('SIGKILL'); } catch { /* already dead */ }
+            try {
+              if (!terminal.process.killed) terminal.process.kill('SIGKILL');
+            } catch {
+              /* already dead */
+            }
           }, KILL_TIMEOUT_MS);
         }
 

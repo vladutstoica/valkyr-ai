@@ -136,7 +136,13 @@ export function usePanelLayout(opts: UsePanelLayoutOptions) {
     }
     // Only re-run when project existence or task changes — not on every project object update
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoRightSidebarBehavior, isInitialLoadComplete, showHomeView, selectedProject?.id, activeTask]);
+  }, [
+    autoRightSidebarBehavior,
+    isInitialLoadComplete,
+    showHomeView,
+    selectedProject?.id,
+    activeTask,
+  ]);
 
   // Sync right sidebar panel with collapsed state
   useEffect(() => {

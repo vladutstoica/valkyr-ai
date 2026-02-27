@@ -90,7 +90,10 @@ export class McpConfigService {
     }
   }
 
-  async saveProjectServers(projectPath: string, servers: McpServerConfig[]): Promise<McpServerConfig[]> {
+  async saveProjectServers(
+    projectPath: string,
+    servers: McpServerConfig[]
+  ): Promise<McpServerConfig[]> {
     const configPath = join(projectPath, '.valkyr.json');
     let raw: any = {};
     if (existsSync(configPath)) {
@@ -159,7 +162,9 @@ export class McpConfigService {
       const projectResults = await Promise.all(
         projectConfigs.map(async ({ agent, path: configPath }) => {
           const servers = await this.readAgentMcpFile(configPath);
-          return servers.length > 0 ? { agent, scope: 'project' as const, configPath, servers } : null;
+          return servers.length > 0
+            ? { agent, scope: 'project' as const, configPath, servers }
+            : null;
         })
       );
       for (const r of projectResults) if (r) results.push(r);

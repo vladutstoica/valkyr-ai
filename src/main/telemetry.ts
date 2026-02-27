@@ -477,9 +477,7 @@ async function persistState(state: {
 }): Promise<void> {
   try {
     const filePath = getInstanceIdPath();
-    const existing = existsSync(filePath)
-      ? JSON.parse(await readFile(filePath, 'utf8'))
-      : {};
+    const existing = existsSync(filePath) ? JSON.parse(await readFile(filePath, 'utf8')) : {};
     const merged = {
       ...existing,
       instanceId: state.instanceId,

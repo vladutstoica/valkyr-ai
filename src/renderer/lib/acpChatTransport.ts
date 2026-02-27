@@ -381,7 +381,10 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
   autoApprove = false;
 
   /** Stored permission options keyed by toolCallId, for resolving optionId on approve/deny. */
-  private permissionOptions = new Map<string, Array<{ optionId: string; kind: string; name?: string }>>();
+  private permissionOptions = new Map<
+    string,
+    Array<{ optionId: string; kind: string; name?: string }>
+  >();
 
   constructor(options: AcpTransportOptions) {
     this.sessionKey = options.sessionKey;

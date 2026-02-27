@@ -235,7 +235,10 @@ export function useEditorDiffDecorations({
       if (!interval) interval = setInterval(updateDecorations, DIFF_CONSTANTS.REFRESH_INTERVAL_MS);
     };
     const stopPolling = () => {
-      if (interval) { clearInterval(interval); interval = null; }
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
     };
     const onVisibility = () => {
       if (document.visibilityState === 'visible') startPolling();

@@ -111,7 +111,15 @@ export function AppLayout({
       worktreeId,
       worktreePath,
     };
-  }, [activeTask, activeTaskAgent, selectedProject?.id, selectedProject?.gitInfo?.branch, selectedProject?.path, projectDefaultBranch, gitChangesCount]);
+  }, [
+    activeTask,
+    activeTaskAgent,
+    selectedProject?.id,
+    selectedProject?.gitInfo?.branch,
+    selectedProject?.path,
+    projectDefaultBranch,
+    gitChangesCount,
+  ]);
 
   // Handle status bar clicks
   const handleChangesClick = () => {
