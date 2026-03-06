@@ -21,6 +21,7 @@ try {
   // no-op if fix-path isn't available at runtime
 }
 
+// Synchronous: add well-known PATH directories immediately (fast, no shell spawn)
 if (process.platform === 'darwin') {
   const extras = ['/opt/homebrew/bin', '/usr/local/bin', '/opt/homebrew/sbin', '/usr/local/sbin'];
   const cur = process.env.PATH || '';
@@ -29,17 +30,6 @@ if (process.platform === 'darwin') {
     if (!parts.includes(p)) parts.unshift(p);
   }
   process.env.PATH = parts.join(':');
-
-  // As a last resort, ask the user's login shell for PATH and merge it in.
-  try {
-    const { execSync } = require('child_process');
-    const shell = process.env.SHELL || '/bin/zsh';
-    const loginPath = execSync(`${shell} -ilc 'echo -n $PATH'`, { encoding: 'utf8' });
-    if (loginPath) {
-      const merged = new Set((loginPath + ':' + process.env.PATH).split(':').filter(Boolean));
-      process.env.PATH = Array.from(merged).join(':');
-    }
-  } catch {}
 }
 
 if (process.platform === 'linux') {
@@ -59,19 +49,25 @@ if (process.platform === 'linux') {
       if (!parts.includes(p)) parts.unshift(p);
     }
     process.env.PATH = parts.join(':');
-
-    try {
-      const { execSync } = require('child_process');
-      const shell = process.env.SHELL || '/bin/bash';
-      const loginPath = execSync(`${shell} -ilc 'echo -n $PATH'`, {
-        encoding: 'utf8',
-      });
-      if (loginPath) {
-        const merged = new Set((loginPath + ':' + process.env.PATH).split(':').filter(Boolean));
-        process.env.PATH = Array.from(merged).join(':');
-      }
-    } catch {}
   } catch {}
+}
+
+// Deferred: merge PATH from user's login shell asynchronously (avoids 200-500ms execSync block)
+function mergeLoginShellPathAsync(): void {
+  if (process.platform !== 'darwin' && process.platform !== 'linux') return;
+  const { exec } = require('child_process');
+  const shell = process.env.SHELL || (process.platform === 'darwin' ? '/bin/zsh' : '/bin/bash');
+  exec(
+    `${shell} -ilc 'echo -n $PATH'`,
+    { encoding: 'utf8', timeout: 5000 },
+    (err: Error | null, stdout: string) => {
+      if (err || !stdout) return;
+      const merged = new Set(
+        (stdout + ':' + (process.env.PATH || '')).split(':').filter(Boolean)
+      );
+      process.env.PATH = Array.from(merged).join(':');
+    }
+  );
 }
 
 // Enable automatic Wayland/X11 detection on Linux.
@@ -191,6 +187,9 @@ if (process.platform === 'darwin' && !app.isPackaged) {
 
 // App bootstrap
 app.whenReady().then(async () => {
+  // Kick off async PATH merge early — completes before user starts a task
+  mergeLoginShellPathAsync();
+
   // Initialize database
   let dbInitOk = false;
   let dbInitErrorType: string | undefined;
