@@ -127,6 +127,7 @@ export const tasks = sqliteTable(
   (table) => ({
     projectIdIdx: index('idx_tasks_project_id').on(table.projectId),
     pathIdx: index('idx_tasks_path').on(table.path),
+    archivedAtIdx: index('idx_tasks_archived_at').on(table.archivedAt),
   })
 );
 
@@ -220,11 +221,17 @@ export const terminalSessions = sqliteTable(
   })
 );
 
-export const kanbanColumns = sqliteTable('kanban_columns', {
-  id: text('id').primaryKey(),
-  taskId: text('task_id').notNull(),
-  status: text('status').notNull().default('todo'),
-});
+export const kanbanColumns = sqliteTable(
+  'kanban_columns',
+  {
+    id: text('id').primaryKey(),
+    taskId: text('task_id').notNull(),
+    status: text('status').notNull().default('todo'),
+  },
+  (table) => ({
+    taskIdIdx: index('idx_kanban_columns_task_id').on(table.taskId),
+  })
+);
 
 export const sshConnectionsRelations = relations(sshConnections, ({ many }) => ({
   projects: many(projects),
