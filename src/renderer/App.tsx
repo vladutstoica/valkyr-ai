@@ -1,18 +1,33 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import AppKeyboardShortcuts from './components/AppKeyboardShortcuts';
-import { CloneFromUrlModal } from './components/CloneFromUrlModal';
-import { AddRemoteProjectModal } from './components/ssh/AddRemoteProjectModal';
-import CommandPaletteWrapper from './components/CommandPaletteWrapper';
 import ErrorBoundary from './components/ErrorBoundary';
 import { WelcomeScreen } from './components/WelcomeScreen';
-import { GithubDeviceFlowModal } from './components/GithubDeviceFlowModal';
-import { KeyboardShortcutsDialog } from './components/KeyboardShortcutsDialog';
-import { PrerequisiteModal } from './components/PrerequisiteModal';
 import LeftSidebar from './components/LeftSidebar';
 import MainContentArea from './components/MainContentArea';
-import { NewProjectModal } from './components/NewProjectModal';
-import TaskModal from './components/TaskModal';
 import { ThemeProvider } from './components/ThemeProvider';
+
+// Lazy-loaded modals — only fetched when opened
+const TaskModal = React.lazy(() => import('./components/TaskModal'));
+const CommandPaletteWrapper = React.lazy(() => import('./components/CommandPaletteWrapper'));
+const NewProjectModal = React.lazy(
+  () => import('./components/NewProjectModal').then((m) => ({ default: m.NewProjectModal }))
+);
+const CloneFromUrlModal = React.lazy(
+  () => import('./components/CloneFromUrlModal').then((m) => ({ default: m.CloneFromUrlModal }))
+);
+const AddRemoteProjectModal = React.lazy(
+  () => import('./components/ssh/AddRemoteProjectModal').then((m) => ({ default: m.AddRemoteProjectModal }))
+);
+const GithubDeviceFlowModal = React.lazy(
+  () => import('./components/GithubDeviceFlowModal').then((m) => ({ default: m.GithubDeviceFlowModal }))
+);
+const KeyboardShortcutsDialog = React.lazy(
+  () =>
+    import('./components/KeyboardShortcutsDialog').then((m) => ({ default: m.KeyboardShortcutsDialog }))
+);
+const PrerequisiteModal = React.lazy(
+  () => import('./components/PrerequisiteModal').then((m) => ({ default: m.PrerequisiteModal }))
+);
 import Titlebar from './components/titlebar/Titlebar';
 import { SidebarProvider } from './components/ui/sidebar';
 import { RightSidebarProvider } from './components/ui/right-sidebar';
@@ -556,65 +571,83 @@ const AppContent: React.FC = () => {
             />
           )}
 
-          {/* Modals - rendered at App level */}
-          <CommandPaletteWrapper
-            isOpen={showCommandPalette}
-            onClose={handleCloseCommandPalette}
-            projects={projectMgmt.projects}
-            handleSelectProject={projectMgmt.handleSelectProject}
-            handleSelectTask={taskMgmt.handleSelectTask}
-            handleGoHome={projectMgmt.handleGoHome}
-            handleOpenProject={projectMgmt.handleOpenProject}
-            handleOpenSettings={openSettingsView}
-            handleOpenKeyboardShortcuts={() => setShowKeyboardShortcuts(true)}
-          />
-          <TaskModal
-            isOpen={showTaskModal}
-            onClose={() => setShowTaskModal(false)}
-            onCreateTask={handleCreateTask}
-            projectName={selectedProject?.name || ''}
-            defaultBranch={projectMgmt.projectDefaultBranch}
-            existingNames={(selectedProject?.tasks || []).map((w) => w.name)}
-            linkedGithubIssueMap={taskMgmt.linkedGithubIssueMap}
-            projectPath={selectedProject?.path}
-            branchOptions={projectMgmt.projectBranchOptions}
-            isLoadingBranches={projectMgmt.isLoadingBranches}
-            subRepos={selectedProject?.subRepos}
-            hasExistingNonWorktreeTask={(selectedProject?.tasks || []).some(
-              (t) => t.useWorktree === false
+          {/* Modals - lazy-loaded, only mounted when open */}
+          <Suspense fallback={null}>
+            {showCommandPalette && (
+              <CommandPaletteWrapper
+                isOpen={showCommandPalette}
+                onClose={handleCloseCommandPalette}
+                projects={projectMgmt.projects}
+                handleSelectProject={projectMgmt.handleSelectProject}
+                handleSelectTask={taskMgmt.handleSelectTask}
+                handleGoHome={projectMgmt.handleGoHome}
+                handleOpenProject={projectMgmt.handleOpenProject}
+                handleOpenSettings={openSettingsView}
+                handleOpenKeyboardShortcuts={() => setShowKeyboardShortcuts(true)}
+              />
             )}
-          />
-          <NewProjectModal
-            isOpen={showNewProjectModal}
-            onClose={() => setShowNewProjectModal(false)}
-            onSuccess={projectMgmt.handleNewProjectSuccess}
-          />
-          <CloneFromUrlModal
-            isOpen={showCloneModal}
-            onClose={() => setShowCloneModal(false)}
-            onSuccess={projectMgmt.handleCloneSuccess}
-          />
-          <AddRemoteProjectModal
-            isOpen={showRemoteProjectModal}
-            onClose={() => setShowRemoteProjectModal(false)}
-            onSuccess={handleRemoteProjectSuccess}
-          />
-          <GithubDeviceFlowModal
-            open={showDeviceFlowModal}
-            onClose={github.handleDeviceFlowClose}
-            onSuccess={github.handleDeviceFlowSuccess}
-            onError={github.handleDeviceFlowError}
-          />
-          <KeyboardShortcutsDialog
-            isOpen={showKeyboardShortcuts}
-            onClose={() => setShowKeyboardShortcuts(false)}
-          />
-          <PrerequisiteModal
-            isOpen={prerequisiteModal.open}
-            onClose={() => setPrerequisiteModal((prev) => ({ ...prev, open: false }))}
-            gitMissing={prerequisiteModal.gitMissing}
-            detectedAgents={prerequisiteModal.agents}
-          />
+            {showTaskModal && (
+              <TaskModal
+                isOpen={showTaskModal}
+                onClose={() => setShowTaskModal(false)}
+                onCreateTask={handleCreateTask}
+                projectName={selectedProject?.name || ''}
+                defaultBranch={projectMgmt.projectDefaultBranch}
+                existingNames={(selectedProject?.tasks || []).map((w) => w.name)}
+                linkedGithubIssueMap={taskMgmt.linkedGithubIssueMap}
+                projectPath={selectedProject?.path}
+                branchOptions={projectMgmt.projectBranchOptions}
+                isLoadingBranches={projectMgmt.isLoadingBranches}
+                subRepos={selectedProject?.subRepos}
+                hasExistingNonWorktreeTask={(selectedProject?.tasks || []).some(
+                  (t) => t.useWorktree === false
+                )}
+              />
+            )}
+            {showNewProjectModal && (
+              <NewProjectModal
+                isOpen={showNewProjectModal}
+                onClose={() => setShowNewProjectModal(false)}
+                onSuccess={projectMgmt.handleNewProjectSuccess}
+              />
+            )}
+            {showCloneModal && (
+              <CloneFromUrlModal
+                isOpen={showCloneModal}
+                onClose={() => setShowCloneModal(false)}
+                onSuccess={projectMgmt.handleCloneSuccess}
+              />
+            )}
+            {showRemoteProjectModal && (
+              <AddRemoteProjectModal
+                isOpen={showRemoteProjectModal}
+                onClose={() => setShowRemoteProjectModal(false)}
+                onSuccess={handleRemoteProjectSuccess}
+              />
+            )}
+            {showDeviceFlowModal && (
+              <GithubDeviceFlowModal
+                open={showDeviceFlowModal}
+                onClose={github.handleDeviceFlowClose}
+                onSuccess={github.handleDeviceFlowSuccess}
+                onError={github.handleDeviceFlowError}
+              />
+            )}
+            {showKeyboardShortcuts && (
+              <KeyboardShortcutsDialog
+                isOpen={showKeyboardShortcuts}
+                onClose={() => setShowKeyboardShortcuts(false)}
+              />
+            )}
+            {prerequisiteModal.open && (
+              <PrerequisiteModal
+                isOpen={prerequisiteModal.open}
+                onClose={() => setPrerequisiteModal((prev) => ({ ...prev, open: false }))}
+                gitMissing={prerequisiteModal.gitMissing}
+                detectedAgents={prerequisiteModal.agents}
+              />
+            )}
+          </Suspense>
           <Toaster />
         </RightSidebarProvider>
       </SidebarProvider>
