@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { getShellEnvVar, detectSshAuthSock, initializeShellEnvironment } from '../shellEnv';
 
-// Mock child_process
+// Mock child_process (both sync and async)
 vi.mock('child_process', () => ({
   execSync: vi.fn(),
+  exec: vi.fn(),
 }));
 
 // Mock fs
@@ -12,10 +13,11 @@ vi.mock('fs', () => ({
   readdirSync: vi.fn(),
 }));
 
-import { execSync } from 'child_process';
+import { execSync, exec } from 'child_process';
 import { statSync, readdirSync } from 'fs';
 
 const mockedExecSync = vi.mocked(execSync);
+const mockedExec = vi.mocked(exec);
 const mockedStatSync = vi.mocked(statSync);
 const mockedReaddirSync = vi.mocked(readdirSync);
 
@@ -65,28 +67,19 @@ describe('shellEnv', () => {
   });
 
   describe('detectSshAuthSock', () => {
-    it('should return existing SSH_AUTH_SOCK if already set', () => {
+    it('should return existing SSH_AUTH_SOCK if already set', async () => {
       process.env.SSH_AUTH_SOCK = '/existing/socket';
 
-      const result = detectSshAuthSock();
+      const result = await detectSshAuthSock();
 
       expect(result).toBe('/existing/socket');
       expect(mockedExecSync).not.toHaveBeenCalled();
     });
 
-    it('should detect SSH_AUTH_SOCK from shell when not set', () => {
-      delete process.env.SSH_AUTH_SOCK;
-      mockedExecSync.mockReturnValue('/shell/detected/socket');
-
-      const result = detectSshAuthSock();
-
-      expect(result).toBe('/shell/detected/socket');
-    });
-
-    it('should check common locations as fallback', () => {
+    it('should check common locations before shell detection', async () => {
       delete process.env.SSH_AUTH_SOCK;
       mockedExecSync.mockImplementation(() => {
-        throw new Error('Shell detection failed');
+        throw new Error('launchctl detection failed');
       });
 
       // Mock readdirSync to simulate finding a socket
@@ -101,39 +94,69 @@ describe('shellEnv', () => {
       // Mock statSync to indicate it's a socket
       mockedStatSync.mockReturnValue({ isSocket: () => true } as any);
 
-      const result = detectSshAuthSock();
+      const result = await detectSshAuthSock();
 
-      // Should find the socket in launchd directory
+      // Should find the socket in common locations
       expect(result).toBeTruthy();
     });
 
-    it('should return undefined when no socket is found', () => {
+    it('should fall back to async shell detection', async () => {
+      delete process.env.SSH_AUTH_SOCK;
+      mockedExecSync.mockImplementation(() => {
+        throw new Error('launchctl detection failed');
+      });
+      mockedReaddirSync.mockImplementation(() => [] as any);
+      mockedStatSync.mockImplementation(() => {
+        throw new Error('Not found');
+      });
+
+      // Mock async exec to return the socket
+      mockedExec.mockImplementation((_cmd: any, _opts: any, cb: any) => {
+        cb(null, '/async/detected/socket\n', '');
+        return {} as any;
+      });
+
+      const result = await detectSshAuthSock();
+
+      expect(result).toBe('/async/detected/socket');
+    });
+
+    it('should return undefined when no socket is found', async () => {
       delete process.env.SSH_AUTH_SOCK;
       mockedExecSync.mockImplementation(() => {
         throw new Error('Shell detection failed');
       });
       mockedReaddirSync.mockImplementation(() => [] as any);
+      mockedStatSync.mockImplementation(() => {
+        throw new Error('Not found');
+      });
 
-      const result = detectSshAuthSock();
+      // Mock async exec to return nothing
+      mockedExec.mockImplementation((_cmd: any, _opts: any, cb: any) => {
+        cb(null, '', '');
+        return {} as any;
+      });
+
+      const result = await detectSshAuthSock();
 
       expect(result).toBeUndefined();
     });
   });
 
   describe('initializeShellEnvironment', () => {
-    it('should set process.env.SSH_AUTH_SOCK when socket is detected', () => {
+    it('should set process.env.SSH_AUTH_SOCK when socket is detected', async () => {
       delete process.env.SSH_AUTH_SOCK;
       mockedExecSync.mockReturnValue('/detected/socket');
 
-      initializeShellEnvironment();
+      await initializeShellEnvironment();
 
       expect(process.env.SSH_AUTH_SOCK).toBe('/detected/socket');
     });
 
-    it('should not overwrite existing SSH_AUTH_SOCK', () => {
+    it('should not overwrite existing SSH_AUTH_SOCK', async () => {
       process.env.SSH_AUTH_SOCK = '/existing/socket';
 
-      initializeShellEnvironment();
+      await initializeShellEnvironment();
 
       expect(process.env.SSH_AUTH_SOCK).toBe('/existing/socket');
       expect(mockedExecSync).not.toHaveBeenCalled();
