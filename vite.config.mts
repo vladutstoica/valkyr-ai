@@ -19,6 +19,20 @@ export default defineConfig(({ command }) => ({
   build: {
     outDir: '../../dist/renderer',
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'monaco-editor': ['monaco-editor', '@monaco-editor/react'],
+          xterm: [
+            '@xterm/xterm',
+            '@xterm/addon-fit',
+            '@xterm/addon-serialize',
+            '@xterm/addon-web-links',
+            '@xterm/addon-webgl',
+          ],
+        },
+      },
+    },
   },
   resolve: {
     alias: {
