@@ -222,11 +222,18 @@ app.whenReady().then(async () => {
     }
   }
 
-  // Initialize telemetry (privacy-first, with optional GitHub username)
-  await telemetry.init({ installSource: app.isPackaged ? 'dmg' : 'dev' });
+  // Register IPC handlers before window creation so renderer can call them immediately
+  registerAllIpc();
 
-  // Initialize error tracking
-  await errorTracking.init();
+  // Create main window as early as possible for fast perceived startup
+  createMainWindow();
+
+  // --- Deferred initialization (non-blocking, runs after window is visible) ---
+
+  // Initialize telemetry and error tracking in parallel
+  const telemetryReady = telemetry.init({ installSource: app.isPackaged ? 'dmg' : 'dev' });
+  const errorTrackingReady = errorTracking.init();
+  await Promise.all([telemetryReady, errorTrackingReady]);
 
   try {
     const summary = databaseService.getLastMigrationSummary();
@@ -267,9 +274,6 @@ app.whenReady().then(async () => {
     // ignore errors — telemetry is best-effort only
   }
 
-  // Register IPC handlers
-  registerAllIpc();
-
   // Pre-warm ACP SDK and registry caches so first session doesn't pay cold-start costs
   warmAcpSdk();
   acpRegistryService.getInstalledAgents().catch(() => {});
@@ -287,15 +291,8 @@ app.whenReady().then(async () => {
     });
   });
 
-  // Warm provider installation cache
-  try {
-    await connectionsService.initProviderStatusCache();
-  } catch {
-    // best-effort; ignore failures
-  }
-
-  // Create main window
-  createMainWindow();
+  // Warm provider installation cache (non-blocking)
+  connectionsService.initProviderStatusCache().catch(() => {});
 
   // Initialize auto-update service after window is created
   try {
