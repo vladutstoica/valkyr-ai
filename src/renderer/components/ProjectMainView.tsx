@@ -34,7 +34,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/t
 import { isActivePr, PrInfo } from '../lib/prStatus';
 import { refreshPrStatus } from '../lib/prStatusStore';
 import type { Project, Task } from '../types/app';
-import { UpdateProjectModal } from './UpdateProjectModal';
+const UpdateProjectModal = React.lazy(() => import('./UpdateProjectModal'));
 import { BranchSwitcher } from './BranchSwitcher';
 import { RefreshCw } from 'lucide-react';
 
@@ -919,13 +919,17 @@ const ProjectMainView: React.FC<ProjectMainViewProps> = ({
         </Suspense>
       )}
 
-      <UpdateProjectModal
-        isOpen={showUpdateModal}
-        onClose={() => setShowUpdateModal(false)}
-        projectId={project.id}
-        projectPath={project.path}
-        subRepos={project.subRepos?.map((r) => r.relativePath)}
-      />
+      {showUpdateModal && (
+        <Suspense fallback={null}>
+          <UpdateProjectModal
+            isOpen={showUpdateModal}
+            onClose={() => setShowUpdateModal(false)}
+            projectId={project.id}
+            projectPath={project.path}
+            subRepos={project.subRepos?.map((r) => r.relativePath)}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };
