@@ -1,12 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Spinner } from './ui/spinner';
 import { useToast } from '../hooks/use-toast';
 import { useCreatePR } from '../hooks/useCreatePR';
-import ChangesDiffModal from './ChangesDiffModal';
-import AllChangesDiffModal from './AllChangesDiffModal';
+
+// Lazy-load Monaco-heavy diff modals — only fetched when user opens a diff
+const ChangesDiffModal = React.lazy(() => import('./ChangesDiffModal'));
+const AllChangesDiffModal = React.lazy(() => import('./AllChangesDiffModal'));
 import { useFileChanges } from '../hooks/useFileChanges';
 import { usePrStatus } from '../hooks/usePrStatus';
 import { useCheckRuns } from '../hooks/useCheckRuns';
@@ -855,26 +857,28 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
           ))}
         </div>
       )}
-      {showDiffModal && (
-        <ChangesDiffModal
-          open={showDiffModal}
-          onClose={() => setShowDiffModal(false)}
-          taskId={resolvedTaskId}
-          taskPath={resolvedTaskPath}
-          files={fileChanges}
-          initialFile={selectedPath}
-          onRefreshChanges={refreshChanges}
-        />
-      )}
-      {showAllChangesModal && (
-        <AllChangesDiffModal
-          open={showAllChangesModal}
-          onClose={() => setShowAllChangesModal(false)}
-          taskPath={resolvedTaskPath}
-          files={fileChanges}
-          onRefreshChanges={refreshChanges}
-        />
-      )}
+      <Suspense fallback={null}>
+        {showDiffModal && (
+          <ChangesDiffModal
+            open={showDiffModal}
+            onClose={() => setShowDiffModal(false)}
+            taskId={resolvedTaskId}
+            taskPath={resolvedTaskPath}
+            files={fileChanges}
+            initialFile={selectedPath}
+            onRefreshChanges={refreshChanges}
+          />
+        )}
+        {showAllChangesModal && (
+          <AllChangesDiffModal
+            open={showAllChangesModal}
+            onClose={() => setShowAllChangesModal(false)}
+            taskPath={resolvedTaskPath}
+            files={fileChanges}
+            onRefreshChanges={refreshChanges}
+          />
+        )}
+      </Suspense>
     </div>
   );
 };

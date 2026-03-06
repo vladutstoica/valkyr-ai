@@ -26,7 +26,9 @@ import { useGitState, type FileStatus } from '@/hooks/useGitState';
 import { useTabState } from '@/hooks/useTabState';
 import { FileChangeItem } from '@/components/git/FileChangeItem';
 import { CommitPanel } from '@/components/git/CommitPanel';
-import { DiffViewer } from '@/components/git/DiffViewer';
+const DiffViewer = React.lazy(
+  () => import('@/components/git/DiffViewer').then((m) => ({ default: m.DiffViewer }))
+);
 
 import type { FileChange } from '@/hooks/useGitState';
 import type { Task } from '@/types/app';
@@ -1183,13 +1185,24 @@ export function GitTab({
                 </div>
               </div>
             ) : (
-              <DiffViewer
-                key={selectedFile}
-                diff={fileDiffs.get(selectedFile) || ''}
-                filePath={selectedFile}
-                sideBySide={diffViewMode === 'side-by-side'}
-                theme={effectiveTheme}
-              />
+              <React.Suspense
+                fallback={
+                  <div className="flex h-full items-center justify-center">
+                    <div className="text-muted-foreground flex items-center gap-2">
+                      <Spinner size="sm" />
+                      <span className="text-sm">Loading diff viewer...</span>
+                    </div>
+                  </div>
+                }
+              >
+                <DiffViewer
+                  key={selectedFile}
+                  diff={fileDiffs.get(selectedFile) || ''}
+                  filePath={selectedFile}
+                  sideBySide={diffViewMode === 'side-by-side'}
+                  theme={effectiveTheme}
+                />
+              </React.Suspense>
             )
           ) : (
             <div className="flex h-full items-center justify-center">

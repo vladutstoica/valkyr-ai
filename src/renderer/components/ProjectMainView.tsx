@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from './ui/button';
 import { GitBranch, Plus, Loader2, ArrowUpRight, Folder, AlertCircle, Archive } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -23,7 +23,9 @@ import {
 import { Checkbox } from './ui/checkbox';
 import BaseBranchControls from './BaseBranchControls';
 import { pickDefaultBranch, type BranchOption } from './BranchSelect';
-import { ConfigEditorModal } from './ConfigEditorModal';
+const ConfigEditorModal = React.lazy(
+  () => import('./ConfigEditorModal').then((m) => ({ default: m.ConfigEditorModal }))
+);
 import { useToast } from '../hooks/use-toast';
 import DeletePrNotice from './DeletePrNotice';
 import { activityStore } from '../lib/activityStore';
@@ -907,11 +909,15 @@ const ProjectMainView: React.FC<ProjectMainViewProps> = ({
         </AlertDialogContent>
       </AlertDialog>
 
-      <ConfigEditorModal
-        isOpen={showConfigEditor}
-        onClose={() => setShowConfigEditor(false)}
-        projectPath={project.path}
-      />
+      {showConfigEditor && (
+        <Suspense fallback={null}>
+          <ConfigEditorModal
+            isOpen={showConfigEditor}
+            onClose={() => setShowConfigEditor(false)}
+            projectPath={project.path}
+          />
+        </Suspense>
+      )}
 
       <UpdateProjectModal
         isOpen={showUpdateModal}
