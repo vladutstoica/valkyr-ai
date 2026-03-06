@@ -88,14 +88,8 @@ if (process.platform === 'win32') {
   }
 }
 
-// Detect SSH_AUTH_SOCK from user's shell environment
-// This is necessary because GUI-launched apps don't inherit shell env vars
-try {
-  initializeShellEnvironment();
-} catch (error) {
-  // Silent fail - SSH agent auth will fail if user tries to use it
-  console.log('[main] Failed to initialize shell environment:', error);
-}
+// SSH_AUTH_SOCK detection is deferred to app.whenReady() (see below)
+// to avoid blocking startup with shell spawns.
 
 // ---------------------------------------------------------------------------
 // Process-level crash handlers — catch unhandled errors before they kill the app
@@ -187,8 +181,12 @@ if (process.platform === 'darwin' && !app.isPackaged) {
 
 // App bootstrap
 app.whenReady().then(async () => {
-  // Kick off async PATH merge early — completes before user starts a task
+  // Kick off async PATH merge and SSH_AUTH_SOCK detection early
+  // Both complete well before user starts a task, avoiding sync shell spawns at startup
   mergeLoginShellPathAsync();
+  initializeShellEnvironment().catch((error) => {
+    console.log('[main] Failed to initialize shell environment:', error);
+  });
 
   // Initialize database
   let dbInitOk = false;

@@ -3,13 +3,13 @@
  * when the Electron app is launched from the GUI (not from terminal).
  */
 
-import { execSync } from 'child_process';
+import { exec, execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
 /**
- * Gets an environment variable from the user's login shell.
+ * Gets an environment variable from the user's login shell (synchronous).
  * This is useful when the app is launched from GUI and doesn't
  * inherit the shell's environment.
  *
@@ -41,6 +41,38 @@ export function getShellEnvVar(varName: string): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Gets an environment variable from the user's login shell (async).
+ * Avoids blocking the main thread during startup.
+ */
+export function getShellEnvVarAsync(varName: string): Promise<string | undefined> {
+  return new Promise((resolve) => {
+    if (!/^[A-Z0-9_]+$/.test(varName)) {
+      return resolve(undefined);
+    }
+    const shell = process.env.SHELL || (process.platform === 'darwin' ? '/bin/zsh' : '/bin/bash');
+
+    exec(
+      `${shell} -ilc 'printenv ${varName} || true'`,
+      {
+        encoding: 'utf8',
+        timeout: 5000,
+        env: {
+          ...process.env,
+          DISABLE_AUTO_UPDATE: 'true',
+          ZSH_TMUX_AUTOSTART: 'false',
+          ZSH_TMUX_AUTOSTARTED: 'true',
+        },
+      },
+      (err, stdout) => {
+        if (err || !stdout) return resolve(undefined);
+        const value = stdout.trim();
+        resolve(value || undefined);
+      }
+    );
+  });
 }
 
 /**
@@ -116,25 +148,17 @@ function expandGlob(pattern: string): string[] {
 }
 
 /**
- * Detects the SSH_AUTH_SOCK environment variable.
- * First checks if it's already set, then tries to detect from shell,
- * and finally checks common socket locations.
- *
- * @returns The path to the SSH agent socket, or undefined if not found
+ * Detects the SSH_AUTH_SOCK environment variable (async version).
+ * First checks if it's already set, then macOS launchd (fast),
+ * then common socket locations (fast), then falls back to shell detection (async).
  */
-export function detectSshAuthSock(): string | undefined {
+export async function detectSshAuthSock(): Promise<string | undefined> {
   // If already set, use it
   if (process.env.SSH_AUTH_SOCK) {
     return process.env.SSH_AUTH_SOCK;
   }
 
-  // Try to detect from user's shell
-  const shellValue = getShellEnvVar('SSH_AUTH_SOCK');
-  if (shellValue) {
-    return shellValue;
-  }
-
-  // Method 2: macOS launchd (fast, no shell spawn)
+  // Method 1: macOS launchd (fast, no shell spawn)
   if (process.platform === 'darwin') {
     try {
       const result = execSync('launchctl getenv SSH_AUTH_SOCK', {
@@ -150,7 +174,7 @@ export function detectSshAuthSock(): string | undefined {
     }
   }
 
-  // Check common socket locations as fallback
+  // Method 2: Check common socket locations (fast filesystem checks)
   for (const location of COMMON_SSH_AGENT_LOCATIONS) {
     try {
       if (location.path.includes('*') || location.path.includes('?')) {
@@ -168,15 +192,21 @@ export function detectSshAuthSock(): string | undefined {
     }
   }
 
+  // Method 3: Ask user's login shell (async to avoid blocking main thread)
+  const shellValue = await getShellEnvVarAsync('SSH_AUTH_SOCK');
+  if (shellValue) {
+    return shellValue;
+  }
+
   return undefined;
 }
 
 /**
  * Initializes shell environment detection and sets process.env variables.
- * Should be called early in the main process before app is ready.
+ * Runs async to avoid blocking the main thread with shell spawns.
  */
-export function initializeShellEnvironment(): void {
-  const sshAuthSock = detectSshAuthSock();
+export async function initializeShellEnvironment(): Promise<void> {
+  const sshAuthSock = await detectSshAuthSock();
   if (sshAuthSock) {
     process.env.SSH_AUTH_SOCK = sshAuthSock;
     console.log('[shellEnv] Detected SSH_AUTH_SOCK:', sshAuthSock);
