@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { KeyboardSettings, ShortcutModifier } from '../types/shortcuts';
 import { APP_SHORTCUTS, type ShortcutSettingsKey } from '../hooks/useKeyboardShortcuts';
 
@@ -47,10 +47,13 @@ export const KeyboardSettingsProvider: React.FC<{ children: React.ReactNode }> =
     [settings]
   );
 
+  const value = useMemo(
+    () => ({ settings, getShortcut, refreshSettings: loadSettings }),
+    [settings, getShortcut, loadSettings]
+  );
+
   return (
-    <KeyboardSettingsContext.Provider
-      value={{ settings, getShortcut, refreshSettings: loadSettings }}
-    >
+    <KeyboardSettingsContext.Provider value={value}>
       {children}
     </KeyboardSettingsContext.Provider>
   );
