@@ -6,6 +6,7 @@ type TaskTerminal = {
   title: string;
   cwd?: string;
   shell?: string;
+  initialPrompt?: string;
   createdAt: number;
 };
 
@@ -255,7 +256,7 @@ function subscribe(
 function createTerminal(
   taskId: string,
   taskPath?: string,
-  options?: { title?: string; cwd?: string }
+  options?: { title?: string; cwd?: string; initialPrompt?: string }
 ) {
   updateTaskState(taskId, taskPath, (draft) => {
     const nextIndex = draft.counter + 1;
@@ -268,6 +269,7 @@ function createTerminal(
         id,
         title: options?.title || `Terminal ${nextIndex}`,
         cwd: options?.cwd || taskPath,
+        initialPrompt: options?.initialPrompt,
         createdAt: Date.now(),
       },
     ];
@@ -360,7 +362,7 @@ export function useTaskTerminals(
 
   const actions = useMemo(() => {
     return {
-      createTerminal: (options?: { title?: string; cwd?: string }) =>
+      createTerminal: (options?: { title?: string; cwd?: string; initialPrompt?: string }) =>
         createTerminal(resolvedId, options?.cwd || resolvedPath, options),
       setActiveTerminal: (terminalId: string) => setActive(resolvedId, terminalId, resolvedPath),
       closeTerminal: (terminalId: string) => closeTerminal(resolvedId, terminalId, resolvedPath),

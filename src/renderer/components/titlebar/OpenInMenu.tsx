@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import { Button } from '../ui/button';
 import {
   DropdownMenu,
@@ -116,14 +116,7 @@ const OpenInMenu: React.FC<OpenInMenuProps> = ({
           }}
         >
           <span>Open in</span>
-          {buttonAppId && icons[buttonAppId] && (
-            <img
-              src={icons[buttonAppId]}
-              alt={getAppById(buttonAppId)?.label}
-              className="h-4 w-4 rounded-md"
-            />
-          )}
-          <ChevronDown className="h-3 w-3 opacity-50 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+          <ArrowUpRight className="h-3.5 w-3.5" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align={align === 'right' ? 'end' : 'start'} className="min-w-[180px]">

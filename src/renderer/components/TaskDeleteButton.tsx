@@ -18,7 +18,6 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from './ui/t
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
 import { useDeleteRisks } from '../hooks/useDeleteRisks';
-import DeletePrNotice from './DeletePrNotice';
 import { isActivePr } from '../lib/prStatus';
 
 type Props = {
@@ -186,9 +185,6 @@ export const TaskDeleteButton: React.FC<Props> = ({
                       'Status unavailable'}
                   </span>
                 </div>
-                {status.pr && isActivePr(status.pr) ? (
-                  <DeletePrNotice tasks={[{ name: taskName, pr: status.pr }]} />
-                ) : null}
               </motion.div>
             ) : null}
           </AnimatePresence>

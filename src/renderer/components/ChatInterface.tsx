@@ -1,5 +1,11 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, MoreHorizontal, ArrowLeft, ArrowRight, Trash2 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from './ui/dropdown-menu';
 import { toast, useToast } from '../hooks/use-toast';
 import { useTheme } from '../hooks/useTheme';
 import InstallBanner from './InstallBanner';
@@ -11,8 +17,9 @@ import { useTaskComments } from '../hooks/useLineComments';
 import { type Agent } from '../types';
 import { Task } from '../types/chat';
 import { useTaskTerminals } from '@/lib/taskTerminalsStore';
-import { getInstallCommandForProvider, getProvider } from '@shared/providers/registry';
+import { getInstallCommandForProvider, getProvider, type ProviderId } from '@shared/providers/registry';
 import { AcpChatPane } from './AcpChatPane';
+import { TerminalPane } from './TerminalPane';
 import { unifiedStatusStore } from '../lib/unifiedStatusStore';
 import { useAutoScrollOnTaskSwitch } from '@/hooks/useAutoScrollOnTaskSwitch';
 import { useAcpInitialPrompt } from '@/hooks/useAcpInitialPrompt';
@@ -94,8 +101,11 @@ const ChatInterface: React.FC<Props> = ({
     return `${agent}-main-${task.id}`;
   }, [activeConversationId, agent, task.id, conversations]);
 
-  // All agent conversations use ACP mode
-  const activeConversationMode = 'acp' as const;
+  // Derive conversation mode from DB record (default to 'acp' for backward compatibility)
+  const activeConversationMode = useMemo(() => {
+    const conv = conversations.find((c) => c.id === activeConversationId);
+    return conv?.mode === 'pty' ? 'pty' : 'acp';
+  }, [conversations, activeConversationId]);
 
   // Claude needs consistent working directory to maintain session state
   const terminalCwd = useMemo(() => {
@@ -120,6 +130,21 @@ const ChatInterface: React.FC<Props> = ({
         .map(([id]) => id),
     [agentStatuses]
   );
+
+  // Provider CLI command overrides from settings
+  const [providerOverrides, setProviderOverrides] = useState<
+    Partial<Record<string, { defaultChatMode?: 'acp' | 'cli'; cliCommand?: string }>>
+  >({});
+
+  useEffect(() => {
+    let cancelled = false;
+    window.electronAPI.getSettings().then((res) => {
+      if (!cancelled && res?.success && res.settings?.providerOverrides) {
+        setProviderOverrides(res.settings.providerOverrides);
+      }
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   const { activeTerminalId } = useTaskTerminals(task.id, task.path);
 
@@ -196,10 +221,18 @@ const ChatInterface: React.FC<Props> = ({
           // For backward compatibility: use task.agentId if available, otherwise use current agent
           // This preserves the original agent choice for tasks created before multi-chat
           const taskAgent = task.agentId || agent;
+
+          // Determine mode from provider overrides (cli → pty, acp → acp)
+          const settingsRes = await window.electronAPI.getSettings();
+          const overrides = settingsRes?.success ? settingsRes.settings?.providerOverrides : undefined;
+          const agentOverride = overrides?.[taskAgent];
+          const defaultMode = agentOverride?.defaultChatMode === 'cli' ? 'pty' : (defaultResult.conversation.mode || 'acp');
+
           const conversationWithAgent = {
             ...defaultResult.conversation,
             provider: taskAgent,
             isMain: true,
+            mode: defaultMode,
           };
           setConversations([conversationWithAgent]);
           setActiveConversationId(defaultResult.conversation.id);
@@ -334,7 +367,7 @@ const ChatInterface: React.FC<Props> = ({
 
   // Chat management handlers
   const handleCreateChat = useCallback(
-    async (title: string, newAgent: string) => {
+    async (title: string, newAgent: string, mode?: 'acp' | 'pty') => {
       try {
         // Don't dispose the current terminal - each chat has its own independent session
 
@@ -343,6 +376,7 @@ const ChatInterface: React.FC<Props> = ({
           title,
           provider: newAgent,
           isMain: false, // Additional chats are never main
+          mode,
         });
 
         if (result.success && result.conversation) {
@@ -380,11 +414,9 @@ const ChatInterface: React.FC<Props> = ({
     [task.id, toast]
   );
 
-  const handleCreateNewChat = useCallback(async () => {
-    const config = agentConfig[agent as Agent];
-    const title = config?.name || agent;
-    await handleCreateChat(title, agent);
-  }, [agent, handleCreateChat]);
+  const handleCreateNewChat = useCallback(() => {
+    setShowCreateChatModal(true);
+  }, []);
 
   const handleResumeSession = useCallback(
     async (acpSessionId: string, title?: string) => {
@@ -711,110 +743,11 @@ const ChatInterface: React.FC<Props> = ({
     if (!isTerminal) return null;
     const md = task.metadata || null;
     const p = (md?.initialPrompt || '').trim();
-    if (p) return p;
-    const issue = md?.linearIssue;
-    if (issue) {
-      const parts: string[] = [];
-      const line1 = `Linked Linear issue: ${issue.identifier}${issue.title ? ` — ${issue.title}` : ''}`;
-      parts.push(line1);
-      const details: string[] = [];
-      if (issue.state?.name) details.push(`State: ${issue.state.name}`);
-      if (issue.assignee?.displayName || issue.assignee?.name)
-        details.push(`Assignee: ${issue.assignee?.displayName || issue.assignee?.name}`);
-      if (issue.team?.key) details.push(`Team: ${issue.team.key}`);
-      if (issue.project?.name) details.push(`Project: ${issue.project.name}`);
-      if (details.length) parts.push(`Details: ${details.join(' • ')}`);
-      if (issue.url) parts.push(`URL: ${issue.url}`);
-      const desc = (issue as any)?.description;
-      if (typeof desc === 'string' && desc.trim()) {
-        const trimmed = desc.trim();
-        const max = 1500;
-        const body = trimmed.length > max ? trimmed.slice(0, max) + '\n…' : trimmed;
-        parts.push('', 'Issue Description:', body);
-      }
-      const linearContent = parts.join('\n');
-      // Prepend comments if any
+    if (p) {
       if (commentsContext) {
-        return `The user has left the following comments on the code changes:\n\n${commentsContext}\n\n${linearContent}`;
+        return `The user has left the following comments on the code changes:\n\n${commentsContext}\n\n${p}`;
       }
-      return linearContent;
-    }
-
-    const gh = (md as any)?.githubIssue as
-      | {
-          number: number;
-          title?: string;
-          url?: string;
-          state?: string;
-          assignees?: any[];
-          labels?: any[];
-          body?: string;
-        }
-      | undefined;
-    if (gh) {
-      const parts: string[] = [];
-      const line1 = `Linked GitHub issue: #${gh.number}${gh.title ? ` — ${gh.title}` : ''}`;
-      parts.push(line1);
-      const details: string[] = [];
-      if (gh.state) details.push(`State: ${gh.state}`);
-      try {
-        const as = Array.isArray(gh.assignees)
-          ? gh.assignees
-              .map((a: any) => a?.name || a?.login)
-              .filter(Boolean)
-              .join(', ')
-          : '';
-        if (as) details.push(`Assignees: ${as}`);
-      } catch {}
-      try {
-        const ls = Array.isArray(gh.labels)
-          ? gh.labels
-              .map((l: any) => l?.name)
-              .filter(Boolean)
-              .join(', ')
-          : '';
-        if (ls) details.push(`Labels: ${ls}`);
-      } catch {}
-      if (details.length) parts.push(`Details: ${details.join(' • ')}`);
-      if (gh.url) parts.push(`URL: ${gh.url}`);
-      const body = typeof gh.body === 'string' ? gh.body.trim() : '';
-      if (body) {
-        const max = 1500;
-        const clipped = body.length > max ? body.slice(0, max) + '\n…' : body;
-        parts.push('', 'Issue Description:', clipped);
-      }
-      const ghContent = parts.join('\n');
-      // Prepend comments if any
-      if (commentsContext) {
-        return `The user has left the following comments on the code changes:\n\n${commentsContext}\n\n${ghContent}`;
-      }
-      return ghContent;
-    }
-
-    const j = md?.jiraIssue as any;
-    if (j) {
-      const lines: string[] = [];
-      const l1 = `Linked Jira issue: ${j.key}${j.summary ? ` — ${j.summary}` : ''}`;
-      lines.push(l1);
-      const details: string[] = [];
-      if (j.status?.name) details.push(`Status: ${j.status.name}`);
-      if (j.assignee?.displayName || j.assignee?.name)
-        details.push(`Assignee: ${j.assignee?.displayName || j.assignee?.name}`);
-      if (j.project?.key) details.push(`Project: ${j.project.key}`);
-      if (details.length) lines.push(`Details: ${details.join(' • ')}`);
-      if (j.url) lines.push(`URL: ${j.url}`);
-      const desc = typeof j.description === 'string' ? j.description.trim() : '';
-      if (desc) {
-        const max = 1500;
-        const clipped = desc.length > max ? desc.slice(0, max) + '\n…' : desc;
-        lines.push('', 'Issue Description:', clipped);
-      }
-      const jiraContent = lines.join('\n');
-      // Prepend comments if any
-      if (commentsContext) {
-        return `The user has left the following comments on the code changes:\n\n${commentsContext}\n\n${jiraContent}`;
-      }
-      return jiraContent;
+      return p;
     }
 
     // If we have comments but no other context, return just the comments
@@ -930,50 +863,117 @@ const ChatInterface: React.FC<Props> = ({
                     className={`border-border/50 min-w-[400px] flex-1 overflow-hidden rounded-md border ${agentBg}`}
                     onClick={() => setActiveConversationId(conv.id)}
                   >
-                    <AcpChatPane
-                      taskId={task.id}
-                      conversationId={conv.id}
-                      providerId={convAgent}
-                      cwd={terminalCwd || task.path || '.'}
-                      projectPath={projectPath || undefined}
-                      isActive={isActive}
-                      conversationTitle={conv.title}
-                      onConversationTitleChange={(title) => {
-                        setConversations((prev) =>
-                          prev.map((c) => (c.id === conv.id ? { ...c, title } : c))
-                        );
-                      }}
-                      onStatusChange={(status) => {
-                        try {
-                          window.localStorage.setItem(`agent:locked:${task.id}`, convAgent);
-                        } catch {}
-                        try {
-                          window.electronAPI?.setTaskAgent?.({
-                            taskId: task.id,
-                            lockedAgent: convAgent,
-                          });
-                        } catch {}
-                        if (conv.id === activeConversationId) {
-                          setAcpChatStatus(status);
+                    {conv.mode === 'pty' ? (
+                      <div className="flex h-full flex-col">
+                        {/* Per-pane toolbar */}
+                        <div className="border-border/50 flex shrink-0 items-center justify-between border-b p-3">
+                          {/* Left: agent logo + name */}
+                          <div className="text-muted-foreground flex h-7 shrink-0 items-center gap-1.5 px-1 text-xs">
+                            {agentConfig[convAgent as Agent] && (
+                              <img
+                                src={agentConfig[convAgent as Agent].logo}
+                                alt={agentConfig[convAgent as Agent].alt}
+                                className={`size-3.5 rounded-sm ${agentConfig[convAgent as Agent].invertInDark ? 'dark:invert' : ''}`}
+                              />
+                            )}
+                            <span>{conv.title || agentConfig[convAgent as Agent]?.name || convAgent}</span>
+                          </div>
+                          {/* Right: action buttons */}
+                          <div className="flex items-center gap-0.5">
+                            <button
+                              type="button"
+                              onClick={handleCreateNewChat}
+                              className="text-muted-foreground hover:bg-accent hover:text-accent-foreground inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
+                              title="New Chat"
+                            >
+                              <Plus className="size-3.5" />
+                            </button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="text-muted-foreground hover:bg-accent hover:text-accent-foreground inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
+                                  title="More"
+                                >
+                                  <MoreHorizontal className="size-3.5" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-44">
+                                <DropdownMenuItem onClick={() => handleMoveChat(conv.id, 'right')} disabled={idx >= sortedConversations.length - 1}>
+                                  <ArrowRight className="size-4" />
+                                  Move Right
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleMoveChat(conv.id, 'left')} disabled={idx <= 0}>
+                                  <ArrowLeft className="size-4" />
+                                  Move Left
+                                </DropdownMenuItem>
+                                {!conv.isMain && (
+                                  <DropdownMenuItem onClick={() => handleDeleteChatById(conv.id)} className="text-destructive">
+                                    <Trash2 className="size-4" />
+                                    Delete Chat
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </div>
+                        <TerminalPane
+                          id={`${convAgent}-chat-${conv.id}`}
+                          cwd={terminalCwd || task.path || '.'}
+                          {...(providerOverrides[convAgent]?.cliCommand
+                            ? { shell: providerOverrides[convAgent]!.cliCommand }
+                            : { providerId: convAgent })}
+                          env={taskEnv}
+                          keepAlive
+                          className="min-h-0 flex-1"
+                        />
+                      </div>
+                    ) : (
+                      <AcpChatPane
+                        taskId={task.id}
+                        conversationId={conv.id}
+                        providerId={convAgent}
+                        cwd={terminalCwd || task.path || '.'}
+                        projectPath={projectPath || undefined}
+                        isActive={isActive}
+                        conversationTitle={conv.title}
+                        onConversationTitleChange={(title) => {
+                          setConversations((prev) =>
+                            prev.map((c) => (c.id === conv.id ? { ...c, title } : c))
+                          );
+                        }}
+                        onStatusChange={(status) => {
+                          try {
+                            window.localStorage.setItem(`agent:locked:${task.id}`, convAgent);
+                          } catch {}
+                          try {
+                            window.electronAPI?.setTaskAgent?.({
+                              taskId: task.id,
+                              lockedAgent: convAgent,
+                            });
+                          } catch {}
+                          if (conv.id === activeConversationId) {
+                            setAcpChatStatus(status);
+                          }
+                        }}
+                        onAppendRef={
+                          conv.id === activeConversationId
+                            ? (fn) => {
+                                acpAppendRef.current = fn;
+                              }
+                            : undefined
                         }
-                      }}
-                      onAppendRef={
-                        conv.id === activeConversationId
-                          ? (fn) => {
-                              acpAppendRef.current = fn;
-                            }
-                          : undefined
-                      }
-                      onCreateNewChat={handleCreateNewChat}
-                      onResumeSession={handleResumeSession}
-                      onClearChat={() => handleClearChat(conv.id)}
-                      onDeleteChat={() => handleDeleteChatById(conv.id)}
-                      onMoveLeft={() => handleMoveChat(conv.id, 'left')}
-                      onMoveRight={() => handleMoveChat(conv.id, 'right')}
-                      canMoveLeft={idx > 0}
-                      canMoveRight={idx < sortedConversations.length - 1}
-                      className="h-full w-full"
-                    />
+                        onCreateNewChat={handleCreateNewChat}
+                        onResumeSession={handleResumeSession}
+                        onClearChat={() => handleClearChat(conv.id)}
+                        onDeleteChat={() => handleDeleteChatById(conv.id)}
+                        onMoveLeft={() => handleMoveChat(conv.id, 'left')}
+                        onMoveRight={() => handleMoveChat(conv.id, 'right')}
+                        canMoveLeft={idx > 0}
+                        canMoveRight={idx < sortedConversations.length - 1}
+                        className="h-full w-full"
+                      />
+                    )}
                   </div>
                 );
               })}

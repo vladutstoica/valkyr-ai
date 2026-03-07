@@ -27,9 +27,7 @@ const ConfigEditorModal = React.lazy(
   () => import('./ConfigEditorModal').then((m) => ({ default: m.ConfigEditorModal }))
 );
 import { useToast } from '../hooks/use-toast';
-import DeletePrNotice from './DeletePrNotice';
 import { activityStore } from '../lib/activityStore';
-import PrPreviewTooltip from './PrPreviewTooltip';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { isActivePr, PrInfo } from '../lib/prStatus';
 import { refreshPrStatus } from '../lib/prStatusStore';
@@ -117,24 +115,22 @@ const TaskRow = React.memo(function TaskRow({
           ) : null}
 
           {!isLoading && totalAdditions === 0 && totalDeletions === 0 && pr ? (
-            <PrPreviewTooltip pr={pr} side="top">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (pr.url) window.electronAPI.openExternal(pr.url);
-                }}
-                className="border-border bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium transition-colors"
-                title={`${pr.title || 'Pull Request'} (#${pr.number})`}
-              >
-                {pr.isDraft
-                  ? 'Draft'
-                  : String(pr.state).toUpperCase() === 'OPEN'
-                    ? 'View PR'
-                    : `PR ${String(pr.state).charAt(0).toUpperCase() + String(pr.state).slice(1).toLowerCase()}`}
-                <ArrowUpRight className="size-3" />
-              </button>
-            </PrPreviewTooltip>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (pr.url) window.electronAPI.openExternal(pr.url);
+              }}
+              className="border-border bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium transition-colors"
+              title={`${pr.title || 'Pull Request'} (#${pr.number})`}
+            >
+              {pr.isDraft
+                ? 'Draft'
+                : String(pr.state).toUpperCase() === 'OPEN'
+                  ? 'View PR'
+                  : `PR ${String(pr.state).charAt(0).toUpperCase() + String(pr.state).slice(1).toLowerCase()}`}
+              <ArrowUpRight className="size-3" />
+            </button>
           ) : null}
 
           {isSelectMode ? (
@@ -578,21 +574,6 @@ const ProjectMainView: React.FC<ProjectMainViewProps> = ({
                           aria-label={`Delete project ${project.name}`}
                         />
                       ) : null}
-                      {project.githubInfo?.connected && project.githubInfo.repository ? (
-                        <motion.button
-                          whileTap={{ scale: 0.97 }}
-                          transition={{ duration: 0.1, ease: 'easeInOut' }}
-                          className="border-input bg-background hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring inline-flex h-8 items-center justify-center gap-1 rounded-md border px-3 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden"
-                          onClick={() =>
-                            window.electronAPI.openExternal(
-                              `https://github.com/${project.githubInfo?.repository}`
-                            )
-                          }
-                        >
-                          View on GitHub
-                          <ArrowUpRight className="size-3" />
-                        </motion.button>
-                      ) : null}
                     </div>
                   </div>
                   <p className="text-muted-foreground font-mono text-xs break-all sm:text-sm">
@@ -852,25 +833,6 @@ const ProjectMainView: React.FC<ProjectMainViewProps> = ({
                         );
                       })}
                     </ul>
-                  </motion.div>
-                ) : null;
-              })()}
-            </AnimatePresence>
-
-            <AnimatePresence initial={false}>
-              {(() => {
-                const prTasks = selectedTasks
-                  .map((ws) => ({ name: ws.name, pr: deleteStatus[ws.id]?.pr }))
-                  .filter((w) => w.pr && isActivePr(w.pr));
-                return prTasks.length && !deleteStatusLoading ? (
-                  <motion.div
-                    key="bulk-pr-notice"
-                    initial={{ opacity: 0, y: 6, scale: 0.99 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 6, scale: 0.99 }}
-                    transition={{ duration: 0.2, ease: 'easeOut', delay: 0.02 }}
-                  >
-                    <DeletePrNotice tasks={prTasks as any} />
                   </motion.div>
                 ) : null;
               })()}

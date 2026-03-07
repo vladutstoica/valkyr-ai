@@ -1,21 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ExternalLink } from 'lucide-react';
 import { Button } from './ui/button';
+import { Checkbox } from './ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { SlugInput } from './ui/slug-input';
 import { Label } from './ui/label';
-import { Spinner } from './ui/spinner';
 import { Separator } from './ui/separator';
 import { MultiAgentDropdown } from './MultiAgentDropdown';
-import { TaskAdvancedSettings } from './TaskAdvancedSettings';
-import { useIntegrationStatus } from './hooks/useIntegrationStatus';
 import { type Agent } from '../types';
 import { type AgentRun } from '../types/chat';
 import { agentMeta } from '../providers/meta';
-import { isValidProviderId } from '@shared/providers/registry';
-import { type LinearIssueSummary } from '../types/linear';
-import { type GitHubIssueSummary } from '../types/github';
-import { type GitHubIssueLink } from '../types/chat';
-import { type JiraIssueSummary } from '../types/jira';
+import { isValidProviderId, getProvider } from '@shared/providers/registry';
+import type { ProviderId } from '@shared/providers/registry';
 import {
   generateFriendlyTaskName,
   normalizeTaskName,
@@ -44,9 +40,6 @@ interface TaskModalProps {
     name: string,
     initialPrompt?: string,
     agentRuns?: AgentRun[],
-    linkedLinearIssue?: LinearIssueSummary | null,
-    linkedGithubIssue?: GitHubIssueSummary | null,
-    linkedJiraIssue?: JiraIssueSummary | null,
     autoApprove?: boolean,
     useWorktree?: boolean,
     baseRef?: string,
@@ -55,7 +48,6 @@ interface TaskModalProps {
   projectName: string;
   defaultBranch: string;
   existingNames?: string[];
-  linkedGithubIssueMap?: ReadonlyMap<number, GitHubIssueLink>;
   projectPath?: string;
   branchOptions?: BranchOption[];
   isLoadingBranches?: boolean;
@@ -70,7 +62,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
   projectName,
   defaultBranch,
   existingNames = [],
-  linkedGithubIssueMap,
   projectPath,
   branchOptions = [],
   isLoadingBranches = false,
@@ -83,14 +74,9 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
-
-  // Advanced settings state
-  const [initialPrompt, setInitialPrompt] = useState('');
-  const [selectedLinearIssue, setSelectedLinearIssue] = useState<LinearIssueSummary | null>(null);
-  const [selectedGithubIssue, setSelectedGithubIssue] = useState<GitHubIssueSummary | null>(null);
-  const [selectedJiraIssue, setSelectedJiraIssue] = useState<JiraIssueSummary | null>(null);
   const [autoApprove, setAutoApprove] = useState(false);
   const [useWorktree, setUseWorktree] = useState(true);
+  const [chatMode, setChatMode] = useState<'acp' | 'pty'>('acp');
 
   // Multi-repo selection state - initialized with all repos selected
   const [selectedSubRepos, setSelectedSubRepos] = useState<string[]>([]);
@@ -124,15 +110,12 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const autoNameInitializedRef = useRef(false);
   const customNameTrackedRef = useRef(false);
 
-  // Integration connections
-  const integrations = useIntegrationStatus(isOpen);
-
   // Computed values
   const activeAgents = useMemo(() => agentRuns.map((ar) => ar.agent), [agentRuns]);
   const hasAutoApproveSupport = activeAgents.every((id) => !!agentMeta[id]?.autoApproveFlag);
-  const hasInitialPromptSupport = activeAgents.every(
-    (id) => agentMeta[id]?.initialPromptFlag !== undefined
-  );
+  const primaryAgent = agentRuns[0]?.agent || DEFAULT_AGENT;
+  const primaryProviderDef = useMemo(() => getProvider(primaryAgent as ProviderId), [primaryAgent]);
+  const hasAcpSupport = !!primaryProviderDef?.acpSupport;
 
   const normalizedExisting = useMemo(
     () => existingNames.map((n) => normalizeTaskName(n)).filter(Boolean),
@@ -153,20 +136,17 @@ const TaskModal: React.FC<TaskModalProps> = ({
     [normalizedExisting]
   );
 
-  // Clear issues when provider doesn't support them
-  useEffect(() => {
-    if (!hasInitialPromptSupport) {
-      setSelectedLinearIssue(null);
-      setSelectedGithubIssue(null);
-      setSelectedJiraIssue(null);
-      setInitialPrompt('');
-    }
-  }, [hasInitialPromptSupport]);
-
   // Clear auto-approve if not supported
   useEffect(() => {
     if (!hasAutoApproveSupport && autoApprove) setAutoApprove(false);
   }, [hasAutoApproveSupport, autoApprove]);
+
+  // Reset mode when agent changes
+  useEffect(() => {
+    if (!hasAcpSupport) {
+      setChatMode('pty');
+    }
+  }, [hasAcpSupport]);
 
   // Reset form and load settings when modal opens
   useEffect(() => {
@@ -178,12 +158,9 @@ const TaskModal: React.FC<TaskModalProps> = ({
     setError(null);
     setTouched(false);
     setIsFocused(false);
-    setInitialPrompt('');
-    setSelectedLinearIssue(null);
-    setSelectedGithubIssue(null);
-    setSelectedJiraIssue(null);
     setAutoApprove(false);
     setUseWorktree(true);
+    setChatMode('acp');
     userHasTypedRef.current = false;
     autoNameInitializedRef.current = false;
     customNameTrackedRef.current = false;
@@ -211,6 +188,15 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
       const autoApproveByDefault = settings?.tasks?.autoApproveByDefault ?? false;
       setAutoApprove(autoApproveByDefault && !!agentMeta[agent]?.autoApproveFlag);
+
+      // Set default chat mode from provider overrides
+      const providerDef = getProvider(agent as ProviderId);
+      if (!providerDef?.acpSupport) {
+        setChatMode('pty');
+      } else if (settings?.providerOverrides) {
+        const override = (settings.providerOverrides as any)[agent];
+        setChatMode(override?.defaultChatMode === 'cli' ? 'pty' : 'acp');
+      }
 
       // Handle auto-generate setting
       if (settings?.tasks?.autoGenerateName === false && !userHasTypedRef.current) {
@@ -263,11 +249,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
     try {
       onCreateTask(
         normalizeTaskName(taskName),
-        hasInitialPromptSupport && initialPrompt.trim() ? initialPrompt.trim() : undefined,
+        undefined,
         agentRuns,
-        selectedLinearIssue,
-        selectedGithubIssue,
-        selectedJiraIssue,
         hasAutoApproveSupport ? autoApprove : false,
         useWorktree,
         selectedBranch,
@@ -341,37 +324,140 @@ const TaskModal: React.FC<TaskModalProps> = ({
             <MultiAgentDropdown agentRuns={agentRuns} onChange={setAgentRuns} />
           </div>
 
-          <TaskAdvancedSettings
-            isOpen={isOpen}
-            projectPath={projectPath}
-            useWorktree={useWorktree}
-            onUseWorktreeChange={setUseWorktree}
-            hasExistingNonWorktreeTask={hasExistingNonWorktreeTask}
-            subRepos={subRepos}
-            selectedSubRepos={selectedSubRepos}
-            onSelectedSubReposChange={setSelectedSubRepos}
-            autoApprove={autoApprove}
-            onAutoApproveChange={setAutoApprove}
-            hasAutoApproveSupport={hasAutoApproveSupport}
-            initialPrompt={initialPrompt}
-            onInitialPromptChange={setInitialPrompt}
-            hasInitialPromptSupport={hasInitialPromptSupport}
-            selectedLinearIssue={selectedLinearIssue}
-            onLinearIssueChange={setSelectedLinearIssue}
-            isLinearConnected={integrations.isLinearConnected}
-            onLinearConnect={integrations.handleLinearConnect}
-            selectedGithubIssue={selectedGithubIssue}
-            onGithubIssueChange={setSelectedGithubIssue}
-            linkedGithubIssueMap={linkedGithubIssueMap}
-            isGithubConnected={integrations.isGithubConnected}
-            onGithubConnect={integrations.handleGithubConnect}
-            githubLoading={integrations.githubLoading}
-            githubInstalled={integrations.githubInstalled}
-            selectedJiraIssue={selectedJiraIssue}
-            onJiraIssueChange={setSelectedJiraIssue}
-            isJiraConnected={integrations.isJiraConnected}
-            onJiraConnect={integrations.handleJiraConnect}
-          />
+          {hasAcpSupport && (
+            <div className="flex items-center gap-4">
+              <Label className="shrink-0">Mode</Label>
+              <div className="flex rounded-md border p-0.5">
+                <button
+                  type="button"
+                  className={`px-3 py-1 text-xs font-medium transition-colors ${
+                    chatMode === 'acp'
+                      ? 'bg-primary text-primary-foreground rounded-none'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  onClick={() => setChatMode('acp')}
+                >
+                  ACP
+                </button>
+                <button
+                  type="button"
+                  className={`px-3 py-1 text-xs font-medium transition-colors ${
+                    chatMode === 'pty'
+                      ? 'bg-primary text-primary-foreground rounded-none'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  onClick={() => setChatMode('pty')}
+                >
+                  CLI
+                </button>
+              </div>
+              <span className="text-muted-foreground text-[10px]">
+                {chatMode === 'acp' ? 'Structured chat UI' : 'Raw terminal'}
+              </span>
+            </div>
+          )}
+
+          <div className="flex items-center gap-4">
+            <Label className="shrink-0">Worktree</Label>
+            <label
+              className={`inline-flex items-start gap-2 text-sm leading-tight ${hasExistingNonWorktreeTask ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              <Checkbox
+                checked={useWorktree || hasExistingNonWorktreeTask}
+                onCheckedChange={(checked) => {
+                  if (hasExistingNonWorktreeTask) return;
+                  setUseWorktree(checked === true);
+                }}
+                disabled={hasExistingNonWorktreeTask}
+                className="mt-[1px]"
+              />
+              <div className="space-y-0.5">
+                <span className="text-muted-foreground text-xs">
+                  {useWorktree || hasExistingNonWorktreeTask
+                    ? 'Isolated Git worktree'
+                    : 'Work on current branch'}
+                </span>
+                {hasExistingNonWorktreeTask && (
+                  <p className="text-muted-foreground text-[10px]">
+                    Required: another session uses the project directory
+                  </p>
+                )}
+                {!useWorktree && !hasExistingNonWorktreeTask && (
+                  <p className="text-destructive text-[10px]">
+                    Changes will affect your working directory
+                  </p>
+                )}
+              </div>
+            </label>
+          </div>
+
+          {/* Multi-repo selection */}
+          {subRepos && subRepos.length > 0 && (
+            <div className="flex items-start gap-4">
+              <Label className="shrink-0 pt-1">Repositories</Label>
+              <div className="min-w-0 flex-1 space-y-2">
+                <p className="text-muted-foreground text-xs">
+                  {useWorktree
+                    ? 'Select repos for worktrees. Others will be symlinked.'
+                    : 'Select repos to track changes for.'}
+                </p>
+                <div className="space-y-1">
+                  {subRepos.map((repo) => (
+                    <label
+                      key={repo.relativePath}
+                      className="flex cursor-pointer items-center gap-2 text-sm"
+                    >
+                      <Checkbox
+                        checked={selectedSubRepos.includes(repo.relativePath)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedSubRepos([...selectedSubRepos, repo.relativePath]);
+                          } else {
+                            setSelectedSubRepos(
+                              selectedSubRepos.filter((p) => p !== repo.relativePath)
+                            );
+                          }
+                        }}
+                      />
+                      <span className="font-mono text-xs">{repo.name}</span>
+                      {repo.gitInfo.branch && (
+                        <span className="text-muted-foreground text-xs">
+                          ({repo.gitInfo.branch})
+                        </span>
+                      )}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {hasAutoApproveSupport && (
+            <div className="flex items-center gap-4">
+              <Label className="shrink-0">Auto-approve</Label>
+              <label className="inline-flex cursor-pointer items-start gap-2 text-sm leading-tight">
+                <Checkbox
+                  checked={autoApprove}
+                  onCheckedChange={(checked) => setAutoApprove(checked === true)}
+                  className="mt-[1px]"
+                />
+                <div className="space-y-0.5">
+                  <span className="text-muted-foreground text-xs">
+                    Skip permissions for file ops
+                  </span>
+                  <a
+                    href="https://simonwillison.net/2025/Oct/22/living-dangerously-with-claude/"
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="text-foreground ml-1 inline-flex items-center gap-1 text-[10px] underline"
+                  >
+                    Learn more
+                    <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                  </a>
+                </div>
+              </label>
+            </div>
+          )}
 
           <DialogFooter>
             <Button type="submit" disabled={!!validate(taskName)}>

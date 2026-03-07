@@ -177,13 +177,11 @@ export type ErrorOperation =
 export type ErrorService =
   | 'ptyManager'
   | 'WorktreeService'
-  | 'GitHubService'
   | 'DatabaseService'
   | 'GitService'
   | 'projectIpc'
   | 'appIpc'
   | 'gitIpc'
-  | 'githubIpc'
   | 'ptyIpc'
   | 'renderer'
   | 'unknown';

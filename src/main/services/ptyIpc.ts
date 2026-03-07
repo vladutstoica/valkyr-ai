@@ -13,6 +13,7 @@ import {
   setOnDirectCliExit,
 } from './ptyManager';
 import { log } from '../lib/logger';
+import { providerStatusCache } from './providerStatusCache';
 import { terminalSnapshotService } from './TerminalSnapshotService';
 import { errorTracking } from '../errorTracking';
 import type { TerminalSnapshotPayload } from '../types/terminalSnapshot';
@@ -20,6 +21,7 @@ import { getAppSettings } from '../settings';
 import * as telemetry from '../telemetry';
 import { PROVIDER_IDS, getProvider, type ProviderId } from '../../shared/providers/registry';
 import { detectAndLoadTerminalConfig } from './TerminalConfigParser';
+import { getStoredProviderKeys } from '../ipc/settingsIpc';
 import { databaseService } from './DatabaseService';
 import { getDrizzleClient } from '../db/drizzleClient';
 import { sshConnections as sshConnectionsTable } from '../db/schema';
@@ -728,6 +730,9 @@ export function registerPtyIpc(): void {
           return { ok: true, reused: true };
         }
 
+        // Load stored provider API keys from keytar for injection into agent env
+        const storedKeys = await getStoredProviderKeys();
+
         let proc = startDirectPty({
           id,
           providerId,
@@ -738,6 +743,7 @@ export function registerPtyIpc(): void {
           initialPrompt,
           env,
           resume,
+          storedKeys,
         });
 
         // Fallback to shell-based spawn if direct spawn fails (CLI not in cache)
@@ -822,6 +828,87 @@ export function registerPtyIpc(): void {
       } catch (err: any) {
         log.error('pty:startDirect FAIL', { id: args.id, error: err?.message || err });
         return { ok: false, error: String(err?.message || err) };
+      }
+    }
+  );
+
+  // ── Provider CLI detection ──────────────────────────────────────────
+  ipcMain.handle(
+    'provider:getStatuses',
+    async (
+      _event,
+      opts?: { refresh?: boolean; providers?: string[]; providerId?: string }
+    ) => {
+      try {
+        const { execFile } = await import('child_process');
+        const { PROVIDERS } = await import('../../shared/providers/registry');
+
+        const checkCmd = (cmd: string): Promise<string | null> =>
+          new Promise((resolve) => {
+            execFile('which', [cmd], (err, stdout) => {
+              resolve(!err && stdout?.trim() ? stdout.trim() : null);
+            });
+          });
+
+        const getVersion = (binPath: string): Promise<string | null> =>
+          new Promise((resolve) => {
+            execFile(binPath, ['--version'], { timeout: 5000 }, (err, stdout) => {
+              resolve(!err && stdout?.trim() ? stdout.trim().split('\n')[0] : null);
+            });
+          });
+
+        const targetIds = opts?.providers
+          ?? (opts?.providerId ? [opts.providerId] : undefined);
+
+        const providers = targetIds
+          ? PROVIDERS.filter((p) => targetIds.includes(p.id))
+          : PROVIDERS;
+
+        const cached = providerStatusCache.getAll();
+        const statuses: Record<string, any> = { ...cached };
+        const now = Date.now();
+        const STALE_MS = 5 * 60 * 1000;
+
+        await Promise.all(
+          providers.map(async (provider) => {
+            const existing = cached[provider.id];
+            if (
+              !opts?.refresh &&
+              existing &&
+              typeof existing.lastChecked === 'number' &&
+              now - existing.lastChecked < STALE_MS
+            ) {
+              return; // use cached
+            }
+
+            let foundPath: string | null = null;
+            for (const cmd of provider.commands ?? []) {
+              foundPath = await checkCmd(cmd);
+              if (foundPath) break;
+            }
+
+            const installed = !!foundPath;
+            let version: string | null = null;
+            if (installed && foundPath) {
+              version = await getVersion(foundPath);
+            }
+
+            const status = { installed, path: foundPath, version, lastChecked: now };
+            statuses[provider.id] = status;
+            providerStatusCache.set(provider.id, status);
+
+            // Notify renderer of individual update
+            broadcastToAllWindows('provider:status-updated', {
+              providerId: provider.id,
+              status,
+            });
+          })
+        );
+
+        return { success: true, statuses };
+      } catch (error: any) {
+        log.error('provider:getStatuses failed', error);
+        return { success: false, error: error?.message || String(error) };
       }
     }
   );

@@ -26,6 +26,7 @@ import type {
 } from '@agentclientprotocol/sdk';
 import { log } from '../lib/logger';
 import { getProvider, type ProviderId } from '../../shared/providers/registry';
+import { getStoredProviderKeys } from '../ipc/settingsIpc';
 import { acpRegistryService } from './AcpRegistryService';
 import { PROVIDER_TO_ACP_ID } from '../../shared/acpRegistry';
 import { databaseService } from './DatabaseService';
@@ -401,6 +402,16 @@ export class AcpSessionManager {
       for (const key of provider.envVars) {
         if (process.env[key]) {
           scopedEnv[key] = process.env[key]!;
+        }
+      }
+    }
+
+    // Inject stored provider API keys from keytar (lower priority than process.env)
+    const storedKeys = await getStoredProviderKeys();
+    if (provider?.envVars) {
+      for (const key of provider.envVars) {
+        if (!scopedEnv[key] && storedKeys[key]) {
+          scopedEnv[key] = storedKeys[key];
         }
       }
     }
@@ -1681,7 +1692,8 @@ export class AcpSessionManager {
   private setStatus(sessionKey: string, status: AcpSessionStatus): void {
     const session = this.sessions.get(sessionKey);
     if (!session) return;
-    if (session.status === status) return;
+    const prevStatus = session.status;
+    if (prevStatus === status) return;
 
     session.status = status;
     this.bufferEvent(sessionKey, {
@@ -1700,6 +1712,39 @@ export class AcpSessionManager {
           log.error(`Failed to drain pending prompt for ${sessionKey}`, err);
         });
       });
+    } else if (
+      status === 'ready' &&
+      (prevStatus === 'streaming' || prevStatus === 'submitted')
+    ) {
+      // Agent finished — fire desktop notification if app is not focused
+      this.showAcpCompletionNotification(session.providerId);
+    }
+  }
+
+  private showAcpCompletionNotification(providerId: string): void {
+    try {
+      const { getAppSettings } = require('../settings') as typeof import('../settings');
+      const settings = getAppSettings();
+      if (!settings.notifications?.enabled) return;
+
+      const { Notification: ElectronNotification, BrowserWindow } = require('electron');
+      if (!ElectronNotification.isSupported()) return;
+
+      const windows = BrowserWindow.getAllWindows();
+      const anyFocused = windows.some((w: any) => w.isFocused());
+      if (anyFocused) return;
+
+      const providerDef = getProvider(providerId as ProviderId);
+      const providerName = providerDef?.name ?? providerId;
+
+      const notification = new ElectronNotification({
+        title: `${providerName} Task Complete`,
+        body: 'Your agent has finished working',
+        silent: !settings.notifications?.sound,
+      });
+      notification.show();
+    } catch (error) {
+      log.warn('Failed to show ACP completion notification', { error });
     }
   }
 }

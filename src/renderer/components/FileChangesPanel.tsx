@@ -1,119 +1,23 @@
-import React, { Suspense, useEffect, useState } from 'react';
-import { Badge } from './ui/badge';
+import React, { Suspense, useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Spinner } from './ui/spinner';
 import { useToast } from '../hooks/use-toast';
-import { useCreatePR } from '../hooks/useCreatePR';
-
 // Lazy-load Monaco-heavy diff modals — only fetched when user opens a diff
 const ChangesDiffModal = React.lazy(() => import('./ChangesDiffModal'));
 const AllChangesDiffModal = React.lazy(() => import('./AllChangesDiffModal'));
 import { useFileChanges } from '../hooks/useFileChanges';
 import { usePrStatus } from '../hooks/usePrStatus';
-import { useCheckRuns } from '../hooks/useCheckRuns';
-import { useAutoCheckRunsRefresh } from '../hooks/useAutoCheckRunsRefresh';
-import { usePrComments } from '../hooks/usePrComments';
-import { ChecksPanel } from './CheckRunsList';
-import { PrCommentsList } from './PrCommentsList';
 import { FileIcon } from './FileExplorer/FileIcons';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Close as PopoverClose } from '@radix-ui/react-popover';
 import {
   Plus,
   Minus,
   Undo2,
   ArrowUpRight,
   FileDiff,
-  ChevronDown,
-  Loader2,
-  CheckCircle2,
-  XCircle,
 } from 'lucide-react';
 import { useTaskScope } from './TaskScopeContext';
-
-type ActiveTab = 'changes' | 'checks';
-type PrMode = 'create' | 'draft' | 'merge';
-
-const PR_MODE_LABELS: Record<PrMode, string> = {
-  create: 'Create PR',
-  draft: 'Draft PR',
-  merge: 'Merge Main',
-};
-
-interface PrActionButtonProps {
-  mode: PrMode;
-  onModeChange: (mode: PrMode) => void;
-  onExecute: () => Promise<void>;
-  isLoading: boolean;
-}
-
-function PrActionButton({ mode, onModeChange, onExecute, isLoading }: PrActionButtonProps) {
-  return (
-    <div className="flex min-w-0">
-      <Button
-        variant="outline"
-        size="sm"
-        className="h-8 min-w-0 truncate rounded-r-none border-r-0 px-2 text-xs"
-        disabled={isLoading}
-        onClick={onExecute}
-      >
-        {isLoading ? <Spinner size="sm" /> : PR_MODE_LABELS[mode]}
-      </Button>
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 rounded-l-none px-1.5"
-            disabled={isLoading}
-          >
-            <ChevronDown className="h-3.5 w-3.5" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent align="end" className="w-auto min-w-0 p-0.5">
-          {(['create', 'draft', 'merge'] as PrMode[])
-            .filter((m) => m !== mode)
-            .map((m) => (
-              <PopoverClose key={m} asChild>
-                <button
-                  className="hover:bg-accent w-full rounded px-2 py-1 text-left text-xs whitespace-nowrap"
-                  onClick={() => onModeChange(m)}
-                >
-                  {PR_MODE_LABELS[m]}
-                </button>
-              </PopoverClose>
-            ))}
-        </PopoverContent>
-      </Popover>
-    </div>
-  );
-}
-
-function TabButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${
-        active
-          ? 'border-primary text-foreground border-b-2'
-          : 'text-muted-foreground hover:text-foreground'
-      }`}
-      onClick={onClick}
-    >
-      {children}
-    </button>
-  );
-}
 
 interface FileChangesPanelProps {
   taskId?: string;
@@ -141,101 +45,12 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
   const [isStagingAll, setIsStagingAll] = useState(false);
   const [commitMessage, setCommitMessage] = useState('');
   const [isCommitting, setIsCommitting] = useState(false);
-  const [isMergingToMain, setIsMergingToMain] = useState(false);
-  const [prMode, setPrMode] = useState<PrMode>(() => {
-    try {
-      const stored = localStorage.getItem('valkyr:prMode');
-      if (stored === 'create' || stored === 'draft' || stored === 'merge') return stored;
-      // Migrate from old boolean key
-      if (localStorage.getItem('valkyr:createPrAsDraft') === 'true') return 'draft';
-      return 'create';
-    } catch {
-      return 'create';
-    }
-  });
-  const { isCreating: isCreatingPR, createPR } = useCreatePR();
-
-  const selectPrMode = (mode: PrMode) => {
-    setPrMode(mode);
-    try {
-      localStorage.setItem('valkyr:prMode', mode);
-    } catch {}
-    try {
-      window.electronAPI?.updateAppState?.({ prMode: mode, prDraft: mode === 'draft' });
-    } catch {}
-  };
 
   const { fileChanges, refreshChanges } = useFileChanges(safeTaskPath);
   const { toast } = useToast();
   const hasChanges = fileChanges.length > 0;
   const hasStagedChanges = fileChanges.some((change) => change.isStaged);
   const { pr, refresh: refreshPr } = usePrStatus(safeTaskPath);
-  const [activeTab, setActiveTab] = useState<ActiveTab>('changes');
-  const { status: checkRunsStatus, isLoading: checkRunsLoading } = useCheckRuns(
-    pr ? safeTaskPath : undefined
-  );
-  // Only poll for check runs when the Checks tab is active; the initial fetch
-  // from useCheckRuns is enough for the tab badge indicators.
-  const checksTabActive = activeTab === 'checks' && !!pr;
-  useAutoCheckRunsRefresh(checksTabActive ? safeTaskPath : undefined, checkRunsStatus);
-  const { status: prCommentsStatus, isLoading: prCommentsLoading } = usePrComments(
-    pr ? safeTaskPath : undefined,
-    pr?.number
-  );
-  const [branchAhead, setBranchAhead] = useState<number | null>(null);
-  const [branchStatusLoading, setBranchStatusLoading] = useState<boolean>(false);
-
-  // Default to checks when PR exists but no changes; reset when PR disappears
-  useEffect(() => {
-    if (!pr) {
-      setActiveTab('changes');
-    } else if (!hasChanges) {
-      setActiveTab('checks');
-    }
-  }, [pr, hasChanges]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      if (!safeTaskPath || hasChanges) {
-        setBranchAhead(null);
-        return;
-      }
-
-      // Skip branch status check for remote paths (SSH projects)
-      // Remote paths typically look like /home/user/... or /root/... which don't exist locally
-      const isLikelyRemotePath =
-        safeTaskPath.startsWith('/home/') ||
-        safeTaskPath.startsWith('/root/') ||
-        (!safeTaskPath.startsWith('/Users/') &&
-          !safeTaskPath.startsWith('/Volumes/') &&
-          !safeTaskPath.startsWith('C:\\') &&
-          !safeTaskPath.match(/^[A-Z]:\\/));
-
-      if (isLikelyRemotePath) {
-        setBranchAhead(null);
-        return;
-      }
-
-      setBranchStatusLoading(true);
-      try {
-        const res = await window.electronAPI.getBranchStatus({ taskPath: safeTaskPath });
-        if (!cancelled) {
-          setBranchAhead(res?.success ? (res?.ahead ?? 0) : 0);
-        }
-      } catch {
-        // Network or IPC error - default to 0
-        if (!cancelled) setBranchAhead(0);
-      } finally {
-        if (!cancelled) setBranchStatusLoading(false);
-      }
-    };
-    load();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [safeTaskPath, hasChanges]);
 
   const handleStageFile = async (filePath: string, event: React.MouseEvent) => {
     event.stopPropagation();
@@ -415,27 +230,6 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
         } catch {
           // PR refresh is best-effort
         }
-        // Proactively load branch status so the Create PR button appears immediately
-        // Skip for remote paths (SSH projects)
-        const isLikelyRemotePath =
-          safeTaskPath.startsWith('/home/') ||
-          safeTaskPath.startsWith('/root/') ||
-          (!safeTaskPath.startsWith('/Users/') &&
-            !safeTaskPath.startsWith('/Volumes/') &&
-            !safeTaskPath.startsWith('C:\\') &&
-            !safeTaskPath.match(/^[A-Z]:\\/));
-
-        if (!isLikelyRemotePath) {
-          try {
-            setBranchStatusLoading(true);
-            const bs = await window.electronAPI.getBranchStatus({ taskPath: safeTaskPath });
-            setBranchAhead(bs?.success ? (bs?.ahead ?? 0) : 0);
-          } catch {
-            setBranchAhead(0);
-          } finally {
-            setBranchStatusLoading(false);
-          }
-        }
       } else {
         toast({
           title: 'Commit Failed',
@@ -451,62 +245,6 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
       });
     } finally {
       setIsCommitting(false);
-    }
-  };
-
-  const handleMergeToMain = async () => {
-    setIsMergingToMain(true);
-    try {
-      const result = await window.electronAPI.mergeToMain({ taskPath: safeTaskPath });
-      if (result.success) {
-        toast({
-          title: 'Merged to Main',
-          description: 'Changes have been merged to main.',
-        });
-        await refreshChanges();
-        try {
-          await refreshPr();
-        } catch {
-          // PR refresh is best-effort
-        }
-      } else {
-        toast({
-          title: 'Merge Failed',
-          description: result.error || 'Failed to merge to main.',
-          variant: 'destructive',
-        });
-      }
-    } catch (_error) {
-      toast({
-        title: 'Merge Failed',
-        description: 'An unexpected error occurred.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsMergingToMain(false);
-    }
-  };
-
-  const handlePrAction = async () => {
-    if (prMode === 'merge') {
-      await handleMergeToMain();
-    } else {
-      void (async () => {
-        const { captureTelemetry } = await import('../lib/telemetryClient');
-        captureTelemetry('pr_viewed');
-      })();
-      await createPR({
-        taskPath: safeTaskPath,
-        prOptions: prMode === 'draft' ? { draft: true } : undefined,
-        onSuccess: async () => {
-          await refreshChanges();
-          try {
-            await refreshPr();
-          } catch {
-            // PR refresh is best-effort
-          }
-        },
-      });
     }
   };
 
@@ -533,8 +271,6 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
   if (!canRender) {
     return null;
   }
-
-  const isActionLoading = isCreatingPR || isMergingToMain;
 
   return (
     <div className={`bg-card flex h-full flex-col shadow-xs ${className}`}>
@@ -588,12 +324,6 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
                   <FileDiff className="h-3.5 w-3.5 sm:mr-1.5" />
                   <span className="hidden sm:inline">Changes</span>
                 </Button>
-                <PrActionButton
-                  mode={prMode}
-                  onModeChange={selectPrMode}
-                  onExecute={handlePrAction}
-                  isLoading={isActionLoading}
-                />
               </div>
             </div>
 
@@ -647,84 +377,15 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
                       : `PR ${String(pr.state).charAt(0).toUpperCase() + String(pr.state).slice(1).toLowerCase()}`}
                   <ArrowUpRight className="size-3" />
                 </button>
-              ) : branchStatusLoading || (branchAhead !== null && branchAhead > 0) ? (
-                <PrActionButton
-                  mode={prMode}
-                  onModeChange={selectPrMode}
-                  onExecute={handlePrAction}
-                  isLoading={isActionLoading || branchStatusLoading}
-                />
               ) : (
-                <span className="text-muted-foreground text-xs">No PR for this branch</span>
+                <span className="text-muted-foreground text-xs">No changes</span>
               )}
             </div>
           </div>
         )}
       </div>
 
-      {pr && hasChanges && (
-        <div className="border-border flex border-b">
-          <TabButton active={activeTab === 'changes'} onClick={() => setActiveTab('changes')}>
-            Changes
-            <span className="bg-muted ml-1.5 rounded-full px-1.5 py-0.5 text-[10px]">
-              {fileChanges.length}
-            </span>
-          </TabButton>
-          <TabButton active={activeTab === 'checks'} onClick={() => setActiveTab('checks')}>
-            Checks
-            {checkRunsStatus && !checkRunsStatus.allComplete && (
-              <Loader2 className="text-foreground ml-1.5 inline h-3 w-3 animate-spin" />
-            )}
-            {checkRunsStatus?.hasFailures && checkRunsStatus.allComplete && (
-              <span className="ml-1.5 inline-block h-2 w-2 rounded-full bg-red-500" />
-            )}
-          </TabButton>
-        </div>
-      )}
-      {activeTab === 'checks' && pr ? (
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          {!hasChanges && (
-            <div className="flex items-center gap-1.5 px-4 py-1.5">
-              <span className="text-foreground text-sm font-medium">Checks</span>
-              {checkRunsStatus?.summary && (
-                <div className="flex items-center gap-1.5">
-                  {checkRunsStatus.summary.passed > 0 && (
-                    <Badge variant="outline">
-                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                      {checkRunsStatus.summary.passed} passed
-                    </Badge>
-                  )}
-                  {checkRunsStatus.summary.failed > 0 && (
-                    <Badge variant="outline">
-                      <XCircle className="h-3 w-3 text-red-500" />
-                      {checkRunsStatus.summary.failed} failed
-                    </Badge>
-                  )}
-                  {checkRunsStatus.summary.pending > 0 && (
-                    <Badge variant="outline">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      {checkRunsStatus.summary.pending} pending
-                    </Badge>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-          <ChecksPanel
-            status={checkRunsStatus}
-            isLoading={checkRunsLoading}
-            hasPr={!!pr}
-            hideSummary={!hasChanges}
-          />
-          <PrCommentsList
-            status={prCommentsStatus}
-            isLoading={prCommentsLoading}
-            hasPr={!!pr}
-            prUrl={pr?.url}
-          />
-        </div>
-      ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto">
           {fileChanges.map((change, index) => (
             <div
               key={index}
@@ -855,8 +516,7 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
               </div>
             </div>
           ))}
-        </div>
-      )}
+      </div>
       <Suspense fallback={null}>
         {showDiffModal && (
           <ChangesDiffModal

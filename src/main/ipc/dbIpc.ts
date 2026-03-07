@@ -422,7 +422,8 @@ export function registerDatabaseIpc() {
         title,
         provider,
         isMain,
-      }: { taskId: string; title: string; provider?: string; isMain?: boolean }
+        mode,
+      }: { taskId: string; title: string; provider?: string; isMain?: boolean; mode?: 'pty' | 'acp' }
     ) => {
       try {
         const conversation = await databaseService.createConversation(
@@ -430,7 +431,7 @@ export function registerDatabaseIpc() {
           title,
           provider,
           isMain,
-          'acp'
+          mode ?? 'acp'
         );
         return { success: true, conversation };
       } catch (error) {

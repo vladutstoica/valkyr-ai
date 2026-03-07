@@ -6,7 +6,6 @@ import { Spinner } from './ui/spinner';
 import {
   X,
   Settings2,
-  Cable,
   RefreshCw,
   GitBranch,
   Puzzle,
@@ -15,7 +14,6 @@ import {
   Blocks,
 } from 'lucide-react';
 import { UpdateCard } from './UpdateCard';
-import IntegrationsCard from './IntegrationsCard';
 import CliAgentsList, { BASE_CLI_AGENTS } from './CliAgentsList';
 import TelemetryCard from './TelemetryCard';
 import ThemeCard from './ThemeCard';
@@ -27,6 +25,8 @@ import ProjectPrepSettingsCard from './ProjectPrepSettingsCard';
 import Context7SettingsCard from './Context7SettingsCard';
 import { McpSettingsCard } from './mcp/McpSettingsCard';
 import DefaultAgentSettingsCard from './DefaultAgentSettingsCard';
+import ProviderChatModeSettingsCard from './ProviderChatModeSettingsCard';
+import ProviderKeysSettingsCard from './ProviderKeysSettingsCard';
 import AcpAgentsList from './AcpAgentsList';
 import DefaultOpenInSettingsCard from './DefaultOpenInSettingsCard';
 import TaskSettingsCard from './TaskSettingsCard';
@@ -230,6 +230,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         description: '',
         sections: [
           { title: 'Default agent', render: () => <DefaultAgentSettingsCard /> },
+          { title: 'Chat mode defaults', render: () => <ProviderChatModeSettingsCard /> },
+          { title: 'Provider API keys', render: () => <ProviderKeysSettingsCard /> },
           {
             title: 'ACP Agents',
             description: 'Browse and install ACP-compatible agents from the official registry.',
@@ -274,13 +276,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         description: '',
         sections: [] as { title: string; render?: () => React.ReactNode }[],
       },
-      connections: {
-        icon: Cable,
-        label: 'Connections',
-        title: 'Connections',
-        description: '',
-        sections: [{ title: 'Integrations', render: () => <IntegrationsCard /> }],
-      },
       repository: {
         icon: GitBranch,
         label: 'Repository',
@@ -318,7 +313,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   variant="link"
                   size="sm"
                   className="h-auto justify-start px-0 text-xs"
-                  onClick={() => window.electronAPI.openExternal('https://docs.emdash.sh')}
+                  onClick={() => window.electronAPI.openExternal('https://github.com/vladutstoica/valkyr-ai')}
                 >
                   Documentation ↗
                 </Button>

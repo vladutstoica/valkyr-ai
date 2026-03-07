@@ -11,7 +11,6 @@ import {
 } from 'lucide-react';
 import { usePrStatus } from '../hooks/usePrStatus';
 import { useUnifiedStatus } from '../hooks/useUnifiedStatus';
-import PrPreviewTooltip from './PrPreviewTooltip';
 import { normalizeTaskName, MAX_TASK_NAME_LENGTH } from '../lib/taskNames';
 import {
   ContextMenu,
@@ -277,24 +276,22 @@ export const TaskItem: React.FC<TaskItemProps> = ({
           </DropdownMenu>
         ) : null}
         {pr ? (
-          <PrPreviewTooltip pr={pr} side="top">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (pr.url) window.electronAPI.openExternal(pr.url);
-              }}
-              className="border-border bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium transition-colors"
-              title={`${pr.title || 'Pull Request'} (#${pr.number})`}
-            >
-              {pr.isDraft
-                ? 'Draft'
-                : String(pr.state).toUpperCase() === 'OPEN'
-                  ? 'View PR'
-                  : `PR ${String(pr.state).charAt(0).toUpperCase() + String(pr.state).slice(1).toLowerCase()}`}
-              <ArrowUpRight className="size-3" />
-            </button>
-          </PrPreviewTooltip>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (pr.url) window.electronAPI.openExternal(pr.url);
+            }}
+            className="border-border bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium transition-colors"
+            title={`${pr.title || 'Pull Request'} (#${pr.number})`}
+          >
+            {pr.isDraft
+              ? 'Draft'
+              : String(pr.state).toUpperCase() === 'OPEN'
+                ? 'View PR'
+                : `PR ${String(pr.state).charAt(0).toUpperCase() + String(pr.state).slice(1).toLowerCase()}`}
+            <ArrowUpRight className="size-3" />
+          </button>
         ) : null}
       </div>
     </div>

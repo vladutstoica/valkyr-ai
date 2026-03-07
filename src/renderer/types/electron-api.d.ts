@@ -356,6 +356,9 @@ declare global {
           };
           defaultOpenInApp?: string;
           voiceInput?: { enabled: boolean };
+          providerOverrides?: Partial<
+            Record<string, { defaultChatMode?: 'acp' | 'cli'; cliCommand?: string }>
+          >;
         };
         error?: string;
       }>;
@@ -438,6 +441,9 @@ declare global {
           };
           defaultOpenInApp?: string;
           voiceInput?: { enabled?: boolean };
+          providerOverrides?: Partial<
+            Record<string, { defaultChatMode?: 'acp' | 'cli'; cliCommand?: string }>
+          >;
         }>
       ) => Promise<{
         success: boolean;
@@ -519,7 +525,30 @@ declare global {
           };
           defaultOpenInApp?: string;
           voiceInput?: { enabled: boolean };
+          providerOverrides?: Partial<
+            Record<string, { defaultChatMode?: 'acp' | 'cli'; cliCommand?: string }>
+          >;
         };
+        error?: string;
+      }>;
+
+      // Provider API key management
+      setProviderKey: (args: { envVar: string; value: string }) => Promise<{
+        success: boolean;
+        error?: string;
+      }>;
+      getProviderKey: (args: { envVar: string }) => Promise<{
+        success: boolean;
+        data?: { hasKey: boolean };
+        error?: string;
+      }>;
+      deleteProviderKey: (args: { envVar: string }) => Promise<{
+        success: boolean;
+        error?: string;
+      }>;
+      listProviderKeys: () => Promise<{
+        success: boolean;
+        data?: string[];
         error?: string;
       }>;
 
@@ -1464,6 +1493,7 @@ declare global {
         title: string;
         provider?: string;
         isMain?: boolean;
+        mode?: 'pty' | 'acp';
       }) => Promise<{ success: boolean; conversation?: any; error?: string }>;
       setActiveConversation: (params: {
         taskId: string;

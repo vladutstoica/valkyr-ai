@@ -38,7 +38,6 @@ interface ErrorContext {
 }
 
 class ErrorTracking {
-  private githubUsername: string | null = null;
   private sessionErrors: number = 0;
   private lastErrorTimestamp: number = 0;
 
@@ -46,14 +45,7 @@ class ErrorTracking {
    * Initialize error tracking
    */
   async init() {
-    try {
-      this.githubUsername = await this.fetchGithubUsername();
-      if (this.githubUsername) {
-        log.info('ErrorTracking initialized with GitHub user', { username: this.githubUsername });
-      }
-    } catch {
-      // Silent fail
-    }
+    // No-op — GitHub integration removed
   }
 
   async captureException(error: Error | unknown, context?: ErrorContext): Promise<void> {
@@ -71,10 +63,6 @@ class ErrorTracking {
       const errorMessage = errorObj.message || 'Unknown error';
       const errorStack = errorObj.stack || '';
 
-      if (!this.githubUsername) {
-        this.githubUsername = await this.fetchGithubUsername();
-      }
-
       // Determine severity if not provided
       const severity = context?.severity || this.determineSeverity(errorMessage, context);
 
@@ -90,7 +78,6 @@ class ErrorTracking {
         severity,
 
         // User context
-        github_username: this.githubUsername,
 
         // Session context
         session_errors: this.sessionErrors,
@@ -218,23 +205,6 @@ class ErrorTracking {
   }
 
   /**
-   * Track GitHub API errors
-   */
-  async captureGitHubError(
-    error: Error | unknown,
-    operation: string,
-    additionalContext?: Partial<ErrorContext>
-  ): Promise<void> {
-    await this.captureException(error, {
-      operation: `github_${operation}`,
-      service: 'GitHubService',
-      error_type: 'github_error',
-      severity: this.isAuthError(error) ? 'critical' : 'medium',
-      ...additionalContext,
-    });
-  }
-
-  /**
    * Track database errors
    */
   async captureDatabaseError(
@@ -251,25 +221,7 @@ class ErrorTracking {
     });
   }
 
-  /**
-   * Update GitHub username (call when user authenticates)
-   */
-  async updateGithubUsername(username: string | null) {
-    this.githubUsername = username;
-  }
-
   // Private helper methods
-
-  private async fetchGithubUsername(): Promise<string | null> {
-    try {
-      // Lazy import to avoid circular dependencies
-      const { githubService } = require('./services/GitHubService');
-      const user = await githubService.getCurrentUser();
-      return user?.login || null;
-    } catch {
-      return null;
-    }
-  }
 
   private getAppVersion(): string {
     try {

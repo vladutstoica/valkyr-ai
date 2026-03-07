@@ -54,17 +54,9 @@ vi.mock('../../main/services/GitQueue', () => ({
   gitQueue: { run: vi.fn((_: string, op: () => Promise<any>) => op()) },
 }));
 
-vi.mock('../../main/services/PrGenerationService', () => ({
-  prGenerationService: {
-    generatePrContent: vi.fn(),
-  },
-}));
-
 vi.mock('../../main/services/DatabaseService', () => ({
   databaseService: {
     getTaskByPath: vi.fn(),
-    savePrMetadata: vi.fn(),
-    getPrMetadata: vi.fn(),
   },
 }));
 

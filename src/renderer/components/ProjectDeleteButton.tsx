@@ -18,7 +18,6 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from './ui/t
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
 import { useDeleteRisks } from '../hooks/useDeleteRisks';
-import DeletePrNotice from './DeletePrNotice';
 import { isActivePr } from '../lib/prStatus';
 import type { Task } from '../types/chat';
 
@@ -182,31 +181,6 @@ export const ProjectDeleteButton: React.FC<Props> = ({
                     );
                   })}
                 </ul>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-
-          <AnimatePresence initial={false}>
-            {!loading && tasksWithPRs.length > 0 ? (
-              <motion.div
-                key="project-delete-prs"
-                initial={{ opacity: 0, y: 6, scale: 0.99 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 6, scale: 0.99 }}
-                transition={{ duration: 0.18, ease: 'easeOut', delay: 0.02 }}
-              >
-                <DeletePrNotice
-                  tasks={
-                    tasksWithPRs
-                      .map((ws) => {
-                        const pr = risks[ws.id]?.pr;
-                        return pr && isActivePr(pr) ? { name: ws.name, pr } : null;
-                      })
-                      .filter(
-                        (w): w is { name: string; pr: NonNullable<typeof w>['pr'] } => w !== null
-                      ) as any
-                  }
-                />
               </motion.div>
             ) : null}
           </AnimatePresence>

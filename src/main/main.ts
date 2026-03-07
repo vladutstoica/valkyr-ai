@@ -124,7 +124,6 @@ import { createMainWindow } from './app/window';
 import { registerAppLifecycle } from './app/lifecycle';
 import { registerAllIpc } from './ipc';
 import { databaseService } from './services/DatabaseService';
-import { connectionsService } from './services/ConnectionsService';
 import { autoUpdateService } from './services/AutoUpdateService';
 import { worktreePoolService } from './services/WorktreePoolService';
 import { warmAcpSdk, acpSessionManager } from './services/AcpSessionManager';
@@ -287,9 +286,6 @@ app.whenReady().then(async () => {
       console.warn('Failed to cleanup stale Git lock files:', error);
     });
   });
-
-  // Warm provider installation cache (non-blocking)
-  connectionsService.initProviderStatusCache().catch(() => {});
 
   // Initialize auto-update service after window is created
   try {

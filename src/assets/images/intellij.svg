@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <rect width="64" height="64" rx="12" fill="url(#ij-grad)"/>
+  <rect x="12" y="12" width="40" height="40" fill="#000"/>
+  <text x="16" y="36" font-family="Arial,sans-serif" font-weight="bold" font-size="18" fill="#fff">IJ</text>
+  <text x="16" y="47" font-family="Arial,sans-serif" font-size="7" fill="#fff">IntelliJ</text>
+  <defs>
+    <linearGradient id="ij-grad" x1="0" y1="0" x2="64" y2="64">
+      <stop offset="0%" stop-color="#F97A12"/>
+      <stop offset="50%" stop-color="#B07BE5"/>
+      <stop offset="100%" stop-color="#3BAFDA"/>
+    </linearGradient>
+  </defs>
+</svg>

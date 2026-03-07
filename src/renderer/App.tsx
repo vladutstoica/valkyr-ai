@@ -18,9 +18,6 @@ const CloneFromUrlModal = React.lazy(
 const AddRemoteProjectModal = React.lazy(
   () => import('./components/ssh/AddRemoteProjectModal').then((m) => ({ default: m.AddRemoteProjectModal }))
 );
-const GithubDeviceFlowModal = React.lazy(
-  () => import('./components/GithubDeviceFlowModal').then((m) => ({ default: m.GithubDeviceFlowModal }))
-);
 const KeyboardShortcutsDialog = React.lazy(
   () =>
     import('./components/KeyboardShortcutsDialog').then((m) => ({ default: m.KeyboardShortcutsDialog }))
@@ -32,23 +29,18 @@ import Titlebar from './components/titlebar/Titlebar';
 import { SidebarProvider } from './components/ui/sidebar';
 import { RightSidebarProvider } from './components/ui/right-sidebar';
 import { KeyboardSettingsProvider } from './contexts/KeyboardSettingsContext';
-import { ToastAction } from './components/ui/toast';
 import { Toaster } from './components/ui/toaster';
 import { useToast } from './hooks/use-toast';
 import { useAutoPrRefresh } from './hooks/useAutoPrRefresh';
 import { useTheme } from './hooks/useTheme';
 import useUpdateNotifier from './hooks/useUpdateNotifier';
 import { AppLayout } from './layouts/AppLayout';
-import type { LinearIssueSummary } from './types/linear';
-import type { GitHubIssueSummary } from './types/github';
-import type { JiraIssueSummary } from './types/jira';
 import type { AgentRun } from './types/chat';
 import type { Project } from './types/app';
 
 // Extracted hooks
 import { useModalState } from './hooks/useModalState';
 import { useAppInitialization } from './hooks/useAppInitialization';
-import { useGithubIntegration } from './hooks/useGithubIntegration';
 import { useProjectManagement } from './hooks/useProjectManagement';
 import { useTaskManagement } from './hooks/useTaskManagement';
 import { createTask } from './lib/taskCreationService';
@@ -75,7 +67,6 @@ const AppContent: React.FC = () => {
     showTaskModal,
     showNewProjectModal,
     showCloneModal,
-    showDeviceFlowModal,
     setShowTaskModal,
     setShowNewProjectModal,
     setShowCloneModal,
@@ -115,7 +106,7 @@ const AppContent: React.FC = () => {
   // The callbacks here execute inside a useEffect (after render), so all hooks
   // are already initialized by the time they run — no temporal dead zone issue.
   const appInit = useAppInitialization({
-    checkGithubStatus: () => github.checkStatus(),
+    checkGithubStatus: () => Promise.resolve(),
     onProjectsLoaded: (projects) => projectMgmt.setProjects(projects),
     onGroupsLoaded: (groups) => projectMgmt.setGroups(groups),
     onWorkspacesLoaded: (workspaces) => projectMgmt.setWorkspaces(workspaces),
@@ -126,26 +117,15 @@ const AppContent: React.FC = () => {
     onInitialLoadComplete: () => {},
   });
 
-  // --- GitHub integration ---
-  const github = useGithubIntegration({
-    platform: appInit.platform,
-    toast,
-    setShowDeviceFlowModal: modals.setShowDeviceFlowModal,
-  });
-
   // --- Project management ---
   const projectMgmt = useProjectManagement({
     platform: appInit.platform,
-    isAuthenticated: github.isAuthenticated,
-    ghInstalled: github.ghInstalled,
     toast,
-    handleGithubConnect: github.handleGithubConnect,
     setShowNewProjectModal,
     setShowCloneModal,
     setShowTaskModal,
     setActiveTask: (task) => taskMgmt.setActiveTask(task),
     saveProjectOrder: appInit.saveProjectOrder,
-    ToastAction,
     storedActiveIds: appInit.storedActiveIds,
   });
 
@@ -245,9 +225,6 @@ const AppContent: React.FC = () => {
       taskName: string,
       initialPrompt?: string,
       agentRuns: AgentRun[] = [{ agent: 'claude', runs: 1 }],
-      linkedLinearIssue: LinearIssueSummary | null = null,
-      linkedGithubIssue: GitHubIssueSummary | null = null,
-      linkedJiraIssue: JiraIssueSummary | null = null,
       autoApprove?: boolean,
       useWorktree: boolean = true,
       baseRef?: string,
@@ -259,9 +236,6 @@ const AppContent: React.FC = () => {
           taskName,
           initialPrompt,
           agentRuns,
-          linkedLinearIssue,
-          linkedGithubIssue,
-          linkedJiraIssue,
           autoApprove,
           useWorktree,
           baseRef,
@@ -403,6 +377,7 @@ const AppContent: React.FC = () => {
     () => (
       <LeftSidebar
         projects={projectMgmt.filteredProjects}
+        allProjects={projectMgmt.projects}
         archivedTasksVersion={taskMgmt.archivedTasksVersion}
         selectedProject={selectedProject}
         onSelectProject={projectMgmt.handleSelectProject}
@@ -440,6 +415,7 @@ const AppContent: React.FC = () => {
         onUpdateWorkspaceColor={projectMgmt.handleUpdateWorkspaceColor}
         onReorderWorkspaces={projectMgmt.handleReorderWorkspaces}
         onMoveProjectToWorkspace={projectMgmt.handleMoveProjectToWorkspace}
+        onOpenSettings={() => openSettingsView('general')}
       />
     ),
     [
@@ -481,6 +457,7 @@ const AppContent: React.FC = () => {
       projectMgmt.handleUpdateWorkspaceColor,
       projectMgmt.handleReorderWorkspaces,
       projectMgmt.handleMoveProjectToWorkspace,
+      openSettingsView,
     ]
   );
 
@@ -594,7 +571,6 @@ const AppContent: React.FC = () => {
                 projectName={selectedProject?.name || ''}
                 defaultBranch={projectMgmt.projectDefaultBranch}
                 existingNames={(selectedProject?.tasks || []).map((w) => w.name)}
-                linkedGithubIssueMap={taskMgmt.linkedGithubIssueMap}
                 projectPath={selectedProject?.path}
                 branchOptions={projectMgmt.projectBranchOptions}
                 isLoadingBranches={projectMgmt.isLoadingBranches}
@@ -623,14 +599,6 @@ const AppContent: React.FC = () => {
                 isOpen={showRemoteProjectModal}
                 onClose={() => setShowRemoteProjectModal(false)}
                 onSuccess={handleRemoteProjectSuccess}
-              />
-            )}
-            {showDeviceFlowModal && (
-              <GithubDeviceFlowModal
-                open={showDeviceFlowModal}
-                onClose={github.handleDeviceFlowClose}
-                onSuccess={github.handleDeviceFlowSuccess}
-                onError={github.handleDeviceFlowError}
               />
             )}
             {showKeyboardShortcuts && (

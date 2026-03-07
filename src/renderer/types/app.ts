@@ -54,10 +54,6 @@ export interface Project {
     branch?: string;
     baseRef?: string;
   };
-  githubInfo?: {
-    repository: string;
-    connected: boolean;
-  };
   tasks?: Task[];
 }
 

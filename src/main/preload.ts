@@ -136,6 +136,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSettings: () => ipcRenderer.invoke('settings:get'),
   updateSettings: (settings: any) => ipcRenderer.invoke('settings:update', settings),
 
+  // Provider API key management
+  setProviderKey: (args: { envVar: string; value: string }) =>
+    ipcRenderer.invoke('providerKeys:set', args),
+  getProviderKey: (args: { envVar: string }) =>
+    ipcRenderer.invoke('providerKeys:get', args),
+  deleteProviderKey: (args: { envVar: string }) =>
+    ipcRenderer.invoke('providerKeys:delete', args),
+  listProviderKeys: () =>
+    ipcRenderer.invoke('providerKeys:list'),
+
   // Whisper (voice input)
   whisperDownloadModel: () => ipcRenderer.invoke('whisper:download-model'),
   whisperDeleteModel: () => ipcRenderer.invoke('whisper:delete-model'),
@@ -311,8 +321,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     branchPrefix?: string;
   }) => ipcRenderer.invoke('git:commit-and-push', args),
   gitPush: (args: { repoPath: string }) => ipcRenderer.invoke('git:push', args),
-  generatePrContent: (args: { taskPath: string; base?: string }) =>
-    ipcRenderer.invoke('git:generate-pr-content', args),
   createPullRequest: (args: {
     taskPath: string;
     title?: string;
@@ -324,10 +332,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     fill?: boolean;
   }) => ipcRenderer.invoke('git:create-pr', args),
   mergeToMain: (args: { taskPath: string }) => ipcRenderer.invoke('git:merge-to-main', args),
-  getPrStatus: (args: { taskPath: string }) => ipcRenderer.invoke('git:get-pr-status', args),
-  getCheckRuns: (args: { taskPath: string }) => ipcRenderer.invoke('git:get-check-runs', args),
-  getPrComments: (args: { taskPath: string; prNumber?: number }) =>
-    ipcRenderer.invoke('git:get-pr-comments', args),
   getBranchStatus: (args: { taskPath: string }) =>
     ipcRenderer.invoke('git:get-branch-status', args),
   renameBranch: (args: { repoPath: string; oldBranch: string; newBranch: string }) =>
@@ -341,109 +345,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getTelemetryStatus: () => ipcRenderer.invoke('telemetry:get-status'),
   setTelemetryEnabled: (enabled: boolean) => ipcRenderer.invoke('telemetry:set-enabled', enabled),
   setOnboardingSeen: (flag: boolean) => ipcRenderer.invoke('telemetry:set-onboarding-seen', flag),
-  connectToGitHub: (projectPath: string) => ipcRenderer.invoke('github:connect', projectPath),
-
-  // GitHub integration
-  githubAuth: () => ipcRenderer.invoke('github:auth'),
-  githubCancelAuth: () => ipcRenderer.invoke('github:auth:cancel'),
-
-  // GitHub auth event listeners
-  onGithubAuthDeviceCode: (
-    callback: (data: {
-      userCode: string;
-      verificationUri: string;
-      expiresIn: number;
-      interval: number;
-    }) => void
-  ) => {
-    const listener = (_: any, data: any) => callback(data);
-    ipcRenderer.on('github:auth:device-code', listener);
-    return () => ipcRenderer.removeListener('github:auth:device-code', listener);
-  },
-  onGithubAuthPolling: (callback: (data: { status: string }) => void) => {
-    const listener = (_: any, data: any) => callback(data);
-    ipcRenderer.on('github:auth:polling', listener);
-    return () => ipcRenderer.removeListener('github:auth:polling', listener);
-  },
-  onGithubAuthSlowDown: (callback: (data: { newInterval: number }) => void) => {
-    const listener = (_: any, data: any) => callback(data);
-    ipcRenderer.on('github:auth:slow-down', listener);
-    return () => ipcRenderer.removeListener('github:auth:slow-down', listener);
-  },
-  onGithubAuthSuccess: (callback: (data: { token: string; user: any }) => void) => {
-    const listener = (_: any, data: any) => callback(data);
-    ipcRenderer.on('github:auth:success', listener);
-    return () => ipcRenderer.removeListener('github:auth:success', listener);
-  },
-  onGithubAuthError: (callback: (data: { error: string; message: string }) => void) => {
-    const listener = (_: any, data: any) => callback(data);
-    ipcRenderer.on('github:auth:error', listener);
-    return () => ipcRenderer.removeListener('github:auth:error', listener);
-  },
-  onGithubAuthCancelled: (callback: () => void) => {
-    const listener = () => callback();
-    ipcRenderer.on('github:auth:cancelled', listener);
-    return () => ipcRenderer.removeListener('github:auth:cancelled', listener);
-  },
-  onGithubAuthUserUpdated: (callback: (data: { user: any }) => void) => {
-    const listener = (_: any, data: any) => callback(data);
-    ipcRenderer.on('github:auth:user-updated', listener);
-    return () => ipcRenderer.removeListener('github:auth:user-updated', listener);
-  },
-
-  githubIsAuthenticated: () => ipcRenderer.invoke('github:isAuthenticated'),
-  githubGetStatus: () => ipcRenderer.invoke('github:getStatus'),
-  githubGetUser: () => ipcRenderer.invoke('github:getUser'),
-  githubGetRepositories: () => ipcRenderer.invoke('github:getRepositories'),
-  githubCloneRepository: (repoUrl: string, localPath: string) =>
-    ipcRenderer.invoke('github:cloneRepository', repoUrl, localPath),
-  githubGetOwners: () => ipcRenderer.invoke('github:getOwners'),
-  githubValidateRepoName: (name: string, owner: string) =>
-    ipcRenderer.invoke('github:validateRepoName', name, owner),
-  githubCreateNewProject: (params: {
-    name: string;
-    description?: string;
-    owner: string;
-    isPrivate: boolean;
-    gitignoreTemplate?: string;
-  }) => ipcRenderer.invoke('github:createNewProject', params),
-  githubListPullRequests: (projectPath: string) =>
-    ipcRenderer.invoke('github:listPullRequests', { projectPath }),
-  githubCreatePullRequestWorktree: (args: {
-    projectPath: string;
-    projectId: string;
-    prNumber: number;
-    prTitle?: string;
-    taskName?: string;
-    branchName?: string;
-  }) => ipcRenderer.invoke('github:createPullRequestWorktree', args),
-  githubLogout: () => ipcRenderer.invoke('github:logout'),
-  githubCheckCLIInstalled: () => ipcRenderer.invoke('github:checkCLIInstalled'),
-  githubInstallCLI: () => ipcRenderer.invoke('github:installCLI'),
-  // GitHub issues
-  githubIssuesList: (projectPath: string, limit?: number) =>
-    ipcRenderer.invoke('github:issues:list', projectPath, limit),
-  githubIssuesSearch: (projectPath: string, searchTerm: string, limit?: number) =>
-    ipcRenderer.invoke('github:issues:search', projectPath, searchTerm, limit),
-  githubIssueGet: (projectPath: string, number: number) =>
-    ipcRenderer.invoke('github:issues:get', projectPath, number),
-  // Linear integration
-  linearSaveToken: (token: string) => ipcRenderer.invoke('linear:saveToken', token),
-  linearCheckConnection: () => ipcRenderer.invoke('linear:checkConnection'),
-  linearClearToken: () => ipcRenderer.invoke('linear:clearToken'),
-  linearInitialFetch: (limit?: number) => ipcRenderer.invoke('linear:initialFetch', limit),
-  linearSearchIssues: (searchTerm: string, limit?: number) =>
-    ipcRenderer.invoke('linear:searchIssues', searchTerm, limit),
-  // Jira integration
-  jiraSaveCredentials: (args: { siteUrl: string; email: string; token: string }) =>
-    ipcRenderer.invoke('jira:saveCredentials', args),
-  jiraClearCredentials: () => ipcRenderer.invoke('jira:clearCredentials'),
-  jiraCheckConnection: () => ipcRenderer.invoke('jira:checkConnection'),
-  jiraInitialFetch: (limit?: number) => ipcRenderer.invoke('jira:initialFetch', limit),
-  jiraSearchIssues: (searchTerm: string, limit?: number) =>
-    ipcRenderer.invoke('jira:searchIssues', searchTerm, limit),
-  getProviderStatuses: (opts?: { refresh?: boolean; providers?: string[]; providerId?: string }) =>
-    ipcRenderer.invoke('providers:getStatuses', opts ?? {}),
   // Database methods
   getProjects: () => ipcRenderer.invoke('db:getProjects'),
   saveProject: (project: any) => ipcRenderer.invoke('db:saveProject', project),
@@ -499,7 +400,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('db:cleanupSessionDirectory', args),
 
   // Multi-chat support
-  createConversation: (params: { taskId: string; title: string; provider?: string }) =>
+  createConversation: (params: { taskId: string; title: string; provider?: string; isMain?: boolean; mode?: 'pty' | 'acp' }) =>
     ipcRenderer.invoke('db:createConversation', params),
   setActiveConversation: (params: { taskId: string; conversationId: string }) =>
     ipcRenderer.invoke('db:setActiveConversation', params),
@@ -577,6 +478,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on(channel, wrapped);
     return () => ipcRenderer.removeListener(channel, wrapped);
   },
+
+  getProviderStatuses: (opts?: { refresh?: boolean; providers?: string[]; providerId?: string }) =>
+    ipcRenderer.invoke('provider:getStatuses', opts) as Promise<{
+      success: boolean;
+      statuses?: Record<string, { installed: boolean; path?: string | null; version?: string | null; lastChecked: number }>;
+      error?: string;
+    }>,
 
   // Host preview (non-container)
   hostPreviewStart: (args: {
@@ -1035,10 +943,6 @@ export interface ElectronAPI {
     web?: boolean;
     fill?: boolean;
   }) => Promise<{ success: boolean; url?: string; output?: string; error?: string }>;
-  connectToGitHub: (
-    projectPath: string
-  ) => Promise<{ success: boolean; repository?: string; branch?: string; error?: string }>;
-
   // Filesystem helpers
   fsList: (
     root: string,
@@ -1069,63 +973,6 @@ export interface ElectronAPI {
     content?: string;
     error?: string;
   }>;
-
-  // GitHub integration
-  githubAuth: () => Promise<{
-    success: boolean;
-    device_code?: string;
-    user_code?: string;
-    verification_uri?: string;
-    expires_in?: number;
-    interval?: number;
-    error?: string;
-  }>;
-  githubCancelAuth: () => Promise<{ success: boolean; error?: string }>;
-
-  // GitHub auth event listeners (return cleanup function)
-  onGithubAuthDeviceCode: (
-    callback: (data: {
-      userCode: string;
-      verificationUri: string;
-      expiresIn: number;
-      interval: number;
-    }) => void
-  ) => () => void;
-  onGithubAuthPolling: (callback: (data: { status: string }) => void) => () => void;
-  onGithubAuthSlowDown: (callback: (data: { newInterval: number }) => void) => () => void;
-  onGithubAuthSuccess: (callback: (data: { token: string; user: any }) => void) => () => void;
-  onGithubAuthError: (callback: (data: { error: string; message: string }) => void) => () => void;
-  onGithubAuthCancelled: (callback: () => void) => () => void;
-  onGithubAuthUserUpdated: (callback: (data: { user: any }) => void) => () => void;
-
-  githubIsAuthenticated: () => Promise<boolean>;
-  githubGetStatus: () => Promise<{ installed: boolean; authenticated: boolean; user?: any }>;
-  githubGetUser: () => Promise<any>;
-  githubGetRepositories: () => Promise<any[]>;
-  githubCloneRepository: (
-    repoUrl: string,
-    localPath: string
-  ) => Promise<{ success: boolean; error?: string }>;
-  githubListPullRequests: (
-    projectPath: string
-  ) => Promise<{ success: boolean; prs?: any[]; error?: string }>;
-  githubCreatePullRequestWorktree: (args: {
-    projectPath: string;
-    projectId: string;
-    prNumber: number;
-    prTitle?: string;
-    taskName?: string;
-    branchName?: string;
-  }) => Promise<{
-    success: boolean;
-    worktree?: any;
-    branchName?: string;
-    taskName?: string;
-    error?: string;
-  }>;
-  githubLogout: () => Promise<void>;
-  githubCheckCLIInstalled: () => Promise<boolean>;
-  githubInstallCLI: () => Promise<{ success: boolean; error?: string }>;
 
   // Database methods
   getProjects: () => Promise<any[]>;
@@ -1158,6 +1005,8 @@ export interface ElectronAPI {
     taskId: string;
     title: string;
     provider?: string;
+    isMain?: boolean;
+    mode?: 'pty' | 'acp';
   }) => Promise<{ success: boolean; conversation?: any; error?: string }>;
   setActiveConversation: (params: {
     taskId: string;

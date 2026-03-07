@@ -27,9 +27,20 @@ const ICON_PATHS = {
   iterm2: 'iterm2.png',
   ghostty: 'ghostty.png',
   zed: 'zed.png',
+  intellij: 'intellij.svg',
+  webstorm: 'webstorm.svg',
+  pycharm: 'pycharm.svg',
+  fleet: 'fleet.svg',
+  sublime: 'sublime.svg',
+  windsurf: 'windsurf.svg',
+  neovim: 'neovim.svg',
+  emacs: 'emacs.svg',
+  alacritty: 'alacritty.svg',
+  kitty: 'kitty.svg',
 } as const;
 
 export const OPEN_IN_APPS: OpenInAppConfigShape[] = [
+  // ── File managers ────────────────────────────────────────────────────
   {
     id: 'finder',
     label: 'Finder',
@@ -41,6 +52,8 @@ export const OPEN_IN_APPS: OpenInAppConfigShape[] = [
       linux: { openCommands: ['xdg-open {{path}}'] },
     },
   },
+
+  // ── Editors / IDEs ───────────────────────────────────────────────────
   {
     id: 'cursor',
     label: 'Cursor',
@@ -93,6 +106,216 @@ export const OPEN_IN_APPS: OpenInAppConfigShape[] = [
       },
     },
   },
+  {
+    id: 'windsurf',
+    label: 'Windsurf',
+    iconPath: ICON_PATHS.windsurf,
+    autoInstall: true,
+    supportsRemote: true,
+    platforms: {
+      darwin: {
+        openCommands: [
+          'command -v windsurf >/dev/null 2>&1 && windsurf {{path}}',
+          'open -a "Windsurf" {{path}}',
+        ],
+        checkCommands: ['windsurf'],
+        appNames: ['Windsurf'],
+      },
+      win32: {
+        openCommands: ['start "" windsurf {{path}}'],
+        checkCommands: ['windsurf'],
+      },
+      linux: {
+        openCommands: ['windsurf {{path}}'],
+        checkCommands: ['windsurf'],
+      },
+    },
+  },
+  {
+    id: 'intellij',
+    label: 'IntelliJ IDEA',
+    iconPath: ICON_PATHS.intellij,
+    platforms: {
+      darwin: {
+        openCommands: [
+          'command -v idea >/dev/null 2>&1 && idea {{path}}',
+          'open -a "IntelliJ IDEA" {{path}}',
+          'open -a "IntelliJ IDEA CE" {{path}}',
+          'open -a "IntelliJ IDEA Ultimate" {{path}}',
+        ],
+        checkCommands: ['idea'],
+        bundleIds: ['com.jetbrains.intellij', 'com.jetbrains.intellij.ce'],
+        appNames: ['IntelliJ IDEA', 'IntelliJ IDEA CE', 'IntelliJ IDEA Ultimate'],
+      },
+      win32: {
+        openCommands: ['start "" idea {{path}}', 'start "" idea64 {{path}}'],
+        checkCommands: ['idea', 'idea64'],
+      },
+      linux: {
+        openCommands: ['idea {{path}}'],
+        checkCommands: ['idea'],
+      },
+    },
+  },
+  {
+    id: 'webstorm',
+    label: 'WebStorm',
+    iconPath: ICON_PATHS.webstorm,
+    platforms: {
+      darwin: {
+        openCommands: [
+          'command -v webstorm >/dev/null 2>&1 && webstorm {{path}}',
+          'open -a "WebStorm" {{path}}',
+        ],
+        checkCommands: ['webstorm'],
+        bundleIds: ['com.jetbrains.WebStorm'],
+        appNames: ['WebStorm'],
+      },
+      win32: {
+        openCommands: ['start "" webstorm {{path}}', 'start "" webstorm64 {{path}}'],
+        checkCommands: ['webstorm', 'webstorm64'],
+      },
+      linux: {
+        openCommands: ['webstorm {{path}}'],
+        checkCommands: ['webstorm'],
+      },
+    },
+  },
+  {
+    id: 'pycharm',
+    label: 'PyCharm',
+    iconPath: ICON_PATHS.pycharm,
+    platforms: {
+      darwin: {
+        openCommands: [
+          'command -v pycharm >/dev/null 2>&1 && pycharm {{path}}',
+          'open -a "PyCharm" {{path}}',
+          'open -a "PyCharm CE" {{path}}',
+        ],
+        checkCommands: ['pycharm'],
+        bundleIds: ['com.jetbrains.pycharm', 'com.jetbrains.pycharm.ce'],
+        appNames: ['PyCharm', 'PyCharm CE'],
+      },
+      win32: {
+        openCommands: ['start "" pycharm {{path}}', 'start "" pycharm64 {{path}}'],
+        checkCommands: ['pycharm', 'pycharm64'],
+      },
+      linux: {
+        openCommands: ['pycharm {{path}}'],
+        checkCommands: ['pycharm'],
+      },
+    },
+  },
+  {
+    id: 'fleet',
+    label: 'Fleet',
+    iconPath: ICON_PATHS.fleet,
+    platforms: {
+      darwin: {
+        openCommands: [
+          'command -v fleet >/dev/null 2>&1 && fleet {{path}}',
+          'open -a "Fleet" {{path}}',
+        ],
+        checkCommands: ['fleet'],
+        bundleIds: ['com.jetbrains.fleet'],
+        appNames: ['Fleet'],
+      },
+      win32: {
+        openCommands: ['start "" fleet {{path}}'],
+        checkCommands: ['fleet'],
+      },
+      linux: {
+        openCommands: ['fleet {{path}}'],
+        checkCommands: ['fleet'],
+      },
+    },
+  },
+  {
+    id: 'sublime',
+    label: 'Sublime Text',
+    iconPath: ICON_PATHS.sublime,
+    autoInstall: true,
+    platforms: {
+      darwin: {
+        openCommands: [
+          'command -v subl >/dev/null 2>&1 && subl {{path}}',
+          'open -a "Sublime Text" {{path}}',
+        ],
+        checkCommands: ['subl'],
+        bundleIds: ['com.sublimetext.4', 'com.sublimetext.3'],
+        appNames: ['Sublime Text'],
+      },
+      win32: {
+        openCommands: ['start "" subl {{path}}'],
+        checkCommands: ['subl'],
+      },
+      linux: {
+        openCommands: ['subl {{path}}'],
+        checkCommands: ['subl'],
+      },
+    },
+  },
+  {
+    id: 'zed',
+    label: 'Zed',
+    iconPath: ICON_PATHS.zed,
+    autoInstall: true,
+    platforms: {
+      darwin: {
+        openCommands: ['command -v zed >/dev/null 2>&1 && zed {{path}}', 'open -a "Zed" {{path}}'],
+        checkCommands: ['zed'],
+        appNames: ['Zed'],
+      },
+      linux: {
+        openCommands: ['zed {{path}}', 'xdg-open {{path}}'],
+        checkCommands: ['zed'],
+      },
+    },
+  },
+  {
+    id: 'neovim',
+    label: 'Neovim',
+    iconPath: ICON_PATHS.neovim,
+    platforms: {
+      darwin: {
+        openCommands: ['open -a Terminal nvim {{path}}'],
+        checkCommands: ['nvim'],
+      },
+      win32: {
+        openCommands: ['start "" nvim {{path}}'],
+        checkCommands: ['nvim'],
+      },
+      linux: {
+        openCommands: ['x-terminal-emulator -e nvim {{path}}'],
+        checkCommands: ['nvim'],
+      },
+    },
+  },
+  {
+    id: 'emacs',
+    label: 'Emacs',
+    iconPath: ICON_PATHS.emacs,
+    platforms: {
+      darwin: {
+        openCommands: [
+          'command -v emacsclient >/dev/null 2>&1 && emacsclient -n {{path}}',
+          'open -a "Emacs" {{path}}',
+        ],
+        checkCommands: ['emacs', 'emacsclient'],
+        appNames: ['Emacs'],
+      },
+      win32: {
+        openCommands: ['start "" emacs {{path}}', 'start "" emacsclient -n {{path}}'],
+        checkCommands: ['emacs', 'emacsclient'],
+      },
+      linux: {
+        openCommands: ['emacsclient -n {{path}}', 'emacs {{path}}'],
+        checkCommands: ['emacs', 'emacsclient'],
+      },
+    },
+  },
+
+  // ── Terminals ────────────────────────────────────────────────────────
   {
     id: 'terminal',
     label: 'Terminal',
@@ -163,19 +386,52 @@ export const OPEN_IN_APPS: OpenInAppConfigShape[] = [
     },
   },
   {
-    id: 'zed',
-    label: 'Zed',
-    iconPath: ICON_PATHS.zed,
-    autoInstall: true,
+    id: 'alacritty',
+    label: 'Alacritty',
+    iconPath: ICON_PATHS.alacritty,
+    supportsRemote: true,
     platforms: {
       darwin: {
-        openCommands: ['command -v zed >/dev/null 2>&1 && zed {{path}}', 'open -a "Zed" {{path}}'],
-        checkCommands: ['zed'],
-        appNames: ['Zed'],
+        openCommands: [
+          'command -v alacritty >/dev/null 2>&1 && alacritty --working-directory {{path}}',
+          'open -a "Alacritty" --args --working-directory {{path}}',
+        ],
+        checkCommands: ['alacritty'],
+        bundleIds: ['org.alacritty'],
+        appNames: ['Alacritty'],
+      },
+      win32: {
+        openCommands: ['start "" alacritty --working-directory {{path}}'],
+        checkCommands: ['alacritty'],
       },
       linux: {
-        openCommands: ['zed {{path}}', 'xdg-open {{path}}'],
-        checkCommands: ['zed'],
+        openCommands: ['alacritty --working-directory {{path}}'],
+        checkCommands: ['alacritty'],
+      },
+    },
+  },
+  {
+    id: 'kitty',
+    label: 'Kitty',
+    iconPath: ICON_PATHS.kitty,
+    supportsRemote: true,
+    platforms: {
+      darwin: {
+        openCommands: [
+          'command -v kitty >/dev/null 2>&1 && kitty --directory {{path}}',
+          'open -a "kitty" --args --directory {{path}}',
+        ],
+        checkCommands: ['kitty'],
+        bundleIds: ['net.kovidgoyal.kitty'],
+        appNames: ['kitty'],
+      },
+      win32: {
+        openCommands: ['start "" kitty --directory {{path}}'],
+        checkCommands: ['kitty'],
+      },
+      linux: {
+        openCommands: ['kitty --directory {{path}}'],
+        checkCommands: ['kitty'],
       },
     },
   },

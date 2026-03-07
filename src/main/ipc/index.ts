@@ -6,15 +6,11 @@ import { registerLifecycleIpc } from '../services/lifecycleIpc';
 import { registerAppIpc } from './appIpc';
 import { registerProjectIpc } from './projectIpc';
 import { registerProjectSettingsIpc } from './projectSettingsIpc';
-import { registerGithubIpc } from './githubIpc';
 import { registerDatabaseIpc } from './dbIpc';
 import { registerDebugIpc } from './debugIpc';
 import { registerGitIpc } from './gitIpc';
-import { registerLinearIpc } from './linearIpc';
-import { registerConnectionsIpc } from './connectionsIpc';
 import { registerUpdateIpc } from '../services/updateIpc';
 import { registerTelemetryIpc } from './telemetryIpc';
-import { registerJiraIpc } from './jiraIpc';
 import { registerPlanLockIpc } from '../services/planLockIpc';
 import { registerSettingsIpc } from './settingsIpc';
 import { registerHostPreviewIpc } from './hostPreviewIpc';
@@ -41,7 +37,6 @@ export function registerAllIpc() {
   // Domain IPC
   registerProjectIpc();
   registerProjectSettingsIpc();
-  registerGithubIpc();
   registerDatabaseIpc();
   registerGitIpc();
   registerHostPreviewIpc();
@@ -54,9 +49,6 @@ export function registerAllIpc() {
   registerWorktreeIpc();
   registerFsIpc();
   registerLifecycleIpc();
-  registerLinearIpc();
-  registerConnectionsIpc();
-  registerJiraIpc();
   registerPlanLockIpc();
   registerSshIpc();
   registerSkillsIpc();

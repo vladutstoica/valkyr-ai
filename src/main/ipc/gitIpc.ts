@@ -18,8 +18,6 @@ import {
 } from '../services/GitService';
 import type { RepoMapping } from '../services/GitService';
 import { gitQueue } from '../services/GitQueue';
-import { prGenerationService } from '../services/PrGenerationService';
-import { databaseService } from '../services/DatabaseService';
 
 const execFileAsync = promisify(execFile);
 
@@ -265,44 +263,6 @@ export function registerGitIpc() {
       }
     }
   );
-  // Git: Generate PR title and description
-  ipcMain.handle(
-    'git:generate-pr-content',
-    async (
-      _,
-      args: {
-        taskPath: string;
-        base?: string;
-      }
-    ) => {
-      const { taskPath, base = 'main' } = args || ({} as { taskPath: string; base?: string });
-      try {
-        validateTaskPath(taskPath);
-        // Try to get the task to find which provider was used
-        let providerId: string | null = null;
-        try {
-          const task = await databaseService.getTaskByPath(taskPath);
-          if (task?.agentId) {
-            providerId = task.agentId;
-            log.debug('Found task provider for PR generation', { taskPath, providerId });
-          }
-        } catch (error) {
-          log.debug('Could not lookup task provider', { error });
-          // Non-fatal - continue without provider
-        }
-
-        const result = await prGenerationService.generatePrContent(taskPath, base, providerId);
-        return { success: true, ...result };
-      } catch (error) {
-        log.error('Failed to generate PR content:', error);
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : String(error),
-        };
-      }
-    }
-  );
-
   // Git: Create Pull Request via GitHub CLI
   ipcMain.handle(
     'git:create-pr',

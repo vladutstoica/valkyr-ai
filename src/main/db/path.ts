@@ -4,7 +4,7 @@ import { app } from 'electron';
 
 const IS_DEV = process.env.NODE_ENV === 'development' || process.argv.includes('--dev');
 const CURRENT_DB_FILENAME = IS_DEV ? 'valkyr-dev.db' : 'valkyr.db';
-const LEGACY_DB_FILENAMES = ['emdash.db', 'database.sqlite', 'orcbench.db'];
+const LEGACY_DB_FILENAMES = ['database.sqlite'];
 
 export interface ResolveDatabasePathOptions {
   userDataPath?: string;
@@ -22,7 +22,7 @@ export function resolveDatabasePath(options: ResolveDatabasePathOptions = {}): s
   // (e.g. ~/Library/Application Support/Electron).
   try {
     const userDataParent = dirname(userDataPath);
-    const legacyDirs = ['Electron', 'emdash', 'Emdash', 'valkyr', 'Valkyr'];
+    const legacyDirs = ['Electron', 'valkyr', 'Valkyr'];
     for (const dirName of legacyDirs) {
       const candidateDir = join(userDataParent, dirName);
       const candidateCurrent = join(candidateDir, CURRENT_DB_FILENAME);

@@ -1,18 +1,9 @@
 import type { ProviderId } from '@shared/providers/registry';
-import { type LinearIssueSummary } from './linear';
-import { type GitHubIssueSummary } from './github';
-import { type JiraIssueSummary } from './jira';
 
 /** Per-agent run configuration for task creation */
 export interface AgentRun {
   agent: ProviderId;
   runs: number;
-}
-
-export interface GitHubIssueLink {
-  number: number;
-  taskId: string;
-  taskName: string;
 }
 
 /** Mapping of a sub-repo to its worktree or symlink in a multi-repo task */
@@ -25,9 +16,6 @@ export interface MultiRepoMapping {
 }
 
 export interface TaskMetadata {
-  linearIssue?: LinearIssueSummary | null;
-  githubIssue?: GitHubIssueSummary | null;
-  jiraIssue?: JiraIssueSummary | null;
   initialPrompt?: string | null;
   autoApprove?: boolean | null;
   /** Set to true after the initial injection (prompt/issue) has been sent to the agent */

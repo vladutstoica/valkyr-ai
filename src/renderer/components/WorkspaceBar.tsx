@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, LayoutGrid, Square } from 'lucide-react';
 import { Button } from './ui/button';
 import {
   ContextMenu,
@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/t
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Input } from './ui/input';
 import type { Workspace } from '../types/app';
+import type { SidebarViewMode } from './LeftSidebar';
 
 interface WorkspaceBarProps {
   workspaces: Workspace[];
@@ -21,6 +22,8 @@ interface WorkspaceBarProps {
   onDeleteWorkspace: (workspaceId: string) => void;
   onUpdateWorkspaceColor: (workspaceId: string, color: string) => void;
   onReorderWorkspaces?: (workspaceIds: string[]) => void;
+  viewMode?: SidebarViewMode;
+  onViewModeChange?: (mode: SidebarViewMode) => void;
 }
 
 const WorkspaceBar: React.FC<WorkspaceBarProps> = ({
@@ -31,6 +34,8 @@ const WorkspaceBar: React.FC<WorkspaceBarProps> = ({
   onRenameWorkspace,
   onDeleteWorkspace,
   onReorderWorkspaces,
+  viewMode = 'workspace',
+  onViewModeChange,
 }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [newName, setNewName] = useState('');
@@ -137,6 +142,31 @@ const WorkspaceBar: React.FC<WorkspaceBarProps> = ({
     <div className="border-border/50 flex h-9 shrink-0 items-center justify-center border-t px-3">
       <div className="flex items-center justify-center gap-0.5">
         <TooltipProvider delayDuration={300}>
+          {onViewModeChange && workspaces.length > 1 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() =>
+                    onViewModeChange(viewMode === 'workspace' ? 'all' : 'workspace')
+                  }
+                  className={`h-6 w-6 cursor-pointer ${
+                    viewMode === 'all' ? 'bg-muted-foreground/20' : 'opacity-50 hover:opacity-80'
+                  }`}
+                >
+                  {viewMode === 'all' ? (
+                    <LayoutGrid className="h-3 w-3" />
+                  ) : (
+                    <Square className="h-3 w-3" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">
+                {viewMode === 'all' ? 'Show active workspace' : 'Show all workspaces'}
+              </TooltipContent>
+            </Tooltip>
+          )}
           {workspaces.map((ws, index) => {
             const isActive = ws.id === activeWorkspaceId || (!activeWorkspaceId && ws.isDefault);
 

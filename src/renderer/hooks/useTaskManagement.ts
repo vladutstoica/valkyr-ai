@@ -7,7 +7,6 @@ import { disposeTaskTerminals } from '../lib/taskTerminalsStore';
 import { terminalSessionRegistry } from '../terminal/SessionRegistry';
 import type { Agent } from '../types';
 import type { Project, Task } from '../types/app';
-import type { GitHubIssueLink } from '../types/chat';
 
 const log = createLogger('hook:useTaskManagement');
 
@@ -56,21 +55,6 @@ const runSetupForTask = async (task: Task, projectPath: string): Promise<void> =
   );
 };
 
-const buildLinkedGithubIssueMap = (tasks?: Task[] | null): Map<number, GitHubIssueLink> => {
-  const linked = new Map<number, GitHubIssueLink>();
-  if (!tasks?.length) return linked;
-  for (const task of tasks) {
-    const issueNumber = task.metadata?.githubIssue?.number;
-    if (typeof issueNumber !== 'number' || linked.has(issueNumber)) continue;
-    linked.set(issueNumber, {
-      number: issueNumber,
-      taskId: task.id,
-      taskName: task.name,
-    });
-  }
-  return linked;
-};
-
 interface UseTaskManagementOptions {
   projects: Project[];
   selectedProject: Project | null;
@@ -111,11 +95,6 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
     }
     return tasks;
   }, [projects]);
-
-  const linkedGithubIssueMap = useMemo(
-    () => buildLinkedGithubIssueMap(selectedProject?.tasks),
-    [selectedProject?.tasks]
-  );
 
   // Keep refs synced for stable callbacks (avoid recreating on every state change)
   const allTasksRef = useRef(allTasks);
@@ -906,7 +885,6 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
     setActiveTaskAgent,
     archivedTasksVersion,
     allTasks,
-    linkedGithubIssueMap,
     handleSelectTask,
     handleNextTask,
     handlePrevTask,

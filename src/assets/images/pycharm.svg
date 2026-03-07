@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <rect width="64" height="64" rx="12" fill="url(#pc-grad)"/>
+  <rect x="12" y="12" width="40" height="40" fill="#000"/>
+  <text x="16" y="36" font-family="Arial,sans-serif" font-weight="bold" font-size="16" fill="#fff">PC</text>
+  <text x="16" y="47" font-family="Arial,sans-serif" font-size="6" fill="#fff">PyCharm</text>
+  <defs>
+    <linearGradient id="pc-grad" x1="0" y1="0" x2="64" y2="64">
+      <stop offset="0%" stop-color="#21D789"/>
+      <stop offset="50%" stop-color="#07C3F2"/>
+      <stop offset="100%" stop-color="#FCF84A"/>
+    </linearGradient>
+  </defs>
+</svg>

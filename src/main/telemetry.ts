@@ -273,19 +273,11 @@ function sanitizeEventAndProps(event: TelemetryEvent, props: Record<string, any>
 }
 
 /**
- * Fetch the current GitHub username if the user is authenticated.
- * Returns null if not authenticated or if there's an error.
+ * Fetch the current GitHub username.
+ * Returns null — GitHub integration has been removed.
  */
 async function getGithubUsername(): Promise<string | null> {
-  try {
-    // Lazy import to avoid circular dependencies
-    const { githubService } = require('./services/GitHubService');
-    const user = await githubService.getCurrentUser();
-    return user?.login || null;
-  } catch {
-    // Silently fail if GitHub is not authenticated or there's an error
-    return null;
-  }
+  return null;
 }
 
 async function posthogCapture(

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -12,7 +12,8 @@ import { Label } from './ui/label';
 import { Separator } from './ui/separator';
 import { AgentDropdown } from './AgentDropdown';
 import { agentConfig } from '../lib/agentConfig';
-import { isValidProviderId } from '@shared/providers/registry';
+import { isValidProviderId, getProvider } from '@shared/providers/registry';
+import type { ProviderId } from '@shared/providers/registry';
 import type { Agent } from '../types';
 import type { Conversation } from '../../main/services/DatabaseService';
 
@@ -21,7 +22,7 @@ const DEFAULT_AGENT: Agent = 'claude';
 interface CreateChatModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreateChat: (title: string, agent: string) => void;
+  onCreateChat: (title: string, agent: string, mode: 'acp' | 'pty') => void;
   installedAgents: string[];
   existingConversations?: Conversation[];
 }
@@ -34,10 +35,15 @@ export function CreateChatModal({
   existingConversations = [],
 }: CreateChatModalProps) {
   const [selectedAgent, setSelectedAgent] = useState<Agent>(DEFAULT_AGENT);
+  const [selectedMode, setSelectedMode] = useState<'acp' | 'pty'>('acp');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const installedSet = useMemo(() => new Set(installedAgents), [installedAgents]);
+
+  // Check if the selected agent supports ACP
+  const selectedProviderDef = useMemo(() => getProvider(selectedAgent as ProviderId), [selectedAgent]);
+  const hasAcpSupport = !!selectedProviderDef?.acpSupport;
 
   // Load default agent from settings and reset state when modal opens
   useEffect(() => {
@@ -54,7 +60,9 @@ export function CreateChatModal({
           ? (settingsAgent as Agent)
           : DEFAULT_AGENT;
 
+        let chosenAgent: Agent | undefined;
         if (installedSet.has(defaultFromSettings)) {
+          chosenAgent = defaultFromSettings;
           setSelectedAgent(defaultFromSettings);
           setError(null);
         } else {
@@ -63,11 +71,28 @@ export function CreateChatModal({
             | Agent
             | undefined;
           if (firstInstalled) {
+            chosenAgent = firstInstalled;
             setSelectedAgent(firstInstalled);
             setError(null);
           } else {
             setError('No agents installed');
           }
+        }
+
+        // Set default mode from provider overrides
+        if (chosenAgent && settings?.providerOverrides) {
+          const override = (settings.providerOverrides as any)[chosenAgent];
+          const providerDef = getProvider(chosenAgent as ProviderId);
+          if (!providerDef?.acpSupport) {
+            setSelectedMode('pty');
+          } else if (override?.defaultChatMode === 'cli') {
+            setSelectedMode('pty');
+          } else {
+            setSelectedMode('acp');
+          }
+        } else if (chosenAgent) {
+          const providerDef = getProvider(chosenAgent as ProviderId);
+          setSelectedMode(providerDef?.acpSupport ? 'acp' : 'pty');
         }
       });
 
@@ -76,6 +101,29 @@ export function CreateChatModal({
       };
     }
   }, [isOpen, installedSet]);
+
+  // Update mode when agent changes
+  const handleAgentChange = useCallback(
+    (newAgent: Agent) => {
+      setSelectedAgent(newAgent);
+      const providerDef = getProvider(newAgent as ProviderId);
+      if (!providerDef?.acpSupport) {
+        setSelectedMode('pty');
+      } else {
+        // Check provider overrides for default
+        window.electronAPI.getSettings().then((res) => {
+          const settings = res?.success ? res.settings : undefined;
+          const override = (settings?.providerOverrides as any)?.[newAgent];
+          if (override?.defaultChatMode === 'cli') {
+            setSelectedMode('pty');
+          } else {
+            setSelectedMode('acp');
+          }
+        });
+      }
+    },
+    []
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,7 +141,7 @@ export function CreateChatModal({
         (c) => c.provider === selectedAgent
       ).length;
       const chatTitle = sameAgentCount > 0 ? `${agentName} ${sameAgentCount + 1}` : agentName;
-      onCreateChat(chatTitle, selectedAgent);
+      onCreateChat(chatTitle, selectedAgent, selectedMode);
       onClose();
       setError(null);
     } catch (err) {
@@ -121,10 +169,42 @@ export function CreateChatModal({
             <Label className="shrink-0">Agent</Label>
             <AgentDropdown
               value={selectedAgent}
-              onChange={setSelectedAgent}
+              onChange={handleAgentChange}
               installedAgents={installedAgents}
             />
           </div>
+          {hasAcpSupport && (
+            <div className="flex items-center gap-4">
+              <Label className="shrink-0">Mode</Label>
+              <div className="flex rounded-md border p-0.5">
+                <button
+                  type="button"
+                  className={`px-3 py-1 text-xs font-medium transition-colors ${
+                    selectedMode === 'acp'
+                      ? 'bg-primary text-primary-foreground rounded-none'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  onClick={() => setSelectedMode('acp')}
+                >
+                  ACP
+                </button>
+                <button
+                  type="button"
+                  className={`px-3 py-1 text-xs font-medium transition-colors ${
+                    selectedMode === 'pty'
+                      ? 'bg-primary text-primary-foreground rounded-none'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  onClick={() => setSelectedMode('pty')}
+                >
+                  CLI
+                </button>
+              </div>
+              <span className="text-muted-foreground text-[10px]">
+                {selectedMode === 'acp' ? 'Structured chat UI' : 'Raw terminal'}
+              </span>
+            </div>
+          )}
           {error && <p className="text-destructive text-xs">{error}</p>}
 
           <DialogFooter>

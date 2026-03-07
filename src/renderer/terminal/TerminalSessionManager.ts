@@ -104,6 +104,9 @@ export class TerminalSessionManager {
       letterSpacing: 0,
       allowProposedApi: true,
       scrollOnUserInput: false,
+      cursorStyle: 'bar',
+      cursorBlink: true,
+      cursorInactiveStyle: 'none',
     });
 
     const updateCustomFont = (customFont?: string) => {
@@ -398,7 +401,7 @@ export class TerminalSessionManager {
             ...selection,
           }
         : {
-            background: '#1f2937',
+            background: '#09090b',
             foreground: '#f9fafb',
             cursor: '#f9fafb',
             ...selection,

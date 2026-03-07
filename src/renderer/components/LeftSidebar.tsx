@@ -50,6 +50,8 @@ import {
   FolderClosed,
   GripVertical,
   Layers,
+  Settings,
+  Search,
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -71,8 +73,11 @@ import WorkspaceBar from './WorkspaceBar';
 import type { Task } from '../types/chat';
 import type { ConnectionState } from './ssh';
 
+export type SidebarViewMode = 'workspace' | 'all';
+
 interface LeftSidebarProps {
   projects: Project[];
+  allProjects?: Project[];
   groups?: ProjectGroup[];
   archivedTasksVersion?: number;
   selectedProject: Project | null;
@@ -119,6 +124,7 @@ interface LeftSidebarProps {
     projectId: string,
     workspaceId: string | null
   ) => void | Promise<void>;
+  onOpenSettings?: () => void;
 }
 
 // Helper to determine if a project is remote
@@ -157,6 +163,7 @@ const ProjectHeader: React.FC<{
 
 const LeftSidebar: React.FC<LeftSidebarProps> = ({
   projects,
+  allProjects,
   groups = [],
   archivedTasksVersion,
   selectedProject,
@@ -194,6 +201,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   onUpdateWorkspaceColor,
   onReorderWorkspaces,
   onMoveProjectToWorkspace,
+  onOpenSettings,
 }) => {
   const { open, isMobile, setOpen } = useSidebar();
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -214,6 +222,9 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   const [showNewGroupInput, setShowNewGroupInput] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const newGroupInputRef = useRef<HTMLInputElement>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [viewMode, setViewMode] = useState<SidebarViewMode>('workspace');
 
   // Fetch archived tasks for all projects
   const fetchArchivedTasks = useCallback(async () => {
@@ -443,6 +454,40 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
       <div ref={sidebarRef} className="h-full w-full">
         <Sidebar className="h-full w-full !border-r-0">
           <SidebarContent className="flex h-full w-full flex-col overflow-hidden !pb-0">
+            {/* Header: VALKYR AI + Settings */}
+            <div className="shrink-0 pb-0">
+              <Card className="w-full">
+                <CardContent className="flex items-center justify-between px-3 py-2">
+                  <span className="text-foreground text-xs font-semibold tracking-wider uppercase">Valkyr AI</span>
+                  {onOpenSettings && (
+                    <button
+                      type="button"
+                      className="text-muted-foreground hover:text-foreground rounded p-1 transition-colors"
+                      onClick={onOpenSettings}
+                      title="Settings"
+                    >
+                      <Settings className="h-4 w-4" />
+                    </button>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Search */}
+            <div className="shrink-0 py-2">
+              <div className="border-border bg-background flex items-center gap-2 rounded-md border px-2 py-1.5">
+                <Search className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search sessions..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="bg-transparent text-foreground placeholder:text-muted-foreground w-full text-xs outline-none"
+                />
+              </div>
+            </div>
+
             <ScrollArea className="min-h-0 w-full flex-1">
               <div className="w-full">
                 {projects.length === 0 && (
@@ -459,8 +504,20 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                 <SidebarGroup>
                   <SidebarGroupContent>
                     {(() => {
+                      // Use all projects when in "all" view mode
+                      const sourceProjects = viewMode === 'all' && allProjects ? allProjects : projects;
+
+                      // Filter projects by search query (matches project name or task names)
+                      const query = searchQuery.trim().toLowerCase();
+                      const filteredProjects = query
+                        ? sourceProjects.filter((p) => {
+                            if (p.name.toLowerCase().includes(query)) return true;
+                            return p.tasks?.some((t) => t.name.toLowerCase().includes(query));
+                          })
+                        : sourceProjects;
+
                       // Group projects by groupId
-                      const ungrouped = projects.filter((p) => !p.groupId);
+                      const ungrouped = filteredProjects.filter((p) => !p.groupId);
                       const sortedGroups = [...groups].sort(
                         (a, b) => a.displayOrder - b.displayOrder
                       );
@@ -922,6 +979,35 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                         );
                       };
 
+                      // "All workspaces" view: group by workspace
+                      if (viewMode === 'all' && workspaces.length > 0) {
+                        const defaultWs = workspaces.find((ws) => ws.isDefault);
+                        return (
+                          <div className="flex w-full flex-col gap-0 overflow-hidden">
+                            {workspaces.map((ws) => {
+                              const isDefault = ws.isDefault;
+                              const wsProjects = filteredProjects.filter((p) => {
+                                if (p.workspaceId === ws.id) return true;
+                                if (isDefault && !p.workspaceId) return true;
+                                return false;
+                              });
+                              if (wsProjects.length === 0) return null;
+                              return (
+                                <div key={ws.id} className="px-2 pt-2">
+                                  <div className="border-border text-muted-foreground flex items-center gap-1.5 rounded-t-md border border-b-0 px-3 py-1.5">
+                                    <div className="bg-muted-foreground/60 h-2 w-2 rounded-sm" />
+                                    <span className="text-[11px] font-semibold tracking-wider uppercase">
+                                      {ws.name}
+                                    </span>
+                                  </div>
+                                  {wsProjects.map((p) => renderProjectCard(p))}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      }
+
                       return (
                         <div className="flex w-full flex-col gap-0 overflow-hidden">
                           {/* Ungrouped projects */}
@@ -945,7 +1031,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                             getKey={(g) => g.id}
                           >
                             {(group) => {
-                              const groupProjects = projects.filter((p) => p.groupId === group.id);
+                              const groupProjects = filteredProjects.filter((p) => p.groupId === group.id);
                               const isEditingThisGroup = editingGroupId === group.id;
 
                               return (
@@ -1145,6 +1231,8 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                     onDeleteWorkspace={onDeleteWorkspace}
                     onUpdateWorkspaceColor={onUpdateWorkspaceColor}
                     onReorderWorkspaces={onReorderWorkspaces}
+                    viewMode={viewMode}
+                    onViewModeChange={setViewMode}
                   />
                 </div>
               )}

@@ -13,6 +13,11 @@
 @custom-variant dark (&:is(.dark *));
 @custom-variant dark-black (&:is(.dark-black *));
 
+/* Add internal padding to xterm terminals */
+.xterm {
+  padding: 8px 12px;
+}
+
 /* Hide xterm viewport scrollbars in embedded terminals */
 .xterm .xterm-viewport {
   background-color: transparent !important;

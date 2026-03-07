@@ -158,6 +158,7 @@ export function startDirectPty(options: {
   initialPrompt?: string;
   env?: Record<string, string>;
   resume?: boolean;
+  storedKeys?: Record<string, string>;
 }): IPty | null {
   if (process.env.VALKYR_DISABLE_PTY === '1') {
     throw new Error('PTY disabled via VALKYR_DISABLE_PTY=1');
@@ -173,6 +174,7 @@ export function startDirectPty(options: {
     initialPrompt,
     env,
     resume,
+    storedKeys,
   } = options;
 
   // Get the CLI path from cache
@@ -231,6 +233,15 @@ export function startDirectPty(options: {
   for (const key of AGENT_ENV_VARS) {
     if (process.env[key]) {
       useEnv[key] = process.env[key];
+    }
+  }
+
+  // Inject stored provider API keys from keytar (lower priority than process.env)
+  if (storedKeys) {
+    for (const [key, value] of Object.entries(storedKeys)) {
+      if (!useEnv[key] && value) {
+        useEnv[key] = value;
+      }
     }
   }
 
@@ -511,6 +522,19 @@ export async function startPty(options: {
   }
 
   ptys.set(id, { id, proc, kind: 'local' });
+
+  // For plain shell terminals, inject initialPrompt as typed input after shell starts
+  if (initialPrompt?.trim() && !shell) {
+    // Wait briefly for shell to initialize before sending the command
+    setTimeout(() => {
+      try {
+        proc.write(`${initialPrompt.trim()}\n`);
+      } catch {
+        // PTY may have exited already
+      }
+    }, 500);
+  }
+
   return proc;
 }
 

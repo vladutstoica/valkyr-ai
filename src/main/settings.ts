@@ -80,6 +80,9 @@ export interface AppSettings {
   voiceInput?: {
     enabled: boolean;
   };
+  providerOverrides?: Partial<
+    Record<ProviderId, { defaultChatMode?: 'acp' | 'cli'; cliCommand?: string }>
+  >;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -138,6 +141,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   voiceInput: {
     enabled: false,
   },
+  providerOverrides: {},
 };
 
 function getSettingsPath(): string {
@@ -382,6 +386,29 @@ function normalizeSettings(input: AppSettings): AppSettings {
   out.voiceInput = {
     enabled: Boolean(voiceInput?.enabled ?? DEFAULT_SETTINGS.voiceInput!.enabled),
   };
+
+  // Provider Overrides
+  const rawOverrides = (input as any)?.providerOverrides;
+  if (rawOverrides && typeof rawOverrides === 'object' && !Array.isArray(rawOverrides)) {
+    const cleaned: AppSettings['providerOverrides'] = {};
+    for (const [key, val] of Object.entries(rawOverrides)) {
+      if (!isValidProviderId(key) || !val || typeof val !== 'object') continue;
+      const entry = val as Record<string, unknown>;
+      const override: { defaultChatMode?: 'acp' | 'cli'; cliCommand?: string } = {};
+      if (entry.defaultChatMode === 'acp' || entry.defaultChatMode === 'cli') {
+        override.defaultChatMode = entry.defaultChatMode;
+      }
+      if (typeof entry.cliCommand === 'string' && entry.cliCommand.trim()) {
+        override.cliCommand = entry.cliCommand.trim();
+      }
+      if (Object.keys(override).length > 0) {
+        (cleaned as any)[key] = override;
+      }
+    }
+    out.providerOverrides = cleaned;
+  } else {
+    out.providerOverrides = {};
+  }
 
   return out;
 }

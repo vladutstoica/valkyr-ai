@@ -6,7 +6,6 @@ export type SettingsTab =
   | 'appearance'
   | 'agents'
   | 'mcp'
-  | 'connections'
   | 'repository'
   | 'about';
 
@@ -15,7 +14,6 @@ export const ORDERED_TABS: SettingsTab[] = [
   'appearance',
   'agents',
   'mcp',
-  'connections',
   'repository',
   'about',
 ];

@@ -1,7 +1,15 @@
 import React, { useCallback, useState, useEffect, useMemo, useRef } from 'react';
-import { ChevronDown, ChevronUp, Loader2, Plus, Terminal, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Loader2, Play, Plus, Terminal, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from '../ui/dropdown-menu';
 import { useTerminalPanel } from '../../hooks/useTerminalPanel';
 import { useTerminalShortcut } from '../../hooks/useTerminalShortcut';
 import { useTaskTerminals } from '@/lib/taskTerminalsStore';
@@ -137,6 +145,28 @@ export function TerminalPanel({
       }
     },
     [terminals.length, closeTerminal]
+  );
+
+  // Fetch package.json scripts
+  const [scripts, setScripts] = useState<{ name: string; command: string }[]>([]);
+  useEffect(() => {
+    if (!terminalCwd) return;
+    window.electronAPI?.getScripts?.(terminalCwd).then((result) => {
+      if (result?.success && result.data) {
+        setScripts(result.data);
+      }
+    }).catch(() => {});
+  }, [terminalCwd]);
+
+  const handleRunScript = useCallback(
+    (scriptName: string) => {
+      if (!terminalCwd) return;
+      // Detect package manager from lockfiles
+      const cmd = `pnpm run ${scriptName}`;
+      createTerminal({ title: scriptName, cwd: terminalCwd, initialPrompt: cmd });
+      if (isCollapsed) toggleCollapsed();
+    },
+    [terminalCwd, createTerminal, isCollapsed, toggleCollapsed]
   );
 
   // Track which terminals are actively running a command.
@@ -376,6 +406,37 @@ export function TerminalPanel({
               <Plus className="h-4 w-4" />
             </button>
           )}
+
+          {/* Run script dropdown */}
+          {scripts.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-muted-foreground hover:text-foreground flex items-center gap-1 px-2 py-2 text-xs transition-colors"
+                  title="Run script"
+                >
+                  <Play className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Scripts</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="max-h-64 overflow-y-auto">
+                <DropdownMenuLabel className="text-xs">package.json scripts</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {scripts.map((script) => (
+                  <DropdownMenuItem
+                    key={script.name}
+                    onClick={() => handleRunScript(script.name)}
+                    className="gap-2"
+                  >
+                    <Play className="h-3 w-3 shrink-0" />
+                    <span className="font-mono text-xs">{script.name}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
         {/* Right side: Collapse toggle */}
@@ -426,6 +487,7 @@ export function TerminalPanel({
                   <TerminalPane
                     id={terminal.id}
                     cwd={terminal.cwd || terminalCwd}
+                    initialPrompt={terminal.initialPrompt}
                     variant={
                       effectiveTheme === 'dark' || effectiveTheme === 'dark-black'
                         ? 'dark'

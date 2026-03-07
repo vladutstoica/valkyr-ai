@@ -3,7 +3,7 @@ import { join } from 'path';
 import { homedir } from 'os';
 
 function resolveDefaultDbFile() {
-  const explicit = process.env.EMDASH_DB_FILE || process.env.VALKYR_DB_FILE;
+  const explicit = process.env.VALKYR_DB_FILE;
   if (explicit && explicit.length > 0) {
     return explicit;
   }

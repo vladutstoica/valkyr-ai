@@ -212,9 +212,14 @@ export function AppLayout({
         </div>
 
         {/* Main Panel with Tabs */}
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="min-w-0 flex-1 overflow-hidden p-3">
+        <div className="border-border flex h-full flex-col overflow-hidden rounded-md border">
           {/* Tab Bar */}
-          <TabBar />
+          <TabBar
+            openInPath={activeTask?.path || selectedProject?.path}
+            isRemote={!!selectedProject?.isRemote}
+            sshConnectionId={selectedProject?.sshConnectionId}
+          />
 
           {/* Tab Content */}
           <TabContainer
@@ -237,6 +242,7 @@ export function AppLayout({
               projectPath={selectedProject?.path}
             />
           </ErrorBoundary>
+        </div>
         </div>
       </div>
 

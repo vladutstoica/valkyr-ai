@@ -5,7 +5,6 @@ import { Separator } from '../ui/separator';
 import {
   ChevronLeft,
   Settings2,
-  Cable,
   RefreshCw,
   GitBranch,
   Puzzle,
@@ -14,7 +13,6 @@ import {
   Blocks,
 } from 'lucide-react';
 import { UpdateCard } from '../UpdateCard';
-import IntegrationsCard from '../IntegrationsCard';
 import CliAgentsList, { BASE_CLI_AGENTS } from '../CliAgentsList';
 import TelemetryCard from '../TelemetryCard';
 import ThemeCard from '../ThemeCard';
@@ -241,12 +239,6 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab, onBack, project
         title: 'MCP Servers',
         sections: [] as SettingsSection[], // McpView renders directly, not via sections
       },
-      connections: {
-        icon: Cable,
-        label: 'Connections',
-        title: 'Connections',
-        sections: [{ title: 'Integrations', render: () => <IntegrationsCard /> }],
-      },
       repository: {
         icon: GitBranch,
         label: 'Repository',
@@ -282,7 +274,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab, onBack, project
                   variant="link"
                   size="sm"
                   className="h-auto justify-start px-0 text-xs"
-                  onClick={() => window.electronAPI.openExternal('https://docs.emdash.sh')}
+                  onClick={() => window.electronAPI.openExternal('https://github.com/vladutstoica/valkyr-ai')}
                 >
                   Documentation ↗
                 </Button>
