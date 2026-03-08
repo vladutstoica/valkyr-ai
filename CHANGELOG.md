@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.3.1](https://github.com/vladutstoica/valkyr-ai/compare/valkyr-v0.3.0...valkyr-v0.3.1) (2026-03-08)
+
+
+### Performance
+
+* **build:** add manual chunk splitting for Monaco and xterm ([657ecc9](https://github.com/vladutstoica/valkyr-ai/commit/657ecc9f297db0453bf009abf6e8fad1205e91f2))
+* **db:** add missing indexes on tasks.archivedAt and kanbanColumns.taskId ([ab778b6](https://github.com/vladutstoica/valkyr-ai/commit/ab778b678876a6e23e0f62fe3d5f97ef72446218))
+* **renderer:** lazy-load all modal components in App.tsx ([f205c18](https://github.com/vladutstoica/valkyr-ai/commit/f205c180def11dfa176dd09fe595b1b606d4ea85))
+* **renderer:** lazy-load Monaco diff components ([469e90c](https://github.com/vladutstoica/valkyr-ai/commit/469e90cc762379d18347eeb74cdfa3fb8b2643f8))
+* **renderer:** lazy-load UpdateProjectModal in ProjectMainView ([4769581](https://github.com/vladutstoica/valkyr-ai/commit/47695811f3a38eb5f365d0318395c81deac2f0fa))
+* **renderer:** memoize KeyboardSettingsContext value ([0de0531](https://github.com/vladutstoica/valkyr-ai/commit/0de05316e04c7d1533ddae94dd8f82dca80f3604))
+* **startup:** convert shell PATH discovery from sync to async ([50cd175](https://github.com/vladutstoica/valkyr-ai/commit/50cd1755ae53277547b64b5671de2f48725ee9f9))
+* **startup:** make SSH_AUTH_SOCK detection async ([dd16126](https://github.com/vladutstoica/valkyr-ai/commit/dd161264582fe7e7673c769c92fe6bfed7aa9c8c))
+* **startup:** reorder app bootstrap to show window sooner ([bad6d8a](https://github.com/vladutstoica/valkyr-ai/commit/bad6d8a085a35037592b646a77a523135c891463))
+
+
+### Code Refactoring
+
+* **app:** remove integrations, redesign session modal, expand Open In apps, add provider detection and workspace all-view ([d28a75d](https://github.com/vladutstoica/valkyr-ai/commit/d28a75d0a72eb5b5df14842fd89cea33d0f6a18b))
+* **renderer:** decompose god components, delete dead code, extract services and hooks ([1c9b842](https://github.com/vladutstoica/valkyr-ai/commit/1c9b842f16ebb51f55a4a19a4510a4f1820b95f0))
+* **renderer:** group components into feature dirs, delete orphans, extract services and DRY hooks ([d8ff43a](https://github.com/vladutstoica/valkyr-ai/commit/d8ff43ac7dbab896f59bc5e4f1fccd042c644f37))
+
 ## [0.3.0](https://github.com/vladutstoica/valkyr-ai/compare/valkyr-v0.2.0...valkyr-v0.3.0) (2026-02-27)
 
 
