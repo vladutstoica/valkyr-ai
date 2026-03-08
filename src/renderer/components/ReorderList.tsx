@@ -10,6 +10,7 @@ interface ReorderListProps<T> {
   className?: string;
   itemClassName?: string;
   layoutScroll?: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   as?: keyof JSX.IntrinsicElements | React.ComponentType<any>;
   getKey?: (item: T, index: number) => string | number;
   children: (item: T, index: number) => React.ReactNode;
@@ -28,9 +29,11 @@ export function ReorderList<T>({
 }: ReorderListProps<T>) {
   return (
     <Reorder.Group
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       as={as as any}
       axis={axis}
       values={items}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onReorder={onReorder as any}
       layoutScroll={layoutScroll}
       className={className}
@@ -38,7 +41,8 @@ export function ReorderList<T>({
       {items.map((item, index) => (
         <Reorder.Item
           as="div"
-          key={(getKey ? getKey(item, index) : (index as any)) as React.Key}
+          key={(getKey ? getKey(item, index) : index) as React.Key}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           value={item as any}
           className={itemClassName}
         >

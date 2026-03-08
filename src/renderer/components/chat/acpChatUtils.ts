@@ -86,6 +86,7 @@ export function findPlanFileInfo(
     if (msg.role !== 'assistant') continue;
     const parts = msg.parts ?? [];
     for (let pi = parts.length - 1; pi >= 0; pi--) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const part = parts[pi] as any;
       // AI SDK uses both 'tool-invocation' and 'tool-{name}' type formats
       if (!part?.type?.startsWith('tool-') && part?.type !== 'tool-invocation') continue;
@@ -121,6 +122,7 @@ export function findPlanFileInfo(
 }
 
 /** Summarize a group of tool calls by type, e.g. "Read 5 files, ran 3 commands" */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function summarizeToolRun(toolRun: Array<{ part: any }>): string {
   const counts: Record<string, number> = {};
   for (const t of toolRun) {

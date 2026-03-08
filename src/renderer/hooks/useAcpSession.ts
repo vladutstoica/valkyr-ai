@@ -12,6 +12,34 @@ import { createLogger } from '../lib/logger';
 const log = createLogger('hook:useAcpSession');
 const api = () => window.electronAPI;
 
+/** Shape of a stored message part from DB (pre-AI SDK format) */
+interface StoredMessagePart {
+  type: string;
+  text?: string;
+  toolName?: string;
+  toolCallId?: string;
+  state?: string;
+  args?: Record<string, unknown>;
+  result?: unknown;
+  [key: string]: unknown;
+}
+
+/** Shape of a DB message row from getMessages IPC */
+interface DbMessageRow {
+  id: string;
+  sender: string;
+  content?: string;
+  parts?: string;
+}
+
+/** Shape of tool call content items */
+interface ToolContentItem {
+  type: string;
+  content?: { type?: string; text?: string };
+  diff?: string;
+  output?: string;
+}
+
 export type UseAcpSessionOptions = {
   conversationId: string;
   providerId: string;
@@ -37,14 +65,14 @@ export type UseAcpSessionReturn = {
 /**
  * Convert persisted DB message parts (old AcpMessagePart format) to AI SDK UIMessagePart format.
  */
-function convertStoredParts(parts: any[]): UIMessage['parts'] {
+function convertStoredParts(parts: StoredMessagePart[]): UIMessage['parts'] {
   const result: UIMessage['parts'] = [];
 
   for (const part of parts) {
     if (part.type === 'text') {
-      result.push({ type: 'text', text: part.text });
+      result.push({ type: 'text', text: part.text || '' });
     } else if (part.type === 'reasoning') {
-      result.push({ type: 'reasoning', text: part.text });
+      result.push({ type: 'reasoning', text: part.text || '' });
     } else if (part.type === 'tool-invocation') {
       // Old format used 'tool-invocation'; AI SDK uses 'tool-{toolName}'
       // For restored messages, use dynamic tool part format
@@ -55,12 +83,15 @@ function convertStoredParts(parts: any[]): UIMessage['parts'] {
         state: part.state === 'result' ? 'output-available' : 'input-available',
         input: part.args || {},
         output: part.result,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
     } else if (typeof part.type === 'string' && part.type.startsWith('tool-')) {
       // New AI SDK format (tool-Read, tool-Write, etc.) — pass through as-is
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       result.push(part as any);
     } else if (part.type) {
       // Unknown type — include rather than silently drop
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       result.push(part as any);
     }
   }
@@ -71,7 +102,7 @@ function convertStoredParts(parts: any[]): UIMessage['parts'] {
 /**
  * Safely parse a message's parts JSON, falling back to plain text on error.
  */
-function safeParseMessageParts(m: any): UIMessage['parts'] {
+function safeParseMessageParts(m: DbMessageRow): UIMessage['parts'] {
   if (!m.parts) {
     return [{ type: 'text' as const, text: m.content || '' }];
   }
@@ -106,6 +137,7 @@ function convertHistoryToMessages(events: AcpUpdateEvent[]): UIMessage[] {
 
   function flushReasoning() {
     if (reasoningAccumulator) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       currentParts.push({ type: 'reasoning', text: reasoningAccumulator } as any);
       reasoningAccumulator = '';
     }
@@ -180,6 +212,7 @@ function convertHistoryToMessages(events: AcpUpdateEvent[]): UIMessage[] {
           toolName,
           state: 'input-available',
           input: update.rawInput ?? { title: update.title },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any);
         break;
       }
@@ -189,7 +222,8 @@ function convertHistoryToMessages(events: AcpUpdateEvent[]): UIMessage[] {
         if (!toolCallId) break;
         if (update.status === 'completed' || update.status === 'failed') {
           // Find the matching tool part and update its state
-          const toolPart = currentParts.find((p: any) => p.toolCallId === toolCallId) as any;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const toolPart = currentParts.find((p) => (p as any).toolCallId === toolCallId) as any;
           if (toolPart) {
             toolPart.state = 'output-available';
             toolPart.output =
@@ -214,7 +248,7 @@ function convertHistoryToMessages(events: AcpUpdateEvent[]): UIMessage[] {
 }
 
 /** Extract displayable text from ToolCallContent array (same logic as ChunkMapper). */
-function extractToolContent(content: any[] | undefined | null): string | undefined {
+function extractToolContent(content: ToolContentItem[] | undefined | null): string | undefined {
   if (!content || !Array.isArray(content)) return undefined;
   const parts: string[] = [];
   for (const item of content) {
@@ -313,9 +347,11 @@ export function useAcpSession(options: UseAcpSessionOptions): UseAcpSessionRetur
       // expensive event-stream parsing that blocks the main thread).  Fall back
       // to ACP history only when DB has no messages (e.g. first launch after
       // migration, or if DB save failed).
-      const dbMessages = msgResult.success ? (msgResult as any).messages : undefined;
+      const dbMessages = msgResult.success
+        ? (msgResult as { success: boolean; messages?: DbMessageRow[] }).messages
+        : undefined;
       if (dbMessages && dbMessages.length > 0) {
-        const restored: UIMessage[] = dbMessages.map((m: any) => ({
+        const restored: UIMessage[] = dbMessages.map((m: DbMessageRow) => ({
           id: m.id,
           role: m.sender === 'user' ? ('user' as const) : ('assistant' as const),
           parts: safeParseMessageParts(m),

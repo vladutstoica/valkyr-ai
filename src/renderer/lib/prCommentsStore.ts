@@ -1,5 +1,6 @@
 import type { PrCommentsStatus } from './prCommentsStatus';
 import { buildPrCommentsStatus } from './prCommentsStatus';
+import { getPrComments } from '../services/gitService';
 
 type Listener = (status: PrCommentsStatus | null) => void;
 
@@ -11,7 +12,7 @@ const prNumbers = new Map<string, number>();
 async function fetchPrComments(taskPath: string): Promise<PrCommentsStatus | null> {
   try {
     const prNumber = prNumbers.get(taskPath);
-    const res = await window.electronAPI.getPrComments({ taskPath, prNumber });
+    const res = await getPrComments({ taskPath, prNumber });
     if (res?.success) {
       return buildPrCommentsStatus(res.comments || [], res.reviews || []);
     }

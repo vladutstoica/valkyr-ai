@@ -3,6 +3,7 @@ import { ChevronRight, ChevronDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FileIcon } from './FileIcons';
 import type { FileChange } from '@/hooks/useFileChanges';
+import { fsCheckIgnored, fsReaddir } from '@/services/fsService';
 
 export interface FileNode {
   id: string;
@@ -159,7 +160,7 @@ export const FileTree: React.FC<FileTreeProps> = ({
   // Load a directory's contents
   const loadDirectory = useCallback(
     async (dirPath: string, fullPath: string): Promise<FileNode[]> => {
-      const result = await window.electronAPI.fsReaddir(fullPath);
+      const result = await fsReaddir(fullPath);
 
       if (!result.success || !result.items) {
         console.error('Failed to load directory:', result.error);
@@ -176,7 +177,7 @@ export const FileTree: React.FC<FileTreeProps> = ({
       // Check which paths are ignored by git
       let ignoredSet = new Set<string>();
       if (paths.length > 0) {
-        const ignoreResult = await window.electronAPI.fsCheckIgnored(rootPath, paths);
+        const ignoreResult = await fsCheckIgnored(rootPath, paths);
         if (ignoreResult.success && ignoreResult.ignoredPaths) {
           ignoredSet = new Set(ignoreResult.ignoredPaths);
         }

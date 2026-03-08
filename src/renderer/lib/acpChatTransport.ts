@@ -292,7 +292,8 @@ export interface AcpToolMetadata {
  * Extract ACP metadata from a tool part's callProviderMetadata.
  * Returns undefined if no ACP metadata is present.
  */
-export function getAcpMeta(toolPart: any): AcpToolMetadata | undefined {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getAcpMeta(toolPart: { callProviderMetadata?: { acp?: AcpToolMetadata }; [key: string]: any }): AcpToolMetadata | undefined {
   return toolPart?.callProviderMetadata?.acp;
 }
 
@@ -312,7 +313,7 @@ export type AcpPlanEntry = {
 export type AcpCommand = {
   name: string;
   description?: string;
-  inputSchema?: any;
+  inputSchema?: Record<string, unknown>;
 };
 
 export type AcpConfigOption = {
@@ -359,7 +360,8 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
   private _sideChannel: AcpSideChannelEvents = {};
 
   /** Buffer for side-channel events that arrive before callbacks are wired. */
-  private sideChannelBuffer: Array<{ updateType: string; update: any }> = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private sideChannelBuffer: Array<{ updateType: string; update: Record<string, any> }> = [];
 
   get sideChannel(): AcpSideChannelEvents {
     return this._sideChannel;
@@ -405,7 +407,8 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
   private dispatchSideChannelEvent(
     sc: AcpSideChannelEvents,
     updateType: string,
-    update: any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    update: Record<string, any>
   ): boolean {
     if (updateType === 'available_commands_update' && sc.onCommandsUpdate) {
       sc.onCommandsUpdate(update.availableCommands || update.commands || []);
@@ -414,7 +417,7 @@ export class AcpChatTransport implements ChatTransport<UIMessage> {
       sc.onModeUpdate(update.modeId || update.currentModeId || '');
       return true;
     } else if (updateType === 'config_option_update' && sc.onConfigOptionUpdate) {
-      sc.onConfigOptionUpdate(update);
+      sc.onConfigOptionUpdate(update as unknown as AcpConfigOption);
       return true;
     } else if (updateType === 'session_info_update' && sc.onSessionInfoUpdate) {
       sc.onSessionInfoUpdate({ title: update.title, timestamp: update.timestamp });

@@ -3,9 +3,9 @@
  * Captures events and sends them to the main process via IPC.
  */
 
-export function captureTelemetry(event: string, properties?: Record<string, any>): void {
+export function captureTelemetry(event: string, properties?: Record<string, unknown>): void {
   try {
-    const api = (window as any).electronAPI;
+    const api = window.electronAPI;
     if (api?.captureTelemetry) {
       void api.captureTelemetry(event, properties);
     }

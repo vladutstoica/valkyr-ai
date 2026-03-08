@@ -1,0 +1,913 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { X, ChevronDown, ChevronRight, AlertCircle, Copy, Check } from 'lucide-react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { DiffEditor, loader } from '@monaco-editor/react';
+import { fsRead, fsWriteFile } from '@/services/fsService';
+import { getFileDiff } from '@/services/gitService';
+import type * as monaco from 'monaco-editor';
+import { type FileChange } from '../../hooks/useFileChanges';
+import type { DiffLine } from '../../hooks/useFileDiff';
+import {
+  convertDiffLinesToMonacoFormat,
+  getMonacoLanguageId,
+  isBinaryFile,
+} from '../../lib/diffUtils';
+import { useToast } from '../../hooks/use-toast';
+import { MONACO_DIFF_COLORS } from '../../lib/monacoDiffColors';
+import { configureDiffEditorDiagnostics, resetDiagnosticOptions } from '../../lib/monacoDiffConfig';
+import { useTheme } from '../../hooks/useTheme';
+import { useTaskScope } from '../project/TaskScopeContext';
+
+interface AllChangesDiffModalProps {
+  open: boolean;
+  onClose: () => void;
+  taskPath?: string;
+  files: FileChange[];
+  onRefreshChanges?: () => Promise<void> | void;
+}
+
+interface FileDiffData {
+  original: string;
+  modified: string;
+  initialModified: string;
+  language: string;
+  loading: boolean;
+  error: string | null;
+  expanded: boolean;
+  saving?: boolean;
+  saveError?: string | null;
+}
+
+export const AllChangesDiffModal: React.FC<AllChangesDiffModalProps> = ({
+  open,
+  onClose,
+  taskPath,
+  files,
+  onRefreshChanges,
+}) => {
+  const { taskPath: scopedTaskPath } = useTaskScope();
+  const resolvedTaskPath = taskPath ?? scopedTaskPath ?? '';
+  const shouldReduceMotion = useReducedMotion();
+  const { toast } = useToast();
+  const { effectiveTheme } = useTheme();
+  const [fileData, setFileData] = useState<Map<string, FileDiffData>>(new Map());
+  const [copiedFile, setCopiedFile] = useState<string | null>(null);
+  const isDark = effectiveTheme === 'dark' || effectiveTheme === 'dark-black';
+  const editorRefs = useRef<Map<string, monaco.editor.IStandaloneDiffEditor>>(new Map());
+  const changeDisposables = useRef<Map<string, monaco.IDisposable>>(new Map());
+
+  // Close on escape key
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open, onClose]);
+
+  const updateFileData = (filePath: string, updater: (data: FileDiffData) => FileDiffData) => {
+    setFileData((prev) => {
+      const existing = prev.get(filePath);
+      if (!existing) return prev;
+      const next = new Map(prev);
+      next.set(filePath, updater(existing));
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      changeDisposables.current.forEach((d) => {
+        try {
+          d.dispose();
+        } catch {
+          // ignore
+        }
+      });
+      changeDisposables.current.clear();
+      editorRefs.current.clear();
+
+      // Reset diagnostic options when closing modal
+      loader
+        .init()
+        .then((monaco) => {
+          resetDiagnosticOptions(monaco);
+        })
+        .catch(() => {
+          // Ignore errors during cleanup
+        });
+    };
+  }, []);
+
+  const handleSave = async (filePath: string) => {
+    const current = fileData.get(filePath);
+    if (!current || current.loading || current.error || !resolvedTaskPath) return;
+    updateFileData(filePath, (data) => ({ ...data, saving: true, saveError: null }));
+    try {
+      const res = await fsWriteFile(
+        resolvedTaskPath,
+        filePath,
+        current.modified,
+        true
+      );
+      if (!res?.success) {
+        throw new Error(res?.error || 'Failed to save file');
+      }
+      updateFileData(filePath, (data) => ({
+        ...data,
+        initialModified: data.modified,
+        saving: false,
+        saveError: null,
+      }));
+      toast({ title: 'Saved', description: filePath });
+      if (onRefreshChanges) {
+        await onRefreshChanges();
+      }
+    } catch (error: unknown) {
+      const message = (error instanceof Error ? error.message : String(error)) || 'Failed to save file';
+      updateFileData(filePath, (data) => ({ ...data, saving: false, saveError: message }));
+      toast({
+        title: 'Save failed',
+        description: message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Load file data when modal opens or files change
+  useEffect(() => {
+    if (!open || files.length === 0 || !resolvedTaskPath) {
+      setFileData(new Map());
+      return;
+    }
+
+    const loadFileData = async (file: FileChange) => {
+      const filePath = file.path;
+      const language = getMonacoLanguageId(filePath);
+
+      // Skip binary files
+      if (isBinaryFile(filePath)) {
+        setFileData((prev) => {
+          const next = new Map(prev);
+          next.set(filePath, {
+            original: '',
+            modified: '',
+            initialModified: '',
+            language: 'plaintext',
+            loading: false,
+            error: 'Binary file - diff not available',
+            expanded: true, // Default expanded
+          });
+          return next;
+        });
+        return;
+      }
+
+      // Set loading state
+      setFileData((prev) => {
+        const next = new Map(prev);
+        next.set(filePath, {
+          original: '',
+          modified: '',
+          initialModified: '',
+          language,
+          loading: true,
+          error: null,
+          expanded: true, // Default expanded
+        });
+        return next;
+      });
+
+      try {
+        // Get diff lines
+        if (!resolvedTaskPath) return;
+        const diffRes = await getFileDiff({
+          taskPath: resolvedTaskPath,
+          filePath,
+        });
+        if (!diffRes?.success || !diffRes.diff) {
+          throw new Error(diffRes?.error || 'Failed to load diff');
+        }
+
+        const diffLines: DiffLine[] = diffRes.diff.lines;
+
+        // For deleted files, try to read original from git
+        // For added files, read the current file
+        // For modified files, we'll use the diff to reconstruct
+
+        let originalContent = '';
+        let modifiedContent = '';
+
+        if (file.status === 'deleted') {
+          // Try to read from git (HEAD version)
+          // For now, use diff lines to reconstruct original
+          const converted = convertDiffLinesToMonacoFormat(diffLines);
+          originalContent = converted.original;
+          modifiedContent = '';
+        } else if (file.status === 'added') {
+          // Read current file content
+          const readRes = await fsRead(
+            resolvedTaskPath,
+            filePath,
+            2 * 1024 * 1024
+          );
+          if (readRes?.success && readRes.content) {
+            modifiedContent = readRes.content;
+            originalContent = '';
+          } else {
+            // Fallback: use diff lines
+            const converted = convertDiffLinesToMonacoFormat(diffLines);
+            originalContent = '';
+            modifiedContent = converted.modified;
+          }
+        } else {
+          // Modified file: reconstruct from diff
+          const converted = convertDiffLinesToMonacoFormat(diffLines);
+          originalContent = converted.original;
+          modifiedContent = converted.modified;
+
+          // Try to read actual current content for better accuracy
+          try {
+            const readRes = await fsRead(
+              resolvedTaskPath,
+              filePath,
+              2 * 1024 * 1024
+            );
+            if (readRes?.success && readRes.content) {
+              modifiedContent = readRes.content;
+            }
+          } catch {
+            // Fallback to diff-based content
+          }
+        }
+
+        setFileData((prev) => {
+          const next = new Map(prev);
+          next.set(filePath, {
+            original: originalContent,
+            modified: modifiedContent,
+            initialModified: modifiedContent,
+            language,
+            loading: false,
+            error: null,
+            expanded: true, // Default expanded
+          });
+          return next;
+        });
+      } catch (error: unknown) {
+        setFileData((prev) => {
+          const next = new Map(prev);
+          next.set(filePath, {
+            original: '',
+            modified: '',
+            initialModified: '',
+            language,
+            loading: false,
+            error: (error instanceof Error ? error.message : String(error)) || 'Failed to load file diff',
+            expanded: true, // Default expanded even on error
+          });
+          return next;
+        });
+      }
+    };
+
+    // Load all files
+    files.forEach((file) => {
+      if (!fileData.has(file.path)) {
+        loadFileData(file);
+      }
+    });
+  }, [open, files, resolvedTaskPath]);
+
+  // Add custom scrollbar styles and Monaco theme
+  useEffect(() => {
+    if (!open) return;
+
+    const styleId = 'all-changes-modal-styles';
+    if (document.getElementById(styleId)) return;
+
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+      .all-changes-scrollable {
+        scrollbar-width: thin;
+        scrollbar-color: ${isDark ? 'rgba(156, 163, 175, 0.3)' : 'rgba(107, 114, 128, 0.3)'} transparent;
+        padding-right: 7px; /* Add padding to move scrollbar left of overview ruler (3px ruler + 4px gap) */
+      }
+      .all-changes-scrollable::-webkit-scrollbar {
+        width: 11px;
+        height: 11px;
+      }
+      .all-changes-scrollable::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .all-changes-scrollable::-webkit-scrollbar-thumb {
+        background: ${isDark ? 'rgba(156, 163, 175, 0.3)' : 'rgba(107, 114, 128, 0.3)'};
+        border-radius: 6px;
+        border: 2.5px solid transparent;
+        background-clip: padding-box;
+        min-height: 20px;
+      }
+      .all-changes-scrollable::-webkit-scrollbar-thumb:hover {
+        background: ${isDark ? 'rgba(156, 163, 175, 0.5)' : 'rgba(107, 114, 128, 0.5)'};
+        background-clip: padding-box;
+      }
+      .all-changes-scrollable::-webkit-scrollbar-thumb:active {
+        background: ${isDark ? 'rgba(156, 163, 175, 0.7)' : 'rgba(107, 114, 128, 0.7)'};
+        background-clip: padding-box;
+      }
+      .all-changes-scrollable::-webkit-scrollbar-corner {
+        background: transparent;
+      }
+      /* Override global scrollbar styles for modal */
+      [data-all-changes-modal] *::-webkit-scrollbar {
+        width: 11px !important;
+        height: 11px !important;
+      }
+      [data-all-changes-modal] *::-webkit-scrollbar-track {
+        background: transparent !important;
+      }
+      [data-all-changes-modal] *::-webkit-scrollbar-thumb {
+        background: ${isDark ? 'rgba(156, 163, 175, 0.3)' : 'rgba(107, 114, 128, 0.3)'} !important;
+        border-radius: 6px !important;
+        border: 2.5px solid transparent !important;
+        background-clip: padding-box !important;
+      }
+      [data-all-changes-modal] *::-webkit-scrollbar-thumb:hover {
+        background: ${isDark ? 'rgba(156, 163, 175, 0.5)' : 'rgba(107, 114, 128, 0.5)'} !important;
+        background-clip: padding-box !important;
+      }
+      /* Fix Monaco diff editor spacing */
+      .monaco-diff-editor .diffViewport {
+        padding-left: 0 !important;
+      }
+      /* Right-align line numbers and optimize spacing */
+      .monaco-diff-editor .line-numbers {
+        text-align: right !important;
+        padding-right: 12px !important;
+        padding-left: 4px !important;
+        min-width: 40px !important;
+      }
+      /* Hide left/original line numbers in unified diff view */
+      .monaco-diff-editor .original .line-numbers {
+        display: none !important;
+      }
+      .monaco-diff-editor .original .margin {
+        display: none !important;
+      }
+      /* Make overview ruler thinner */
+      .monaco-diff-editor .monaco-editor .overview-ruler {
+        width: 3px !important;
+      }
+      .monaco-diff-editor .monaco-editor .overview-ruler .overview-ruler-content {
+        width: 3px !important;
+      }
+      /* Hide +/- indicators on the left sidebar - multiple selectors to ensure they're hidden */
+      .monaco-diff-editor .margin-view-overlays .line-insert,
+      .monaco-diff-editor .margin-view-overlays .line-delete,
+      .monaco-diff-editor .margin-view-overlays .codicon-add,
+      .monaco-diff-editor .margin-view-overlays .codicon-remove,
+      .monaco-diff-editor .margin-view-overlays .codicon-diff-added,
+      .monaco-diff-editor .margin-view-overlays .codicon-diff-removed {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+      }
+      /* Add thin border between line numbers and code content */
+      .monaco-diff-editor .modified .margin-view-overlays {
+        border-right: 1px solid ${isDark ? 'rgba(156, 163, 175, 0.2)' : 'rgba(107, 114, 128, 0.2)'} !important;
+      }
+      .monaco-diff-editor .monaco-editor .margin {
+        border-right: 1px solid ${isDark ? 'rgba(156, 163, 175, 0.2)' : 'rgba(107, 114, 128, 0.2)'} !important;
+      }
+      .monaco-diff-editor .monaco-editor-background {
+        margin-left: 0 !important;
+      }
+      /* Hide Monaco's default scrollbar completely and use custom */
+      .monaco-diff-editor .monaco-scrollable-element > .scrollbar {
+        margin: 0 !important;
+        background: transparent !important;
+      }
+      .monaco-diff-editor .monaco-scrollable-element > .scrollbar > .slider {
+        background: transparent !important;
+      }
+      /* Apple-like scrollbar for Monaco editor - only show on hover */
+      .monaco-diff-editor:hover .monaco-scrollable-element > .scrollbar > .slider {
+        background: ${isDark ? 'rgba(156, 163, 175, 0.2)' : 'rgba(107, 114, 128, 0.2)'} !important;
+        border-radius: 6px !important;
+        border: 2.5px solid transparent !important;
+        background-clip: padding-box !important;
+      }
+      .monaco-diff-editor .monaco-scrollable-element > .scrollbar > .slider:hover {
+        background: ${isDark ? 'rgba(156, 163, 175, 0.4)' : 'rgba(107, 114, 128, 0.4)'} !important;
+        background-clip: padding-box !important;
+      }
+      .monaco-diff-editor .monaco-scrollable-element > .scrollbar > .slider:active {
+        background: ${isDark ? 'rgba(156, 163, 175, 0.6)' : 'rgba(107, 114, 128, 0.6)'} !important;
+        background-clip: padding-box !important;
+      }
+      .monaco-diff-editor .monaco-scrollable-element > .scrollbar.vertical {
+        width: 4px !important;
+        right: 0 !important;
+      }
+      .monaco-diff-editor .monaco-scrollable-element > .scrollbar.horizontal {
+        height: 11px !important;
+        bottom: 0 !important;
+      }
+      /* Hide any shadow or overlay from Monaco */
+      .monaco-diff-editor .monaco-scrollable-element {
+        box-shadow: none !important;
+      }
+      .monaco-diff-editor .overflow-guard {
+        box-shadow: none !important;
+      }
+    `;
+    document.head.appendChild(style);
+
+    // Define custom Monaco themes - simpler approach
+    const defineThemes = async () => {
+      try {
+        const monaco = await loader.init();
+
+        // Determine which colors to use based on theme
+        const themeColors =
+          effectiveTheme === 'dark-black'
+            ? MONACO_DIFF_COLORS['dark-black']
+            : effectiveTheme === 'dark'
+              ? MONACO_DIFF_COLORS.dark
+              : MONACO_DIFF_COLORS.light;
+
+        // Dark theme with custom background
+        monaco.editor.defineTheme('custom-diff-dark', {
+          base: 'vs-dark',
+          inherit: true,
+          rules: [],
+          colors: {
+            'editor.background': MONACO_DIFF_COLORS.dark.editorBackground,
+            'editorGutter.background': MONACO_DIFF_COLORS.dark.editorBackground,
+            'diffEditor.insertedTextBackground': MONACO_DIFF_COLORS.dark.insertedTextBackground,
+            'diffEditor.insertedLineBackground': MONACO_DIFF_COLORS.dark.insertedLineBackground,
+            'diffEditor.removedTextBackground': MONACO_DIFF_COLORS.dark.removedTextBackground,
+            'diffEditor.removedLineBackground': MONACO_DIFF_COLORS.dark.removedLineBackground,
+            'diffEditor.unchangedRegionBackground':
+              MONACO_DIFF_COLORS.dark.unchangedRegionBackground, // Slightly darker for collapsed regions
+          },
+        });
+
+        // Black theme with pure black background
+        monaco.editor.defineTheme('custom-diff-black', {
+          base: 'vs-dark',
+          inherit: true,
+          rules: [],
+          colors: {
+            'editor.background': MONACO_DIFF_COLORS['dark-black'].editorBackground,
+            'editorGutter.background': MONACO_DIFF_COLORS['dark-black'].editorBackground,
+            'diffEditor.insertedTextBackground':
+              MONACO_DIFF_COLORS['dark-black'].insertedTextBackground,
+            'diffEditor.insertedLineBackground':
+              MONACO_DIFF_COLORS['dark-black'].insertedLineBackground,
+            'diffEditor.removedTextBackground':
+              MONACO_DIFF_COLORS['dark-black'].removedTextBackground,
+            'diffEditor.removedLineBackground':
+              MONACO_DIFF_COLORS['dark-black'].removedLineBackground,
+            'diffEditor.unchangedRegionBackground':
+              MONACO_DIFF_COLORS['dark-black'].unchangedRegionBackground, // Very dark gray for collapsed regions
+          },
+        });
+
+        // Light theme - use default Monaco light theme
+        monaco.editor.defineTheme('custom-diff-light', {
+          base: 'vs',
+          inherit: true,
+          rules: [],
+          colors: {
+            'diffEditor.insertedTextBackground': MONACO_DIFF_COLORS.light.insertedTextBackground,
+            'diffEditor.insertedLineBackground': MONACO_DIFF_COLORS.light.insertedLineBackground,
+            'diffEditor.removedTextBackground': MONACO_DIFF_COLORS.light.removedTextBackground,
+            'diffEditor.removedLineBackground': MONACO_DIFF_COLORS.light.removedLineBackground,
+            'diffEditor.unchangedRegionBackground':
+              MONACO_DIFF_COLORS.light.unchangedRegionBackground,
+          },
+        });
+      } catch (error) {
+        console.warn('Failed to define Monaco themes:', error);
+      }
+    };
+    defineThemes();
+
+    return () => {
+      const existingStyle = document.getElementById(styleId);
+      if (existingStyle) {
+        existingStyle.remove();
+      }
+    };
+  }, [open, isDark, effectiveTheme]);
+
+  // Cleanup editors on unmount
+  useEffect(() => {
+    return () => {
+      editorRefs.current.forEach((editor) => {
+        try {
+          editor.dispose();
+        } catch {
+          // Ignore disposal errors
+        }
+      });
+      editorRefs.current.clear();
+    };
+  }, []);
+
+  const toggleFileExpanded = (filePath: string) => {
+    setFileData((prev) => {
+      const next = new Map(prev);
+      const current = next.get(filePath);
+      if (current) {
+        next.set(filePath, { ...current, expanded: !current.expanded });
+      } else {
+        // Initialize if not loaded yet
+        next.set(filePath, {
+          original: '',
+          modified: '',
+          initialModified: '',
+          language: getMonacoLanguageId(filePath),
+          loading: true,
+          error: null,
+          expanded: true,
+          saving: false,
+          saveError: null,
+        });
+      }
+      return next;
+    });
+  };
+
+  const handleCopyFile = async (filePath: string) => {
+    try {
+      await navigator.clipboard.writeText(filePath);
+      setCopiedFile(filePath);
+      toast({
+        title: 'Copied',
+        description: `File path copied to clipboard`,
+      });
+      // Reset copied state after 2 seconds
+      setTimeout(() => {
+        setCopiedFile(null);
+      }, 2000);
+    } catch (error) {
+      toast({
+        title: 'Copy failed',
+        description: 'Failed to copy file path',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleEditorDidMount = async (
+    filePath: string,
+    editor: monaco.editor.IStandaloneDiffEditor
+  ) => {
+    editorRefs.current.set(filePath, editor);
+    try {
+      const modifiedEditor = editor.getModifiedEditor();
+      changeDisposables.current.get(filePath)?.dispose();
+      const disposable = modifiedEditor.onDidChangeModelContent(() => {
+        const value = modifiedEditor.getValue() ?? '';
+        updateFileData(filePath, (data) => ({
+          ...data,
+          modified: value,
+          saveError: null,
+        }));
+      });
+      changeDisposables.current.set(filePath, disposable);
+    } catch {
+      // best effort
+    }
+
+    // Define themes when editor is ready and FORCE apply theme
+    try {
+      const monaco = await loader.init();
+
+      // Configure diagnostics to suppress warnings in diff viewer
+      // Disabling all validation since diff viewer is read-only
+      configureDiffEditorDiagnostics(editor, monaco, {
+        disableAllValidation: true,
+        suppressSpecificErrors: false,
+      });
+
+      // Define themes (safe to call multiple times)
+      monaco.editor.defineTheme('custom-diff-dark', {
+        base: 'vs-dark',
+        inherit: true,
+        rules: [],
+        colors: {
+          'editor.background': MONACO_DIFF_COLORS.dark.editorBackground,
+          'editorGutter.background': MONACO_DIFF_COLORS.dark.editorBackground,
+          'diffEditor.insertedTextBackground': MONACO_DIFF_COLORS.dark.insertedTextBackground,
+          'diffEditor.insertedLineBackground': MONACO_DIFF_COLORS.dark.insertedLineBackground,
+          'diffEditor.removedTextBackground': MONACO_DIFF_COLORS.dark.removedTextBackground,
+          'diffEditor.removedLineBackground': MONACO_DIFF_COLORS.dark.removedLineBackground,
+          'diffEditor.unchangedRegionBackground': MONACO_DIFF_COLORS.dark.unchangedRegionBackground,
+        },
+      });
+
+      // Black theme with pure black background
+      monaco.editor.defineTheme('custom-diff-black', {
+        base: 'vs-dark',
+        inherit: true,
+        rules: [],
+        colors: {
+          'editor.background': MONACO_DIFF_COLORS['dark-black'].editorBackground,
+          'editorGutter.background': MONACO_DIFF_COLORS['dark-black'].editorBackground,
+          'diffEditor.insertedTextBackground':
+            MONACO_DIFF_COLORS['dark-black'].insertedTextBackground,
+          'diffEditor.insertedLineBackground':
+            MONACO_DIFF_COLORS['dark-black'].insertedLineBackground,
+          'diffEditor.removedTextBackground':
+            MONACO_DIFF_COLORS['dark-black'].removedTextBackground,
+          'diffEditor.removedLineBackground':
+            MONACO_DIFF_COLORS['dark-black'].removedLineBackground,
+          'diffEditor.unchangedRegionBackground':
+            MONACO_DIFF_COLORS['dark-black'].unchangedRegionBackground,
+        },
+      });
+
+      monaco.editor.defineTheme('custom-diff-light', {
+        base: 'vs',
+        inherit: true,
+        rules: [],
+        colors: {
+          'diffEditor.insertedTextBackground': MONACO_DIFF_COLORS.light.insertedTextBackground,
+          'diffEditor.insertedLineBackground': MONACO_DIFF_COLORS.light.insertedLineBackground,
+          'diffEditor.removedTextBackground': MONACO_DIFF_COLORS.light.removedTextBackground,
+          'diffEditor.removedLineBackground': MONACO_DIFF_COLORS.light.removedLineBackground,
+          'diffEditor.unchangedRegionBackground':
+            MONACO_DIFF_COLORS.light.unchangedRegionBackground,
+        },
+      });
+      // FORCE update theme based on current theme
+      const currentTheme =
+        effectiveTheme === 'dark-black'
+          ? 'custom-diff-black'
+          : effectiveTheme === 'dark'
+            ? 'custom-diff-dark'
+            : 'custom-diff-light';
+      monaco.editor.setTheme(currentTheme);
+    } catch (error) {
+      console.warn('Failed to define Monaco themes:', error);
+    }
+  };
+
+  const totalStats = useMemo(() => {
+    return files.reduce(
+      (acc, file) => ({
+        additions: acc.additions + file.additions,
+        deletions: acc.deletions + file.deletions,
+      }),
+      { additions: 0, deletions: 0 }
+    );
+  }, [files]);
+
+  if (typeof document === 'undefined') {
+    return null;
+  }
+
+  return createPortal(
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-xs"
+          role="dialog"
+          aria-modal="true"
+          initial={shouldReduceMotion ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
+          transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.12, ease: 'easeOut' }}
+          onClick={onClose}
+        >
+          <motion.div
+            onClick={(e) => e.stopPropagation()}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 8, scale: 0.995 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={
+              shouldReduceMotion
+                ? { opacity: 1, y: 0, scale: 1 }
+                : { opacity: 0, y: 6, scale: 0.995 }
+            }
+            transition={
+              shouldReduceMotion ? { duration: 0 } : { duration: 0.2, ease: [0.22, 1, 0.36, 1] }
+            }
+            className="border-border bg-muted dark:border-border dark:bg-background flex h-[92vh] w-[96vw] max-w-[1600px] transform-gpu overflow-hidden rounded-xl border shadow-2xl will-change-transform"
+            data-all-changes-modal="true"
+          >
+            <div className="flex min-w-0 flex-1 flex-col">
+              <div className="border-border bg-muted dark:border-border dark:bg-background flex items-center justify-between border-b px-5 py-3">
+                <div className="flex items-center gap-4">
+                  <h2 className="text-foreground text-lg font-semibold">All Changes</h2>
+                  <div className="flex items-center gap-3 text-sm">
+                    <span className="bg-muted text-muted-foreground dark:bg-muted/50 dark:text-muted-foreground rounded-full px-2 py-0.5 text-xs font-medium">
+                      {files.length} {files.length === 1 ? 'file' : 'files'}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                        +{totalStats.additions}
+                      </span>
+                      <span className="text-muted-foreground">•</span>
+                      <span className="font-medium text-rose-600 dark:text-rose-400">
+                        -{totalStats.deletions}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={onClose}
+                  className="text-muted-foreground hover:bg-muted hover:text-muted-foreground dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-muted-foreground rounded-md p-1 transition-colors"
+                  aria-label="Close"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="all-changes-scrollable min-h-0 flex-1 overflow-y-auto">
+                {files.length === 0 ? (
+                  <div className="text-muted-foreground flex h-full items-center justify-center">
+                    No changes to display
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-100 pr-[7px] dark:divide-gray-800/50">
+                    {files.map((file, index) => {
+                      const data = fileData.get(file.path);
+                      const isExpanded = data?.expanded ?? true; // Default to expanded
+                      const isLoading = data?.loading ?? true;
+                      const hasError = data?.error !== null;
+                      const isDirty = data ? data.modified !== data.initialModified : false;
+                      const isSaving = data?.saving ?? false;
+
+                      return (
+                        <div
+                          key={file.path}
+                          className={`${index === 0 ? '' : 'border-border/50 border-t'} bg-muted`}
+                        >
+                          <div className="group border-border bg-muted dark:border-border/50 dark:bg-card flex items-center border-b">
+                            <button
+                              onClick={() => toggleFileExpanded(file.path)}
+                              className="hover:bg-accent/50 flex min-w-0 flex-1 items-center gap-3 px-5 py-2.5 text-left transition-colors"
+                            >
+                              <div className="flex shrink-0 items-center">
+                                {isExpanded ? (
+                                  <ChevronDown className="text-muted-foreground group-hover:text-muted-foreground dark:text-muted-foreground dark:group-hover:text-muted-foreground h-3.5 w-3.5 transition-colors" />
+                                ) : (
+                                  <ChevronRight className="text-muted-foreground group-hover:text-muted-foreground dark:text-muted-foreground dark:group-hover:text-muted-foreground h-3.5 w-3.5 transition-colors" />
+                                )}
+                              </div>
+                              <span className="text-foreground truncate font-mono text-sm font-medium">
+                                {file.path}
+                              </span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void handleCopyFile(file.path);
+                                }}
+                                className="text-muted-foreground hover:bg-muted hover:text-foreground dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-muted-foreground ml-2 rounded-md p-1 transition-colors"
+                                title="Copy file path"
+                                aria-label="Copy file path"
+                              >
+                                {copiedFile === file.path ? (
+                                  <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                                ) : (
+                                  <Copy className="h-3.5 w-3.5" />
+                                )}
+                              </button>
+                              <div className="flex items-center gap-2 text-xs">
+                                {file.additions > 0 && (
+                                  <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                                    +{file.additions}
+                                  </span>
+                                )}
+                                {file.deletions > 0 && (
+                                  <span className="font-medium text-rose-600 dark:text-rose-400">
+                                    -{file.deletions}
+                                  </span>
+                                )}
+                              </div>
+                            </button>
+                          </div>
+                          {!hasError && (isDirty || isSaving) && (
+                            <div className="text-muted-foreground flex items-center justify-between px-5 py-2 text-xs">
+                              <div className="flex items-center gap-2">
+                                <span>{isDirty ? 'Unsaved changes' : 'No unsaved changes'}</span>
+                                {data?.saveError ? (
+                                  <span className="text-rose-500 dark:text-rose-400">
+                                    • {data.saveError}
+                                  </span>
+                                ) : null}
+                              </div>
+                              <button
+                                onClick={() => void handleSave(file.path)}
+                                disabled={!isDirty || isSaving}
+                                className={`inline-flex items-center rounded-md px-3 py-1 text-sm font-medium transition ${
+                                  !isDirty || isSaving
+                                    ? 'bg-muted text-muted-foreground dark:bg-muted dark:text-muted-foreground cursor-not-allowed'
+                                    : 'dark:bg-muted0 bg-muted hover:bg-accent dark:hover:bg-muted text-white'
+                                }`}
+                              >
+                                {isSaving ? 'Saving…' : 'Save'}
+                              </button>
+                            </div>
+                          )}
+
+                          {isExpanded && (
+                            <div className="border-border bg-muted dark:border-border/50 dark:bg-background border-b">
+                              {isLoading ? (
+                                <div className="text-muted-foreground flex h-64 items-center justify-center">
+                                  <div className="flex items-center gap-2">
+                                    <div className="border-border dark:border-border h-4 w-4 animate-spin rounded-full border-2 border-t-gray-600 dark:border-t-gray-400"></div>
+                                    <span className="text-sm">Loading diff...</span>
+                                  </div>
+                                </div>
+                              ) : hasError ? (
+                                <div className="text-muted-foreground flex h-64 flex-col items-center justify-center gap-2 px-4">
+                                  <AlertCircle className="h-6 w-6 text-rose-500 dark:text-rose-400" />
+                                  <span className="text-sm">
+                                    {data?.error || 'Failed to load diff'}
+                                  </span>
+                                </div>
+                              ) : data ? (
+                                <div className="relative h-[600px] min-h-[400px]">
+                                  <DiffEditor
+                                    height="600px"
+                                    language={data.language}
+                                    original={data.original}
+                                    modified={data.modified}
+                                    theme={isDark ? 'custom-diff-dark' : 'custom-diff-light'}
+                                    options={{
+                                      readOnly: false, // Allow edits on modified pane
+                                      originalEditable: false,
+                                      renderSideBySide: false, // Unified/inline view
+                                      fontSize: 13,
+                                      lineHeight: 20,
+                                      minimap: { enabled: false }, // Disable minimap for cleaner look
+                                      scrollBeyondLastLine: false,
+                                      wordWrap: 'on',
+                                      lineNumbers: 'on',
+                                      lineNumbersMinChars: 2, // Reduce line number width for better space usage
+                                      renderIndicators: false, // Hide +/- indicators
+                                      overviewRulerLanes: 3, // Show overview ruler with change indicators
+                                      renderOverviewRuler: true, // Show overview ruler
+                                      automaticLayout: true,
+                                      // Custom scrollbar settings - hide by default, show on hover
+                                      scrollbar: {
+                                        vertical: 'visible',
+                                        horizontal: 'visible',
+                                        useShadows: false,
+                                        verticalScrollbarSize: 4,
+                                        horizontalScrollbarSize: 4,
+                                        arrowSize: 0,
+                                        verticalHasArrows: false,
+                                        horizontalHasArrows: false,
+                                        alwaysConsumeMouseWheel: false,
+                                        verticalSliderSize: 4,
+                                        horizontalSliderSize: 4,
+                                      },
+                                      // Hide unchanged regions for cleaner view
+                                      hideUnchangedRegions: {
+                                        enabled: true,
+                                      },
+                                      // Better diff rendering
+                                      diffWordWrap: 'on',
+                                      enableSplitViewResizing: false,
+                                      // Smooth scrolling
+                                      smoothScrolling: true,
+                                      cursorSmoothCaretAnimation: 'on',
+                                      // Remove extra padding
+                                      padding: { top: 8, bottom: 8 },
+                                      // Spacing adjustments
+                                      glyphMargin: false, // Disable glyph margin to reduce spacing
+                                      lineDecorationsWidth: 16, // Width for +/- indicators
+                                      folding: false, // Disable folding to reduce spacing
+                                    }}
+                                    onMount={(editor: monaco.editor.IStandaloneDiffEditor) =>
+                                      handleEditorDidMount(file.path, editor)
+                                    }
+                                  />
+                                </div>
+                              ) : null}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body
+  );
+};
+
+export default AllChangesDiffModal;

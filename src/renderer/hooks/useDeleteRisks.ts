@@ -36,8 +36,8 @@ export function useDeleteRisks(tasks: TaskRef[], enabled: boolean) {
       for (const ws of tasks) {
         try {
           const [statusRes, infoRes, rawPr] = await Promise.allSettled([
-            (window as any).electronAPI?.getGitStatus?.(ws.path),
-            (window as any).electronAPI?.getGitInfo?.(ws.path),
+            window.electronAPI?.getGitStatus?.(ws.path),
+            window.electronAPI?.getGitInfo?.(ws.path),
             refreshPrStatus(ws.path),
           ]);
 
@@ -83,14 +83,14 @@ export function useDeleteRisks(tasks: TaskRef[], enabled: boolean) {
                 : statusRes.reason?.message || String(statusRes.reason || ''),
             pr,
           };
-        } catch (error: any) {
+        } catch (error: unknown) {
           next[ws.id] = {
             staged: 0,
             unstaged: 0,
             untracked: 0,
             ahead: 0,
             behind: 0,
-            error: error?.message || String(error),
+            error: error instanceof Error ? error.message : String(error),
             pr: null,
           };
         }

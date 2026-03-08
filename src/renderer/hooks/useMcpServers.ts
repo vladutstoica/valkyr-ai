@@ -23,8 +23,8 @@ export function useMcpServers(scope: McpScope, projectPath?: string) {
       } else {
         setError(res.error || 'Failed to load MCP servers');
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setIsLoading(false);
     }
@@ -42,8 +42,8 @@ export function useMcpServers(scope: McpScope, projectPath?: string) {
         } else {
           setError(res.error || 'Failed to save MCP servers');
         }
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : String(err));
       }
     },
     [scope, projectPath]

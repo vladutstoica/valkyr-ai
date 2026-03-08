@@ -59,8 +59,8 @@ export function SessionHistoryPopover({
       } else {
         setError(result.error || 'Failed to load sessions');
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to load sessions');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || 'Failed to load sessions');
     } finally {
       setLoading(false);
     }

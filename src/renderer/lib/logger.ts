@@ -17,41 +17,41 @@ function enabled(target: Level, current: Level): boolean {
 const current = envLevel();
 
 export type Logger = {
-  debug: (...args: any[]) => void;
-  info: (...args: any[]) => void;
-  warn: (...args: any[]) => void;
-  error: (...args: any[]) => void;
+  debug: (...args: unknown[]) => void;
+  info: (...args: unknown[]) => void;
+  warn: (...args: unknown[]) => void;
+  error: (...args: unknown[]) => void;
 };
 
 export function createLogger(tag: string): Logger {
   return {
-    debug: (...args: any[]) => log.debug(`[${tag}]`, ...args),
-    info: (...args: any[]) => log.info(`[${tag}]`, ...args),
-    warn: (...args: any[]) => log.warn(`[${tag}]`, ...args),
-    error: (...args: any[]) => log.error(`[${tag}]`, ...args),
+    debug: (...args: unknown[]) => log.debug(`[${tag}]`, ...args),
+    info: (...args: unknown[]) => log.info(`[${tag}]`, ...args),
+    warn: (...args: unknown[]) => log.warn(`[${tag}]`, ...args),
+    error: (...args: unknown[]) => log.error(`[${tag}]`, ...args),
   };
 }
 
 export const log = {
-  debug: (...args: any[]) => {
+  debug: (...args: unknown[]) => {
     if (enabled('debug', current)) {
       // eslint-disable-next-line no-console
       console.debug(...args);
     }
   },
-  info: (...args: any[]) => {
+  info: (...args: unknown[]) => {
     if (enabled('info', current)) {
       // eslint-disable-next-line no-console
       console.info(...args);
     }
   },
-  warn: (...args: any[]) => {
+  warn: (...args: unknown[]) => {
     if (enabled('warn', current)) {
       // eslint-disable-next-line no-console
       console.warn(...args);
     }
   },
-  error: (...args: any[]) => {
+  error: (...args: unknown[]) => {
     // Always log errors
     // eslint-disable-next-line no-console
     console.error(...args);

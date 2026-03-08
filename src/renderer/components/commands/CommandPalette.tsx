@@ -1,0 +1,366 @@
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { Command } from 'cmdk';
+import {
+  Search,
+  FolderOpen,
+  Home,
+  Settings,
+  Keyboard,
+  GitBranch,
+  CornerDownLeft,
+  ArrowUp,
+  ArrowDown,
+  Command as CommandIcon,
+  Option,
+  Palette,
+} from 'lucide-react';
+import { APP_SHORTCUTS } from '../../hooks/useKeyboardShortcuts';
+import type { ShortcutModifier } from '../../types/shortcuts';
+
+interface CommandPaletteProps {
+  isOpen: boolean;
+  onClose: () => void;
+  projects?: Array<{
+    id: string;
+    name: string;
+    path: string;
+    tasks?: Array<{
+      id: string;
+      name: string;
+      branch: string;
+    }>;
+  }>;
+  onSelectProject?: (projectId: string) => void;
+  onSelectTask?: (projectId: string, taskId: string) => void;
+  onOpenSettings?: () => void;
+  onOpenKeyboardShortcuts?: () => void;
+  onToggleTheme?: () => void;
+  onGoHome?: () => void;
+  onOpenProject?: () => void;
+}
+
+type CommandItem = {
+  id: string;
+  label: string;
+  description?: string;
+  icon: React.ReactNode;
+  group: string;
+  keywords?: string[];
+  shortcut?: {
+    key: string;
+    modifier?: ShortcutModifier;
+  };
+  onSelect: () => void;
+};
+
+const CommandPalette: React.FC<CommandPaletteProps> = ({
+  isOpen,
+  onClose,
+  projects = [],
+  onSelectProject,
+  onSelectTask,
+  onOpenSettings,
+  onOpenKeyboardShortcuts,
+  onToggleTheme,
+  onGoHome,
+  onOpenProject,
+}) => {
+  const [search, setSearch] = useState('');
+  const shouldReduceMotion = useReducedMotion();
+
+  const handleClose = useCallback(() => {
+    setSearch(''); // Reset search on close
+    onClose();
+  }, [onClose]);
+
+  // Window-level capture handler to intercept Escape before xterm processes it
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleEscapeCapture = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        handleClose();
+      }
+    };
+
+    // Use capture phase at window level to intercept before xterm
+    window.addEventListener('keydown', handleEscapeCapture, true);
+    return () => window.removeEventListener('keydown', handleEscapeCapture, true);
+  }, [isOpen, handleClose]);
+
+  const runCommand = useCallback(
+    (command: () => void) => {
+      handleClose();
+      setTimeout(() => command(), 50);
+    },
+    [handleClose]
+  );
+
+  // Build command items
+  const commands = useMemo<CommandItem[]>(() => {
+    const items: CommandItem[] = [];
+
+    // Navigation commands
+    if (onGoHome) {
+      items.push({
+        id: 'nav-home',
+        label: 'Go Home',
+        description: 'Return to home screen',
+        icon: <Home className="h-4 w-4" />,
+        group: 'Navigation',
+        keywords: ['home', 'start', 'main'],
+        onSelect: () => runCommand(onGoHome),
+      });
+    }
+
+    if (onOpenProject) {
+      items.push({
+        id: 'nav-open-project',
+        label: 'Open Project',
+        description: 'Open a new project folder',
+        icon: <FolderOpen className="h-4 w-4" />,
+        group: 'Navigation',
+        keywords: ['open', 'folder', 'project', 'new'],
+        onSelect: () => runCommand(onOpenProject),
+      });
+    }
+
+    // Settings command
+    if (onOpenSettings) {
+      items.push({
+        id: 'nav-settings',
+        label: 'Open Settings',
+        description: APP_SHORTCUTS.SETTINGS.description,
+        icon: <Settings className="h-4 w-4" />,
+        group: 'Navigation',
+        keywords: ['settings', 'preferences', 'config'],
+        shortcut: { key: APP_SHORTCUTS.SETTINGS.key, modifier: APP_SHORTCUTS.SETTINGS.modifier },
+        onSelect: () => runCommand(onOpenSettings),
+      });
+    }
+
+    if (onOpenKeyboardShortcuts) {
+      items.push({
+        id: 'nav-keyboard-shortcuts',
+        label: 'Keyboard Shortcuts',
+        description: 'Customize app shortcuts',
+        icon: <Keyboard className="h-4 w-4" />,
+        group: 'Navigation',
+        keywords: ['keyboard', 'shortcuts', 'keybind', 'hotkey'],
+        onSelect: () => runCommand(onOpenKeyboardShortcuts),
+      });
+    }
+
+    // Toggle commands
+    if (onToggleTheme) {
+      items.push({
+        id: 'toggle-theme',
+        label: 'Toggle Theme',
+        description: APP_SHORTCUTS.TOGGLE_THEME.description,
+        icon: <Palette className="h-4 w-4" />,
+        group: 'Toggles',
+        keywords: ['theme', 'dark', 'light', 'mode', 'toggle'],
+        shortcut: {
+          key: APP_SHORTCUTS.TOGGLE_THEME.key.toUpperCase(),
+          modifier: APP_SHORTCUTS.TOGGLE_THEME.modifier,
+        },
+        onSelect: () => runCommand(onToggleTheme),
+      });
+    }
+
+    // Project commands
+    projects.forEach((project) => {
+      if (onSelectProject) {
+        items.push({
+          id: `project-${project.id}`,
+          label: project.name,
+          description: project.path,
+          icon: <FolderOpen className="h-4 w-4" />,
+          group: 'Projects',
+          keywords: ['project', project.name.toLowerCase(), project.path.toLowerCase()],
+          onSelect: () => runCommand(() => onSelectProject(project.id)),
+        });
+      }
+
+      // Task commands
+      if (project.tasks && onSelectTask) {
+        project.tasks.forEach((task) => {
+          items.push({
+            id: `task-${project.id}-${task.id}`,
+            label: task.name,
+            description: `${project.name} • ${task.branch}`,
+            icon: <GitBranch className="h-4 w-4" />,
+            group: 'Tasks',
+            keywords: [
+              'task',
+              task.name.toLowerCase(),
+              task.branch.toLowerCase(),
+              project.name.toLowerCase(),
+            ],
+            onSelect: () => runCommand(() => onSelectTask(project.id, task.id)),
+          });
+        });
+      }
+    });
+
+    return items;
+  }, [
+    projects,
+    onGoHome,
+    onOpenProject,
+    onOpenSettings,
+    onOpenKeyboardShortcuts,
+    onSelectProject,
+    onSelectTask,
+    onToggleTheme,
+    runCommand,
+  ]);
+
+  // Group commands
+  const groupedCommands = useMemo(() => {
+    const groups = new Map<string, CommandItem[]>();
+    commands.forEach((cmd) => {
+      const group = groups.get(cmd.group) || [];
+      group.push(cmd);
+      groups.set(cmd.group, group);
+    });
+    return groups;
+  }, [commands]);
+
+  const groupOrder = ['Navigation', 'Toggles', 'Projects', 'Tasks'];
+
+  return createPortal(
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Command palette"
+          className="fixed inset-0 z-[130] flex items-start justify-center bg-black/60 pt-[15vh] backdrop-blur-xs"
+          initial={shouldReduceMotion ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={shouldReduceMotion ? { opacity: 1 } : { opacity: 0 }}
+          transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.12, ease: 'easeOut' }}
+          onClick={handleClose}
+        >
+          <motion.div
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => event.stopPropagation()}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: -8, scale: 0.995 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={
+              shouldReduceMotion
+                ? { opacity: 1, y: 0, scale: 1 }
+                : { opacity: 0, y: -6, scale: 0.995 }
+            }
+            transition={
+              shouldReduceMotion ? { duration: 0 } : { duration: 0.18, ease: [0.22, 1, 0.36, 1] }
+            }
+            className="border-border/50 bg-background mx-4 w-full max-w-2xl overflow-hidden rounded-2xl border shadow-2xl"
+          >
+            <Command
+              shouldFilter={true}
+              className="[&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group]]:px-2 [&_[cmdk-group]]:pb-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-3 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-4 [&_[cmdk-item]_svg]:w-4"
+            >
+              <div className="border-border/60 flex items-center border-b px-4">
+                <Search className="text-muted-foreground mr-3 h-4 w-4 shrink-0" />
+                <Command.Input
+                  value={search}
+                  onValueChange={setSearch}
+                  placeholder="Search commands, projects, tasks..."
+                  className="text-foreground placeholder:text-muted-foreground flex h-12 w-full rounded-md bg-transparent text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50"
+                  autoFocus
+                />
+              </div>
+
+              <Command.List className="max-h-[400px] overflow-x-hidden overflow-y-auto p-2">
+                <Command.Empty className="text-muted-foreground py-8 text-center text-sm">
+                  No results found.
+                </Command.Empty>
+
+                {groupOrder.map((groupName) => {
+                  const groupItems = groupedCommands.get(groupName);
+                  if (!groupItems || groupItems.length === 0) return null;
+
+                  return (
+                    <Command.Group key={groupName} heading={groupName}>
+                      {groupItems.map((item) => (
+                        <Command.Item
+                          key={item.id}
+                          value={`${item.label} ${item.description || ''} ${item.keywords?.join(' ') || ''}`}
+                          onSelect={() => item.onSelect()}
+                          className="hover:bg-accent hover:text-accent-foreground aria-selected:bg-accent aria-selected:text-accent-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground relative flex cursor-pointer items-center gap-3 rounded-lg px-3 py-3 text-sm outline-hidden transition-colors select-none"
+                        >
+                          <div className="bg-muted text-muted-foreground flex h-8 w-8 items-center justify-center rounded-md">
+                            {item.icon}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate font-medium">{item.label}</div>
+                            {item.description && (
+                              <div className="text-muted-foreground truncate text-xs">
+                                {item.description}
+                              </div>
+                            )}
+                          </div>
+                          {item.shortcut && (
+                            <div className="text-muted-foreground ml-auto flex items-center gap-1 text-xs">
+                              {item.shortcut.modifier === 'cmd' && (
+                                <CommandIcon className="h-3 w-3" />
+                              )}
+                              {item.shortcut.modifier === 'ctrl' && (
+                                <span className="font-medium">Ctrl</span>
+                              )}
+                              {item.shortcut.modifier === 'shift' && (
+                                <span className="font-medium">⇧</span>
+                              )}
+                              {(item.shortcut.modifier === 'option' ||
+                                item.shortcut.modifier === 'alt') && <Option className="h-3 w-3" />}
+                              <span className="font-medium">{item.shortcut.key}</span>
+                            </div>
+                          )}
+                        </Command.Item>
+                      ))}
+                    </Command.Group>
+                  );
+                })}
+              </Command.List>
+
+              <div className="border-border/60 bg-muted/20 flex items-center justify-between border-t px-4 py-3">
+                <div className="flex items-center gap-4">
+                  <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                    <span>Select</span>
+                    <div className="border-border/60 bg-background flex items-center gap-1 rounded border px-1.5 py-0.5">
+                      <CornerDownLeft className="h-3 w-3" />
+                    </div>
+                  </div>
+                  <div className="bg-border/60 h-4 w-px" />
+                  <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                    <span>Close</span>
+                    <div className="border-border/60 bg-background flex items-center gap-1 rounded border px-1.5 py-0.5">
+                      <span className="text-xs">ESC</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                  <span>Navigate</span>
+                  <div className="border-border/60 bg-background flex items-center gap-1 rounded border px-1.5 py-0.5">
+                    <ArrowUp className="h-3 w-3" />
+                    <ArrowDown className="h-3 w-3" />
+                  </div>
+                </div>
+              </div>
+            </Command>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body
+  );
+};
+
+export default CommandPalette;

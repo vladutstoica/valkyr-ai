@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { ScrollArea } from './ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import { useTaskScope } from './TaskScopeContext';
+import { useTaskScope } from './project/TaskScopeContext';
 import { usePendingInjection } from '../hooks/usePendingInjection';
 import { useTaskComments } from '../hooks/useLineComments';
 import { formatCommentsForAgent } from '../lib/formatCommentsForAgent';

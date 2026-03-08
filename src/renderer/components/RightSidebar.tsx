@@ -2,15 +2,15 @@ import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import FileChangesPanel from './FileChangesPanel';
 import { useFileChanges } from '@/hooks/useFileChanges';
-import TaskTerminalPanel from './TaskTerminalPanel';
+import TaskTerminalPanel from './project/TaskTerminalPanel';
 import { useRightSidebar } from './ui/right-sidebar';
 import { agentAssets } from '@/providers/assets';
 import { agentMeta } from '@/providers/meta';
 import type { Agent } from '../types';
-import type { SubRepo } from '../types/app';
-import { TaskScopeProvider, useTaskScope } from './TaskScopeContext';
+import type { SubRepo, Task } from '../types/app';
+import { TaskScopeProvider, useTaskScope } from './project/TaskScopeContext';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import RepoBranchesPanel from './RepoBranchesPanel';
+import RepoBranchesPanel from './git/RepoBranchesPanel';
 
 export interface RightSidebarTask {
   id: string;
@@ -19,7 +19,7 @@ export interface RightSidebarTask {
   path: string;
   status: 'active' | 'idle' | 'running';
   agentId?: string;
-  metadata?: any;
+  metadata?: import('../types/chat').TaskMetadata | null;
 }
 
 interface RightSidebarProps extends React.HTMLAttributes<HTMLElement> {
@@ -94,14 +94,16 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
         const v = task?.metadata?.multiAgent?.variants || [];
         if (Array.isArray(v))
           return v
-            .map((x: any) => ({
+            .map((x) => ({
               agent: x?.agent as Agent,
               name: x?.name,
               path: x?.path,
               worktreeId: x?.worktreeId,
             }))
             .filter((x) => x?.path);
-      } catch {}
+      } catch (error) {
+        console.error('Failed to parse multi-agent variants:', error);
+      }
       return [];
     })();
 
@@ -199,17 +201,8 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
                               <ChevronDown className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
                             )}
                             {(() => {
-                              const asset = (agentAssets as any)[v.agent] as
-                                | {
-                                    logo: string;
-                                    alt: string;
-                                    name: string;
-                                    invertInDark?: boolean;
-                                  }
-                                | undefined;
-                              const meta = (agentMeta as any)[v.agent] as
-                                | { label?: string }
-                                | undefined;
+                              const asset = agentAssets[v.agent];
+                              const meta = agentMeta[v.agent];
                               return (
                                 <span className="border-border/70 bg-muted/40 inline-flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-0.5 text-[10px] font-medium">
                                   {asset?.logo ? (
@@ -267,7 +260,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
                     ...task,
                     path: v.path,
                     name: v.name || task.name,
-                  } as any;
+                  } as unknown as Task;
                   return (
                     <>
                       <VariantChangesIfAny

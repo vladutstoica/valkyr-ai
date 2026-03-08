@@ -10,6 +10,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { getAppById, isValidOpenInAppId, type OpenInAppId } from '@shared/openInApps';
 import { useOpenInApps } from '../../hooks/useOpenInApps';
+import { onDefaultOpenInAppChange } from '../../lib/defaultOpenInAppStore';
 
 interface OpenInMenuProps {
   path: string;
@@ -44,15 +45,11 @@ const OpenInMenu: React.FC<OpenInMenuProps> = ({
     };
     void fetchDefaultApp();
 
-    const handleChange = (e: CustomEvent<OpenInAppId>) => {
-      if (isValidOpenInAppId(e.detail)) {
-        setDefaultApp(e.detail);
+    return onDefaultOpenInAppChange((appId) => {
+      if (isValidOpenInAppId(appId)) {
+        setDefaultApp(appId);
       }
-    };
-    window.addEventListener('defaultOpenInAppChanged', handleChange as EventListener);
-    return () => {
-      window.removeEventListener('defaultOpenInAppChanged', handleChange as EventListener);
-    };
+    });
   }, []);
 
   const callOpen = async (appId: OpenInAppId) => {
@@ -76,10 +73,10 @@ const OpenInMenu: React.FC<OpenInMenuProps> = ({
           variant: 'destructive',
         });
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       toast({
         title: `Open in ${label} failed`,
-        description: e?.message || String(e),
+        description: e instanceof Error ? e.message : String(e),
         variant: 'destructive',
       });
     }

@@ -9,6 +9,7 @@
  */
 
 import type * as monaco from 'monaco-editor';
+import type { Monaco } from '@monaco-editor/react';
 
 /**
  * Error codes to suppress in diff viewers (if using targeted suppression)
@@ -36,7 +37,7 @@ const DIFF_VIEWER_IGNORED_DIAGNOSTICS = [
  */
 export function configureDiffEditorDiagnostics(
   editor: monaco.editor.IStandaloneDiffEditor,
-  monaco: any,
+  monacoInstance: Monaco,
   options: {
     /** Completely disable validation (aggressive but effective) */
     disableAllValidation?: boolean;
@@ -62,19 +63,20 @@ export function configureDiffEditorDiagnostics(
   // Apply configuration to this specific model's language
   const language = model.getLanguageId();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ts = (monacoInstance?.languages as Record<string, any>)?.typescript as
+    | { typescriptDefaults?: { setDiagnosticsOptions(opts: Record<string, unknown>): void }; javascriptDefaults?: { setDiagnosticsOptions(opts: Record<string, unknown>): void } }
+    | undefined;
+
   if (language === 'typescript' || language === 'typescriptreact') {
-    // For TypeScript files, we need to configure the language service
-    // Note: This still affects global defaults, but we limit it to when diff viewers are used
-    monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions(diagnosticOptions);
+    ts?.typescriptDefaults?.setDiagnosticsOptions(diagnosticOptions);
   } else if (language === 'javascript' || language === 'javascriptreact') {
-    // For JavaScript files
-    monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions(diagnosticOptions);
+    ts?.javascriptDefaults?.setDiagnosticsOptions(diagnosticOptions);
   }
 
   try {
-    if (monaco.editor.setModelMarkers) {
-      // Clear existing markers for this model
-      monaco.editor.setModelMarkers(model, 'typescript', []);
+    if (monacoInstance.editor.setModelMarkers) {
+      monacoInstance.editor.setModelMarkers(model, 'typescript', []);
     }
   } catch {
     // Older Monaco version, ignore
@@ -85,18 +87,18 @@ export function configureDiffEditorDiagnostics(
  * Resets diagnostic options to defaults (for cleanup)
  * Call this when closing diff modals to restore normal validation
  */
-export function resetDiagnosticOptions(monaco: any): void {
+export function resetDiagnosticOptions(monacoInstance: Monaco): void {
   const defaultOptions = {
     noSemanticValidation: false,
     noSyntaxValidation: false,
-    diagnosticCodesToIgnore: [],
+    diagnosticCodesToIgnore: [] as number[],
   };
 
-  if (monaco?.languages?.typescript?.typescriptDefaults) {
-    monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions(defaultOptions);
-  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ts = (monacoInstance?.languages as Record<string, any>)?.typescript as
+    | { typescriptDefaults?: { setDiagnosticsOptions(opts: Record<string, unknown>): void }; javascriptDefaults?: { setDiagnosticsOptions(opts: Record<string, unknown>): void } }
+    | undefined;
 
-  if (monaco?.languages?.typescript?.javascriptDefaults) {
-    monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions(defaultOptions);
-  }
+  ts?.typescriptDefaults?.setDiagnosticsOptions(defaultOptions);
+  ts?.javascriptDefaults?.setDiagnosticsOptions(defaultOptions);
 }

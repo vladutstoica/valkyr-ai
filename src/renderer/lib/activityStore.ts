@@ -120,7 +120,7 @@ class ActivityStore {
     if (this.ptyCleanups.has(wsId)) return;
     const offDirect: Array<() => void> = [];
     try {
-      const api: any = (window as any).electronAPI;
+      const api = window.electronAPI;
       for (const prov of PROVIDER_IDS) {
         const ptyId = `${prov}-main-${wsId}`;
         const off = api?.onPtyData?.(ptyId, (chunk: string) => {

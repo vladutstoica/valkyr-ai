@@ -24,8 +24,8 @@ export function useMcpRegistry() {
       } else {
         setError(res.error || 'Registry search failed');
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Registry search failed');
     } finally {
       setIsSearching(false);
     }

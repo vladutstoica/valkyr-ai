@@ -9,6 +9,7 @@ import { log } from '../lib/logger';
 import { TERMINAL_SNAPSHOT_VERSION, type TerminalSnapshotPayload } from '#types/terminalSnapshot';
 import { pendingInjectionManager } from '../lib/PendingInjectionManager';
 import { getSettings } from '../services/settingsService';
+import { onTerminalFontChange } from '../lib/terminalFontStore';
 import { getProvider, type ProviderId } from '@shared/providers/registry';
 import { CTRL_J_ASCII, shouldMapShiftEnterToCtrlJ } from './terminalKeybindings';
 
@@ -119,15 +120,11 @@ export class TerminalSessionManager {
       updateCustomFont(settings?.terminal?.fontFamily);
     });
 
-    const handleFontChange = (e: Event) => {
-      const detail = (e as CustomEvent<{ fontFamily?: string }>).detail;
-      updateCustomFont(detail?.fontFamily);
+    const unsubFontChange = onTerminalFontChange((fontFamily) => {
+      updateCustomFont(fontFamily);
       this.fitPreservingViewport();
-    };
-    window.addEventListener('terminal-font-changed', handleFontChange);
-    this.disposables.push(() =>
-      window.removeEventListener('terminal-font-changed', handleFontChange)
-    );
+    });
+    this.disposables.push(unsubFontChange);
 
     this.fitAddon = new FitAddon();
     this.serializeAddon = new SerializeAddon();
@@ -218,7 +215,7 @@ export class TerminalSessionManager {
     if (!this.opened) {
       this.terminal.open(this.container);
       this.opened = true;
-      const element = (this.terminal as any).element as HTMLElement | null;
+      const element = this.terminal.element ?? null;
       if (element) {
         element.style.width = '100%';
         element.style.height = '100%';
@@ -409,19 +406,18 @@ export class TerminalSessionManager {
           };
 
     // Extract font settings before applying theme (they're not part of ITheme)
-    const fontFamily = (theme.override as any)?.fontFamily;
-    const fontSize = (theme.override as any)?.fontSize;
+    const overrideRecord = theme.override as Record<string, unknown> | undefined;
+    const fontFamily = overrideRecord?.fontFamily;
+    const fontSize = overrideRecord?.fontSize;
 
     // Apply color theme (excluding font properties)
-    const colorTheme = { ...theme.override };
-    delete (colorTheme as any)?.fontFamily;
-    delete (colorTheme as any)?.fontSize;
+    const { fontFamily: _ff, fontSize: _fs, ...colorTheme } = overrideRecord ?? {};
     this.terminal.options.theme = { ...base, ...colorTheme };
 
     // Apply font settings separately
     this.themeFontFamily = typeof fontFamily === 'string' ? fontFamily.trim() : '';
     this.applyEffectiveFont();
-    if (fontSize) {
+    if (typeof fontSize === 'number') {
       this.terminal.options.fontSize = fontSize;
     }
   }
@@ -564,7 +560,7 @@ export class TerminalSessionManager {
     return !!provider?.resumeFlag;
   }
 
-  private async fetchSnapshot(): Promise<any | null> {
+  private async fetchSnapshot(): Promise<{ data?: string; cols?: number; rows?: number; version?: number } | null> {
     if (this.options.disableSnapshots) return null;
     if (!window.electronAPI.ptyGetSnapshot) return null;
 
@@ -580,7 +576,7 @@ export class TerminalSessionManager {
     }
   }
 
-  private applySnapshot(snapshot: any): void {
+  private applySnapshot(snapshot: { data?: string; cols?: number; rows?: number }): void {
     if (typeof snapshot.data === 'string' && snapshot.data.length > 0) {
       this.terminal.reset();
       this.terminal.write(snapshot.data);
@@ -626,8 +622,8 @@ export class TerminalSessionManager {
             initialPrompt,
           });
 
-    const result = await ptyPromise.catch((error: any) => {
-      const message = error?.message || String(error);
+    const result = await ptyPromise.catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
       log.error('terminalSession:ptyStartError', { id, error });
       this.emitError(message);
       return { ok: false, error: message };

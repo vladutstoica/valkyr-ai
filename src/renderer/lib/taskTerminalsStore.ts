@@ -66,7 +66,7 @@ function loadFromStorage(taskId: string): TaskTerminalsState | null {
 
     const terminals = Array.isArray(parsed.terminals)
       ? parsed.terminals
-          .map((item: any) => {
+          .map((item: Record<string, unknown>) => {
             if (!item || typeof item !== 'object') return null;
             const id = typeof item.id === 'string' && item.id ? item.id : null;
             const title = typeof item.title === 'string' && item.title ? item.title : null;
@@ -134,7 +134,9 @@ function saveToStorage(taskId: string, state: TaskTerminalsState) {
       displayOrder: i,
     }));
     window.electronAPI?.saveTerminalSessions?.({ taskKey: taskId, sessions });
-  } catch {}
+  } catch (error) {
+    console.error('Failed to persist terminal sessions:', error);
+  }
 }
 
 function makeTerminalId(taskId: string): string {
@@ -302,8 +304,7 @@ function closeTerminal(taskId: string, terminalId: string, taskPath?: string) {
   });
 
   try {
-    const api: any = (window as any).electronAPI;
-    api?.ptyKill?.(terminalId);
+    window.electronAPI?.ptyKill?.(terminalId);
   } catch {
     // ignore kill errors
   }
@@ -314,7 +315,7 @@ export function disposeTaskTerminals(taskKey: string): void {
   if (state) {
     for (const terminal of state.terminals) {
       try {
-        (window as any).electronAPI?.ptyKill?.(terminal.id);
+        window.electronAPI?.ptyKill?.(terminal.id);
       } catch {
         // ignore kill errors
       }
@@ -324,7 +325,7 @@ export function disposeTaskTerminals(taskKey: string): void {
         // ignore dispose errors
       }
       try {
-        (window as any).electronAPI?.ptyClearSnapshot?.({ id: terminal.id });
+        window.electronAPI?.ptyClearSnapshot?.({ id: terminal.id });
       } catch {
         // ignore snapshot errors
       }
@@ -344,7 +345,9 @@ export function disposeTaskTerminals(taskKey: string): void {
   }
   try {
     window.electronAPI?.deleteTerminalSessions?.(taskKey);
-  } catch {}
+  } catch (error) {
+    console.error('Failed to delete terminal sessions:', error);
+  }
 }
 
 export function useTaskTerminals(

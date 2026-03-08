@@ -1,4 +1,5 @@
 import React from 'react';
+import { emitScriptRun } from '../../lib/scriptRunStore';
 import { Play } from 'lucide-react';
 import { Button } from '../ui/button';
 import {
@@ -28,9 +29,7 @@ const ScriptsMenu: React.FC<ScriptsMenuProps> = ({ path }) => {
   }, [path]);
 
   const handleRunScript = (scriptName: string) => {
-    window.dispatchEvent(
-      new CustomEvent('run-script', { detail: { scriptName, path } })
-    );
+    emitScriptRun({ scriptName, path });
   };
 
   if (scripts.length === 0) return null;

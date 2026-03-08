@@ -32,7 +32,7 @@ export const ExternalLinkProvider: React.FC<ExternalLinkProviderProps> = ({ chil
   const handleConfirm = useCallback(() => {
     if (currentUrl) {
       // Use electron's shell API to open the URL safely in the default browser
-      window.electronAPI?.openExternal?.(currentUrl).catch((error: any) => {
+      window.electronAPI?.openExternal?.(currentUrl).catch((error: unknown) => {
         console.error('Failed to open external link:', error);
       });
     }

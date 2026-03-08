@@ -15,6 +15,7 @@ import { useTerminalShortcut } from '../../hooks/useTerminalShortcut';
 import { useTaskTerminals } from '@/lib/taskTerminalsStore';
 import { TerminalPane } from '../TerminalPane';
 import { useTheme } from '../../hooks/useTheme';
+import { onScriptRun } from '../../lib/scriptRunStore';
 
 interface TerminalPanelProps {
   /** Additional CSS classes */
@@ -169,16 +170,13 @@ export function TerminalPanel({
     [terminalCwd, createTerminal, isCollapsed, toggleCollapsed]
   );
 
-  // Listen for run-script events from OpenInMenu
+  // Listen for run-script events from ScriptsMenu
   useEffect(() => {
-    const handler = (e: Event) => {
-      const { scriptName, path: scriptPath } = (e as CustomEvent).detail;
+    return onScriptRun(({ scriptName, path: scriptPath }) => {
       if (scriptPath === terminalCwd) {
         handleRunScript(scriptName);
       }
-    };
-    window.addEventListener('run-script', handler);
-    return () => window.removeEventListener('run-script', handler);
+    });
   }, [terminalCwd, handleRunScript]);
 
   // Track which terminals are actively running a command.

@@ -1,0 +1,532 @@
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { type Task } from '../../types/chat';
+import { type Agent } from '../../types';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import OpenInMenu from '../titlebar/OpenInMenu';
+import { AcpChatPane } from '../chat/AcpChatPane';
+import { agentMeta } from '@/providers/meta';
+import { agentAssets } from '@/providers/assets';
+import { useTheme } from '@/hooks/useTheme';
+import { onAgentSwitch } from '../../lib/agentSwitchStore';
+import { classifyActivity } from '@/lib/activityClassifier';
+import { activityStore } from '@/lib/activityStore';
+import { Spinner } from '../ui/spinner';
+import { BUSY_HOLD_MS, CLEAR_BUSY_MS } from '@/lib/activityConstants';
+import { CornerDownLeft } from 'lucide-react';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
+import { useAutoScrollOnTaskSwitch } from '@/hooks/useAutoScrollOnTaskSwitch';
+
+interface Props {
+  task: Task;
+  projectName: string;
+  projectId: string;
+  projectPath?: string | null;
+  projectRemoteConnectionId?: string | null;
+  projectRemotePath?: string | null;
+  defaultBranch?: string | null;
+}
+
+type Variant = {
+  id: string;
+  agent: Agent;
+  name: string;
+  branch: string;
+  path: string;
+  worktreeId: string;
+};
+
+const MultiAgentTask: React.FC<Props> = ({
+  task,
+  projectPath,
+  projectRemoteConnectionId,
+  projectRemotePath: _projectRemotePath,
+  defaultBranch: _defaultBranch,
+}) => {
+  const { effectiveTheme } = useTheme();
+  const [prompt, setPrompt] = useState('');
+  const [activeTabIndex, setActiveTabIndex] = useState(0);
+  const [variantBusy, setVariantBusy] = useState<Record<string, boolean>>({});
+  const acpAppendRefs = useRef<
+    Record<string, ((msg: { content: string }) => Promise<void>) | null>
+  >({});
+  const multi = task.metadata?.multiAgent;
+  const variants = (multi?.variants || []) as Variant[];
+
+  // Auto-scroll to bottom when this task becomes active
+  const { scrollToBottom } = useAutoScrollOnTaskSwitch(true, task.id);
+
+  // Helper to generate display label with instance number if needed
+  const getVariantDisplayLabel = (variant: Variant): string => {
+    const meta = agentMeta[variant.agent];
+    const baseName = meta?.label || variant.agent;
+
+    // Count how many variants use this agent
+    const agentVariants = variants.filter((v) => v.agent === variant.agent);
+
+    // If only one instance of this agent, just show base name
+    if (agentVariants.length === 1) {
+      return baseName;
+    }
+
+    // Multiple instances: extract instance number from variant name
+    // variant.name format: "task-agent-1", "task-agent-2", etc.
+    const match = variant.name.match(/-(\d+)$/);
+    const instanceNum = match ? match[1] : String(agentVariants.indexOf(variant) + 1);
+
+    return `${baseName} #${instanceNum}`;
+  };
+
+  // Build initial issue context (feature parity with single-agent ChatInterface)
+  const initialInjection: string | null = useMemo(() => {
+    const md = (task.metadata || null) as Record<string, unknown> | null;
+    if (!md) return null;
+    const p = (typeof md.initialPrompt === 'string' ? md.initialPrompt : '').trim();
+    if (p) return p;
+    // Linear
+    const issue = md.linearIssue as Record<string, unknown> | undefined;
+    if (issue) {
+      const parts: string[] = [];
+      const line1 = `Linked Linear issue: ${issue.identifier}${issue.title ? ` — ${issue.title}` : ''}`;
+      parts.push(line1);
+      const details: string[] = [];
+      const issueState = issue.state as Record<string, unknown> | undefined;
+      const issueAssignee = issue.assignee as Record<string, unknown> | undefined;
+      const issueTeam = issue.team as Record<string, unknown> | undefined;
+      const issueProject = issue.project as Record<string, unknown> | undefined;
+      if (issueState?.name) details.push(`State: ${issueState.name}`);
+      if (issueAssignee?.displayName || issueAssignee?.name)
+        details.push(`Assignee: ${issueAssignee?.displayName || issueAssignee?.name}`);
+      if (issueTeam?.key) details.push(`Team: ${issueTeam.key}`);
+      if (issueProject?.name) details.push(`Project: ${issueProject.name}`);
+      if (details.length) parts.push(`Details: ${details.join(' • ')}`);
+      if (issue.url) parts.push(`URL: ${issue.url}`);
+      const desc = issue.description;
+      if (typeof desc === 'string' && desc.trim()) {
+        const trimmed = desc.trim();
+        const max = 1500;
+        const body = trimmed.length > max ? trimmed.slice(0, max) + '\n…' : trimmed;
+        parts.push('', 'Issue Description:', body);
+      }
+      return parts.join('\n');
+    }
+    // GitHub
+    const gh = md.githubIssue as
+      | {
+          number: number;
+          title?: string;
+          url?: string;
+          state?: string;
+          assignees?: Array<{ name?: string; login?: string }>;
+          labels?: Array<{ name?: string }>;
+          body?: string;
+        }
+      | undefined;
+    if (gh) {
+      const parts: string[] = [];
+      const line1 = `Linked GitHub issue: #${gh.number}${gh.title ? ` — ${gh.title}` : ''}`;
+      parts.push(line1);
+      const details: string[] = [];
+      if (gh.state) details.push(`State: ${gh.state}`);
+      try {
+        const as = Array.isArray(gh.assignees)
+          ? gh.assignees
+              .map((a) => a?.name || a?.login)
+              .filter(Boolean)
+              .join(', ')
+          : '';
+        if (as) details.push(`Assignees: ${as}`);
+      } catch {}
+      try {
+        const ls = Array.isArray(gh.labels)
+          ? gh.labels
+              .map((l) => l?.name)
+              .filter(Boolean)
+              .join(', ')
+          : '';
+        if (ls) details.push(`Labels: ${ls}`);
+      } catch {}
+      if (details.length) parts.push(`Details: ${details.join(' • ')}`);
+      if (gh.url) parts.push(`URL: ${gh.url}`);
+      const body = typeof gh.body === 'string' ? gh.body.trim() : '';
+      if (body) {
+        const max = 1500;
+        const clipped = body.length > max ? body.slice(0, max) + '\n…' : body;
+        parts.push('', 'Issue Description:', clipped);
+      }
+      return parts.join('\n');
+    }
+    // Jira
+    const j = md.jiraIssue as Record<string, unknown> | undefined;
+    if (j) {
+      const lines: string[] = [];
+      const l1 = `Linked Jira issue: ${j.key}${j.summary ? ` — ${j.summary}` : ''}`;
+      lines.push(l1);
+      const details: string[] = [];
+      const jStatus = j.status as Record<string, unknown> | undefined;
+      const jAssignee = j.assignee as Record<string, unknown> | undefined;
+      const jProject = j.project as Record<string, unknown> | undefined;
+      if (jStatus?.name) details.push(`Status: ${jStatus.name}`);
+      if (jAssignee?.displayName || jAssignee?.name)
+        details.push(`Assignee: ${jAssignee?.displayName || jAssignee?.name}`);
+      if (jProject?.key) details.push(`Project: ${jProject.key}`);
+      if (details.length) lines.push(`Details: ${details.join(' • ')}`);
+      if (j.url) lines.push(`URL: ${j.url}`);
+      return lines.join('\n');
+    }
+    return null;
+  }, [task.metadata]);
+
+  const handleRunAll = async () => {
+    const msg = prompt.trim();
+    if (!msg) return;
+    // Send concurrently to all ACP panes
+    const tasks: Promise<void>[] = [];
+    variants.forEach((v) => {
+      const appendFn = acpAppendRefs.current[v.worktreeId];
+      if (appendFn) {
+        tasks.push(appendFn({ content: msg }));
+      }
+    });
+    await Promise.all(tasks);
+    setPrompt('');
+  };
+
+  // Track per-variant activity so we can render a spinner on the tabs
+  useEffect(() => {
+    if (!variants.length) {
+      setVariantBusy({});
+      return;
+    }
+
+    // Keep busy state only for currently mounted variants
+    setVariantBusy((prev) => {
+      const next: Record<string, boolean> = {};
+      variants.forEach((v) => {
+        next[v.worktreeId] = prev[v.worktreeId] ?? false;
+      });
+      return next;
+    });
+
+    const timers = new Map<string, ReturnType<typeof setTimeout>>();
+    const busySince = new Map<string, number>();
+    const busyState = new Map<string, boolean>();
+
+    const publish = (variantId: string, busy: boolean) => {
+      busyState.set(variantId, busy);
+      setVariantBusy((prev) => {
+        if (prev[variantId] === busy) return prev;
+        return { ...prev, [variantId]: busy };
+      });
+    };
+
+    const clearTimer = (variantId: string) => {
+      const t = timers.get(variantId);
+      if (t) clearTimeout(t);
+      timers.delete(variantId);
+    };
+
+    const setBusy = (variantId: string, busy: boolean) => {
+      const current = busyState.get(variantId) || false;
+      if (busy) {
+        clearTimer(variantId);
+        busySince.set(variantId, Date.now());
+        if (!current) publish(variantId, true);
+        return;
+      }
+
+      const started = busySince.get(variantId) || 0;
+      const elapsed = started ? Date.now() - started : BUSY_HOLD_MS;
+      const remaining = elapsed < BUSY_HOLD_MS ? BUSY_HOLD_MS - elapsed : 0;
+
+      const clearNow = () => {
+        clearTimer(variantId);
+        busySince.delete(variantId);
+        if (busyState.get(variantId) !== false) publish(variantId, false);
+      };
+
+      if (remaining > 0) {
+        clearTimer(variantId);
+        timers.set(variantId, setTimeout(clearNow, remaining));
+      } else {
+        clearNow();
+      }
+    };
+
+    const armNeutral = (variantId: string) => {
+      if (!busyState.get(variantId)) return;
+      clearTimer(variantId);
+      timers.set(
+        variantId,
+        setTimeout(() => setBusy(variantId, false), CLEAR_BUSY_MS)
+      );
+    };
+
+    const cleanups: Array<() => void> = [];
+
+    variants.forEach((variant) => {
+      const variantId = variant.worktreeId;
+      const ptyId = `${variant.worktreeId}-main`;
+      busyState.set(variantId, variantBusy[variantId] ?? false);
+
+      const offData = window.electronAPI?.onPtyData?.(ptyId, (chunk: string) => {
+        try {
+          const signal = classifyActivity(variant.agent, chunk || '');
+          if (signal === 'busy') setBusy(variantId, true);
+          else if (signal === 'idle') setBusy(variantId, false);
+          else armNeutral(variantId);
+        } catch {
+          // ignore classification failures
+        }
+      });
+      if (offData) cleanups.push(offData);
+
+      const offExit = window.electronAPI?.onPtyExit?.(ptyId, () => {
+        setBusy(variantId, false);
+      });
+      if (offExit) cleanups.push(offExit);
+    });
+
+    return () => {
+      cleanups.forEach((off) => {
+        try {
+          off?.();
+        } catch {}
+      });
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
+      busySince.clear();
+      busyState.clear();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variants]);
+
+  // Prefill the top input with the prepared issue context once
+  const prefillOnceRef = useRef(false);
+  useEffect(() => {
+    if (prefillOnceRef.current) return;
+    const text = (initialInjection || '').trim();
+    if (text && !prompt) {
+      setPrompt(text);
+    }
+    prefillOnceRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialInjection]);
+
+  // Sync variant busy state to activityStore for sidebar indicator
+  useEffect(() => {
+    const anyBusy = Object.values(variantBusy).some(Boolean);
+    activityStore.setTaskBusy(task.id, anyBusy);
+  }, [variantBusy, task.id]);
+
+  // Ref to the active terminal
+  const activeTerminalRef = useRef<{ focus: () => void }>(null);
+
+  // Auto-scroll and focus when task or active tab changes
+  useEffect(() => {
+    if (variants.length > 0 && activeTabIndex >= 0 && activeTabIndex < variants.length) {
+      // Small delay to ensure the tab content is rendered
+      const timeout = setTimeout(() => {
+        scrollToBottom({ onlyIfNearTop: true });
+        // Focus the active terminal when switching tabs
+        activeTerminalRef.current?.focus();
+      }, 150);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [task.id, activeTabIndex, variants.length, scrollToBottom]);
+
+  // Switch active agent tab via global shortcuts (Cmd+Shift+J/K)
+  useEffect(() => {
+    return onAgentSwitch((direction) => {
+      if (variants.length <= 1) return;
+
+      setActiveTabIndex((current) => {
+        if (variants.length <= 1) return current;
+        if (direction === 'prev') {
+          return current <= 0 ? variants.length - 1 : current - 1;
+        }
+        return (current + 1) % variants.length;
+      });
+    });
+  }, [variants.length]);
+
+  if (!multi?.enabled) {
+    return (
+      <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
+        Multi-agent config missing for this task.
+      </div>
+    );
+  }
+
+  // Show loading state while worktrees are being created
+  if (variants.length === 0) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3">
+        <Spinner size="lg" />
+        <p className="text-muted-foreground text-sm">Creating task...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative flex h-full flex-col">
+      {variants.map((v, idx) => {
+        const isDark = effectiveTheme === 'dark' || effectiveTheme === 'dark-black';
+        const isActive = idx === activeTabIndex;
+        return (
+          <div
+            key={v.worktreeId}
+            className={`flex-1 overflow-hidden ${isActive ? '' : 'invisible absolute inset-0'}`}
+          >
+            <div className="flex h-full flex-col">
+              <div className="flex items-center justify-end gap-2 px-3 py-1.5">
+                <OpenInMenu
+                  path={v.path}
+                  isRemote={!!projectRemoteConnectionId}
+                  sshConnectionId={projectRemoteConnectionId}
+                />
+              </div>
+              <div className="mt-2 flex items-center justify-center px-4 py-2">
+                <TooltipProvider delayDuration={250}>
+                  <div className="flex items-center gap-2">
+                    {variants.map((variant, tabIdx) => {
+                      const asset = agentAssets[variant.agent];
+                      const meta = agentMeta[variant.agent];
+                      const isTabActive = tabIdx === activeTabIndex;
+                      return (
+                        <Tooltip key={variant.worktreeId}>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              onClick={() => setActiveTabIndex(tabIdx)}
+                              className={`inline-flex h-8 items-center gap-2 rounded-md px-3 text-xs font-medium transition-all ${
+                                isTabActive
+                                  ? 'border-border bg-background text-foreground border shadow-xs'
+                                  : 'border-border text-muted-foreground hover:bg-background/50 hover:text-foreground border bg-transparent'
+                              }`}
+                            >
+                              {asset?.logo ? (
+                                <img
+                                  src={asset.logo}
+                                  alt={asset.alt || meta?.label || variant.agent}
+                                  className={`h-4 w-4 shrink-0 object-contain ${asset?.invertInDark ? 'dark:invert' : ''}`}
+                                />
+                              ) : null}
+                              <span>{getVariantDisplayLabel(variant)}</span>
+                              {variantBusy[variant.worktreeId] ? (
+                                <Spinner
+                                  size="sm"
+                                  className={
+                                    isTabActive ? 'text-foreground' : 'text-muted-foreground'
+                                  }
+                                />
+                              ) : null}
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{variant.name}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    })}
+                  </div>
+                </TooltipProvider>
+              </div>
+              <div className="min-h-0 flex-1 px-6 pt-4">
+                <div
+                  className={`mx-auto h-full max-w-4xl overflow-hidden rounded-md ${
+                    v.agent === 'mistral'
+                      ? isDark
+                        ? 'bg-[#202938]'
+                        : 'bg-white'
+                      : isDark
+                        ? 'bg-card'
+                        : 'bg-white'
+                  }`}
+                >
+                  <AcpChatPaneWithRef
+                    worktreeId={v.worktreeId}
+                    agent={v.agent}
+                    cwd={v.path}
+                    projectPath={projectPath || undefined}
+                    onAppendRef={(fn) => {
+                      acpAppendRefs.current[v.worktreeId] = fn;
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      <div className="px-6 pt-4 pb-6">
+        <div className="mx-auto max-w-4xl">
+          <div className="border-border dark:border-border dark:bg-card relative rounded-md border bg-white shadow-lg">
+            <div className="flex items-center gap-2 rounded-md px-4 py-3">
+              <Input
+                className="border-border bg-muted dark:border-border dark:bg-muted h-9 flex-1"
+                placeholder="Tell the agents what to do..."
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (prompt.trim()) {
+                      void handleRunAll();
+                    }
+                  }
+                }}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-border bg-muted hover:bg-muted dark:border-border dark:bg-muted dark:hover:bg-muted h-9 border px-3 text-xs font-medium"
+                onClick={handleRunAll}
+                disabled={!prompt.trim()}
+                title="Run in all panes (Enter)"
+                aria-label="Run in all panes"
+              >
+                <CornerDownLeft className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Wrapper that renders AcpChatPane and registers the append function
+ * into a shared ref so the synced prompt toolbar can broadcast to all ACP panes.
+ */
+function AcpChatPaneWithRef({
+  worktreeId,
+  agent,
+  cwd,
+  projectPath,
+  onAppendRef,
+}: {
+  worktreeId: string;
+  agent: Agent;
+  cwd: string;
+  projectPath?: string;
+  onAppendRef?: (fn: ((msg: { content: string }) => Promise<void>) | null) => void;
+}) {
+  const conversationId = `multi-${worktreeId}`;
+
+  return (
+    <AcpChatPane
+      conversationId={conversationId}
+      providerId={agent}
+      cwd={cwd}
+      projectPath={projectPath}
+      onAppendRef={onAppendRef}
+      className="h-full w-full"
+    />
+  );
+}
+
+export default MultiAgentTask;

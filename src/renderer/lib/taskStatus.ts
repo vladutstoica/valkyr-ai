@@ -58,7 +58,6 @@ function wireGlobal() {
   if (wired) return;
   wired = true;
   ensureTicker();
-  const api: any = (window as any).electronAPI;
   // Agent streams removed; PTY and container activity drive status.
 }
 
@@ -94,7 +93,7 @@ const ptyUnsubs = new Map<string, () => void>();
 export function watchTaskPty(taskId: string): () => void {
   wireGlobal();
   if (ptyUnsubs.has(taskId)) return ptyUnsubs.get(taskId)!;
-  const api: any = (window as any).electronAPI;
+  const api = window.electronAPI;
   let off: (() => void) | null = null;
   let offExit: (() => void) | null = null;
   let offStarted: (() => void) | null = null;

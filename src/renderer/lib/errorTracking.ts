@@ -20,7 +20,7 @@ interface ErrorContext {
   provider?: string;
 
   // Additional debugging info
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 class RendererErrorTracking {
@@ -49,7 +49,7 @@ class RendererErrorTracking {
       const severity = context?.severity || this.determineSeverity(errorMessage, context);
 
       // Build error properties following PostHog's $exception format
-      const properties: Record<string, any> = {
+      const properties: Record<string, unknown> = {
         // PostHog required fields for error tracking
         $exception_message: errorMessage.slice(0, 500),
         $exception_type: context?.error_type || this.classifyError(errorMessage),
@@ -167,11 +167,10 @@ class RendererErrorTracking {
 
   // Private helper methods
 
-  private sendToMainProcess(event: string, properties: Record<string, any>): void {
+  private sendToMainProcess(event: string, properties: Record<string, unknown>): void {
     try {
-      const api = (window as any).electronAPI;
-      if (api?.captureTelemetry) {
-        void api.captureTelemetry(event, properties);
+      if (window.electronAPI?.captureTelemetry) {
+        void window.electronAPI.captureTelemetry(event, properties);
       }
     } catch {
       // Silent fail - telemetry might not be available
@@ -245,10 +244,10 @@ class RendererErrorTracking {
     return 'unknown_error';
   }
 
-  private sanitizeContext(context?: ErrorContext): Record<string, any> {
+  private sanitizeContext(context?: ErrorContext): Record<string, unknown> {
     if (!context) return {};
 
-    const sanitized: Record<string, any> = {};
+    const sanitized: Record<string, unknown> = {};
     const sensitiveKeys = ['password', 'token', 'secret', 'key', 'auth'];
     const skipKeys = [
       'severity',

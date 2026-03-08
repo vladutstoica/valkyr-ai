@@ -3,6 +3,16 @@ import type { Agent } from '../types';
 import type { Conversation } from '../../main/services/DatabaseService';
 import { agentConfig } from '../lib/agentConfig';
 import { getSettings } from '../services/settingsService';
+import {
+  getConversations,
+  saveConversation,
+  deleteConversation,
+  createConversation,
+  getOrCreateDefaultConversation,
+  setActiveConversation,
+  updateConversationAcpSessionId,
+  reorderConversations,
+} from '../services/conversationService';
 import { terminalSessionRegistry } from '../terminal/SessionRegistry';
 
 interface UseConversationManagerOptions {
@@ -38,7 +48,7 @@ export function useConversationManager({
     if (!activated) return;
     const loadConversations = async () => {
       setConversationsLoaded(false);
-      const result = await window.electronAPI.getConversations(taskId);
+      const result = await getConversations(taskId);
 
       if (result.success && result.conversations && result.conversations.length > 0) {
         const convs = result.conversations;
@@ -53,7 +63,7 @@ export function useConversationManager({
           const active = convs.find((c: Conversation) => c.isActive);
           chosen = active || convs[0]!;
           if (!active && chosen) {
-            window.electronAPI.setActiveConversation({
+            setActiveConversation({
               taskId,
               conversationId: chosen.id,
             });
@@ -80,7 +90,7 @@ export function useConversationManager({
         }
         setConversationsLoaded(true);
       } else {
-        const defaultResult = await window.electronAPI.getOrCreateDefaultConversation(taskId);
+        const defaultResult = await getOrCreateDefaultConversation(taskId);
         if (defaultResult.success && defaultResult.conversation) {
           const taskAgent = taskAgentId || agent;
 
@@ -101,7 +111,7 @@ export function useConversationManager({
           setConversations([conversationWithAgent]);
           setActiveConversationId(defaultResult.conversation.id);
           setAgent(taskAgent as Agent);
-          await window.electronAPI.saveConversation(conversationWithAgent);
+          await saveConversation(conversationWithAgent);
           setConversationsLoaded(true);
         }
       }
@@ -114,7 +124,7 @@ export function useConversationManager({
   const handleCreateChat = useCallback(
     async (title: string, newAgent: string, mode?: 'acp' | 'pty') => {
       try {
-        const result = await window.electronAPI.createConversation({
+        const result = await createConversation({
           taskId,
           title,
           provider: newAgent,
@@ -123,7 +133,7 @@ export function useConversationManager({
         });
 
         if (result.success && result.conversation) {
-          const conversationsResult = await window.electronAPI.getConversations(taskId);
+          const conversationsResult = await getConversations(taskId);
           if (conversationsResult.success) {
             setConversations(conversationsResult.conversations || []);
           }
@@ -165,7 +175,7 @@ export function useConversationManager({
         const config = agentConfig[agent as Agent];
         const chatTitle = title || `Resumed: ${config?.name || agent}`;
 
-        const result = await window.electronAPI.createConversation({
+        const result = await createConversation({
           taskId,
           title: chatTitle,
           provider: agent,
@@ -173,12 +183,12 @@ export function useConversationManager({
         });
 
         if (result.success && result.conversation) {
-          await window.electronAPI.updateConversationAcpSessionId({
+          await updateConversationAcpSessionId({
             conversationId: result.conversation.id,
             acpSessionId,
           });
 
-          const conversationsResult = await window.electronAPI.getConversations(taskId);
+          const conversationsResult = await getConversations(taskId);
           if (conversationsResult.success) {
             setConversations(conversationsResult.conversations || []);
           }
@@ -198,7 +208,7 @@ export function useConversationManager({
 
   const handleSwitchChat = useCallback(
     async (conversationId: string) => {
-      await window.electronAPI.setActiveConversation({
+      await setActiveConversation({
         taskId,
         conversationId,
       });
@@ -241,9 +251,9 @@ export function useConversationManager({
     const acpSessionKey = `${convAgent}-acp-${chatToDelete}`;
     window.electronAPI.acpKill({ sessionKey: acpSessionKey }).catch(() => {});
 
-    await window.electronAPI.deleteConversation(chatToDelete);
+    await deleteConversation(chatToDelete);
 
-    const result = await window.electronAPI.getConversations(taskId);
+    const result = await getConversations(taskId);
     if (result.success) {
       setConversations(result.conversations || []);
       if (
@@ -252,7 +262,7 @@ export function useConversationManager({
         result.conversations.length > 0
       ) {
         const newActive = result.conversations[0];
-        await window.electronAPI.setActiveConversation({
+        await setActiveConversation({
           taskId,
           conversationId: newActive.id,
         });
@@ -278,7 +288,7 @@ export function useConversationManager({
         terminalSessionRegistry.dispose(terminalToDispose);
         const acpSessionKey = `${convAgent}-acp-${conversationId}`;
         window.electronAPI.acpKill({ sessionKey: acpSessionKey }).catch(() => {});
-        await window.electronAPI.deleteConversation(conversationId);
+        await deleteConversation(conversationId);
         await handleCreateChat(title, convAgent);
       })();
     },
@@ -306,8 +316,8 @@ export function useConversationManager({
       if (swapIdx < 0 || swapIdx >= sorted.length) return;
       const newOrder = sorted.map((c) => c.id);
       [newOrder[idx], newOrder[swapIdx]] = [newOrder[swapIdx], newOrder[idx]];
-      await window.electronAPI.reorderConversations({ taskId, conversationIds: newOrder });
-      const result = await window.electronAPI.getConversations(taskId);
+      await reorderConversations({ taskId, conversationIds: newOrder });
+      const result = await getConversations(taskId);
       if (result.success) {
         setConversations(result.conversations || []);
       }

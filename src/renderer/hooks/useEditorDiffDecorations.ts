@@ -1,5 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
+import type { editor as monacoEditor } from 'monaco-editor';
 import { useTheme } from '@/hooks/useTheme';
+import { getFileDiff } from '@/services/gitService';
 
 // Constants for timing and delays
 const DIFF_CONSTANTS = {
@@ -20,7 +22,7 @@ interface DiffCacheEntry {
 }
 
 interface UseEditorDiffDecorationsOptions {
-  editor: any; // Monaco editor instance
+  editor: monacoEditor.IStandaloneCodeEditor | null;
   filePath: string;
   taskPath: string;
 }
@@ -67,7 +69,7 @@ export function useEditorDiffDecorations({
 
     try {
       // Get the diff from git
-      const result = await window.electronAPI.getFileDiff({ taskPath, filePath: relativePath });
+      const result = await getFileDiff({ taskPath, filePath: relativePath });
 
       if (!result.success || !result.diff || !result.diff.lines) {
         return [];
@@ -148,7 +150,7 @@ export function useEditorDiffDecorations({
       }
 
       const isDark = effectiveTheme === 'dark' || effectiveTheme === 'dark-black';
-      const newDecorations: any[] = [];
+      const newDecorations: monacoEditor.IModelDeltaDecoration[] = [];
 
       for (const diff of diffLines) {
         let className = '';
@@ -264,7 +266,7 @@ export function useEditorDiffDecorations({
       document.removeEventListener('visibilitychange', onVisibility);
       disposable?.dispose();
       // Clear decorations on cleanup
-      if (editor && !editor.isDisposed?.()) {
+      if (editor && !(editor as unknown as { isDisposed?: () => boolean }).isDisposed?.()) {
         try {
           editor.deltaDecorations(decorationIdsRef.current, []);
         } catch (e) {
@@ -298,7 +300,7 @@ export function useEditorDiffDecorations({
 
   // Helper to clear decorations immediately
   const clearDecorations = useCallback(() => {
-    if (editor && !editor.isDisposed?.()) {
+    if (editor && !(editor as unknown as { isDisposed?: () => boolean }).isDisposed?.()) {
       try {
         decorationIdsRef.current = editor.deltaDecorations(decorationIdsRef.current, []);
       } catch (error) {

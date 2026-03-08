@@ -1,3 +1,5 @@
+import { getGitStatus } from '../services/gitService';
+
 export type GitStatusChange = {
   path: string;
   status: string;
@@ -46,7 +48,7 @@ export async function getCachedGitStatus(
   latestRequestId.set(taskPath, requestId);
   const promise = (async () => {
     try {
-      const res = await window.electronAPI.getGitStatus(
+      const res = await getGitStatus(
         options?.repoMappings?.length ? { taskPath, repoMappings: options.repoMappings } : taskPath
       );
       const result = res ?? {

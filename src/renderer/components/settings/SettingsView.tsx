@@ -12,26 +12,27 @@ import {
   Info,
   Blocks,
 } from 'lucide-react';
-import { UpdateCard } from '../UpdateCard';
-import CliAgentsList, { BASE_CLI_AGENTS } from '../CliAgentsList';
-import TelemetryCard from '../TelemetryCard';
-import ThemeCard from '../ThemeCard';
-import BrowserPreviewSettingsCard from '../BrowserPreviewSettingsCard';
-import NotificationSettingsCard from '../NotificationSettingsCard';
-import RepositorySettingsCard from '../RepositorySettingsCard';
-import TerminalSettingsCard from '../TerminalSettingsCard';
-import ProjectPrepSettingsCard from '../ProjectPrepSettingsCard';
-import Context7SettingsCard from '../Context7SettingsCard';
-import DefaultAgentSettingsCard from '../DefaultAgentSettingsCard';
-import AcpAgentsList from '../AcpAgentsList';
-import DefaultOpenInSettingsCard from '../DefaultOpenInSettingsCard';
-import TaskSettingsCard from '../TaskSettingsCard';
-import KeyboardSettingsCard from '../KeyboardSettingsCard';
-import VoiceInputSettingsCard from '../VoiceInputSettingsCard';
+import { UpdateCard } from './UpdateCard';
+import CliAgentsList, { BASE_CLI_AGENTS } from './CliAgentsList';
+import TelemetryCard from './TelemetryCard';
+import ThemeCard from './ThemeCard';
+import BrowserPreviewSettingsCard from './BrowserPreviewSettingsCard';
+import NotificationSettingsCard from './NotificationSettingsCard';
+import RepositorySettingsCard from './RepositorySettingsCard';
+import TerminalSettingsCard from './TerminalSettingsCard';
+import ProjectPrepSettingsCard from './ProjectPrepSettingsCard';
+import Context7SettingsCard from './Context7SettingsCard';
+import DefaultAgentSettingsCard from './DefaultAgentSettingsCard';
+import AcpAgentsList from './AcpAgentsList';
+import DefaultOpenInSettingsCard from './DefaultOpenInSettingsCard';
+import TaskSettingsCard from './TaskSettingsCard';
+import KeyboardSettingsCard from './KeyboardSettingsCard';
+import VoiceInputSettingsCard from './VoiceInputSettingsCard';
 import { SshSettingsCard } from '../ssh/SshSettingsCard';
 import { McpView } from '../mcp/McpView';
 import { type SettingsTab, ORDERED_TABS } from '../../hooks/useModalState';
 import type { CliAgentStatus } from '../../types/connections';
+import { openExternal } from '../../services/shellService';
 
 const createDefaultCliAgents = (): CliAgentStatus[] =>
   BASE_CLI_AGENTS.map((agent) => ({ ...agent }));
@@ -262,7 +263,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab, onBack, project
                   size="sm"
                   className="h-auto justify-start px-0 text-xs"
                   onClick={() =>
-                    window.electronAPI.openExternal(
+                    openExternal(
                       'https://x.com/rabanspiegel/status/1991220598538924097?s=20'
                     )
                   }
@@ -274,7 +275,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab, onBack, project
                   variant="link"
                   size="sm"
                   className="h-auto justify-start px-0 text-xs"
-                  onClick={() => window.electronAPI.openExternal('https://github.com/vladutstoica/valkyr-ai')}
+                  onClick={() => openExternal('https://github.com/vladutstoica/valkyr-ai')}
                 >
                   Documentation ↗
                 </Button>

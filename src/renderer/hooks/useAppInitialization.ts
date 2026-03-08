@@ -5,6 +5,16 @@ import { getStoredActiveIds, saveActiveIds } from '../constants/layout';
 import { getAgentForTask } from '../lib/getAgentForTask';
 import { createLogger } from '../lib/logger';
 import { withRepoKey } from '../lib/projectUtils';
+import { getProjects, getTasks, updateProjectOrder } from '../services/projectService';
+import {
+  getAppVersion,
+  getPlatform,
+  updateAppState,
+  setTaskPinned,
+  setKanbanStatus,
+  getProjectGroups,
+  getWorkspaces,
+} from '../services/appService';
 
 const log = createLogger('hook:useAppInit');
 
@@ -43,7 +53,7 @@ const migrateLocalStorageToDB = async (): Promise<void> => {
     const prDraftRaw = localStorage.getItem('valkyr:createPrAsDraft');
     const prDraft = prDraftRaw === 'true' ? true : undefined;
 
-    await window.electronAPI.updateAppState({
+    await updateAppState({
       ...(activeProjectId != null && { activeProjectId }),
       ...(activeTaskId != null && { activeTaskId }),
       ...(activeWorkspaceId != null && { activeWorkspaceId }),
@@ -57,7 +67,7 @@ const migrateLocalStorageToDB = async (): Promise<void> => {
       if (pinnedRaw) {
         const ids: string[] = JSON.parse(pinnedRaw);
         await Promise.all(
-          ids.map((id) => window.electronAPI.setTaskPinned({ taskId: id, pinned: true }))
+          ids.map((id) => setTaskPinned({ taskId: id, pinned: true }))
         );
       }
     } catch {}
@@ -69,7 +79,7 @@ const migrateLocalStorageToDB = async (): Promise<void> => {
         const map: Record<string, string> = JSON.parse(kanbanRaw);
         await Promise.all(
           Object.entries(map).map(([taskId, status]) =>
-            window.electronAPI.setKanbanStatus({ taskId, status })
+            setKanbanStatus({ taskId, status })
           )
         );
       }
@@ -84,7 +94,7 @@ const migrateLocalStorageToDB = async (): Promise<void> => {
 // Save project order to database
 const saveProjectOrder = (list: Project[]) => {
   const ids = list.map((p) => p.id);
-  window.electronAPI.updateProjectOrder(ids).catch((error) => {
+  updateProjectOrder(ids).catch((error) => {
     log.error('Failed to save project order:', error);
   });
 };
@@ -103,7 +113,7 @@ const migrateLegacyOrder = async (projects: Project[]): Promise<Project[]> => {
     const sorted = [...projects].sort((a, b) => indexOf(a.id) - indexOf(b.id));
 
     // Save the migrated order to database
-    await window.electronAPI.updateProjectOrder(sorted.map((p) => p.id));
+    await updateProjectOrder(sorted.map((p) => p.id));
 
     // Remove the legacy localStorage key
     localStorage.removeItem(LEGACY_ORDER_KEY);
@@ -140,11 +150,11 @@ export function useAppInitialization(
       try {
         const [_appVersion, appPlatform, projects, groupsResult, workspacesResult] =
           await Promise.all([
-            window.electronAPI.getAppVersion(),
-            window.electronAPI.getPlatform(),
-            window.electronAPI.getProjects(),
-            window.electronAPI.getProjectGroups(),
-            window.electronAPI.getWorkspaces(),
+            getAppVersion(),
+            getPlatform(),
+            getProjects(),
+            getProjectGroups(),
+            getWorkspaces(),
           ]);
 
         setPlatform(appPlatform);
@@ -173,7 +183,7 @@ export function useAppInitialization(
 
         const projectsWithTasks = await Promise.all(
           initialProjects.map(async (project) => {
-            const tasks = await window.electronAPI.getTasks(project.id);
+            const tasks = await getTasks(project.id);
             return withRepoKey({ ...project, tasks }, appPlatform);
           })
         );
@@ -203,7 +213,7 @@ export function useAppInitialization(
         setIsInitialLoadComplete(true);
         onInitialLoadComplete();
       } catch (error) {
-        log.error('Failed to load app data:', error as any);
+        log.error('Failed to load app data:', error);
         onShowHomeView(true);
         setIsInitialLoadComplete(true);
         onInitialLoadComplete();

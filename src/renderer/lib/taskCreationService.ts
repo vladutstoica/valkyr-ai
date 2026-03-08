@@ -20,7 +20,7 @@ export interface CreateTaskCallbacks {
   setSelectedProject: React.Dispatch<React.SetStateAction<Project | null>>;
   setActiveTask: React.Dispatch<React.SetStateAction<Task | null>>;
   setActiveTaskAgent: React.Dispatch<React.SetStateAction<Agent | null>>;
-  toast: (opts: any) => void;
+  toast: (opts: { title?: string; description?: string; variant?: 'default' | 'destructive' }) => void;
 }
 
 async function runSetupOnCreate(
@@ -41,7 +41,7 @@ async function runSetupOnCreate(
     }
   } catch (error) {
     const { log } = await import('./logger');
-    log.warn(`Setup script error for task "${taskName}"`, error as any);
+    log.warn(`Setup script error for task "${taskName}"`, error);
   }
 }
 
@@ -215,7 +215,8 @@ export async function createTask(params: CreateTaskParams, callbacks: CreateTask
           };
 
           // Save to DB
-          const saveResult = await window.electronAPI.saveTask({
+          const { saveTask } = await import('../services/projectService');
+          const saveResult = await saveTask({
             ...finalTask,
             agentId: primaryAgent,
             metadata: finalMeta,
@@ -468,13 +469,15 @@ export async function createTask(params: CreateTaskParams, callbacks: CreateTask
       void runSetupOnCreate(newTask.id, newTask.path, selectedProject.path, newTask.name);
 
       // Background: save to database (non-blocking)
-      window.electronAPI
-        .saveTask({
-          ...newTask,
-          agentId: primaryAgent,
-          metadata: finalMetadata,
-          useWorktree,
-        })
+      import('../services/projectService')
+        .then(({ saveTask }) =>
+          saveTask({
+            ...newTask,
+            agentId: primaryAgent,
+            metadata: finalMetadata,
+            useWorktree,
+          })
+        )
         .then((saveResult) => {
           if (!saveResult?.success) {
             import('./logger').then(({ log }) => {
@@ -492,7 +495,7 @@ export async function createTask(params: CreateTaskParams, callbacks: CreateTask
 
       // Background: telemetry (non-blocking)
       import('./telemetryClient').then(({ captureTelemetry }) => {
-        const isMultiAgentTask = (newTask.metadata as any)?.multiAgent?.enabled;
+        const isMultiAgentTask = newTask.metadata?.multiAgent?.enabled;
         captureTelemetry('task_created', {
           provider: isMultiAgentTask ? 'multi' : (newTask.agentId as string) || 'codex',
           has_initial_prompt: !!taskMetadata?.initialPrompt,
@@ -502,7 +505,7 @@ export async function createTask(params: CreateTaskParams, callbacks: CreateTask
     }
   } catch (error) {
     const { log } = await import('./logger');
-    log.error('Failed to create task:', error as any);
+    log.error('Failed to create task:', error);
     callbacks.toast({
       title: 'Error',
       description:

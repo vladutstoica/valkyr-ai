@@ -2,7 +2,6 @@
 export { AddRemoteProjectModal } from './AddRemoteProjectModal';
 export { SshConnectionForm } from './SshConnectionForm';
 export { SshConnectionList } from './SshConnectionList';
-export { SshConnectionTestButton } from './SshConnectionTestButton';
 export { RemoteProjectIndicator } from './RemoteProjectIndicator';
 export { ConnectionStatusBadge } from './ConnectionStatusBadge';
 export { SshSettingsCard } from './SshSettingsCard';

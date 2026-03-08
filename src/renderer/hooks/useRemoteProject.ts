@@ -24,7 +24,7 @@ export function useRemoteProject(project: Project | null): UseRemoteProjectResul
   const [connectionState, setConnectionState] = useState<ConnectionState>(() => {
     if (!project) return 'disconnected';
     // Check if this is a remote project
-    const isRemote = (project as any).isRemote || (project as any).sshConnectionId;
+    const isRemote = project.isRemote || project.sshConnectionId;
     if (!isRemote) return 'disconnected';
     return connectionStateCache.get(project.id) || 'disconnected';
   });
@@ -36,10 +36,9 @@ export function useRemoteProject(project: Project | null): UseRemoteProjectResul
 
   // Determine if this is a remote project
   const isRemote = Boolean(
-    project && ((project as any).isRemote || (project as any).sshConnectionId)
+    project && (project.isRemote || project.sshConnectionId)
   );
-  const connectionId =
-    project && (project as any).sshConnectionId ? (project as any).sshConnectionId : null;
+  const connectionId = project?.sshConnectionId ?? null;
 
   // Update connection state and cache
   const updateConnectionState = useCallback(

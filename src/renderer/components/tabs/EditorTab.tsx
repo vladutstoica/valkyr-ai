@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { ChevronRight, ExternalLink, X, FolderOpen } from 'lucide-react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
+import { fsRead } from '@/services/fsService';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -82,7 +83,7 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
       // Validate each persisted file exists on disk
       for (const filePath of openFiles) {
         try {
-          const result = await window.electronAPI.fsRead(taskPath, filePath);
+          const result = await fsRead(taskPath, filePath);
           if (result.success && result.content !== undefined) {
             validFiles.push(filePath);
           } else {
@@ -195,7 +196,7 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
 
   // Handle keyboard shortcut for save
   const handleEditorMount = useCallback(
-    (editor: any, monaco: any) => {
+    (editor: { addCommand: (keybinding: number, handler: () => void) => void }, monaco: { KeyMod: { CtrlCmd: number }; KeyCode: { KeyS: number } }) => {
       editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
         saveFile();
       });
@@ -209,7 +210,7 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
       const filePath = activeFile ? `${taskPath}/${activeFile}` : taskPath;
       try {
         await window.electronAPI?.openIn?.({
-          app: appId as any,
+          app: appId as import('@shared/openInApps').OpenInAppId,
           path: filePath,
         });
       } catch (error) {

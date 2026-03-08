@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { AUTO_SAVE_DELAY } from '@/constants/file-explorer';
 import { dispatchFileChangeEvent } from '@/lib/fileChangeEvents';
 import { toast } from '@/hooks/use-toast';
+import { fsRead, fsReadImage, fsWriteFile } from '@/services/fsService';
 
 export interface ManagedFile {
   path: string;
@@ -62,7 +63,7 @@ export function useFileManager(options: UseFileManagerOptions): UseFileManagerRe
       try {
         // For image files, load as base64
         if (isImageFile(filePath)) {
-          const result = await window.electronAPI.fsReadImage(taskPath, filePath);
+          const result = await fsReadImage(taskPath, filePath);
 
           if (result.success && result.dataUrl) {
             const file: ManagedFile = {
@@ -89,7 +90,7 @@ export function useFileManager(options: UseFileManagerOptions): UseFileManagerRe
         }
 
         // Load text file
-        const result = await window.electronAPI.fsRead(taskPath, filePath);
+        const result = await fsRead(taskPath, filePath);
 
         if (result.success && result.content !== undefined) {
           const file: ManagedFile = {
@@ -127,7 +128,7 @@ export function useFileManager(options: UseFileManagerOptions): UseFileManagerRe
       setIsSaving(true);
 
       try {
-        const result = await window.electronAPI.fsWriteFile(
+        const result = await fsWriteFile(
           taskPath,
           targetPath,
           file.content,

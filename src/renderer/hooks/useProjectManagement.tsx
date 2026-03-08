@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { pickDefaultBranch } from '../components/BranchSelect';
+import { pickDefaultBranch } from '../components/git/BranchSelect';
 import { saveActiveIds, getProjectLastTaskId, saveProjectLastTaskId } from '../constants/layout';
 import { createLogger } from '../lib/logger';
 import {
@@ -9,12 +9,30 @@ import {
   withRepoKey,
 } from '../lib/projectUtils';
 import type { Project, ProjectGroup, Task, Workspace } from '../types/app';
+import { getConversations } from '../services/conversationService';
+import { getGitInfo, detectSubRepos } from '../services/gitService';
+import { saveProject, openProject, getTasks, deleteProject } from '../services/projectService';
+import {
+  createProjectGroup,
+  renameProjectGroup,
+  deleteProjectGroup as deleteProjectGroupSvc,
+  updateProjectGroupOrder,
+  setProjectGroup,
+  toggleProjectGroupCollapsed,
+  createWorkspace,
+  renameWorkspace,
+  deleteWorkspace as deleteWorkspaceSvc,
+  updateWorkspaceColor,
+  updateWorkspaceEmoji,
+  updateWorkspaceOrder,
+  setProjectWorkspace,
+} from '../services/workspaceService';
 
 const log = createLogger('hook:useProjectManagement');
 
 interface UseProjectManagementOptions {
   platform: string;
-  toast: (opts: any) => void;
+  toast: (opts: { title?: string; description?: string; variant?: 'default' | 'destructive' }) => void;
   setShowNewProjectModal: React.Dispatch<React.SetStateAction<boolean>>;
   setShowCloneModal: React.Dispatch<React.SetStateAction<boolean>>;
   setShowTaskModal: React.Dispatch<React.SetStateAction<boolean>>;
@@ -137,7 +155,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
   const refreshProjectSubRepos = useCallback(async (project: Project) => {
     latestSubRepoProjectRef.current = project.id;
     try {
-      const result = await window.electronAPI.detectSubRepos(project.path);
+      const result = await detectSubRepos(project.path);
       // Discard stale results if the user already switched to a different project
       if (latestSubRepoProjectRef.current !== project.id) return;
       if (!result.success) return;
@@ -240,7 +258,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
       if (freshGitInfo) {
         projectToSave.gitInfo = { ...project.gitInfo, ...freshGitInfo };
       }
-      await window.electronAPI.saveProject(projectToSave);
+      await saveProject(projectToSave);
     } catch {
       // Non-fatal: proceed without nested repo detection
     }
@@ -291,10 +309,10 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
     const { captureTelemetry } = await import('../lib/telemetryClient');
     captureTelemetry('project_add_clicked');
     try {
-      const result = await window.electronAPI.openProject();
+      const result = await openProject();
       if (result.success && result.path) {
         try {
-          const gitInfo = await window.electronAPI.getGitInfo(result.path);
+          const gitInfo = await getGitInfo(result.path);
           const selectedPath = gitInfo.path || result.path;
           const repoCanonicalPath = gitInfo.rootPath || selectedPath;
           const repoKey = normalizePathForComparison(repoCanonicalPath, platform);
@@ -313,7 +331,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
 
           if (!gitInfo.isGitRepo) {
             // Check for sub-repos (multi-repo project)
-            const subReposResult = await window.electronAPI.detectSubRepos(selectedPath);
+            const subReposResult = await detectSubRepos(selectedPath);
             if (subReposResult.success && subReposResult.subRepos.length > 0) {
               // This is a multi-repo project
               const projectName =
@@ -332,7 +350,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
                 tasks: [],
               };
 
-              const saveResult = await window.electronAPI.saveProject(multiRepoProject);
+              const saveResult = await saveProject(multiRepoProject);
               if (saveResult.success) {
                 const { captureTelemetry } = await import('../lib/telemetryClient');
                 captureTelemetry('project_added_success', { source: 'multi-repo' });
@@ -381,7 +399,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
 
           // Check for nested git repos inside this git-root project
           try {
-            const subReposResult = await window.electronAPI.detectSubRepos(selectedPath);
+            const subReposResult = await detectSubRepos(selectedPath);
             if (subReposResult.success && subReposResult.subRepos.length > 0) {
               baseProject.subRepos = [
                 {
@@ -405,7 +423,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
           {
             const projectToSave = withRepoKey(baseProject, platform);
 
-            const saveResult = await window.electronAPI.saveProject(projectToSave);
+            const saveResult = await saveProject(projectToSave);
             if (saveResult.success) {
               const { captureTelemetry } = await import('../lib/telemetryClient');
               captureTelemetry('project_added_success', { source: 'local' });
@@ -422,7 +440,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
             }
           }
         } catch (error) {
-          log.error('Git detection error:', error as any);
+          log.error('Git detection error:', error);
           toast({
             title: 'Project Opened',
             description: `Could not detect Git information. Path: ${result.path}`,
@@ -438,7 +456,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
         });
       }
     } catch (error) {
-      log.error('Open project error:', error as any);
+      log.error('Open project error:', error);
       toast({
         title: 'Failed to Open Project',
         description: 'Please check the console for details.',
@@ -464,7 +482,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
       const { captureTelemetry } = await import('../lib/telemetryClient');
       captureTelemetry('project_cloned');
       try {
-        const gitInfo = await window.electronAPI.getGitInfo(projectPath);
+        const gitInfo = await getGitInfo(projectPath);
         const selectedPath = gitInfo.path || projectPath;
         const repoCanonicalPath = gitInfo.rootPath || selectedPath;
         const repoKey = normalizePathForComparison(repoCanonicalPath, platform);
@@ -497,7 +515,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
         {
           const projectToSave = withRepoKey(baseProject, platform);
 
-          const saveResult = await window.electronAPI.saveProject(projectToSave);
+          const saveResult = await saveProject(projectToSave);
           if (saveResult.success) {
             captureTelemetry('project_clone_success');
             captureTelemetry('project_added_success', { source: 'clone' });
@@ -529,7 +547,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
       const { captureTelemetry } = await import('../lib/telemetryClient');
       captureTelemetry('new_project_created');
       try {
-        const gitInfo = await window.electronAPI.getGitInfo(projectPath);
+        const gitInfo = await getGitInfo(projectPath);
         const selectedPath = gitInfo.path || projectPath;
         const repoCanonicalPath = gitInfo.rootPath || selectedPath;
         const repoKey = normalizePathForComparison(repoCanonicalPath, platform);
@@ -560,7 +578,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
         };
 
         const project = withRepoKey(baseProject, platform);
-        const saveResult = await window.electronAPI.saveProject(project);
+        const saveResult = await saveProject(project);
         if (saveResult.success) {
           captureTelemetry('project_create_success');
           captureTelemetry('project_added_success', { source: 'new_project' });
@@ -657,7 +675,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
 
       toast({ title: 'Project renamed', description: `Renamed to "${trimmed}".` });
     } catch (err) {
-      log.error('Rename project failed:', err as any);
+      log.error('Rename project failed:', err);
       toast({
         title: 'Error',
         description:
@@ -674,9 +692,9 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
 
       // Kill all ACP sessions for this project's tasks before deleting
       try {
-        const tasks = await window.electronAPI.getTasks(project.id);
+        const tasks = await getTasks(project.id);
         for (const task of tasks || []) {
-          const convResult = await window.electronAPI.getConversations(task.id);
+          const convResult = await getConversations(task.id);
           if (convResult.success && convResult.conversations) {
             for (const conv of convResult.conversations) {
               const provider = conv.provider || 'claude-code';
@@ -687,7 +705,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
         }
       } catch {}
 
-      const res = await window.electronAPI.deleteProject(project.id);
+      const res = await deleteProject(project.id);
       if (!res?.success) throw new Error(res?.error || 'Failed to delete project');
 
       const { captureTelemetry } = await import('../lib/telemetryClient');
@@ -701,7 +719,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
       }
       toast({ title: 'Project deleted', description: `"${project.name}" was removed.` });
     } catch (err) {
-      log.error('Delete project failed:', err as any);
+      log.error('Delete project failed:', err);
       toast({
         title: 'Error',
         description:
@@ -715,7 +733,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
 
   const handleCreateGroup = async (name: string) => {
     try {
-      const res = await window.electronAPI.createProjectGroup(name);
+      const res = await createProjectGroup(name);
       if (res.success && res.group) {
         setGroups((prev) => [...prev, res.group!]);
       }
@@ -726,7 +744,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
 
   const handleRenameGroup = async (groupId: string, name: string) => {
     try {
-      const res = await window.electronAPI.renameProjectGroup({ id: groupId, name });
+      const res = await renameProjectGroup({ id: groupId, name });
       if (res.success) {
         setGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, name } : g)));
       }
@@ -737,7 +755,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
 
   const handleDeleteGroup = async (groupId: string) => {
     try {
-      const res = await window.electronAPI.deleteProjectGroup(groupId);
+      const res = await deleteProjectGroupSvc(groupId);
       if (res.success) {
         setGroups((prev) => prev.filter((g) => g.id !== groupId));
         // Unset groupId on projects that were in this group
@@ -757,7 +775,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
         const byId = new Map(prev.map((g) => [g.id, g]));
         return groupIds.map((id, i) => ({ ...byId.get(id)!, displayOrder: i }));
       });
-      await window.electronAPI.updateProjectGroupOrder(groupIds);
+      await updateProjectGroupOrder(groupIds);
     } catch (err) {
       log.error('Failed to reorder groups:', err);
     }
@@ -765,7 +783,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
 
   const handleMoveProjectToGroup = async (projectId: string, groupId: string | null) => {
     try {
-      const res = await window.electronAPI.setProjectGroup({ projectId, groupId });
+      const res = await setProjectGroup({ projectId, groupId });
       if (res.success) {
         setProjects((prev) => prev.map((p) => (p.id === projectId ? { ...p, groupId } : p)));
       }
@@ -778,7 +796,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
     try {
       // Optimistic update
       setGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, isCollapsed } : g)));
-      await window.electronAPI.toggleProjectGroupCollapsed({ id: groupId, isCollapsed });
+      await toggleProjectGroupCollapsed({ id: groupId, isCollapsed });
     } catch (err) {
       log.error('Failed to toggle group collapsed:', err);
     }
@@ -788,7 +806,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
 
   const handleCreateWorkspace = async (name: string, color: string = 'blue') => {
     try {
-      const res = await window.electronAPI.createWorkspace({ name, color });
+      const res = await createWorkspace({ name, color });
       if (res.success && res.workspace) {
         setWorkspaces((prev) => [...prev, res.workspace!]);
       }
@@ -799,7 +817,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
 
   const handleRenameWorkspace = async (workspaceId: string, name: string) => {
     try {
-      const res = await window.electronAPI.renameWorkspace({ id: workspaceId, name });
+      const res = await renameWorkspace({ id: workspaceId, name });
       if (res.success) {
         setWorkspaces((prev) => prev.map((ws) => (ws.id === workspaceId ? { ...ws, name } : ws)));
       }
@@ -810,7 +828,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
 
   const handleDeleteWorkspace = async (workspaceId: string) => {
     try {
-      const res = await window.electronAPI.deleteWorkspace(workspaceId);
+      const res = await deleteWorkspaceSvc(workspaceId);
       if (res.success) {
         setWorkspaces((prev) => prev.filter((ws) => ws.id !== workspaceId));
         // Move orphaned projects to default workspace in local state
@@ -834,7 +852,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
 
   const handleUpdateWorkspaceColor = async (workspaceId: string, color: string) => {
     try {
-      const res = await window.electronAPI.updateWorkspaceColor({ id: workspaceId, color });
+      const res = await updateWorkspaceColor({ id: workspaceId, color });
       if (res.success) {
         setWorkspaces((prev) => prev.map((ws) => (ws.id === workspaceId ? { ...ws, color } : ws)));
       }
@@ -845,7 +863,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
 
   const handleUpdateWorkspaceEmoji = async (workspaceId: string, emoji: string | null) => {
     try {
-      const res = await window.electronAPI.updateWorkspaceEmoji({ id: workspaceId, emoji });
+      const res = await updateWorkspaceEmoji({ id: workspaceId, emoji });
       if (res.success) {
         setWorkspaces((prev) => prev.map((ws) => (ws.id === workspaceId ? { ...ws, emoji } : ws)));
       }
@@ -860,7 +878,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
         const byId = new Map(prev.map((ws) => [ws.id, ws]));
         return workspaceIds.map((id, i) => ({ ...byId.get(id)!, displayOrder: i }));
       });
-      await window.electronAPI.updateWorkspaceOrder(workspaceIds);
+      await updateWorkspaceOrder(workspaceIds);
     } catch (err) {
       log.error('Failed to reorder workspaces:', err);
     }
@@ -868,7 +886,7 @@ export const useProjectManagement = (options: UseProjectManagementOptions) => {
 
   const handleMoveProjectToWorkspace = async (projectId: string, workspaceId: string | null) => {
     try {
-      const res = await window.electronAPI.setProjectWorkspace({ projectId, workspaceId });
+      const res = await setProjectWorkspace({ projectId, workspaceId });
       if (res.success) {
         setProjects((prev) => prev.map((p) => (p.id === projectId ? { ...p, workspaceId } : p)));
       }

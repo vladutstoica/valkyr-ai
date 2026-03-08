@@ -3,6 +3,31 @@
  * Configures language services to match project's tsconfig.json
  */
 
+import type { Monaco } from '@monaco-editor/react';
+import type { editor as monacoEditor } from 'monaco-editor';
+
+/** Monaco typescript language service namespace — runtime API exists but @monaco-editor/react types mark languages.typescript as deprecated */
+interface MonacoTsNamespace {
+  typescriptDefaults?: {
+    setCompilerOptions(options: Record<string, unknown>): void;
+    setDiagnosticsOptions(options: Record<string, unknown>): void;
+    setEagerModelSync(value: boolean): void;
+  };
+  javascriptDefaults?: {
+    setCompilerOptions(options: Record<string, unknown>): void;
+    setEagerModelSync(value: boolean): void;
+  };
+  ScriptTarget?: { ES2020?: number };
+  ModuleKind?: { ESNext?: number };
+  ModuleResolutionKind?: { NodeJs?: number };
+  JsxEmit?: { React?: number; ReactJSX?: number };
+}
+
+function getMonacoTs(monaco: Monaco): MonacoTsNamespace | undefined {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (monaco?.languages as Record<string, any>)?.typescript as MonacoTsNamespace | undefined;
+}
+
 // TypeScript target and module constants
 const TYPESCRIPT_TARGETS = {
   ES2020: 99, // Monaco's ES2020 enum value
@@ -78,7 +103,7 @@ const DIAGNOSTICS_OPTIONS = {
  * Configure Monaco editor's TypeScript language services
  * @param monaco - Monaco editor instance
  */
-export function configureMonacoTypeScript(monaco: any): void {
+export function configureMonacoTypeScript(monaco: Monaco): void {
   try {
     configureTypeScriptDefaults(monaco);
     configureJavaScriptDefaults(monaco);
@@ -90,28 +115,29 @@ export function configureMonacoTypeScript(monaco: any): void {
 /**
  * Configure TypeScript language defaults
  */
-function configureTypeScriptDefaults(monaco: any): void {
-  if (!monaco?.languages?.typescript?.typescriptDefaults) {
+function configureTypeScriptDefaults(monaco: Monaco): void {
+  const ts = getMonacoTs(monaco);
+  if (!ts?.typescriptDefaults) {
     return;
   }
 
-  const tsDefaults = monaco.languages.typescript.typescriptDefaults;
+  const tsDefaults = ts.typescriptDefaults;
 
   // Apply compiler options with safe fallbacks
   const compilerOptions = { ...TYPESCRIPT_COMPILER_OPTIONS };
 
   // Use Monaco's enum values if available, otherwise use numeric fallbacks
-  if (monaco.languages.typescript.ScriptTarget?.ES2020) {
-    compilerOptions.target = monaco.languages.typescript.ScriptTarget.ES2020;
+  if (ts.ScriptTarget?.ES2020) {
+    compilerOptions.target = ts.ScriptTarget.ES2020;
   }
-  if (monaco.languages.typescript.ModuleKind?.ESNext) {
-    compilerOptions.module = monaco.languages.typescript.ModuleKind.ESNext;
+  if (ts.ModuleKind?.ESNext) {
+    compilerOptions.module = ts.ModuleKind.ESNext;
   }
-  if (monaco.languages.typescript.ModuleResolutionKind?.NodeJs) {
-    compilerOptions.moduleResolution = monaco.languages.typescript.ModuleResolutionKind.NodeJs;
+  if (ts.ModuleResolutionKind?.NodeJs) {
+    compilerOptions.moduleResolution = ts.ModuleResolutionKind.NodeJs;
   }
-  if (monaco.languages.typescript.JsxEmit?.ReactJSX) {
-    compilerOptions.jsx = monaco.languages.typescript.JsxEmit.ReactJSX;
+  if (ts.JsxEmit?.ReactJSX) {
+    compilerOptions.jsx = ts.JsxEmit.ReactJSX;
   }
 
   tsDefaults.setCompilerOptions(compilerOptions);
@@ -122,28 +148,29 @@ function configureTypeScriptDefaults(monaco: any): void {
 /**
  * Configure JavaScript language defaults
  */
-function configureJavaScriptDefaults(monaco: any): void {
-  if (!monaco?.languages?.typescript?.javascriptDefaults) {
+function configureJavaScriptDefaults(monaco: Monaco): void {
+  const ts = getMonacoTs(monaco);
+  if (!ts?.javascriptDefaults) {
     return;
   }
 
-  const jsDefaults = monaco.languages.typescript.javascriptDefaults;
+  const jsDefaults = ts.javascriptDefaults;
 
   // Apply compiler options with safe fallbacks
   const compilerOptions = { ...JAVASCRIPT_COMPILER_OPTIONS };
 
   // Use Monaco's enum values if available
-  if (monaco.languages.typescript.ScriptTarget?.ES2020) {
-    compilerOptions.target = monaco.languages.typescript.ScriptTarget.ES2020;
+  if (ts.ScriptTarget?.ES2020) {
+    compilerOptions.target = ts.ScriptTarget.ES2020;
   }
-  if (monaco.languages.typescript.ModuleKind?.ESNext) {
-    compilerOptions.module = monaco.languages.typescript.ModuleKind.ESNext;
+  if (ts.ModuleKind?.ESNext) {
+    compilerOptions.module = ts.ModuleKind.ESNext;
   }
-  if (monaco.languages.typescript.ModuleResolutionKind?.NodeJs) {
-    compilerOptions.moduleResolution = monaco.languages.typescript.ModuleResolutionKind.NodeJs;
+  if (ts.ModuleResolutionKind?.NodeJs) {
+    compilerOptions.moduleResolution = ts.ModuleResolutionKind.NodeJs;
   }
-  if (monaco.languages.typescript.JsxEmit?.React) {
-    compilerOptions.jsx = monaco.languages.typescript.JsxEmit.React;
+  if (ts.JsxEmit?.React) {
+    compilerOptions.jsx = ts.JsxEmit.React;
   }
 
   jsDefaults.setCompilerOptions(compilerOptions);
@@ -155,7 +182,7 @@ function configureJavaScriptDefaults(monaco: any): void {
  * @param editor - Monaco editor instance
  * @param monaco - Monaco namespace
  */
-export function configureMonacoEditor(editor: any, monaco: any): void {
+export function configureMonacoEditor(editor: monacoEditor.IStandaloneCodeEditor, _monaco: Monaco): void {
   editor.updateOptions({
     quickSuggestions: {
       other: true,
@@ -166,7 +193,7 @@ export function configureMonacoEditor(editor: any, monaco: any): void {
     parameterHints: {
       enabled: true,
     },
-    wordBasedSuggestions: false,
+    wordBasedSuggestions: 'off',
     suggest: {
       showKeywords: true,
       showSnippets: true,
@@ -184,8 +211,8 @@ export function configureMonacoEditor(editor: any, monaco: any): void {
  * @param handlers - Keyboard shortcut handlers
  */
 export function addMonacoKeyboardShortcuts(
-  editor: any,
-  monaco: any,
+  editor: monacoEditor.IStandaloneCodeEditor,
+  monaco: Monaco,
   handlers: {
     onSave?: () => void;
     onSaveAll?: () => void;

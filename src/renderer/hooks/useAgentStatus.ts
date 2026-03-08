@@ -28,9 +28,10 @@ export function useAgentStatus(agent: string, taskId: string, activated: boolean
     if (!activated) return;
     let cancelled = false;
     let refreshCheckRequested = false;
-    const api: any = (window as any).electronAPI;
+    const api = window.electronAPI;
 
-    const applyStatuses = (statuses: Record<string, any> | undefined | null) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const applyStatuses = (statuses: Record<string, Record<string, any>> | undefined | null) => {
       if (!statuses) return;
       setAgentStatuses(statuses);
       if (cancelled) return;
@@ -38,7 +39,8 @@ export function useAgentStatus(agent: string, taskId: string, activated: boolean
       setIsAgentInstalled(installed);
     };
 
-    const maybeRefreshAgentStatus = async (statuses?: Record<string, any> | undefined | null) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const maybeRefreshAgentStatus = async (statuses?: Record<string, Record<string, any>> | undefined | null) => {
       if (cancelled || refreshCheckRequested) return;
       if (!api?.getProviderStatuses) return;
 
@@ -86,7 +88,8 @@ export function useAgentStatus(agent: string, taskId: string, activated: boolean
     };
 
     const off =
-      api?.onProviderStatusUpdated?.((payload: { providerId: string; status: any }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      api?.onProviderStatusUpdated?.((payload: { providerId: string; status: Record<string, any> }) => {
         if (!payload?.providerId) return;
         setAgentStatuses((prev) => {
           const next = { ...prev, [payload.providerId]: payload.status };

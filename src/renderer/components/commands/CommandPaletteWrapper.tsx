@@ -1,0 +1,57 @@
+import React from 'react';
+import CommandPalette from './CommandPalette';
+import { useTheme } from '../../hooks/useTheme';
+import type { Project, Task } from '../../types/app';
+
+export interface CommandPaletteWrapperProps {
+  isOpen: boolean;
+  onClose: () => void;
+  projects: Project[];
+  handleSelectProject: (project: Project) => void;
+  handleSelectTask: (task: Task) => void;
+  handleGoHome: () => void;
+  handleOpenProject: () => void;
+  handleOpenSettings: () => void;
+  handleOpenKeyboardShortcuts: () => void;
+}
+
+const CommandPaletteWrapper: React.FC<CommandPaletteWrapperProps> = ({
+  isOpen,
+  onClose,
+  projects,
+  handleSelectProject,
+  handleSelectTask,
+  handleGoHome,
+  handleOpenProject,
+  handleOpenSettings,
+  handleOpenKeyboardShortcuts,
+}) => {
+  const { toggleTheme } = useTheme();
+
+  return (
+    <CommandPalette
+      isOpen={isOpen}
+      onClose={onClose}
+      projects={projects}
+      onSelectProject={(projectId) => {
+        const project = projects.find((p) => p.id === projectId);
+        if (project) handleSelectProject(project);
+      }}
+      onSelectTask={(projectId, taskId) => {
+        const project = projects.find((p) => p.id === projectId);
+        const task = project?.tasks?.find((w: Task) => w.id === taskId);
+        if (project && task) {
+          handleSelectProject(project);
+          handleSelectTask(task);
+        }
+      }}
+      onOpenSettings={handleOpenSettings}
+      onOpenKeyboardShortcuts={handleOpenKeyboardShortcuts}
+      onToggleTheme={toggleTheme}
+      onGoHome={handleGoHome}
+      onOpenProject={handleOpenProject}
+    />
+  );
+};
+
+export default CommandPaletteWrapper;

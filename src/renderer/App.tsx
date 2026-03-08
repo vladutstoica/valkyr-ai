@@ -1,5 +1,5 @@
 import React, { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import AppKeyboardShortcuts from './components/AppKeyboardShortcuts';
+import AppKeyboardShortcuts from './components/commands/AppKeyboardShortcuts';
 import ErrorBoundary from './components/ErrorBoundary';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import LeftSidebar from './components/LeftSidebar';
@@ -7,20 +7,20 @@ import MainContentArea from './components/MainContentArea';
 import { ThemeProvider } from './components/ThemeProvider';
 
 // Lazy-loaded modals — only fetched when opened
-const TaskModal = React.lazy(() => import('./components/TaskModal'));
-const CommandPaletteWrapper = React.lazy(() => import('./components/CommandPaletteWrapper'));
+const TaskModal = React.lazy(() => import('./components/project/TaskModal'));
+const CommandPaletteWrapper = React.lazy(() => import('./components/commands/CommandPaletteWrapper'));
 const NewProjectModal = React.lazy(
-  () => import('./components/NewProjectModal').then((m) => ({ default: m.NewProjectModal }))
+  () => import('./components/project/NewProjectModal').then((m) => ({ default: m.NewProjectModal }))
 );
 const CloneFromUrlModal = React.lazy(
-  () => import('./components/CloneFromUrlModal').then((m) => ({ default: m.CloneFromUrlModal }))
+  () => import('./components/project/CloneFromUrlModal').then((m) => ({ default: m.CloneFromUrlModal }))
 );
 const AddRemoteProjectModal = React.lazy(
   () => import('./components/ssh/AddRemoteProjectModal').then((m) => ({ default: m.AddRemoteProjectModal }))
 );
 const KeyboardShortcutsDialog = React.lazy(
   () =>
-    import('./components/KeyboardShortcutsDialog').then((m) => ({ default: m.KeyboardShortcutsDialog }))
+    import('./components/commands/KeyboardShortcutsDialog').then((m) => ({ default: m.KeyboardShortcutsDialog }))
 );
 const PrerequisiteModal = React.lazy(
   () => import('./components/PrerequisiteModal').then((m) => ({ default: m.PrerequisiteModal }))
@@ -295,7 +295,8 @@ const AppContent: React.FC = () => {
           remotePath: remoteProject.path,
         } as Project;
 
-        const saveResult = await window.electronAPI.saveProject(project);
+        const { saveProject } = await import('./services/projectService');
+        const saveResult = await saveProject(project);
         if (saveResult.success) {
           captureTelemetry('project_create_success');
           captureTelemetry('project_added_success', { source: 'remote' });

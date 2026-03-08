@@ -4,8 +4,9 @@ import { Input } from './ui/input';
 import { Spinner } from './ui/spinner';
 import { useToast } from '../hooks/use-toast';
 // Lazy-load Monaco-heavy diff modals — only fetched when user opens a diff
-const ChangesDiffModal = React.lazy(() => import('./ChangesDiffModal'));
-const AllChangesDiffModal = React.lazy(() => import('./AllChangesDiffModal'));
+const ChangesDiffModal = React.lazy(() => import('./diff/ChangesDiffModal'));
+const AllChangesDiffModal = React.lazy(() => import('./diff/AllChangesDiffModal'));
+import { stageFile, stageAllFiles, unstageFile, revertFile, gitCommitAndPush } from '../services/gitService';
 import { useFileChanges } from '../hooks/useFileChanges';
 import { usePrStatus } from '../hooks/usePrStatus';
 import { FileIcon } from './FileExplorer/FileIcons';
@@ -17,7 +18,7 @@ import {
   ArrowUpRight,
   FileDiff,
 } from 'lucide-react';
-import { useTaskScope } from './TaskScopeContext';
+import { useTaskScope } from './project/TaskScopeContext';
 
 interface FileChangesPanelProps {
   taskId?: string;
@@ -57,7 +58,7 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
     setStagingFiles((prev) => new Set(prev).add(filePath));
 
     try {
-      const result = await window.electronAPI.stageFile({
+      const result = await stageFile({
         taskPath: safeTaskPath,
         filePath,
       });
@@ -90,7 +91,7 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
     setIsStagingAll(true);
 
     try {
-      const result = await window.electronAPI.stageAllFiles({
+      const result = await stageAllFiles({
         taskPath: safeTaskPath,
       });
 
@@ -119,7 +120,7 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
     setUnstagingFiles((prev) => new Set(prev).add(filePath));
 
     try {
-      const result = await window.electronAPI.unstageFile({
+      const result = await unstageFile({
         taskPath: safeTaskPath,
         filePath,
       });
@@ -154,7 +155,7 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
     setRevertingFiles((prev) => new Set(prev).add(filePath));
 
     try {
-      const result = await window.electronAPI.revertFile({
+      const result = await revertFile({
         taskPath: safeTaskPath,
         filePath,
       });
@@ -211,7 +212,7 @@ const FileChangesPanelComponent: React.FC<FileChangesPanelProps> = ({
 
     setIsCommitting(true);
     try {
-      const result = await window.electronAPI.gitCommitAndPush({
+      const result = await gitCommitAndPush({
         taskPath: safeTaskPath,
         commitMessage: commitMessage.trim(),
         createBranchIfOnDefault: true,

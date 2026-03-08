@@ -8,6 +8,8 @@ import React, {
   useImperativeHandle,
 } from 'react';
 import { terminalSessionRegistry } from '../terminal/SessionRegistry';
+import { openExternal } from '../services/shellService';
+import { ptyInput } from '../services/ptyService';
 import type { SessionTheme } from '../terminal/TerminalSessionManager';
 import { log } from '../lib/logger';
 import ExternalLinkModal from './ExternalLinkModal';
@@ -25,7 +27,7 @@ type Props = {
   env?: Record<string, string>;
   className?: string;
   variant?: 'dark' | 'light';
-  themeOverride?: any;
+  themeOverride?: import('@xterm/xterm').ITheme;
   contentFilter?: string;
   keepAlive?: boolean;
   autoApprove?: boolean;
@@ -85,9 +87,7 @@ const TerminalPaneComponent = forwardRef<{ focus: () => void }, Props>(
     // Handle confirming link open
     const handleLinkConfirm = useCallback(() => {
       if (currentLinkUrl) {
-        window.electronAPI.openExternal(currentLinkUrl).catch((error) => {
-          log.warn('Failed to open external link', { url: currentLinkUrl, error });
-        });
+        openExternal(currentLinkUrl);
       }
       setLinkModalOpen(false);
       setCurrentLinkUrl('');
@@ -214,13 +214,13 @@ const TerminalPaneComponent = forwardRef<{ focus: () => void }, Props>(
         if (!dt || !dt.files || dt.files.length === 0) return;
         const paths: string[] = [];
         for (let i = 0; i < dt.files.length; i++) {
-          const file = dt.files[i] as any;
-          const p: string | undefined = file?.path;
+          const file = dt.files[i] as File & { path?: string };
+          const p = file?.path;
           if (p) paths.push(p);
         }
         if (paths.length === 0) return;
         const escaped = paths.map((p) => `'${p.replace(/'/g, "'\\''")}'`).join(' ');
-        window.electronAPI.ptyInput({ id, data: `${escaped} ` });
+        ptyInput(id, `${escaped} `);
         sessionRef.current?.focus();
       } catch (error) {
         log.warn('Terminal drop failed', { error });

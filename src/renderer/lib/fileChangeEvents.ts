@@ -1,35 +1,35 @@
 /**
- * File change event system for notifying components when files are saved
- * This allows the CodeEditor to notify the FileChangesPanel to refresh immediately
+ * Pub/sub store for file change events.
+ * Replaces window.dispatchEvent('file-change-notification') pattern.
+ * Notifies components when files are saved (e.g., CodeEditor → FileChangesPanel).
  */
-
-export const FILE_CHANGE_EVENT = 'file-change-notification';
 
 export interface FileChangeEvent {
   taskPath: string;
   filePath?: string;
 }
 
+type FileChangeListener = (event: FileChangeEvent) => void;
+
+const listeners = new Set<FileChangeListener>();
+
 /**
- * Dispatch a file change event to notify listeners that files have been saved
+ * Subscribe to file change events.
+ * Returns a cleanup function to remove the listener.
  */
-export function dispatchFileChangeEvent(taskPath: string, filePath?: string): void {
-  const event = new CustomEvent(FILE_CHANGE_EVENT, {
-    detail: { taskPath, filePath },
-  });
-  window.dispatchEvent(event);
+export function subscribeToFileChanges(callback: FileChangeListener): () => void {
+  listeners.add(callback);
+  return () => {
+    listeners.delete(callback);
+  };
 }
 
 /**
- * Subscribe to file change events
- * Returns a cleanup function to remove the listener
+ * Dispatch a file change event to notify listeners that files have been saved.
  */
-export function subscribeToFileChanges(
-  callback: (event: CustomEvent<FileChangeEvent>) => void
-): () => void {
-  const handler = (e: Event) => {
-    callback(e as CustomEvent<FileChangeEvent>);
-  };
-  window.addEventListener(FILE_CHANGE_EVENT, handler);
-  return () => window.removeEventListener(FILE_CHANGE_EVENT, handler);
+export function dispatchFileChangeEvent(taskPath: string, filePath?: string): void {
+  const event: FileChangeEvent = { taskPath, filePath };
+  for (const listener of listeners) {
+    listener(event);
+  }
 }

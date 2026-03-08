@@ -1,6 +1,6 @@
 import React from 'react';
-import ChatInterface from './ChatInterface';
-import MultiAgentTask from './MultiAgentTask';
+import ChatInterface from './chat/ChatInterface';
+import MultiAgentTask from './project/MultiAgentTask';
 import ProjectMainView from './ProjectMainView';
 import HomeView from './HomeView';
 import SkillsView from './skills/SkillsView';
@@ -84,7 +84,7 @@ const MainContentArea: React.FC<MainContentAreaProps> = ({
             {allProjects.map((project) => {
               const tasks = project.tasks || [];
               return tasks.map((task) => {
-                const isMultiAgent = (task.metadata as any)?.multiAgent?.enabled;
+                const isMultiAgent = task.metadata?.multiAgent?.enabled;
                 return (
                   <div key={task.id}>
                     {isMultiAgent ? (
@@ -134,7 +134,7 @@ const MainContentArea: React.FC<MainContentAreaProps> = ({
 
           return tasks.map((task) => {
             const isActive = isSelectedProject && task.id === activeTask?.id;
-            const isMultiAgent = (task.metadata as any)?.multiAgent?.enabled;
+            const isMultiAgent = task.metadata?.multiAgent?.enabled;
 
             return (
               <div

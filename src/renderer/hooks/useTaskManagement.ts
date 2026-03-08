@@ -5,8 +5,12 @@ import { getAgentForTask } from '../lib/getAgentForTask';
 import { createLogger } from '../lib/logger';
 import { disposeTaskTerminals } from '../lib/taskTerminalsStore';
 import { terminalSessionRegistry } from '../terminal/SessionRegistry';
+import { ptyKill } from '../services/ptyService';
 import type { Agent } from '../types';
 import type { Project, Task } from '../types/app';
+import { getConversations } from '../services/conversationService';
+import { renameBranch } from '../services/gitService';
+import { getTasks, saveTask } from '../services/projectService';
 
 const log = createLogger('hook:useTaskManagement');
 
@@ -62,7 +66,7 @@ interface UseTaskManagementOptions {
   setSelectedProject: React.Dispatch<React.SetStateAction<Project | null>>;
   setShowHomeView: React.Dispatch<React.SetStateAction<boolean>>;
   setShowTaskModal: React.Dispatch<React.SetStateAction<boolean>>;
-  toast: (opts: any) => void;
+  toast: (opts: { title?: string; description?: string; variant?: 'default' | 'destructive' }) => void;
   activateProjectView: (project: Project) => void;
 }
 
@@ -317,7 +321,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
             const id = `${v.worktreeId}-main`;
             mainSessionIds.push(id);
             try {
-              window.electronAPI.ptyKill?.(id);
+              ptyKill(id);
             } catch {}
           }
         } else {
@@ -325,7 +329,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
             const id = `${provider}-main-${task.id}`;
             mainSessionIds.push(id);
             try {
-              window.electronAPI.ptyKill?.(id);
+              ptyKill(id);
             } catch {}
           }
         }
@@ -333,14 +337,14 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
         // Kill chat agent terminals (agents added via "+")
         const chatSessionIds: string[] = [];
         try {
-          const convResult = await window.electronAPI.getConversations(task.id);
+          const convResult = await getConversations(task.id);
           if (convResult.success && convResult.conversations) {
             for (const conv of convResult.conversations) {
               if (!conv.isMain && conv.provider) {
                 const chatId = `${conv.provider}-chat-${conv.id}`;
                 chatSessionIds.push(chatId);
                 try {
-                  window.electronAPI.ptyKill?.(chatId);
+                  ptyKill(chatId);
                 } catch {}
               }
             }
@@ -386,7 +390,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
         // IMPORTANT: Tasks without worktrees have useWorktree === false
         const shouldRemoveWorktree = task.useWorktree !== false;
 
-        const promises: Promise<any>[] = [window.electronAPI.deleteTask(task.id)];
+        const promises: Promise<{ success?: boolean; error?: string }>[] = [window.electronAPI.deleteTask(task.id)];
 
         if (shouldRemoveWorktree) {
           // Safety check: Don't try to remove worktree if the task path equals project path
@@ -450,7 +454,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
         }
         return true;
       } catch (error) {
-        log.error('Failed to delete task:', error as any);
+        log.error('Failed to delete task:', error);
         toast({
           title: 'Error',
           description:
@@ -461,7 +465,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
         });
 
         try {
-          const refreshedTasks = await window.electronAPI.getTasks(targetProject.id);
+          const refreshedTasks = await getTasks(targetProject.id);
           setProjects((prev) =>
             prev.map((project) =>
               project.id === targetProject.id ? { ...project, tasks: refreshedTasks } : project
@@ -478,7 +482,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
             }
           }
         } catch (refreshError) {
-          log.error('Failed to refresh tasks after delete failure:', refreshError as any);
+          log.error('Failed to refresh tasks after delete failure:', refreshError);
 
           setProjects((prev) =>
             prev.map((project) => {
@@ -556,7 +560,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
 
       // Only rename git branch if it's actually changing
       if (newBranch !== oldBranch) {
-        const branchResult = await window.electronAPI.renameBranch({
+        const branchResult = await renameBranch({
           repoPath: task.path,
           oldBranch,
           newBranch,
@@ -570,7 +574,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
       }
 
       // Save task with new name and branch
-      const saveResult = await window.electronAPI.saveTask({
+      const saveResult = await saveTask({
         ...task,
         name: newName,
         branch: newBranch,
@@ -586,18 +590,18 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
         description: `"${oldName}" → "${newName}"${remoteNote}`,
       });
     } catch (error) {
-      log.error('Failed to rename task:', error as any);
+      log.error('Failed to rename task:', error);
 
       // Rollback git branch if it was renamed
       if (branchRenamed) {
         try {
-          await window.electronAPI.renameBranch({
+          await renameBranch({
             repoPath: task.path,
             oldBranch: newBranch,
             newBranch: oldBranch,
           });
         } catch (rollbackErr) {
-          log.error('Failed to rollback branch rename:', rollbackErr as any);
+          log.error('Failed to rollback branch rename:', rollbackErr);
         }
       }
 
@@ -641,7 +645,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
               const id = `${v.worktreeId}-main`;
               mainSessionIds.push(id);
               try {
-                window.electronAPI.ptyKill?.(id);
+                ptyKill(id);
               } catch {}
             }
           } else {
@@ -649,7 +653,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
               const id = `${provider}-main-${task.id}`;
               mainSessionIds.push(id);
               try {
-                window.electronAPI.ptyKill?.(id);
+                ptyKill(id);
               } catch {}
             }
           }
@@ -657,14 +661,14 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
           // Kill chat agent terminals
           const chatSessionIds: string[] = [];
           try {
-            const convResult = await window.electronAPI.getConversations(task.id);
+            const convResult = await getConversations(task.id);
             if (convResult.success && convResult.conversations) {
               for (const conv of convResult.conversations) {
                 if (!conv.isMain && conv.provider) {
                   const chatId = `${conv.provider}-chat-${conv.id}`;
                   chatSessionIds.push(chatId);
                   try {
-                    window.electronAPI.ptyKill?.(chatId);
+                    ptyKill(chatId);
                   } catch {}
                 }
               }
@@ -703,7 +707,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
           }
           disposeTaskTerminals(task.id);
         } catch (err) {
-          log.error('Error cleaning up PTY resources during archive:', err as any);
+          log.error('Error cleaning up PTY resources during archive:', err);
         }
       };
 
@@ -741,12 +745,12 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
 
         return true;
       } catch (error) {
-        log.error('Failed to archive task:', error as any);
+        log.error('Failed to archive task:', error);
 
         // Restore task to UI on error
         let restored = false;
         try {
-          const refreshedTasks = await window.electronAPI.getTasks(targetProject.id);
+          const refreshedTasks = await getTasks(targetProject.id);
           setProjects((prev) =>
             prev.map((project) =>
               project.id === targetProject.id ? { ...project, tasks: refreshedTasks } : project
@@ -764,7 +768,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
           }
           restored = true;
         } catch (refreshError) {
-          log.error('Failed to refresh tasks after archive failure:', refreshError as any);
+          log.error('Failed to refresh tasks after archive failure:', refreshError);
         }
 
         // Fallback: manually restore task if refresh failed
@@ -818,7 +822,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
       let refreshed = false;
       let restoredTaskForSetup: Task | null = null;
       try {
-        const refreshedTasks = await window.electronAPI.getTasks(targetProject.id);
+        const refreshedTasks = await getTasks(targetProject.id);
         setProjects((prev) =>
           prev.map((project) =>
             project.id === targetProject.id ? { ...project, tasks: refreshedTasks } : project
@@ -830,7 +834,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
         restoredTaskForSetup = refreshedTasks.find((t) => t.id === task.id) || null;
         refreshed = true;
       } catch (refreshError) {
-        log.error('Failed to refresh tasks after restore:', refreshError as any);
+        log.error('Failed to refresh tasks after restore:', refreshError);
       }
 
       // Fallback: manually add task to active list if refresh failed (prepend to match sort order)
@@ -854,7 +858,9 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
       if (restoredTaskForSetup) {
         try {
           await runSetupForTask(restoredTaskForSetup, targetProject.path);
-        } catch {}
+        } catch (error) {
+          console.error('Failed to run setup for restored task:', error);
+        }
       }
 
       // Track task restore
@@ -866,7 +872,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
         description: task.name,
       });
     } catch (error) {
-      log.error('Failed to restore task:', error as any);
+      log.error('Failed to restore task:', error);
 
       toast({
         title: 'Error',

@@ -6,27 +6,28 @@ import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { usePreviewState } from '@/hooks/usePreviewState';
 import { useTabState } from '@/hooks/useTabState';
+import { openExternal } from '@/services/shellService';
 
 // Browser view IPC methods (not in typed interface)
-const browserAPI = () =>
-  (window as any).electronAPI as {
-    browserShow?: (
-      bounds: { x: number; y: number; width: number; height: number },
-      url?: string
-    ) => Promise<any>;
-    browserHide?: () => Promise<any>;
-    browserSetBounds?: (bounds: {
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-    }) => Promise<any>;
-    browserLoadURL?: (url: string, forceReload?: boolean) => Promise<any>;
-    browserGoBack?: () => Promise<any>;
-    browserGoForward?: () => Promise<any>;
-    browserReload?: () => Promise<any>;
-    openExternal?: (url: string) => void;
-  };
+interface BrowserAPI {
+  browserShow?: (
+    bounds: { x: number; y: number; width: number; height: number },
+    url?: string
+  ) => Promise<void>;
+  browserHide?: () => Promise<void>;
+  browserSetBounds?: (bounds: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }) => Promise<void>;
+  browserLoadURL?: (url: string, forceReload?: boolean) => Promise<void>;
+  browserGoBack?: () => Promise<void>;
+  browserGoForward?: () => Promise<void>;
+  browserReload?: () => Promise<void>;
+  openExternal?: (url: string) => void;
+}
+const browserAPI = () => window.electronAPI as unknown as BrowserAPI;
 
 interface PreviewTabProps {
   taskId?: string | null;
@@ -228,7 +229,7 @@ export function PreviewTab({ taskId, className }: PreviewTabProps) {
   // Handle open in external browser
   const handleOpenExternal = React.useCallback(() => {
     if (url && browserAPI().openExternal) {
-      window.electronAPI.openExternal(url);
+      openExternal(url);
     }
   }, [url]);
 

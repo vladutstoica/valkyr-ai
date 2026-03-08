@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 
 type DownloadProgress = { percent?: number; transferred?: number; total?: number };
 
+type UpdateIpcResult = { success: boolean; error?: string; devDisabled?: boolean };
+
 export type UpdateState =
   | { status: 'idle' }
   | { status: 'checking' }
-  | { status: 'available'; info?: any }
+  | { status: 'available'; info?: { version?: string } }
   | { status: 'not-available' }
   | { status: 'downloading'; progress?: DownloadProgress }
   | { status: 'downloaded' }
@@ -61,7 +63,7 @@ export function useUpdater() {
 
   const check = useCallback(async () => {
     setState({ status: 'checking' });
-    const res: any = await window.electronAPI?.checkForUpdates?.();
+    const res = await window.electronAPI?.checkForUpdates?.() as UpdateIpcResult | undefined;
     if (!res) {
       return updaterUnavailableResult(setState);
     }
@@ -76,7 +78,7 @@ export function useUpdater() {
 
   const download = useCallback(async () => {
     // Don't change state to downloading immediately - wait for backend confirmation
-    const res: any = await window.electronAPI?.downloadUpdate?.();
+    const res = await window.electronAPI?.downloadUpdate?.() as UpdateIpcResult | undefined;
     if (!res) {
       return updaterUnavailableResult(setState);
     }
@@ -90,7 +92,7 @@ export function useUpdater() {
   }, []);
 
   const install = useCallback(async () => {
-    const res: any = await window.electronAPI?.quitAndInstallUpdate?.();
+    const res = await window.electronAPI?.quitAndInstallUpdate?.() as UpdateIpcResult | undefined;
     if (!res) {
       return updaterUnavailableResult(setState);
     }
@@ -98,7 +100,7 @@ export function useUpdater() {
   }, []);
 
   const openLatest = useCallback(async () => {
-    const res: any = await window.electronAPI?.openLatestDownload?.();
+    const res = await window.electronAPI?.openLatestDownload?.() as UpdateIpcResult | undefined;
     if (!res) {
       return updaterUnavailableResult(setState);
     }

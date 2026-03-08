@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { fsSearchContent } from '@/services/fsService';
 
 // Constants - No magic numbers
 const SEARCH_DEBOUNCE_MS = 400; // Balanced for performance and responsiveness
@@ -72,7 +73,7 @@ export function useContentSearch(
       setError(null);
 
       try {
-        const result = await window.electronAPI.fsSearchContent(rootPath, query, {
+        const result = await fsSearchContent(rootPath, query, {
           caseSensitive,
           maxResults,
         });

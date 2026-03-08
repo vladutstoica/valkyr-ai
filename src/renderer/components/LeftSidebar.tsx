@@ -63,8 +63,9 @@ import {
 } from './ui/alert-dialog';
 import SidebarEmptyState from './SidebarEmptyState';
 import { AddProjectMenu } from './sidebar/AddProjectMenu';
-import { TaskItem } from './TaskItem';
-import { TaskDeleteButton } from './TaskDeleteButton';
+import { TaskItem } from './project/TaskItem';
+import { TaskDeleteButton } from './project/TaskDeleteButton';
+import { MoveToGroupMenu, MoveToWorkspaceMenu } from './sidebar/MoveToMenuItems';
 import { RemoteProjectIndicator } from './ssh/RemoteProjectIndicator';
 import { useRemoteProject } from '../hooks/useRemoteProject';
 import type { Project, ProjectGroup, Workspace } from '../types/app';
@@ -128,12 +129,12 @@ interface LeftSidebarProps {
 
 // Helper to determine if a project is remote
 const isRemoteProject = (project: Project): boolean => {
-  return Boolean((project as any).isRemote || (project as any).sshConnectionId);
+  return Boolean(project.isRemote || project.sshConnectionId);
 };
 
 // Get connection ID from project
 const getConnectionId = (project: Project): string | null => {
-  return (project as any).sshConnectionId || null;
+  return project.sshConnectionId || null;
 };
 
 // Project header with remote indicator
@@ -159,6 +160,23 @@ const ProjectHeader: React.FC<{
     </div>
   );
 };
+
+/** Focus (and optionally select) an input when a condition becomes truthy. */
+function useFocusOnCondition(
+  ref: React.RefObject<HTMLInputElement | null>,
+  condition: unknown,
+  { delay = 50, select = false }: { delay?: number; select?: boolean } = {}
+) {
+  useEffect(() => {
+    if (condition && ref.current) {
+      const timer = setTimeout(() => {
+        ref.current?.focus();
+        if (select) ref.current?.select();
+      }, delay);
+      return () => clearTimeout(timer);
+    }
+  }, [condition, ref, delay, select]);
+}
 
 const LeftSidebar: React.FC<LeftSidebarProps> = ({
   projects,
@@ -309,38 +327,9 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
     [editProjectName, onRenameProject]
   );
 
-  // Focus project input when editing starts
-  useEffect(() => {
-    if (editingProjectId && projectInputRef.current) {
-      // Delay to let dropdown fully close
-      const timer = setTimeout(() => {
-        projectInputRef.current?.focus();
-        projectInputRef.current?.select();
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [editingProjectId]);
-
-  // Focus group input when editing starts
-  useEffect(() => {
-    if (editingGroupId && groupInputRef.current) {
-      const timer = setTimeout(() => {
-        groupInputRef.current?.focus();
-        groupInputRef.current?.select();
-      }, 50);
-      return () => clearTimeout(timer);
-    }
-  }, [editingGroupId]);
-
-  // Focus new group input
-  useEffect(() => {
-    if (showNewGroupInput && newGroupInputRef.current) {
-      const timer = setTimeout(() => {
-        newGroupInputRef.current?.focus();
-      }, 50);
-      return () => clearTimeout(timer);
-    }
-  }, [showNewGroupInput]);
+  useFocusOnCondition(projectInputRef, editingProjectId, { delay: 100, select: true });
+  useFocusOnCondition(groupInputRef, editingGroupId, { select: true });
+  useFocusOnCondition(newGroupInputRef, showNewGroupInput);
 
   const handleConfirmNewGroup = useCallback(() => {
     const trimmed = newGroupName.trim();
@@ -470,125 +459,19 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                         const taskCount = typedProject.tasks?.length || 0;
                         const isEditingThisProject = editingProjectId === typedProject.id;
 
-                        // "Move to Group" submenu items for dropdown
-                        const moveToGroupDropdownItems =
-                          onMoveProjectToGroup && groups.length > 0 ? (
-                            <DropdownMenuSub>
-                              <DropdownMenuSubTrigger className="cursor-pointer">
-                                <Layers className="mr-2 h-4 w-4" />
-                                Move to Group
-                              </DropdownMenuSubTrigger>
-                              <DropdownMenuSubContent>
-                                {typedProject.groupId && (
-                                  <DropdownMenuItem
-                                    className="cursor-pointer"
-                                    onClick={() => onMoveProjectToGroup(typedProject.id, null)}
-                                  >
-                                    No Group
-                                  </DropdownMenuItem>
-                                )}
-                                {groups.map((g) => (
-                                  <DropdownMenuItem
-                                    key={g.id}
-                                    className="cursor-pointer"
-                                    disabled={typedProject.groupId === g.id}
-                                    onClick={() => onMoveProjectToGroup(typedProject.id, g.id)}
-                                  >
-                                    {g.name}
-                                  </DropdownMenuItem>
-                                ))}
-                              </DropdownMenuSubContent>
-                            </DropdownMenuSub>
-                          ) : null;
-
-                        // "Move to Group" submenu items for context menu
-                        const moveToGroupContextItems =
-                          onMoveProjectToGroup && groups.length > 0 ? (
-                            <ContextMenuSub>
-                              <ContextMenuSubTrigger className="cursor-pointer">
-                                <Layers className="mr-2 h-3.5 w-3.5" />
-                                Move to Group
-                              </ContextMenuSubTrigger>
-                              <ContextMenuSubContent>
-                                {typedProject.groupId && (
-                                  <ContextMenuItem
-                                    className="cursor-pointer"
-                                    onClick={() => onMoveProjectToGroup(typedProject.id, null)}
-                                  >
-                                    No Group
-                                  </ContextMenuItem>
-                                )}
-                                {groups.map((g) => (
-                                  <ContextMenuItem
-                                    key={g.id}
-                                    className="cursor-pointer"
-                                    disabled={typedProject.groupId === g.id}
-                                    onClick={() => onMoveProjectToGroup(typedProject.id, g.id)}
-                                  >
-                                    {g.name}
-                                  </ContextMenuItem>
-                                ))}
-                              </ContextMenuSubContent>
-                            </ContextMenuSub>
-                          ) : null;
-
-                        // "Move to Workspace" submenu items for dropdown
-                        const moveToWorkspaceDropdownItems =
-                          onMoveProjectToWorkspace && workspaces.length > 1 ? (
-                            <DropdownMenuSub>
-                              <DropdownMenuSubTrigger className="cursor-pointer">
-                                <Layers className="mr-2 h-4 w-4" />
-                                Move to Workspace
-                              </DropdownMenuSubTrigger>
-                              <DropdownMenuSubContent>
-                                {workspaces.map((ws) => (
-                                  <DropdownMenuItem
-                                    key={ws.id}
-                                    className="cursor-pointer"
-                                    disabled={
-                                      typedProject.workspaceId === ws.id ||
-                                      (!typedProject.workspaceId && ws.isDefault)
-                                    }
-                                    onClick={() => onMoveProjectToWorkspace(typedProject.id, ws.id)}
-                                  >
-                                    <span
-                                      className={`mr-2 inline-block h-2 w-2 rounded-full bg-${ws.color}-500`}
-                                    />
-                                    {ws.name}
-                                  </DropdownMenuItem>
-                                ))}
-                              </DropdownMenuSubContent>
-                            </DropdownMenuSub>
-                          ) : null;
-
-                        // "Move to Workspace" submenu items for context menu
-                        const moveToWorkspaceContextItems =
-                          onMoveProjectToWorkspace && workspaces.length > 1 ? (
-                            <ContextMenuSub>
-                              <ContextMenuSubTrigger className="cursor-pointer">
-                                <Layers className="mr-2 h-3.5 w-3.5" />
-                                Move to Workspace
-                              </ContextMenuSubTrigger>
-                              <ContextMenuSubContent>
-                                {workspaces.map((ws) => (
-                                  <ContextMenuItem
-                                    key={ws.id}
-                                    className="cursor-pointer"
-                                    disabled={
-                                      typedProject.workspaceId === ws.id ||
-                                      (!typedProject.workspaceId && ws.isDefault)
-                                    }
-                                    onClick={() => onMoveProjectToWorkspace(typedProject.id, ws.id)}
-                                  >
-                                    <span
-                                      className={`mr-2 inline-block h-2 w-2 rounded-full bg-${ws.color}-500`}
-                                    />
-                                    {ws.name}
-                                  </ContextMenuItem>
-                                ))}
-                              </ContextMenuSubContent>
-                            </ContextMenuSub>
-                          ) : null;
+                        // "Move to Group" and "Move to Workspace" submenu items
+                        const moveToGroupDropdownItems = onMoveProjectToGroup ? (
+                          <MoveToGroupMenu variant="dropdown" projectId={typedProject.id} currentGroupId={typedProject.groupId} groups={groups} onMoveProjectToGroup={onMoveProjectToGroup} />
+                        ) : null;
+                        const moveToGroupContextItems = onMoveProjectToGroup ? (
+                          <MoveToGroupMenu variant="context" projectId={typedProject.id} currentGroupId={typedProject.groupId} groups={groups} onMoveProjectToGroup={onMoveProjectToGroup} />
+                        ) : null;
+                        const moveToWorkspaceDropdownItems = onMoveProjectToWorkspace ? (
+                          <MoveToWorkspaceMenu variant="dropdown" projectId={typedProject.id} currentWorkspaceId={typedProject.workspaceId} workspaces={workspaces} onMoveProjectToWorkspace={onMoveProjectToWorkspace} />
+                        ) : null;
+                        const moveToWorkspaceContextItems = onMoveProjectToWorkspace ? (
+                          <MoveToWorkspaceMenu variant="context" projectId={typedProject.id} currentWorkspaceId={typedProject.workspaceId} workspaces={workspaces} onMoveProjectToWorkspace={onMoveProjectToWorkspace} />
+                        ) : null;
 
                         return (
                           <ContextMenu key={typedProject.id}>

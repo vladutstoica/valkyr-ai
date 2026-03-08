@@ -139,7 +139,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose, githubUs
       toast({
         title: 'Failed to send feedback',
         description: 'Please try again.',
-        variant: 'destructive' as any,
+        variant: 'destructive',
       });
     } finally {
       setSubmitting(false);

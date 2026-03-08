@@ -20,6 +20,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast, useToast } from '@/hooks/use-toast';
+import { getFileDiff, stageFile, unstageFile, stageAllFiles, revertFile, gitCommitAndPush } from '@/services/gitService';
 import { useFileChanges } from '@/hooks/useFileChanges';
 import { useTheme } from '@/hooks/useTheme';
 import { useGitState, type FileStatus } from '@/hooks/useGitState';
@@ -352,7 +353,7 @@ export function GitTab({
         const file = files.find((f) => f.path === filePath);
         const repoCwd = file?.repoCwd;
         const effectivePath = repoCwd ? stripRepoPrefix(filePath, file?.repoName) : filePath;
-        const result = await window.electronAPI.getFileDiff({
+        const result = await getFileDiff({
           taskPath,
           filePath: effectivePath,
           repoCwd,
@@ -421,13 +422,13 @@ export function GitTab({
 
         let result;
         if (isCurrentlyStaged) {
-          result = await window.electronAPI.unstageFile({
+          result = await unstageFile({
             taskPath,
             filePath: effectivePath,
             repoCwd,
           });
         } else {
-          result = await window.electronAPI.stageFile({
+          result = await stageFile({
             taskPath,
             filePath: effectivePath,
             repoCwd,
@@ -471,7 +472,7 @@ export function GitTab({
       const repoCwds = isMultiRepo
         ? ([...new Set(files.map((f) => f.repoCwd).filter(Boolean))] as string[])
         : undefined;
-      const result = await window.electronAPI.stageAllFiles({ taskPath, repoCwds });
+      const result = await stageAllFiles({ taskPath, repoCwds });
       if (result.success) {
         stageAll();
         await refreshChangesAndClearCache();
@@ -504,7 +505,7 @@ export function GitTab({
         const file = files.find((f) => f.path === filePath);
         const repoCwd = file?.repoCwd;
         const effectivePath = repoCwd ? stripRepoPrefix(filePath, file?.repoName) : filePath;
-        await window.electronAPI.unstageFile({ taskPath, filePath: effectivePath, repoCwd });
+        await unstageFile({ taskPath, filePath: effectivePath, repoCwd });
       }
       unstageAll();
       await refreshChangesAndClearCache();
@@ -530,7 +531,7 @@ export function GitTab({
         const file = files.find((f) => f.path === path);
         const repoCwd = file?.repoCwd;
         const effectivePath = repoCwd ? stripRepoPrefix(path, file?.repoName) : path;
-        const result = await window.electronAPI.revertFile({
+        const result = await revertFile({
           taskPath,
           filePath: effectivePath,
           repoCwd,
@@ -573,7 +574,7 @@ export function GitTab({
 
     setCommitting(true);
     try {
-      const result = await window.electronAPI.gitCommitAndPush({
+      const result = await gitCommitAndPush({
         taskPath,
         commitMessage: commitMessage.trim(),
         createBranchIfOnDefault: false,
@@ -615,7 +616,7 @@ export function GitTab({
 
     setCommitting(true);
     try {
-      const result = await window.electronAPI.gitCommitAndPush({
+      const result = await gitCommitAndPush({
         taskPath,
         commitMessage: commitMessage.trim(),
         createBranchIfOnDefault: true,

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { pendingInjectionManager } from '../lib/PendingInjectionManager';
+import { ptyInput } from '../services/ptyService';
 
 /**
  * React hook for accessing the pending injection manager
@@ -28,7 +29,7 @@ export function usePendingInjection() {
 
   const sendNow = useCallback(async (ptyId: string, text: string) => {
     // Use carriage return to mimic Enter key for immediate submit.
-    await window.electronAPI.ptyInput({ id: ptyId, data: text + '\r' });
+    ptyInput(ptyId, text + '\r');
   }, []);
 
   const onInjectionUsed = useCallback((callback: () => void) => {

@@ -24,11 +24,11 @@ export function useInitialPromptInjection(opts: {
     const ptyId = `${providerId}-main-${taskId}`;
     let sent = false;
     let idleSeen = false;
-    let silenceTimer: any = null;
+    let silenceTimer: ReturnType<typeof setTimeout> | null = null;
     const send = () => {
       try {
         if (sent) return;
-        (window as any).electronAPI?.ptyInput?.({ id: ptyId, data: trimmed + '\n' });
+        window.electronAPI?.ptyInput?.({ id: ptyId, data: trimmed + '\n' });
         localStorage.setItem(sentKey, '1');
         try {
           window.electronAPI?.setTaskInitialPromptSent?.({ taskId, sent: true });
@@ -37,7 +37,7 @@ export function useInitialPromptInjection(opts: {
       } catch {}
     };
 
-    const offData = (window as any).electronAPI?.onPtyData?.(ptyId, (chunk: string) => {
+    const offData = window.electronAPI?.onPtyData?.(ptyId, (chunk: string) => {
       // Debounce-based idle: send after a short period of silence
       if (silenceTimer) clearTimeout(silenceTimer);
       silenceTimer = setTimeout(() => {
@@ -55,7 +55,7 @@ export function useInitialPromptInjection(opts: {
         // ignore classifier errors; rely on silence debounce
       }
     });
-    const offStarted = (window as any).electronAPI?.onPtyStarted?.((info: { id: string }) => {
+    const offStarted = window.electronAPI?.onPtyStarted?.((info: { id: string }) => {
       if (info?.id === ptyId) {
         // Start a silence timer in case no output arrives (rare but possible)
         if (silenceTimer) clearTimeout(silenceTimer);

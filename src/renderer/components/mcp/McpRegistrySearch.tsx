@@ -4,6 +4,7 @@ import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { useMcpRegistry } from '../../hooks/useMcpRegistry';
+import { openExternal } from '../../services/shellService';
 import type { McpServerInput } from '@shared/mcp/types';
 import type {
   McpRegistryServer,
@@ -207,7 +208,7 @@ export const McpRegistrySearch: React.FC<McpRegistrySearchProps> = ({ onInstall 
                     <button
                       type="button"
                       className="text-muted-foreground hover:text-foreground mt-0.5 flex items-center gap-1 text-[11px]"
-                      onClick={() => window.electronAPI.openExternal(repoUrl!)}
+                      onClick={() => openExternal(repoUrl!)}
                     >
                       <ExternalLink className="h-3 w-3" />
                       {shortRepo}

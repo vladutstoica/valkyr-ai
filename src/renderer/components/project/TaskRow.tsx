@@ -5,11 +5,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/
 import { Checkbox } from '../ui/checkbox';
 import { usePrStatus } from '../../hooks/usePrStatus';
 import { useTaskChanges } from '../../hooks/useTaskChanges';
-import { ChangesBadge } from '../TaskChanges';
+import { ChangesBadge } from './TaskChanges';
 import { Spinner } from '../ui/spinner';
-import { TaskDeleteButton } from '../TaskDeleteButton';
+import { TaskDeleteButton } from './TaskDeleteButton';
 import { activityStore } from '../../lib/activityStore';
 import type { Task } from '../../types/app';
+import { openExternal } from '../../services/shellService';
 
 export const TaskRow = React.memo(function TaskRow({
   ws,
@@ -88,7 +89,7 @@ export const TaskRow = React.memo(function TaskRow({
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                if (pr.url) window.electronAPI.openExternal(pr.url);
+                if (pr.url) openExternal(pr.url);
               }}
               className="border-border bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium transition-colors"
               title={`${pr.title || 'Pull Request'} (#${pr.number})`}

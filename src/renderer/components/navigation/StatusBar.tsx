@@ -15,6 +15,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '../ui/
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { ScrollArea } from '../ui/scroll-area';
 import { cn } from '../../lib/utils';
+import { switchRepoBranch } from '../../services/gitService';
 import { toast } from '../../hooks/use-toast';
 import type { BranchInfo, RepoBranchesResult } from '@/types/electron-api';
 import type { SubRepo } from '@/types/app';
@@ -124,7 +125,7 @@ const RepoBranchPopover: React.FC<RepoBranchPopoverProps> = ({
       const target = isRemote ? branchName.replace(/^origin\//, '') : branchName;
       setSwitchingBranch(target);
       try {
-        const result = await window.electronAPI.switchRepoBranch({
+        const result = await switchRepoBranch({
           repoPath,
           branch: target,
           stashIfDirty: true,
