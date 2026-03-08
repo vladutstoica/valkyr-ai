@@ -89,15 +89,20 @@ const TreeNode: React.FC<{
         aria-expanded={node.type === 'directory' ? isExpanded : undefined}
       >
         {node.type === 'directory' && (
-          <span className="text-muted-foreground mr-1">
-            {isLoading ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : isExpanded ? (
-              <ChevronDown className="h-3 w-3" />
-            ) : (
-              <ChevronRight className="h-3 w-3" />
-            )}
-          </span>
+          <>
+            <span className="text-muted-foreground mr-0.5">
+              {isLoading ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : isExpanded ? (
+                <ChevronDown className="h-3 w-3" />
+              ) : (
+                <ChevronRight className="h-3 w-3" />
+              )}
+            </span>
+            <span className="mr-1">
+              <FileIcon filename={node.name} isDirectory={true} isExpanded={isExpanded} />
+            </span>
+          </>
         )}
         {node.type === 'file' && (
           <span className="mr-1.5">

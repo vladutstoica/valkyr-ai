@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import Editor from '@monaco-editor/react';
-import { ChevronRight, ExternalLink, X, FolderOpen } from 'lucide-react';
+import { ChevronRight, ExternalLink, X, FolderOpen, Loader2 } from 'lucide-react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { fsRead } from '@/services/fsService';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import { useFileManager } from '@/hooks/useFileManager';
 import { useFileChanges } from '@/hooks/useFileChanges';
 import { useOpenInApps } from '@/hooks/useOpenInApps';
 import { useEditorState } from '@/hooks/useEditorState';
+import { useTabState } from '@/hooks/useTabState';
 import { FileTree } from '@/components/FileExplorer/FileTree';
 import { FileIcon } from '@/components/FileExplorer/FileIcons';
 import { DEFAULT_EDITOR_OPTIONS } from '@/constants/file-explorer';
@@ -32,6 +33,11 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
   const { effectiveTheme } = useTheme();
   const { icons, installedApps } = useOpenInApps();
   const { fileChanges } = useFileChanges(taskPath);
+  const activeTab = useTabState((state) => state.activeTab);
+
+  // Monaco editor instance ref for layout recalculation
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const editorRef = useRef<any>(null);
 
   // Editor state from zustand store
   const {
@@ -51,9 +57,9 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
   // File manager for loading/saving
   const {
     openFiles: managedFiles,
-    activeFile: managedActiveFile,
     hasUnsavedChanges,
     isSaving,
+    loadingFiles,
     loadFile,
     saveFile,
     closeFile: managerCloseFile,
@@ -66,6 +72,17 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
 
   // Track if we've validated files for this taskPath
   const validatedTaskPath = useRef<string | null>(null);
+
+  // Fix 3: Force Monaco layout recalculation when editor tab becomes visible
+  useEffect(() => {
+    if (activeTab === 'editor' && editorRef.current) {
+      // Small delay to ensure the tab is fully visible (display transitions from none)
+      const timer = setTimeout(() => {
+        editorRef.current?.layout?.();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab]);
 
   // Validate and load all persisted files on mount or when taskPath changes
   useEffect(() => {
@@ -134,19 +151,18 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
 
   // Sync editor state with file manager - load active file content
   useEffect(() => {
-    if (activeFile && !managedFiles.has(activeFile)) {
+    if (activeFile && !managedFiles.has(activeFile) && !loadingFiles.has(activeFile)) {
       loadFile(activeFile);
     }
-  }, [activeFile, managedFiles, loadFile]);
+  }, [activeFile, managedFiles, loadingFiles, loadFile]);
 
   // Handle file selection from tree
   const handleSelectFile = useCallback(
     (filePath: string) => {
       storeOpenFile(taskPath, filePath);
+      managerSetActiveFile(filePath);
       if (!managedFiles.has(filePath)) {
         loadFile(filePath);
-      } else {
-        managerSetActiveFile(filePath);
       }
     },
     [taskPath, storeOpenFile, managedFiles, loadFile, managerSetActiveFile]
@@ -194,12 +210,16 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
     [activeFile, updateFileContent, managedFiles, taskPath, markUnsaved, markSaved]
   );
 
-  // Handle keyboard shortcut for save
+  // Handle keyboard shortcut for save + store editor ref
   const handleEditorMount = useCallback(
     (
-      editor: { addCommand: (keybinding: number, handler: () => void) => void },
+      editor: {
+        addCommand: (keybinding: number, handler: () => void) => void;
+        layout: () => void;
+      },
       monaco: { KeyMod: { CtrlCmd: number }; KeyCode: { KeyS: number } }
     ) => {
+      editorRef.current = editor;
       editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
         saveFile();
       });
@@ -223,10 +243,11 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
     [taskPath, activeFile]
   );
 
-  // Get current file content
+  // Get current file content + loading state
   const currentFile = activeFile ? managedFiles.get(activeFile) : null;
   const fileContent = currentFile?.content || '';
   const isImageFile = currentFile?.content?.startsWith('data:image/');
+  const isActiveFileLoading = activeFile ? loadingFiles.has(activeFile) : false;
 
   // Breadcrumb path
   const breadcrumbPath = useMemo(() => {
@@ -359,7 +380,13 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
             {/* Editor Content */}
             <div className="flex-1">
               {activeFile ? (
-                isImageFile ? (
+                isActiveFileLoading && !currentFile ? (
+                  // Loading State
+                  <div className="text-muted-foreground flex h-full flex-col items-center justify-center gap-2">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <p className="text-sm">Loading file...</p>
+                  </div>
+                ) : isImageFile ? (
                   // Image Preview
                   <div className="bg-muted/10 flex h-full items-center justify-center p-4">
                     <img

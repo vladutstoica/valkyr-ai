@@ -79,8 +79,8 @@ export function AppLayout({
   // Get tab state for navigation
   const setActiveTab = useTabState((state) => state.setActiveTab);
 
-  // Get worktree/task path for components
-  const taskPath = activeTask?.path ?? undefined;
+  // Get worktree/task path for components — fall back to project path when no task is active
+  const taskPath = activeTask?.path || selectedProject?.path || undefined;
   const taskId = activeTask?.id ?? undefined;
 
   // Read git changes count from the store (set by GitTab via useFileChanges)

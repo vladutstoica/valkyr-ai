@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { AUTO_SAVE_DELAY } from '@/constants/file-explorer';
 import { dispatchFileChangeEvent } from '@/lib/fileChangeEvents';
 import { toast } from '@/hooks/use-toast';
@@ -24,6 +24,8 @@ interface UseFileManagerReturn {
   activeFile: ManagedFile | null;
   hasUnsavedChanges: boolean;
   isSaving: boolean;
+  isLoading: boolean;
+  loadingFiles: Set<string>;
   loadFile: (filePath: string) => Promise<void>;
   saveFile: (filePath?: string) => Promise<void>;
   saveAllFiles: () => Promise<void>;
@@ -42,9 +44,22 @@ export function useFileManager(options: UseFileManagerOptions): UseFileManagerRe
   const [openFiles, setOpenFiles] = useState<Map<string, ManagedFile>>(new Map());
   const [activeFilePath, setActiveFilePath] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [loadingFiles, setLoadingFiles] = useState<Set<string>>(new Set());
+  const prevTaskPath = useRef(taskPath);
+
+  // Reset state when taskPath changes
+  useEffect(() => {
+    if (prevTaskPath.current !== taskPath) {
+      setOpenFiles(new Map());
+      setActiveFilePath(null);
+      setLoadingFiles(new Set());
+      prevTaskPath.current = taskPath;
+    }
+  }, [taskPath]);
 
   const activeFile = activeFilePath ? openFiles.get(activeFilePath) || null : null;
   const hasUnsavedChanges = Array.from(openFiles.values()).some((f) => f.isDirty);
+  const isLoading = loadingFiles.size > 0;
 
   /**
    * Check if file is an image
@@ -60,6 +75,7 @@ export function useFileManager(options: UseFileManagerOptions): UseFileManagerRe
    */
   const loadFile = useCallback(
     async (filePath: string) => {
+      setLoadingFiles((prev) => new Set(prev).add(filePath));
       try {
         // For image files, load as base64
         if (isImageFile(filePath)) {
@@ -109,6 +125,12 @@ export function useFileManager(options: UseFileManagerOptions): UseFileManagerRe
       } catch (error) {
         console.error('Error loading file:', error);
         toast({ title: 'Failed to open file', variant: 'destructive' });
+      } finally {
+        setLoadingFiles((prev) => {
+          const next = new Set(prev);
+          next.delete(filePath);
+          return next;
+        });
       }
     },
     [taskPath, isImageFile]
@@ -236,6 +258,8 @@ export function useFileManager(options: UseFileManagerOptions): UseFileManagerRe
     activeFile,
     hasUnsavedChanges,
     isSaving,
+    isLoading,
+    loadingFiles,
     loadFile,
     saveFile,
     saveAllFiles,
