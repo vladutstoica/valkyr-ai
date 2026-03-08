@@ -26,6 +26,18 @@ vi.mock('crypto', () => ({
   randomUUID: vi.fn().mockReturnValue('test-uuid-123'),
 }));
 
+// Mock keytar (native module not available in CI with --ignore-scripts)
+vi.mock('keytar', () => ({
+  default: {
+    getPassword: vi.fn(),
+    setPassword: vi.fn(),
+    deletePassword: vi.fn(),
+  },
+  getPassword: vi.fn(),
+  setPassword: vi.fn(),
+  deletePassword: vi.fn(),
+}));
+
 describe('SshService', () => {
   let service: SshService;
   let mockCredentialService: {
