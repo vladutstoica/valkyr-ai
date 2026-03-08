@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { isValidOpenInAppId, OPEN_IN_APPS, type OpenInAppId } from '@shared/openInApps';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useOpenInApps } from '../hooks/useOpenInApps';
+import { getSettings, updateSettings } from '../services/settingsService';
 
 const DEFAULT_APP: OpenInAppId = 'terminal';
 
@@ -12,10 +13,9 @@ const DefaultOpenInSettingsCard: React.FC = () => {
 
   const load = useCallback(async () => {
     try {
-      const res = await window.electronAPI.getSettings();
-      if (res?.success && res.settings?.defaultOpenInApp) {
-        const app = res.settings.defaultOpenInApp;
-        setDefaultApp(isValidOpenInAppId(app) ? app : DEFAULT_APP);
+      const settings = await getSettings();
+      if (settings?.defaultOpenInApp) {
+        setDefaultApp(isValidOpenInAppId(settings.defaultOpenInApp) ? settings.defaultOpenInApp : DEFAULT_APP);
       }
     } catch {
       // Use default on error
@@ -33,8 +33,8 @@ const DefaultOpenInSettingsCard: React.FC = () => {
       const previousApp = defaultApp;
       setDefaultApp(app); // Optimistic update
       try {
-        const res = await window.electronAPI.updateSettings({ defaultOpenInApp: app });
-        if (res?.success) {
+        const success = await updateSettings({ defaultOpenInApp: app });
+        if (success) {
           // Notify other components of the change
           window.dispatchEvent(new CustomEvent('defaultOpenInAppChanged', { detail: app }));
         } else {

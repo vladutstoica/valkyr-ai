@@ -3,6 +3,7 @@ import { Bot, Code, GitBranch, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTabState, type TabId } from '@/hooks/useTabState';
 import OpenInMenu from '../titlebar/OpenInMenu';
+import ScriptsMenu from '../titlebar/ScriptsMenu';
 
 interface TabConfig {
   id: TabId;
@@ -79,7 +80,8 @@ export function TabBar({ openInPath, isRemote = false, sshConnectionId = null }:
         })}
       </div>
       {openInPath && (
-        <div className="pr-2">
+        <div className="flex items-center gap-1 pr-2">
+          <ScriptsMenu path={openInPath} />
           <OpenInMenu
             path={openInPath}
             isRemote={isRemote}

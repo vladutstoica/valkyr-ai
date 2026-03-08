@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { KeyboardSettings, ShortcutModifier } from '../types/shortcuts';
 import { APP_SHORTCUTS, type ShortcutSettingsKey } from '../hooks/useKeyboardShortcuts';
+import { getSettings } from '../services/settingsService';
 
 interface KeyboardSettingsContextValue {
   settings: KeyboardSettings | null;
@@ -15,9 +16,9 @@ export const KeyboardSettingsProvider: React.FC<{ children: React.ReactNode }> =
 
   const loadSettings = useCallback(async () => {
     try {
-      const result = await window.electronAPI.getSettings();
-      if (result.success && result.settings?.keyboard) {
-        setSettings(result.settings.keyboard);
+      const s = await getSettings();
+      if (s?.keyboard) {
+        setSettings(s.keyboard);
       }
     } catch {
       // Use defaults on error

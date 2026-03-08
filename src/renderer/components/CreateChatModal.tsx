@@ -16,6 +16,7 @@ import { isValidProviderId, getProvider } from '@shared/providers/registry';
 import type { ProviderId } from '@shared/providers/registry';
 import type { Agent } from '../types';
 import type { Conversation } from '../../main/services/DatabaseService';
+import { getSettings } from '../services/settingsService';
 
 const DEFAULT_AGENT: Agent = 'claude';
 
@@ -51,10 +52,9 @@ export function CreateChatModal({
       setError(null);
 
       let cancel = false;
-      window.electronAPI.getSettings().then((res) => {
+      getSettings().then((settings) => {
         if (cancel) return;
 
-        const settings = res?.success ? res.settings : undefined;
         const settingsAgent = settings?.defaultProvider;
         const defaultFromSettings: Agent = isValidProviderId(settingsAgent)
           ? (settingsAgent as Agent)
@@ -111,8 +111,7 @@ export function CreateChatModal({
         setSelectedMode('pty');
       } else {
         // Check provider overrides for default
-        window.electronAPI.getSettings().then((res) => {
-          const settings = res?.success ? res.settings : undefined;
+        getSettings().then((settings) => {
           const override = (settings?.providerOverrides as any)?.[newAgent];
           if (override?.defaultChatMode === 'cli') {
             setSelectedMode('pty');

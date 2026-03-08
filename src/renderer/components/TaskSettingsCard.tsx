@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { Switch } from './ui/switch';
+import { getSettings, updateSettings } from '../services/settingsService';
 
 const TaskSettingsCard: React.FC = () => {
   const [autoGenerateName, setAutoGenerateName] = useState(true);
@@ -13,13 +14,13 @@ const TaskSettingsCard: React.FC = () => {
     let cancelled = false;
     (async () => {
       try {
-        const result = await window.electronAPI.getSettings();
+        const settings = await getSettings();
         if (cancelled) return;
-        if (result.success) {
-          setAutoGenerateName(result.settings?.tasks?.autoGenerateName ?? true);
-          setAutoApproveByDefault(result.settings?.tasks?.autoApproveByDefault ?? false);
+        if (settings) {
+          setAutoGenerateName(settings.tasks?.autoGenerateName ?? true);
+          setAutoApproveByDefault(settings.tasks?.autoApproveByDefault ?? false);
         } else {
-          setError(result.error || 'Failed to load settings.');
+          setError('Failed to load settings.');
         }
       } catch (err) {
         if (!cancelled) {
@@ -41,12 +42,10 @@ const TaskSettingsCard: React.FC = () => {
     setError(null);
     setSaving(true);
     try {
-      const result = await window.electronAPI.updateSettings({ tasks: { autoGenerateName: next } });
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to update settings.');
+      const success = await updateSettings({ tasks: { autoGenerateName: next } });
+      if (!success) {
+        throw new Error('Failed to update settings.');
       }
-      setAutoGenerateName(result.settings?.tasks?.autoGenerateName ?? next);
-      setAutoApproveByDefault(result.settings?.tasks?.autoApproveByDefault ?? autoApproveByDefault);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update settings.';
       setAutoGenerateName(previous);
@@ -62,14 +61,12 @@ const TaskSettingsCard: React.FC = () => {
     setError(null);
     setSaving(true);
     try {
-      const result = await window.electronAPI.updateSettings({
+      const success = await updateSettings({
         tasks: { autoApproveByDefault: next },
       });
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to update settings.');
+      if (!success) {
+        throw new Error('Failed to update settings.');
       }
-      setAutoGenerateName(result.settings?.tasks?.autoGenerateName ?? autoGenerateName);
-      setAutoApproveByDefault(result.settings?.tasks?.autoApproveByDefault ?? next);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update settings.';
       setAutoApproveByDefault(previous);

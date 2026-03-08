@@ -10,6 +10,7 @@ import {
 } from '../hooks/useKeyboardShortcuts';
 import type { ShortcutModifier } from '../types/shortcuts';
 import { useKeyboardSettings } from '../contexts/KeyboardSettingsContext';
+import { getSettings, updateSettings } from '../services/settingsService';
 
 interface ShortcutBinding {
   key: string;
@@ -112,10 +113,10 @@ const KeyboardSettingsCard: React.FC = () => {
     let cancelled = false;
     (async () => {
       try {
-        const result = await window.electronAPI.getSettings();
+        const s = await getSettings();
         if (cancelled) return;
-        if (result.success && result.settings?.keyboard) {
-          const keyboard = result.settings.keyboard;
+        if (s?.keyboard) {
+          const keyboard = s.keyboard;
           setBindings((prev) => {
             const next = { ...prev };
             for (const shortcut of CONFIGURABLE_SHORTCUTS) {
@@ -151,19 +152,11 @@ const KeyboardSettingsCard: React.FC = () => {
       setError(null);
       setSaving(true);
       try {
-        const result = await window.electronAPI.updateSettings({
+        const success = await updateSettings({
           keyboard: { [settingsKey]: binding },
         });
-        if (!result.success) {
-          throw new Error(result.error || 'Failed to update settings.');
-        }
-        const savedBinding =
-          result.settings?.keyboard?.[settingsKey as keyof typeof result.settings.keyboard];
-        if (savedBinding) {
-          setBindings((prev) => ({
-            ...prev,
-            [settingsKey]: savedBinding,
-          }));
+        if (!success) {
+          throw new Error('Failed to update settings.');
         }
         toast({
           title: 'Shortcut updated',

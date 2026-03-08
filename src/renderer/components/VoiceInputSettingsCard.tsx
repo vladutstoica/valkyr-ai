@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Mic, Trash2 } from 'lucide-react';
 import { Switch } from './ui/switch';
+import { getSettings, updateSettings } from '../services/settingsService';
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -29,13 +30,13 @@ const VoiceInputSettingsCard: React.FC = () => {
     let cancelled = false;
     (async () => {
       try {
-        const [settingsResult, statusResult] = await Promise.all([
-          window.electronAPI.getSettings(),
+        const [settings, statusResult] = await Promise.all([
+          getSettings(),
           window.electronAPI.whisperModelStatus(),
         ]);
         if (cancelled) return;
-        if (settingsResult.success) {
-          setEnabled(settingsResult.settings?.voiceInput?.enabled ?? false);
+        if (settings) {
+          setEnabled(settings.voiceInput?.enabled ?? false);
         }
         if (statusResult.success && statusResult.data) {
           setModelStatus(statusResult.data);
@@ -69,10 +70,8 @@ const VoiceInputSettingsCard: React.FC = () => {
       try {
         if (next) {
           // Enable: update setting, then download model if needed
-          const result = await window.electronAPI.updateSettings({
-            voiceInput: { enabled: true },
-          });
-          if (!result.success) throw new Error(result.error || 'Failed to update settings.');
+          const success = await updateSettings({ voiceInput: { enabled: true } });
+          if (!success) throw new Error('Failed to update settings.');
 
           // Check if model needs downloading
           const status = await window.electronAPI.whisperModelStatus();
@@ -87,7 +86,7 @@ const VoiceInputSettingsCard: React.FC = () => {
               if (newStatus.success && newStatus.data) setModelStatus(newStatus.data);
             } catch (dlErr) {
               // Download failed — revert setting
-              await window.electronAPI.updateSettings({ voiceInput: { enabled: false } });
+              await updateSettings({ voiceInput: { enabled: false } });
               setEnabled(false);
               throw dlErr;
             } finally {
@@ -97,10 +96,8 @@ const VoiceInputSettingsCard: React.FC = () => {
           }
         } else {
           // Disable: update setting, then delete model
-          const result = await window.electronAPI.updateSettings({
-            voiceInput: { enabled: false },
-          });
-          if (!result.success) throw new Error(result.error || 'Failed to update settings.');
+          const disableSuccess = await updateSettings({ voiceInput: { enabled: false } });
+          if (!disableSuccess) throw new Error('Failed to update settings.');
 
           if (modelStatus.downloaded) {
             await window.electronAPI.whisperDeleteModel();

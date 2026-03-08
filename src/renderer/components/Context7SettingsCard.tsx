@@ -4,6 +4,7 @@ import { Switch } from './ui/switch';
 import { CONTEXT7_INTEGRATION } from '../mcp/context7';
 import FeedbackModal from './FeedbackModal';
 import context7Logo from '../../assets/images/context7.png';
+import { getSettings, updateSettings } from '../services/settingsService';
 
 const Context7SettingsCard: React.FC = () => {
   const [enabled, setEnabled] = React.useState<boolean>(false);
@@ -12,10 +13,9 @@ const Context7SettingsCard: React.FC = () => {
 
   const refresh = React.useCallback(async () => {
     try {
-      const res = await window.electronAPI.getSettings();
-      if (res?.success && res.settings) {
-        const flag = Boolean(res.settings.mcp?.context7?.enabled);
-        setEnabled(flag);
+      const settings = await getSettings();
+      if (settings) {
+        setEnabled(Boolean(settings.mcp?.context7?.enabled));
       }
     } catch {}
   }, []);
@@ -27,7 +27,7 @@ const Context7SettingsCard: React.FC = () => {
   const onToggle = async (next: boolean) => {
     setBusy(true);
     try {
-      await window.electronAPI.updateSettings({ mcp: { context7: { enabled: next } } as any });
+      await updateSettings({ mcp: { context7: { enabled: next } } as any });
       setEnabled(next);
     } finally {
       setBusy(false);

@@ -1,4 +1,5 @@
 import { createContext, useEffect, useState, type ReactNode } from 'react';
+import { getSettings, updateSettings } from '../services/settingsService';
 
 type Theme = 'light' | 'dark' | 'dark-black' | 'system';
 type EffectiveTheme = 'light' | 'dark' | 'dark-black';
@@ -70,10 +71,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const result = await window.electronAPI.getSettings();
-        if (!result.success) return;
+        const s = await getSettings();
+        if (!s) return;
 
-        const backendTheme = result.settings?.interface?.theme;
+        const backendTheme = s.interface?.theme;
 
         if (backendTheme !== undefined) {
           setThemeState(backendTheme);
@@ -81,9 +82,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           // Migrate localStorage theme to backend settings
           const localTheme = getStoredTheme();
           if (localTheme !== 'system') {
-            await window.electronAPI.updateSettings({
-              interface: { theme: localTheme },
-            });
+            await updateSettings({ interface: { theme: localTheme } });
           }
           setThemeState(localTheme);
         }
@@ -118,9 +117,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const updateTheme = async (newTheme: Theme) => {
     setThemeState(newTheme);
     try {
-      await window.electronAPI.updateSettings({
-        interface: { theme: newTheme },
-      });
+      await updateSettings({ interface: { theme: newTheme } });
     } catch (error) {
       console.error('Failed to save theme setting:', error);
     }

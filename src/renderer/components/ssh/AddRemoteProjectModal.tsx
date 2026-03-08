@@ -665,8 +665,8 @@ export const AddRemoteProjectModal: React.FC<AddRemoteProjectModalProps> = ({
                   <Label
                     htmlFor="auth-password"
                     className={cn(
-                      'border-muted bg-popover hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary flex cursor-pointer flex-col items-center justify-between rounded-md border-2 p-4',
-                      formData.authType === 'password' && 'border-primary'
+                      'border-border bg-popover hover:bg-accent hover:text-accent-foreground flex cursor-pointer flex-col items-center justify-between rounded-md border p-4',
+                      false
                     )}
                   >
                     <Lock className="mb-3 h-6 w-6" />
@@ -679,8 +679,8 @@ export const AddRemoteProjectModal: React.FC<AddRemoteProjectModalProps> = ({
                   <Label
                     htmlFor="auth-key"
                     className={cn(
-                      'border-muted bg-popover hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary flex cursor-pointer flex-col items-center justify-between rounded-md border-2 p-4',
-                      formData.authType === 'key' && 'border-primary'
+                      'border-border bg-popover hover:bg-accent hover:text-accent-foreground flex cursor-pointer flex-col items-center justify-between rounded-md border p-4',
+                      false
                     )}
                   >
                     <FileCode className="mb-3 h-6 w-6" />
@@ -693,8 +693,8 @@ export const AddRemoteProjectModal: React.FC<AddRemoteProjectModalProps> = ({
                   <Label
                     htmlFor="auth-agent"
                     className={cn(
-                      'border-muted bg-popover hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary flex cursor-pointer flex-col items-center justify-between rounded-md border-2 p-4',
-                      formData.authType === 'agent' && 'border-primary'
+                      'border-border bg-popover hover:bg-accent hover:text-accent-foreground flex cursor-pointer flex-col items-center justify-between rounded-md border p-4',
+                      false
                     )}
                   >
                     <Shield className="mb-3 h-6 w-6" />

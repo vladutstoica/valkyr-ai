@@ -5,6 +5,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Spinner } from './ui/spinner';
 import { Separator } from './ui/separator';
+import { getSettings } from '../services/settingsService';
 
 interface CloneFromUrlModalProps {
   isOpen: boolean;
@@ -137,11 +138,8 @@ export const CloneFromUrlModal: React.FC<CloneFromUrlModalProps> = ({
 
       try {
         // Get default directory from settings
-        const settingsResult = await window.electronAPI.getSettings();
-        const defaultDir =
-          settingsResult.success && settingsResult.settings?.projects?.defaultDirectory
-            ? settingsResult.settings.projects.defaultDirectory
-            : '~/valkyr-projects';
+        const s = await getSettings();
+        const defaultDir = s?.projects?.defaultDirectory || '~/valkyr-projects';
         const localPath = `${defaultDir}/${directoryName.trim()}`;
 
         setProgress(`Cloning to ${localPath}...`);

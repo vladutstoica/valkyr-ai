@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Input } from './ui/input';
 import { Switch } from './ui/switch';
+import { getSettings, updateSettings } from '../services/settingsService';
 
 type RepoSettings = {
   branchPrefix: string;
@@ -19,12 +20,11 @@ const RepositorySettingsCard: React.FC = () => {
 
   const load = useCallback(async () => {
     try {
-      const res = await window.electronAPI.getSettings();
-      if (res?.success && res.settings?.repository) {
-        const repo = res.settings.repository;
+      const s = await getSettings();
+      if (s?.repository) {
         setSettings({
-          branchPrefix: repo.branchPrefix ?? DEFAULTS.branchPrefix,
-          pushOnCreate: repo.pushOnCreate ?? DEFAULTS.pushOnCreate,
+          branchPrefix: s.repository.branchPrefix ?? DEFAULTS.branchPrefix,
+          pushOnCreate: s.repository.pushOnCreate ?? DEFAULTS.pushOnCreate,
         });
       } else {
         setSettings(DEFAULTS);
@@ -43,14 +43,8 @@ const RepositorySettingsCard: React.FC = () => {
       setSaving(true);
       try {
         const next = { ...settings, ...partial };
-        const res = await window.electronAPI.updateSettings({ repository: next });
-        if (res?.success && res.settings?.repository) {
-          const repo = res.settings.repository;
-          setSettings({
-            branchPrefix: repo.branchPrefix ?? DEFAULTS.branchPrefix,
-            pushOnCreate: repo.pushOnCreate ?? DEFAULTS.pushOnCreate,
-          });
-        }
+        await updateSettings({ repository: next });
+        setSettings(next);
       } finally {
         setSaving(false);
       }

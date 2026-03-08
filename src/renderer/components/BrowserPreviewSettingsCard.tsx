@@ -42,8 +42,8 @@ export default function BrowserPreviewSettingsCard() {
     const [broken, setBroken] = React.useState(false);
     const base = 'inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-xs';
     const style = active
-      ? 'border border-primary/40 bg-primary/10 text-primary'
-      : 'border border-border/60 bg-muted/20 text-muted-foreground opacity-70';
+      ? 'border border-border text-foreground'
+      : 'border border-border text-muted-foreground opacity-70';
     const node = (
       <span className={`${base} ${style}`} aria-disabled={disabled}>
         {iconSrc && !broken ? (

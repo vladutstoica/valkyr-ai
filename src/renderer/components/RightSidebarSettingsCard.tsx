@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Switch } from './ui/switch';
+import { getSettings, updateSettings } from '../services/settingsService';
 
 const RightSidebarSettingsCard: React.FC = () => {
   const [autoRightSidebarBehavior, setAutoRightSidebarBehavior] = useState(false);
@@ -8,12 +9,10 @@ const RightSidebarSettingsCard: React.FC = () => {
   useEffect(() => {
     (async () => {
       try {
-        const result = await window.electronAPI.getSettings();
-        if (result.success && result.settings) {
-          setAutoRightSidebarBehavior(
-            Boolean(result.settings.interface?.autoRightSidebarBehavior ?? false)
-          );
-        }
+        const settings = await getSettings();
+        setAutoRightSidebarBehavior(
+          Boolean(settings?.interface?.autoRightSidebarBehavior ?? false)
+        );
       } catch (error) {
         console.error('Failed to load right sidebar settings:', error);
       }
@@ -24,7 +23,7 @@ const RightSidebarSettingsCard: React.FC = () => {
   const updateAutoRightSidebarBehavior = async (next: boolean) => {
     setAutoRightSidebarBehavior(next);
     try {
-      await window.electronAPI.updateSettings({
+      await updateSettings({
         interface: { autoRightSidebarBehavior: next },
       });
       // Dispatch custom event to notify App.tsx of the setting change

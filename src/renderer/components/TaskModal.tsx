@@ -12,6 +12,7 @@ import { type AgentRun } from '../types/chat';
 import { agentMeta } from '../providers/meta';
 import { isValidProviderId, getProvider } from '@shared/providers/registry';
 import type { ProviderId } from '@shared/providers/registry';
+import { getSettings } from '../services/settingsService';
 import {
   generateFriendlyTaskName,
   normalizeTaskName,
@@ -176,9 +177,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
     // Load settings
     let cancel = false;
-    window.electronAPI.getSettings().then((res) => {
+    getSettings().then((settings) => {
       if (cancel) return;
-      const settings = res?.success ? res.settings : undefined;
 
       const settingsAgent = settings?.defaultProvider;
       const agent: Agent = isValidProviderId(settingsAgent)

@@ -402,8 +402,8 @@ const MultiAgentTask: React.FC<Props> = ({
                               onClick={() => setActiveTabIndex(tabIdx)}
                               className={`inline-flex h-8 items-center gap-2 rounded-md px-3 text-xs font-medium transition-all ${
                                 isTabActive
-                                  ? 'border-foreground/30 bg-background text-foreground border-2 shadow-xs'
-                                  : 'border-border/50 text-muted-foreground hover:border-border/70 hover:bg-background/50 hover:text-foreground border bg-transparent'
+                                  ? 'border-border bg-background text-foreground border shadow-xs'
+                                  : 'border-border text-muted-foreground hover:bg-background/50 hover:text-foreground border bg-transparent'
                               }`}
                             >
                               {asset?.logo ? (

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ImperativePanelHandle } from 'react-resizable-panels';
 import { loadPanelSizes, savePanelSizes } from '../lib/persisted-layout';
+import { getSettings } from '../services/settingsService';
 import {
   PANEL_LAYOUT_STORAGE_KEY,
   DEFAULT_PANEL_LAYOUT,
@@ -98,10 +99,10 @@ export function usePanelLayout(opts: UsePanelLayoutOptions) {
   useEffect(() => {
     (async () => {
       try {
-        const result = await window.electronAPI.getSettings();
-        if (result.success && result.settings) {
+        const settings = await getSettings();
+        if (settings) {
           setAutoRightSidebarBehavior(
-            Boolean(result.settings.interface?.autoRightSidebarBehavior ?? false)
+            Boolean(settings.interface?.autoRightSidebarBehavior ?? false)
           );
         }
       } catch (error) {

@@ -22,7 +22,10 @@ import { AcpChatPane } from './AcpChatPane';
 import { TerminalPane } from './TerminalPane';
 import { unifiedStatusStore } from '../lib/unifiedStatusStore';
 import { useAutoScrollOnTaskSwitch } from '@/hooks/useAutoScrollOnTaskSwitch';
+import { useAgentStatus } from '../hooks/useAgentStatus';
+import { getSettings } from '../services/settingsService';
 import { useAcpInitialPrompt } from '@/hooks/useAcpInitialPrompt';
+import { useConversationManager } from '../hooks/useConversationManager';
 import { TaskScopeProvider } from './TaskScopeContext';
 import { CreateChatModal } from './CreateChatModal';
 import { DeleteChatModal } from './DeleteChatModal';
@@ -65,23 +68,49 @@ const ChatInterface: React.FC<Props> = ({
 
   const { effectiveTheme } = useTheme();
   const { toast } = useToast();
-  const [isAgentInstalled, setIsAgentInstalled] = useState<boolean | null>(null);
-  const [agentStatuses, setAgentStatuses] = useState<
-    Record<string, { installed?: boolean; path?: string | null; version?: string | null }>
-  >({});
   const [agent, setAgent] = useState<Agent>(initialAgent || 'claude');
   const initialAgentRef = useRef(initialAgent);
   initialAgentRef.current = initialAgent;
-  const currentAgentStatus = agentStatuses[agent];
   const [cliStartFailed, setCliStartFailed] = useState(false);
+  const { isAgentInstalled, setIsAgentInstalled, installedAgents } =
+    useAgentStatus(agent, task.id, activated);
 
-  // Multi-chat state
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
-  const [conversationsLoaded, setConversationsLoaded] = useState(false);
-  const [showCreateChatModal, setShowCreateChatModal] = useState(false);
-  const [showDeleteChatModal, setShowDeleteChatModal] = useState(false);
-  const [chatToDelete, setChatToDelete] = useState<string | null>(null);
+  // Ref to control terminal focus imperatively if needed
+  const terminalRef = useRef<{ focus: () => void }>(null);
+  const chatScrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Conversation management (CRUD, loading, ordering)
+  const {
+    conversations,
+    activeConversationId,
+    setActiveConversationId,
+    conversationsLoaded,
+    sortedConversations,
+    showCreateChatModal,
+    setShowCreateChatModal,
+    showDeleteChatModal,
+    setShowDeleteChatModal,
+    handleCreateChat,
+    handleCreateNewChat,
+    handleResumeSession,
+    handleSwitchChat,
+    handleCloseChat,
+    handleConfirmDeleteChat,
+    handleCancelDeleteChat,
+    handleClearChat,
+    handleDeleteChatById,
+    handleMoveChat,
+    updateConversationTitle,
+  } = useConversationManager({
+    taskId: task.id,
+    taskAgentId: task.agentId,
+    activated,
+    agent,
+    setAgent,
+    initialAgentRef,
+    chatScrollContainerRef,
+    toast,
+  });
 
   // Update terminal ID to include conversation ID and agent - unique per conversation
   const terminalId = useMemo(() => {
@@ -123,13 +152,6 @@ const ChatInterface: React.FC<Props> = ({
     });
   }, [task.id, task.name, task.path, projectPath, defaultBranch]);
 
-  const installedAgents = useMemo(
-    () =>
-      Object.entries(agentStatuses)
-        .filter(([, status]) => status.installed === true)
-        .map(([id]) => id),
-    [agentStatuses]
-  );
 
   // Provider CLI command overrides from settings
   const [providerOverrides, setProviderOverrides] = useState<
@@ -138,9 +160,9 @@ const ChatInterface: React.FC<Props> = ({
 
   useEffect(() => {
     let cancelled = false;
-    window.electronAPI.getSettings().then((res) => {
-      if (!cancelled && res?.success && res.settings?.providerOverrides) {
-        setProviderOverrides(res.settings.providerOverrides);
+    getSettings().then((settings) => {
+      if (!cancelled && settings?.providerOverrides) {
+        setProviderOverrides(settings.providerOverrides);
       }
     });
     return () => { cancelled = true; };
@@ -161,103 +183,9 @@ const ChatInterface: React.FC<Props> = ({
   // Auto-scroll to bottom when this task becomes active
   useAutoScrollOnTaskSwitch(isActive, task.id);
 
-  // Load conversations when task changes (deferred until first activation)
-  useEffect(() => {
-    if (!activated) return;
-    const loadConversations = async () => {
-      setConversationsLoaded(false);
-      const result = await window.electronAPI.getConversations(task.id);
-
-      if (result.success && result.conversations && result.conversations.length > 0) {
-        const convs = result.conversations;
-        setConversations(convs);
-
-        // Preserve the current active conversation if it still exists in the result
-        // (prevents resetting when this effect re-fires, e.g. on task.agentId change)
-        let chosen: Conversation | undefined;
-        setActiveConversationId((prev) => {
-          if (prev && convs.some((c: Conversation) => c.id === prev)) {
-            chosen = convs.find((c: Conversation) => c.id === prev);
-            return prev; // keep current selection
-          }
-          // Otherwise pick the DB-active or first conversation
-          const active = convs.find((c: Conversation) => c.isActive);
-          chosen = active || convs[0]!;
-          if (!active && chosen) {
-            window.electronAPI.setActiveConversation({
-              taskId: task.id,
-              conversationId: chosen.id,
-            });
-          }
-          return chosen?.id ?? null;
-        });
-
-        // Update agent: prefer conversation provider, then localStorage, then defaults
-        if (chosen?.provider) {
-          setAgent(chosen.provider as Agent);
-        } else {
-          // Fallback to localStorage
-          try {
-            const lastKey = `agent:last:${task.id}`;
-            const last = window.localStorage.getItem(lastKey) as Agent | null;
-            if (initialAgentRef.current) {
-              setAgent(initialAgentRef.current);
-            } else if (last) {
-              setAgent(last);
-            } else {
-              setAgent('codex');
-            }
-          } catch {
-            setAgent(initialAgentRef.current || 'codex');
-          }
-        }
-        setConversationsLoaded(true);
-      } else {
-        // No conversations exist - create default for backward compatibility
-        // This ensures existing tasks always have at least one conversation
-        // (preserves pre-multi-chat behavior)
-        const defaultResult = await window.electronAPI.getOrCreateDefaultConversation(task.id);
-        if (defaultResult.success && defaultResult.conversation) {
-          // For backward compatibility: use task.agentId if available, otherwise use current agent
-          // This preserves the original agent choice for tasks created before multi-chat
-          const taskAgent = task.agentId || agent;
-
-          // Determine mode from provider overrides (cli → pty, acp → acp)
-          const settingsRes = await window.electronAPI.getSettings();
-          const overrides = settingsRes?.success ? settingsRes.settings?.providerOverrides : undefined;
-          const agentOverride = overrides?.[taskAgent];
-          const defaultMode = agentOverride?.defaultChatMode === 'cli' ? 'pty' : (defaultResult.conversation.mode || 'acp');
-
-          const conversationWithAgent = {
-            ...defaultResult.conversation,
-            provider: taskAgent,
-            isMain: true,
-            mode: defaultMode,
-          };
-          setConversations([conversationWithAgent]);
-          setActiveConversationId(defaultResult.conversation.id);
-
-          // Update the agent state to match
-          setAgent(taskAgent as Agent);
-
-          // Save the agent to the conversation
-          await window.electronAPI.saveConversation(conversationWithAgent);
-          setConversationsLoaded(true);
-        }
-      }
-    };
-
-    loadConversations();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [task.id, task.agentId, activated]); // initialAgent accessed via ref to avoid re-triggering on isActive changes
-
   // ACP initial prompt injection refs
   const acpAppendRef = useRef<((msg: { content: string }) => Promise<void>) | null>(null);
   const [acpChatStatus, setAcpChatStatus] = useState<string>('initializing');
-
-  // Ref to control terminal focus imperatively if needed
-  const terminalRef = useRef<{ focus: () => void }>(null);
-  const chatScrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Auto-focus terminal when switching to this task
   useEffect(() => {
@@ -365,240 +293,6 @@ const ChatInterface: React.FC<Props> = ({
     [activeTerminalId]
   );
 
-  // Chat management handlers
-  const handleCreateChat = useCallback(
-    async (title: string, newAgent: string, mode?: 'acp' | 'pty') => {
-      try {
-        // Don't dispose the current terminal - each chat has its own independent session
-
-        const result = await window.electronAPI.createConversation({
-          taskId: task.id,
-          title,
-          provider: newAgent,
-          isMain: false, // Additional chats are never main
-          mode,
-        });
-
-        if (result.success && result.conversation) {
-          // Reload conversations
-          const conversationsResult = await window.electronAPI.getConversations(task.id);
-          if (conversationsResult.success) {
-            setConversations(conversationsResult.conversations || []);
-          }
-          setActiveConversationId(result.conversation.id);
-          setAgent(newAgent as Agent);
-          // Scroll to the newly created chat pane
-          requestAnimationFrame(() => {
-            chatScrollContainerRef.current?.scrollTo({
-              left: chatScrollContainerRef.current.scrollWidth,
-              behavior: 'smooth',
-            });
-          });
-        } else {
-          console.error('Failed to create conversation:', result.error);
-          toast({
-            title: 'Error',
-            description: result.error || 'Failed to create chat',
-            variant: 'destructive',
-          });
-        }
-      } catch (error) {
-        console.error('Exception creating conversation:', error);
-        toast({
-          title: 'Error',
-          description: error instanceof Error ? error.message : 'Failed to create chat',
-          variant: 'destructive',
-        });
-      }
-    },
-    [task.id, toast]
-  );
-
-  const handleCreateNewChat = useCallback(() => {
-    setShowCreateChatModal(true);
-  }, []);
-
-  const handleResumeSession = useCallback(
-    async (acpSessionId: string, title?: string) => {
-      try {
-        const config = agentConfig[agent as Agent];
-        const chatTitle = title || `Resumed: ${config?.name || agent}`;
-
-        const result = await window.electronAPI.createConversation({
-          taskId: task.id,
-          title: chatTitle,
-          provider: agent,
-          isMain: false,
-        });
-
-        if (result.success && result.conversation) {
-          await window.electronAPI.updateConversationAcpSessionId({
-            conversationId: result.conversation.id,
-            acpSessionId,
-          });
-
-          const conversationsResult = await window.electronAPI.getConversations(task.id);
-          if (conversationsResult.success) {
-            setConversations(conversationsResult.conversations || []);
-          }
-          setActiveConversationId(result.conversation.id);
-        }
-      } catch (error) {
-        console.error('Failed to resume session:', error);
-        toast({
-          title: 'Error',
-          description: error instanceof Error ? error.message : 'Failed to resume session',
-          variant: 'destructive',
-        });
-      }
-    },
-    [agent, task.id, toast]
-  );
-
-  const handleSwitchChat = useCallback(
-    async (conversationId: string) => {
-      // Don't dispose terminals - just switch between them
-      // Each chat maintains its own persistent terminal session
-
-      await window.electronAPI.setActiveConversation({
-        taskId: task.id,
-        conversationId,
-      });
-      setActiveConversationId(conversationId);
-
-      // Use functional updater to read latest conversations state
-      setConversations((prev) => {
-        const conv = prev.find((c) => c.id === conversationId);
-        if (conv?.provider) setAgent(conv.provider as Agent);
-        return prev; // Don't modify, just read
-      });
-    },
-    [task.id]
-  );
-
-  const handleCloseChat = useCallback(
-    (conversationId: string) => {
-      if (conversations.length <= 1) {
-        toast({
-          title: 'Cannot Close',
-          description: 'Cannot close the last chat',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      // Show the delete confirmation modal
-      setChatToDelete(conversationId);
-      setShowDeleteChatModal(true);
-    },
-    [conversations.length, toast]
-  );
-
-  const handleConfirmDeleteChat = useCallback(async () => {
-    if (!chatToDelete) return;
-
-    // Only dispose the terminal when actually deleting the chat
-    // Find the conversation to get its provider
-    const convToDelete = conversations.find((c) => c.id === chatToDelete);
-    const convAgent = convToDelete?.provider || agent;
-    const terminalToDispose = `${convAgent}-chat-${chatToDelete}`;
-    terminalSessionRegistry.dispose(terminalToDispose);
-
-    // Kill the ACP session process if one exists for this conversation
-    const acpSessionKey = `${convAgent}-acp-${chatToDelete}`;
-    window.electronAPI.acpKill({ sessionKey: acpSessionKey }).catch(() => {});
-
-    await window.electronAPI.deleteConversation(chatToDelete);
-
-    // Reload conversations
-    const result = await window.electronAPI.getConversations(task.id);
-    if (result.success) {
-      setConversations(result.conversations || []);
-      // Switch to another chat if we deleted the active one
-      if (
-        chatToDelete === activeConversationId &&
-        result.conversations &&
-        result.conversations.length > 0
-      ) {
-        const newActive = result.conversations[0];
-        await window.electronAPI.setActiveConversation({
-          taskId: task.id,
-          conversationId: newActive.id,
-        });
-        setActiveConversationId(newActive.id);
-        // Update provider if needed
-        if (newActive.provider) {
-          setAgent(newActive.provider as Agent);
-        }
-      }
-    }
-
-    // Clear the state
-    setChatToDelete(null);
-    setShowDeleteChatModal(false);
-  }, [chatToDelete, conversations, agent, task.id, activeConversationId]);
-
-  const handleClearChat = useCallback(
-    (conversationId: string) => {
-      const conv = conversations.find((c) => c.id === conversationId);
-      const convAgent = conv?.provider || agent;
-      const config = agentConfig[convAgent as Agent];
-      const title = config?.name || convAgent;
-      (async () => {
-        const terminalToDispose = `${convAgent}-chat-${conversationId}`;
-        terminalSessionRegistry.dispose(terminalToDispose);
-        // Kill the ACP session process if one exists for this conversation
-        const acpSessionKey = `${convAgent}-acp-${conversationId}`;
-        window.electronAPI.acpKill({ sessionKey: acpSessionKey }).catch(() => {});
-        await window.electronAPI.deleteConversation(conversationId);
-        await handleCreateChat(title, convAgent);
-      })();
-    },
-    [agent, conversations, handleCreateChat]
-  );
-
-  const handleDeleteChatById = useCallback(
-    (conversationId: string) => {
-      handleCloseChat(conversationId);
-    },
-    [handleCloseChat]
-  );
-
-  const handleMoveChat = useCallback(
-    async (conversationId: string, direction: 'left' | 'right') => {
-      const sorted = [...conversations].sort((a, b) => {
-        if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
-          return a.displayOrder - b.displayOrder;
-        }
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-      });
-      const idx = sorted.findIndex((c) => c.id === conversationId);
-      if (idx < 0) return;
-      const swapIdx = direction === 'left' ? idx - 1 : idx + 1;
-      if (swapIdx < 0 || swapIdx >= sorted.length) return;
-      const newOrder = sorted.map((c) => c.id);
-      [newOrder[idx], newOrder[swapIdx]] = [newOrder[swapIdx], newOrder[idx]];
-      await window.electronAPI.reorderConversations({ taskId: task.id, conversationIds: newOrder });
-      const result = await window.electronAPI.getConversations(task.id);
-      if (result.success) {
-        setConversations(result.conversations || []);
-      }
-    },
-    [conversations, task.id]
-  );
-
-  // Helper to compute sorted conversations (used for rendering and move logic)
-  const sortedConversations = React.useMemo(
-    () =>
-      [...conversations].sort((a, b) => {
-        if (a.displayOrder !== undefined && b.displayOrder !== undefined) {
-          return a.displayOrder - b.displayOrder;
-        }
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-      }),
-    [conversations]
-  );
-
   // Persist last-selected agent per task (including Droid)
   useEffect(() => {
     try {
@@ -620,92 +314,6 @@ const ChatInterface: React.FC<Props> = ({
     }
     prevAgentRef.current = agent;
   }, [agent]);
-
-  useEffect(() => {
-    const installed = currentAgentStatus?.installed === true;
-    setIsAgentInstalled(installed);
-  }, [agent, currentAgentStatus]);
-
-  useEffect(() => {
-    if (!activated) return;
-    let cancelled = false;
-    let refreshCheckRequested = false;
-    const api: any = (window as any).electronAPI;
-
-    const applyStatuses = (statuses: Record<string, any> | undefined | null) => {
-      if (!statuses) return;
-      setAgentStatuses(statuses);
-      if (cancelled) return;
-      const installed = statuses?.[agent]?.installed === true;
-      setIsAgentInstalled(installed);
-    };
-
-    const maybeRefreshAgentStatus = async (statuses?: Record<string, any> | undefined | null) => {
-      if (cancelled || refreshCheckRequested) return;
-      if (!api?.getProviderStatuses) return;
-
-      const status = statuses?.[agent];
-      const hasEntry = Boolean(status);
-      const isInstalled = status?.installed === true;
-      const lastChecked =
-        typeof status?.lastChecked === 'number' && Number.isFinite(status.lastChecked)
-          ? status.lastChecked
-          : 0;
-      const isStale = !lastChecked || Date.now() - lastChecked > 5 * 60 * 1000;
-
-      if (hasEntry && isInstalled && !isStale) return;
-
-      refreshCheckRequested = true;
-      try {
-        const refreshed = await api.getProviderStatuses({ refresh: true, providers: [agent] });
-        if (cancelled) return;
-        if (refreshed?.success) {
-          applyStatuses(refreshed.statuses ?? {});
-        }
-      } catch (error) {
-        console.error('Agent status refresh failed', error);
-      }
-    };
-
-    const load = async () => {
-      if (!api?.getProviderStatuses) {
-        setIsAgentInstalled(false);
-        return;
-      }
-      try {
-        const res = await api.getProviderStatuses();
-        if (cancelled) return;
-        if (res?.success) {
-          applyStatuses(res.statuses ?? {});
-          void maybeRefreshAgentStatus(res.statuses);
-        } else {
-          setIsAgentInstalled(false);
-        }
-      } catch (error) {
-        if (!cancelled) setIsAgentInstalled(false);
-        console.error('Agent status load failed', error);
-      }
-    };
-
-    const off =
-      api?.onProviderStatusUpdated?.((payload: { providerId: string; status: any }) => {
-        if (!payload?.providerId) return;
-        setAgentStatuses((prev) => {
-          const next = { ...prev, [payload.providerId]: payload.status };
-          return next;
-        });
-        if (payload.providerId === agent) {
-          setIsAgentInstalled(payload.status?.installed === true);
-        }
-      }) || null;
-
-    void load();
-
-    return () => {
-      cancelled = true;
-      off?.();
-    };
-  }, [agent, task.id, activated]);
 
   // Switch active chat/agent via global shortcuts (Cmd+Shift+J/K)
   useEffect(() => {
@@ -805,10 +413,7 @@ const ChatInterface: React.FC<Props> = ({
           open={showDeleteChatModal}
           onOpenChange={setShowDeleteChatModal}
           onConfirm={handleConfirmDeleteChat}
-          onCancel={() => {
-            setChatToDelete(null);
-            setShowDeleteChatModal(false);
-          }}
+          onCancel={handleCancelDeleteChat}
         />
 
         <div className="flex min-h-0 flex-1 flex-col">
@@ -937,11 +542,7 @@ const ChatInterface: React.FC<Props> = ({
                         projectPath={projectPath || undefined}
                         isActive={isActive}
                         conversationTitle={conv.title}
-                        onConversationTitleChange={(title) => {
-                          setConversations((prev) =>
-                            prev.map((c) => (c.id === conv.id ? { ...c, title } : c))
-                          );
-                        }}
+                        onConversationTitleChange={(title) => updateConversationTitle(conv.id, title)}
                         onStatusChange={(status) => {
                           try {
                             window.localStorage.setItem(`agent:locked:${task.id}`, convAgent);

@@ -8,6 +8,7 @@ import { TerminalMetrics } from './TerminalMetrics';
 import { log } from '../lib/logger';
 import { TERMINAL_SNAPSHOT_VERSION, type TerminalSnapshotPayload } from '#types/terminalSnapshot';
 import { pendingInjectionManager } from '../lib/PendingInjectionManager';
+import { getSettings } from '../services/settingsService';
 import { getProvider, type ProviderId } from '@shared/providers/registry';
 import { CTRL_J_ASCII, shouldMapShiftEnterToCtrlJ } from './terminalKeybindings';
 
@@ -114,8 +115,8 @@ export class TerminalSessionManager {
       this.applyEffectiveFont();
     };
 
-    window.electronAPI.getSettings().then((result) => {
-      updateCustomFont(result?.settings?.terminal?.fontFamily);
+    getSettings().then((settings) => {
+      updateCustomFont(settings?.terminal?.fontFamily);
     });
 
     const handleFontChange = (e: Event) => {

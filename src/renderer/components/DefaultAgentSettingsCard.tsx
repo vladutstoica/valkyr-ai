@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { AgentSelector } from './AgentSelector';
 import type { Agent } from '../types';
 import { isValidProviderId } from '@shared/providers/registry';
+import { getSettings, updateSettings } from '../services/settingsService';
 
 const DEFAULT_AGENT: Agent = 'claude';
 
@@ -12,10 +13,9 @@ const DefaultAgentSettingsCard: React.FC = () => {
 
   const load = useCallback(async () => {
     try {
-      const res = await window.electronAPI.getSettings();
-      if (res?.success && res.settings?.defaultProvider) {
-        const agent = res.settings.defaultProvider;
-        setDefaultAgent(isValidProviderId(agent) ? (agent as Agent) : DEFAULT_AGENT);
+      const settings = await getSettings();
+      if (settings?.defaultProvider) {
+        setDefaultAgent(isValidProviderId(settings.defaultProvider) ? (settings.defaultProvider as Agent) : DEFAULT_AGENT);
       } else {
         setDefaultAgent(DEFAULT_AGENT);
       }
@@ -36,10 +36,7 @@ const DefaultAgentSettingsCard: React.FC = () => {
       captureTelemetry('default_agent_changed', { agent });
     });
     try {
-      const res = await window.electronAPI.updateSettings({ defaultProvider: agent });
-      if (res?.success && res.settings?.defaultProvider) {
-        setDefaultAgent(res.settings.defaultProvider as Agent);
-      }
+      await updateSettings({ defaultProvider: agent });
     } finally {
       setSaving(false);
     }

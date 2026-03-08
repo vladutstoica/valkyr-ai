@@ -3,6 +3,7 @@ import { Check, ChevronDown } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { getSettings, updateSettings } from '../services/settingsService';
 
 type TerminalSettings = {
   fontFamily: string;
@@ -110,10 +111,9 @@ const TerminalSettingsCard: React.FC = () => {
 
   const load = useCallback(async () => {
     try {
-      const res = await window.electronAPI.getSettings();
-      if (res?.success && res.settings?.terminal) {
-        const fontFamily = res.settings.terminal.fontFamily ?? DEFAULTS.fontFamily;
-        setSettings({ fontFamily });
+      const s = await getSettings();
+      if (s?.terminal) {
+        setSettings({ fontFamily: s.terminal.fontFamily ?? DEFAULTS.fontFamily });
       } else {
         setSettings(DEFAULTS);
       }
@@ -137,13 +137,12 @@ const TerminalSettingsCard: React.FC = () => {
       setSaving(true);
       try {
         const next = { ...settings, ...partial };
-        const res = await window.electronAPI.updateSettings({ terminal: next });
-        if (res?.success && res.settings?.terminal) {
-          const fontFamily = res.settings.terminal.fontFamily ?? DEFAULTS.fontFamily;
-          setSettings({ fontFamily });
+        const success = await updateSettings({ terminal: next });
+        if (success) {
+          setSettings(next);
           window.dispatchEvent(
             new CustomEvent('terminal-font-changed', {
-              detail: { fontFamily: res.settings.terminal.fontFamily },
+              detail: { fontFamily: next.fontFamily },
             })
           );
         }

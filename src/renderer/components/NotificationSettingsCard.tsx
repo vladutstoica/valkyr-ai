@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Switch } from './ui/switch';
+import { getSettings, updateSettings } from '../services/settingsService';
 
 const NotificationSettingsCard: React.FC = () => {
   const [enabled, setEnabled] = useState(true);
@@ -9,12 +10,10 @@ const NotificationSettingsCard: React.FC = () => {
   useEffect(() => {
     (async () => {
       try {
-        const result = await window.electronAPI.getSettings();
-        if (result.success && result.settings) {
-          const en = Boolean(result.settings.notifications?.enabled ?? true);
-          const snd = Boolean(result.settings.notifications?.sound ?? true);
-          setEnabled(en);
-          setSound(snd);
+        const settings = await getSettings();
+        if (settings) {
+          setEnabled(Boolean(settings.notifications?.enabled ?? true));
+          setSound(Boolean(settings.notifications?.sound ?? true));
         }
       } catch (error) {
         console.error('Failed to load notification settings:', error);
@@ -29,7 +28,7 @@ const NotificationSettingsCard: React.FC = () => {
       captureTelemetry('notification_settings_changed', { enabled: next, sound });
     });
     try {
-      await window.electronAPI.updateSettings({
+      await updateSettings({
         notifications: { enabled: next, sound },
       });
     } catch (error) {
@@ -43,7 +42,7 @@ const NotificationSettingsCard: React.FC = () => {
       captureTelemetry('notification_settings_changed', { enabled, sound: next });
     });
     try {
-      await window.electronAPI.updateSettings({
+      await updateSettings({
         notifications: { enabled, sound: next },
       });
     } catch (error) {

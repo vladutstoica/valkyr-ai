@@ -169,6 +169,18 @@ export function TerminalPanel({
     [terminalCwd, createTerminal, isCollapsed, toggleCollapsed]
   );
 
+  // Listen for run-script events from OpenInMenu
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { scriptName, path: scriptPath } = (e as CustomEvent).detail;
+      if (scriptPath === terminalCwd) {
+        handleRunScript(scriptName);
+      }
+    };
+    window.addEventListener('run-script', handler);
+    return () => window.removeEventListener('run-script', handler);
+  }, [terminalCwd, handleRunScript]);
+
   // Track which terminals are actively running a command.
   // Only shows spinner after 3s of continuous PTY output to avoid false
   // positives from shell prompts and short command responses.

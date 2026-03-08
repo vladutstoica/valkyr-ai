@@ -33,8 +33,8 @@ const ThemeCard: React.FC = () => {
             }}
             className={`focus-visible:ring-ring focus-visible:ring-offset-background flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden ${
               theme === value
-                ? 'border-primary bg-primary/10 text-foreground'
-                : 'border-border/60 bg-background text-muted-foreground hover:border-border hover:bg-muted/40'
+                ? 'border-border text-foreground'
+                : 'border-border text-muted-foreground hover:bg-muted/40'
             }`}
             aria-pressed={theme === value}
             aria-label={`Set theme to ${label}`}

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Switch } from './ui/switch';
+import { getSettings, updateSettings } from '../services/settingsService';
 
 type PrepSettings = {
   autoInstallOnOpenInEditor: boolean;
@@ -16,9 +17,9 @@ const ProjectPrepSettingsCard: React.FC = () => {
 
   const load = useCallback(async () => {
     try {
-      const res = await window.electronAPI.getSettings();
-      if (res?.success && res.settings?.projectPrep) {
-        const prep = res.settings.projectPrep as any;
+      const s = await getSettings();
+      if (s?.projectPrep) {
+        const prep = s.projectPrep as any;
         setSettings({
           autoInstallOnOpenInEditor:
             typeof prep.autoInstallOnOpenInEditor === 'boolean'
@@ -42,16 +43,8 @@ const ProjectPrepSettingsCard: React.FC = () => {
       setSaving(true);
       try {
         const next = { ...settings, ...partial };
-        const res = await window.electronAPI.updateSettings({ projectPrep: next as any });
-        if (res?.success && res.settings?.projectPrep) {
-          const prep = res.settings.projectPrep as any;
-          setSettings({
-            autoInstallOnOpenInEditor:
-              typeof prep.autoInstallOnOpenInEditor === 'boolean'
-                ? prep.autoInstallOnOpenInEditor
-                : DEFAULTS.autoInstallOnOpenInEditor,
-          });
-        }
+        await updateSettings({ projectPrep: next as any });
+        setSettings(next);
       } finally {
         setSaving(false);
       }
