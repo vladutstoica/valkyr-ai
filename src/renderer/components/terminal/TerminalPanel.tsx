@@ -163,11 +163,12 @@ export function TerminalPanel({
   }, [terminalCwd]);
 
   const handleRunScript = useCallback(
-    (scriptName: string) => {
+    (scriptName: string, command?: string, cwd?: string) => {
       if (!terminalCwd) return;
-      // Detect package manager from lockfiles
-      const cmd = `pnpm run ${scriptName}`;
-      createTerminal({ title: scriptName, cwd: terminalCwd, initialPrompt: cmd });
+      // Custom scripts: use raw command + optional cwd. Package scripts: pnpm run.
+      const cmd = command || `pnpm run ${scriptName}`;
+      const resolvedCwd = cwd ? `${terminalCwd}/${cwd}` : terminalCwd;
+      createTerminal({ title: scriptName, cwd: resolvedCwd, initialPrompt: cmd });
       if (isCollapsed) toggleCollapsed();
     },
     [terminalCwd, createTerminal, isCollapsed, toggleCollapsed]
@@ -175,9 +176,9 @@ export function TerminalPanel({
 
   // Listen for run-script events from ScriptsMenu
   useEffect(() => {
-    return onScriptRun(({ scriptName, path: scriptPath }) => {
+    return onScriptRun(({ scriptName, path: scriptPath, command, cwd }) => {
       if (scriptPath === terminalCwd) {
-        handleRunScript(scriptName);
+        handleRunScript(scriptName, command, cwd);
       }
     });
   }, [terminalCwd, handleRunScript]);

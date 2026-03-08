@@ -1815,7 +1815,7 @@ declare global {
       // Script runner
       getScripts: (projectPath: string) => Promise<{
         success: boolean;
-        data?: { name: string; command: string }[];
+        data?: { name: string; command: string; source: 'package' | 'custom'; cwd?: string }[];
         error?: string;
       }>;
       runScript: (
@@ -1833,6 +1833,20 @@ declare global {
       getRunningScripts: (projectPath: string) => Promise<{
         success: boolean;
         data?: { scriptName: string; ptyId: string }[];
+        error?: string;
+      }>;
+      saveCustomScript: (
+        projectPath: string,
+        script: { name: string; command: string; cwd?: string }
+      ) => Promise<{
+        success: boolean;
+        error?: string;
+      }>;
+      deleteCustomScript: (
+        projectPath: string,
+        scriptName: string
+      ) => Promise<{
+        success: boolean;
         error?: string;
       }>;
       onScriptData: (ptyId: string, listener: (data: string) => void) => () => void;
@@ -2743,7 +2757,7 @@ export interface ElectronAPI {
   // Script runner
   getScripts: (projectPath: string) => Promise<{
     success: boolean;
-    data?: { name: string; command: string }[];
+    data?: { name: string; command: string; source: 'package' | 'custom'; cwd?: string }[];
     error?: string;
   }>;
   runScript: (
@@ -2761,6 +2775,20 @@ export interface ElectronAPI {
   getRunningScripts: (projectPath: string) => Promise<{
     success: boolean;
     data?: { scriptName: string; ptyId: string }[];
+    error?: string;
+  }>;
+  saveCustomScript: (
+    projectPath: string,
+    script: { name: string; command: string; cwd?: string }
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+  deleteCustomScript: (
+    projectPath: string,
+    scriptName: string
+  ) => Promise<{
+    success: boolean;
     error?: string;
   }>;
   onScriptData: (ptyId: string, listener: (data: string) => void) => () => void;

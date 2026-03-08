@@ -641,6 +641,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('scripts:runScript', { projectPath, scriptName }),
   stopScript: (ptyId: string) => ipcRenderer.invoke('scripts:stopScript', ptyId),
   getRunningScripts: (projectPath: string) => ipcRenderer.invoke('scripts:getRunning', projectPath),
+  saveCustomScript: (
+    projectPath: string,
+    script: { name: string; command: string; cwd?: string }
+  ) => ipcRenderer.invoke('scripts:saveCustomScript', { projectPath, script }),
+  deleteCustomScript: (projectPath: string, scriptName: string) =>
+    ipcRenderer.invoke('scripts:deleteCustomScript', { projectPath, scriptName }),
   onScriptData: (ptyId: string, listener: (data: string) => void) => {
     const channel = `scripts:data:${ptyId}`;
     const wrapped = (_: Electron.IpcRendererEvent, data: string) => listener(data);
