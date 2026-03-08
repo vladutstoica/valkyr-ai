@@ -22,10 +22,7 @@ import { PopoverContent } from '../ui/popover';
 import { SessionHistoryPopover } from './SessionHistoryPopover';
 import { Command } from '../ui/command';
 import { ModelInfoCard } from '../agents/ModelInfoCard';
-import {
-  PlanUsageHoverCard,
-  useClaudeUsageLimits,
-} from '../ai-elements/plan-usage';
+import { PlanUsageHoverCard, useClaudeUsageLimits } from '../ai-elements/plan-usage';
 import {
   ModelSelector,
   ModelSelectorTrigger,
@@ -36,10 +33,7 @@ import {
   ModelSelectorItem,
   ModelSelectorName,
 } from '../ai-elements/model-selector';
-import {
-  messagesToMarkdown,
-  type ConversationMessage,
-} from '../ai-elements/conversation';
+import { messagesToMarkdown, type ConversationMessage } from '../ai-elements/conversation';
 import { agentConfig } from '../../lib/agentConfig';
 import { getTextFromParts } from './acpChatUtils';
 import type { UIMessage } from 'ai';

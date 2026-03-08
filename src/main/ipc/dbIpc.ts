@@ -423,7 +423,13 @@ export function registerDatabaseIpc() {
         provider,
         isMain,
         mode,
-      }: { taskId: string; title: string; provider?: string; isMain?: boolean; mode?: 'pty' | 'acp' }
+      }: {
+        taskId: string;
+        title: string;
+        provider?: string;
+        isMain?: boolean;
+        mode?: 'pty' | 'acp';
+      }
     ) => {
       try {
         const conversation = await databaseService.createConversation(

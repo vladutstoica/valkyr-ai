@@ -106,12 +106,7 @@ export const AllChangesDiffModal: React.FC<AllChangesDiffModalProps> = ({
     if (!current || current.loading || current.error || !resolvedTaskPath) return;
     updateFileData(filePath, (data) => ({ ...data, saving: true, saveError: null }));
     try {
-      const res = await fsWriteFile(
-        resolvedTaskPath,
-        filePath,
-        current.modified,
-        true
-      );
+      const res = await fsWriteFile(resolvedTaskPath, filePath, current.modified, true);
       if (!res?.success) {
         throw new Error(res?.error || 'Failed to save file');
       }
@@ -126,7 +121,8 @@ export const AllChangesDiffModal: React.FC<AllChangesDiffModalProps> = ({
         await onRefreshChanges();
       }
     } catch (error: unknown) {
-      const message = (error instanceof Error ? error.message : String(error)) || 'Failed to save file';
+      const message =
+        (error instanceof Error ? error.message : String(error)) || 'Failed to save file';
       updateFileData(filePath, (data) => ({ ...data, saving: false, saveError: message }));
       toast({
         title: 'Save failed',
@@ -208,11 +204,7 @@ export const AllChangesDiffModal: React.FC<AllChangesDiffModalProps> = ({
           modifiedContent = '';
         } else if (file.status === 'added') {
           // Read current file content
-          const readRes = await fsRead(
-            resolvedTaskPath,
-            filePath,
-            2 * 1024 * 1024
-          );
+          const readRes = await fsRead(resolvedTaskPath, filePath, 2 * 1024 * 1024);
           if (readRes?.success && readRes.content) {
             modifiedContent = readRes.content;
             originalContent = '';
@@ -230,11 +222,7 @@ export const AllChangesDiffModal: React.FC<AllChangesDiffModalProps> = ({
 
           // Try to read actual current content for better accuracy
           try {
-            const readRes = await fsRead(
-              resolvedTaskPath,
-              filePath,
-              2 * 1024 * 1024
-            );
+            const readRes = await fsRead(resolvedTaskPath, filePath, 2 * 1024 * 1024);
             if (readRes?.success && readRes.content) {
               modifiedContent = readRes.content;
             }
@@ -265,7 +253,9 @@ export const AllChangesDiffModal: React.FC<AllChangesDiffModalProps> = ({
             initialModified: '',
             language,
             loading: false,
-            error: (error instanceof Error ? error.message : String(error)) || 'Failed to load file diff',
+            error:
+              (error instanceof Error ? error.message : String(error)) ||
+              'Failed to load file diff',
             expanded: true, // Default expanded even on error
           });
           return next;

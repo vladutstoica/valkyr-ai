@@ -148,9 +148,7 @@ const WorkspaceBar: React.FC<WorkspaceBarProps> = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() =>
-                    onViewModeChange(viewMode === 'workspace' ? 'all' : 'workspace')
-                  }
+                  onClick={() => onViewModeChange(viewMode === 'workspace' ? 'all' : 'workspace')}
                   className={`h-6 w-6 cursor-pointer ${
                     viewMode === 'all' ? 'bg-muted-foreground/20' : 'opacity-50 hover:opacity-80'
                   }`}

@@ -8,8 +8,8 @@ import TaskDeleteButton from './project/TaskDeleteButton';
 import ProjectDeleteButton from './project/ProjectDeleteButton';
 import BaseBranchControls from './git/BaseBranchControls';
 import { pickDefaultBranch, type BranchOption } from './git/BranchSelect';
-const ConfigEditorModal = React.lazy(
-  () => import('./project/ConfigEditorModal').then((m) => ({ default: m.ConfigEditorModal }))
+const ConfigEditorModal = React.lazy(() =>
+  import('./project/ConfigEditorModal').then((m) => ({ default: m.ConfigEditorModal }))
 );
 import { useToast } from '../hooks/use-toast';
 import { TaskRow } from './project/TaskRow';

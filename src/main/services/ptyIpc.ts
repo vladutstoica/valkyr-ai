@@ -835,10 +835,7 @@ export function registerPtyIpc(): void {
   // ── Provider CLI detection ──────────────────────────────────────────
   ipcMain.handle(
     'provider:getStatuses',
-    async (
-      _event,
-      opts?: { refresh?: boolean; providers?: string[]; providerId?: string }
-    ) => {
+    async (_event, opts?: { refresh?: boolean; providers?: string[]; providerId?: string }) => {
       try {
         const { execFile } = await import('child_process');
         const { PROVIDERS } = await import('../../shared/providers/registry');
@@ -857,12 +854,9 @@ export function registerPtyIpc(): void {
             });
           });
 
-        const targetIds = opts?.providers
-          ?? (opts?.providerId ? [opts.providerId] : undefined);
+        const targetIds = opts?.providers ?? (opts?.providerId ? [opts.providerId] : undefined);
 
-        const providers = targetIds
-          ? PROVIDERS.filter((p) => targetIds.includes(p.id))
-          : PROVIDERS;
+        const providers = targetIds ? PROVIDERS.filter((p) => targetIds.includes(p.id)) : PROVIDERS;
 
         const cached = providerStatusCache.getAll();
         const statuses: Record<string, any> = { ...cached };

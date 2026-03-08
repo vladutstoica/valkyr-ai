@@ -54,9 +54,7 @@ export const KeyboardSettingsProvider: React.FC<{ children: React.ReactNode }> =
   );
 
   return (
-    <KeyboardSettingsContext.Provider value={value}>
-      {children}
-    </KeyboardSettingsContext.Provider>
+    <KeyboardSettingsContext.Provider value={value}>{children}</KeyboardSettingsContext.Provider>
   );
 };
 

@@ -57,10 +57,7 @@ const agentConfig: Record<Agent, { name: string; logo: string }> = {
   mistral: { name: 'Mistral Vibe', logo: mistralLogo },
 };
 
-export const AgentDisplay: React.FC<Props> = ({
-  agent,
-  taskId,
-}) => {
+export const AgentDisplay: React.FC<Props> = ({ agent, taskId }) => {
   const config = agentConfig[agent] ?? { name: agent, logo: '' };
   const { taskId: scopedTaskId } = useTaskScope();
   const resolvedTaskId = taskId ?? scopedTaskId;

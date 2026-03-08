@@ -65,7 +65,10 @@ export function configureDiffEditorDiagnostics(
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ts = (monacoInstance?.languages as Record<string, any>)?.typescript as
-    | { typescriptDefaults?: { setDiagnosticsOptions(opts: Record<string, unknown>): void }; javascriptDefaults?: { setDiagnosticsOptions(opts: Record<string, unknown>): void } }
+    | {
+        typescriptDefaults?: { setDiagnosticsOptions(opts: Record<string, unknown>): void };
+        javascriptDefaults?: { setDiagnosticsOptions(opts: Record<string, unknown>): void };
+      }
     | undefined;
 
   if (language === 'typescript' || language === 'typescriptreact') {
@@ -96,7 +99,10 @@ export function resetDiagnosticOptions(monacoInstance: Monaco): void {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ts = (monacoInstance?.languages as Record<string, any>)?.typescript as
-    | { typescriptDefaults?: { setDiagnosticsOptions(opts: Record<string, unknown>): void }; javascriptDefaults?: { setDiagnosticsOptions(opts: Record<string, unknown>): void } }
+    | {
+        typescriptDefaults?: { setDiagnosticsOptions(opts: Record<string, unknown>): void };
+        javascriptDefaults?: { setDiagnosticsOptions(opts: Record<string, unknown>): void };
+      }
     | undefined;
 
   ts?.typescriptDefaults?.setDiagnosticsOptions(defaultOptions);

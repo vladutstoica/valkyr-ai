@@ -20,7 +20,11 @@ import { useTaskComments } from '../../hooks/useLineComments';
 import { type Agent } from '../../types';
 import { Task } from '../../types/chat';
 import { useTaskTerminals } from '@/lib/taskTerminalsStore';
-import { getInstallCommandForProvider, getProvider, type ProviderId } from '@shared/providers/registry';
+import {
+  getInstallCommandForProvider,
+  getProvider,
+  type ProviderId,
+} from '@shared/providers/registry';
 import { AcpChatPane } from './AcpChatPane';
 import { TerminalPane } from '../TerminalPane';
 import { unifiedStatusStore } from '../../lib/unifiedStatusStore';
@@ -69,8 +73,11 @@ const ChatInterface: React.FC<Props> = ({
   const initialAgentRef = useRef(initialAgent);
   initialAgentRef.current = initialAgent;
   const [cliStartFailed, setCliStartFailed] = useState(false);
-  const { isAgentInstalled, setIsAgentInstalled, installedAgents } =
-    useAgentStatus(agent, task.id, activated);
+  const { isAgentInstalled, setIsAgentInstalled, installedAgents } = useAgentStatus(
+    agent,
+    task.id,
+    activated
+  );
 
   // Ref to control terminal focus imperatively if needed
   const terminalRef = useRef<{ focus: () => void }>(null);
@@ -149,7 +156,6 @@ const ChatInterface: React.FC<Props> = ({
     });
   }, [task.id, task.name, task.path, projectPath, defaultBranch]);
 
-
   // Provider CLI command overrides from settings
   const [providerOverrides, setProviderOverrides] = useState<
     Partial<Record<string, { defaultChatMode?: 'acp' | 'cli'; cliCommand?: string }>>
@@ -162,7 +168,9 @@ const ChatInterface: React.FC<Props> = ({
         setProviderOverrides(settings.providerOverrides);
       }
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const { activeTerminalId } = useTaskTerminals(task.id, task.path);
@@ -227,9 +235,10 @@ const ChatInterface: React.FC<Props> = ({
 
     let off: (() => void) | null = null;
     try {
-      off = window.electronAPI?.onPtyStarted?.((info: { id: string }) => {
-        if (info?.id === terminalId) send();
-      }) ?? null;
+      off =
+        window.electronAPI?.onPtyStarted?.((info: { id: string }) => {
+          if (info?.id === terminalId) send();
+        }) ?? null;
     } catch {}
 
     const t = setTimeout(send, 1200);
@@ -465,7 +474,9 @@ const ChatInterface: React.FC<Props> = ({
                                 className={`size-3.5 rounded-sm ${agentConfig[convAgent as Agent].invertInDark ? 'dark:invert' : ''}`}
                               />
                             )}
-                            <span>{conv.title || agentConfig[convAgent as Agent]?.name || convAgent}</span>
+                            <span>
+                              {conv.title || agentConfig[convAgent as Agent]?.name || convAgent}
+                            </span>
                           </div>
                           {/* Right: action buttons */}
                           <div className="flex items-center gap-0.5">
@@ -488,16 +499,25 @@ const ChatInterface: React.FC<Props> = ({
                                 </button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-44">
-                                <DropdownMenuItem onClick={() => handleMoveChat(conv.id, 'right')} disabled={idx >= sortedConversations.length - 1}>
+                                <DropdownMenuItem
+                                  onClick={() => handleMoveChat(conv.id, 'right')}
+                                  disabled={idx >= sortedConversations.length - 1}
+                                >
                                   <ArrowRight className="size-4" />
                                   Move Right
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleMoveChat(conv.id, 'left')} disabled={idx <= 0}>
+                                <DropdownMenuItem
+                                  onClick={() => handleMoveChat(conv.id, 'left')}
+                                  disabled={idx <= 0}
+                                >
                                   <ArrowLeft className="size-4" />
                                   Move Left
                                 </DropdownMenuItem>
                                 {!conv.isMain && (
-                                  <DropdownMenuItem onClick={() => handleDeleteChatById(conv.id)} className="text-destructive">
+                                  <DropdownMenuItem
+                                    onClick={() => handleDeleteChatById(conv.id)}
+                                    className="text-destructive"
+                                  >
                                     <Trash2 className="size-4" />
                                     Delete Chat
                                   </DropdownMenuItem>
@@ -526,7 +546,9 @@ const ChatInterface: React.FC<Props> = ({
                         projectPath={projectPath || undefined}
                         isActive={isActive}
                         conversationTitle={conv.title}
-                        onConversationTitleChange={(title) => updateConversationTitle(conv.id, title)}
+                        onConversationTitleChange={(title) =>
+                          updateConversationTitle(conv.id, title)
+                        }
                         onStatusChange={(status) => {
                           try {
                             window.localStorage.setItem(`agent:locked:${task.id}`, convAgent);

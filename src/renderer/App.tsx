@@ -8,22 +8,27 @@ import { ThemeProvider } from './components/ThemeProvider';
 
 // Lazy-loaded modals — only fetched when opened
 const TaskModal = React.lazy(() => import('./components/project/TaskModal'));
-const CommandPaletteWrapper = React.lazy(() => import('./components/commands/CommandPaletteWrapper'));
-const NewProjectModal = React.lazy(
-  () => import('./components/project/NewProjectModal').then((m) => ({ default: m.NewProjectModal }))
+const CommandPaletteWrapper = React.lazy(
+  () => import('./components/commands/CommandPaletteWrapper')
 );
-const CloneFromUrlModal = React.lazy(
-  () => import('./components/project/CloneFromUrlModal').then((m) => ({ default: m.CloneFromUrlModal }))
+const NewProjectModal = React.lazy(() =>
+  import('./components/project/NewProjectModal').then((m) => ({ default: m.NewProjectModal }))
 );
-const AddRemoteProjectModal = React.lazy(
-  () => import('./components/ssh/AddRemoteProjectModal').then((m) => ({ default: m.AddRemoteProjectModal }))
+const CloneFromUrlModal = React.lazy(() =>
+  import('./components/project/CloneFromUrlModal').then((m) => ({ default: m.CloneFromUrlModal }))
 );
-const KeyboardShortcutsDialog = React.lazy(
-  () =>
-    import('./components/commands/KeyboardShortcutsDialog').then((m) => ({ default: m.KeyboardShortcutsDialog }))
+const AddRemoteProjectModal = React.lazy(() =>
+  import('./components/ssh/AddRemoteProjectModal').then((m) => ({
+    default: m.AddRemoteProjectModal,
+  }))
 );
-const PrerequisiteModal = React.lazy(
-  () => import('./components/PrerequisiteModal').then((m) => ({ default: m.PrerequisiteModal }))
+const KeyboardShortcutsDialog = React.lazy(() =>
+  import('./components/commands/KeyboardShortcutsDialog').then((m) => ({
+    default: m.KeyboardShortcutsDialog,
+  }))
+);
+const PrerequisiteModal = React.lazy(() =>
+  import('./components/PrerequisiteModal').then((m) => ({ default: m.PrerequisiteModal }))
 );
 import Titlebar from './components/titlebar/Titlebar';
 import { SidebarProvider } from './components/ui/sidebar';

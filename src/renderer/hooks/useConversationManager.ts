@@ -23,7 +23,11 @@ interface UseConversationManagerOptions {
   setAgent: (agent: Agent) => void;
   initialAgentRef: RefObject<Agent | undefined>;
   chatScrollContainerRef: RefObject<HTMLDivElement | null>;
-  toast: (opts: { title: string; description?: string; variant?: 'default' | 'destructive' }) => void;
+  toast: (opts: {
+    title: string;
+    description?: string;
+    variant?: 'default' | 'destructive';
+  }) => void;
 }
 
 export function useConversationManager({
@@ -342,9 +346,7 @@ export function useConversationManager({
   }, []);
 
   const updateConversationTitle = useCallback((conversationId: string, title: string) => {
-    setConversations((prev) =>
-      prev.map((c) => (c.id === conversationId ? { ...c, title } : c))
-    );
+    setConversations((prev) => prev.map((c) => (c.id === conversationId ? { ...c, title } : c)));
   }, []);
 
   return {

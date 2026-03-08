@@ -128,12 +128,7 @@ export function useFileManager(options: UseFileManagerOptions): UseFileManagerRe
       setIsSaving(true);
 
       try {
-        const result = await fsWriteFile(
-          taskPath,
-          targetPath,
-          file.content,
-          true
-        );
+        const result = await fsWriteFile(taskPath, targetPath, file.content, true);
 
         if (result.success) {
           setOpenFiles((prev) => {

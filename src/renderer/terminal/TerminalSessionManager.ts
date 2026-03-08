@@ -560,7 +560,12 @@ export class TerminalSessionManager {
     return !!provider?.resumeFlag;
   }
 
-  private async fetchSnapshot(): Promise<{ data?: string; cols?: number; rows?: number; version?: number } | null> {
+  private async fetchSnapshot(): Promise<{
+    data?: string;
+    cols?: number;
+    rows?: number;
+    version?: number;
+  } | null> {
     if (this.options.disableSnapshots) return null;
     if (!window.electronAPI.ptyGetSnapshot) return null;
 

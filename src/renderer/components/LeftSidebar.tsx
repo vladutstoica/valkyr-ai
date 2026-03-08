@@ -389,7 +389,9 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
             <div className="shrink-0 pb-0">
               <Card className="w-full">
                 <CardContent className="flex items-center justify-between px-3 py-2">
-                  <span className="text-foreground text-xs font-semibold tracking-wider uppercase">Valkyr AI</span>
+                  <span className="text-foreground text-xs font-semibold tracking-wider uppercase">
+                    Valkyr AI
+                  </span>
                   {onOpenSettings && (
                     <button
                       type="button"
@@ -414,7 +416,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                   placeholder="Search sessions..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-transparent text-foreground placeholder:text-muted-foreground w-full text-xs outline-none"
+                  className="text-foreground placeholder:text-muted-foreground w-full bg-transparent text-xs outline-none"
                 />
               </div>
             </div>
@@ -436,7 +438,8 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                   <SidebarGroupContent>
                     {(() => {
                       // Use all projects when in "all" view mode
-                      const sourceProjects = viewMode === 'all' && allProjects ? allProjects : projects;
+                      const sourceProjects =
+                        viewMode === 'all' && allProjects ? allProjects : projects;
 
                       // Filter projects by search query (matches project name or task names)
                       const query = searchQuery.trim().toLowerCase();
@@ -461,16 +464,40 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
                         // "Move to Group" and "Move to Workspace" submenu items
                         const moveToGroupDropdownItems = onMoveProjectToGroup ? (
-                          <MoveToGroupMenu variant="dropdown" projectId={typedProject.id} currentGroupId={typedProject.groupId} groups={groups} onMoveProjectToGroup={onMoveProjectToGroup} />
+                          <MoveToGroupMenu
+                            variant="dropdown"
+                            projectId={typedProject.id}
+                            currentGroupId={typedProject.groupId}
+                            groups={groups}
+                            onMoveProjectToGroup={onMoveProjectToGroup}
+                          />
                         ) : null;
                         const moveToGroupContextItems = onMoveProjectToGroup ? (
-                          <MoveToGroupMenu variant="context" projectId={typedProject.id} currentGroupId={typedProject.groupId} groups={groups} onMoveProjectToGroup={onMoveProjectToGroup} />
+                          <MoveToGroupMenu
+                            variant="context"
+                            projectId={typedProject.id}
+                            currentGroupId={typedProject.groupId}
+                            groups={groups}
+                            onMoveProjectToGroup={onMoveProjectToGroup}
+                          />
                         ) : null;
                         const moveToWorkspaceDropdownItems = onMoveProjectToWorkspace ? (
-                          <MoveToWorkspaceMenu variant="dropdown" projectId={typedProject.id} currentWorkspaceId={typedProject.workspaceId} workspaces={workspaces} onMoveProjectToWorkspace={onMoveProjectToWorkspace} />
+                          <MoveToWorkspaceMenu
+                            variant="dropdown"
+                            projectId={typedProject.id}
+                            currentWorkspaceId={typedProject.workspaceId}
+                            workspaces={workspaces}
+                            onMoveProjectToWorkspace={onMoveProjectToWorkspace}
+                          />
                         ) : null;
                         const moveToWorkspaceContextItems = onMoveProjectToWorkspace ? (
-                          <MoveToWorkspaceMenu variant="context" projectId={typedProject.id} currentWorkspaceId={typedProject.workspaceId} workspaces={workspaces} onMoveProjectToWorkspace={onMoveProjectToWorkspace} />
+                          <MoveToWorkspaceMenu
+                            variant="context"
+                            projectId={typedProject.id}
+                            currentWorkspaceId={typedProject.workspaceId}
+                            workspaces={workspaces}
+                            onMoveProjectToWorkspace={onMoveProjectToWorkspace}
+                          />
                         ) : null;
 
                         return (
@@ -856,7 +883,9 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                             getKey={(g) => g.id}
                           >
                             {(group) => {
-                              const groupProjects = filteredProjects.filter((p) => p.groupId === group.id);
+                              const groupProjects = filteredProjects.filter(
+                                (p) => p.groupId === group.id
+                              );
                               const isEditingThisGroup = editingGroupId === group.id;
 
                               return (

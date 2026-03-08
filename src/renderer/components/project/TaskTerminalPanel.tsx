@@ -143,89 +143,98 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
       };
     }
 
-    const off = api.onLifecycleEvent((evt: { taskId?: string; phase?: string; status?: string; line?: string; exitCode?: number; error?: string }) => {
-      if (!evt || evt.taskId !== task.id) return;
-      const phase =
-        evt.phase === 'setup' || evt.phase === 'run' || evt.phase === 'teardown'
-          ? (evt.phase as LifecyclePhase)
-          : null;
-      if (phase) {
+    const off = api.onLifecycleEvent(
+      (evt: {
+        taskId?: string;
+        phase?: string;
+        status?: string;
+        line?: string;
+        exitCode?: number;
+        error?: string;
+      }) => {
+        if (!evt || evt.taskId !== task.id) return;
+        const phase =
+          evt.phase === 'setup' || evt.phase === 'run' || evt.phase === 'teardown'
+            ? (evt.phase as LifecyclePhase)
+            : null;
+        if (phase) {
+          if (evt.status === 'starting') {
+            setLifecycleLogs((prev) => ({
+              ...prev,
+              [phase]: [...prev[phase], `$ ${phase} started\n`].slice(-300),
+            }));
+          } else if (evt.status === 'line' && typeof evt.line === 'string') {
+            setLifecycleLogs((prev) => ({
+              ...prev,
+              [phase]: [...prev[phase], evt.line].slice(-300),
+            }));
+          } else if (evt.status === 'done') {
+            setLifecycleLogs((prev) => ({
+              ...prev,
+              [phase]: [...prev[phase], `$ ${phase} finished (exit ${evt.exitCode ?? 0})\n`].slice(
+                -300
+              ),
+            }));
+          } else if (evt.status === 'error') {
+            const detail = typeof evt.error === 'string' ? `: ${evt.error}` : '';
+            setLifecycleLogs((prev) => ({
+              ...prev,
+              [phase]: [
+                ...prev[phase],
+                `$ ${phase} failed (exit ${evt.exitCode ?? 'unknown'})${detail}\n`,
+              ].slice(-300),
+            }));
+          } else if (phase === 'run' && evt.status === 'exit') {
+            const code = evt.exitCode === null ? 'signal' : evt.exitCode;
+            setLifecycleLogs((prev) => ({
+              ...prev,
+              run: [...prev.run, `$ run exited (${code})\n`].slice(-300),
+            }));
+          }
+        }
+
+        if (evt.phase === 'setup') {
+          if (evt.status === 'starting') setSetupStatus('running');
+          if (evt.status === 'done') setSetupStatus('succeeded');
+          if (evt.status === 'error') setSetupStatus('failed');
+          return;
+        }
+        if (evt.phase === 'teardown') {
+          if (evt.status === 'starting') setTeardownStatus('running');
+          if (evt.status === 'done') setTeardownStatus('succeeded');
+          if (evt.status === 'error') setTeardownStatus('failed');
+          return;
+        }
+        if (evt.phase !== 'run') return;
         if (evt.status === 'starting') {
-          setLifecycleLogs((prev) => ({
-            ...prev,
-            [phase]: [...prev[phase], `$ ${phase} started\n`].slice(-300),
-          }));
-        } else if (evt.status === 'line' && typeof evt.line === 'string') {
-          setLifecycleLogs((prev) => ({
-            ...prev,
-            [phase]: [...prev[phase], evt.line].slice(-300),
-          }));
-        } else if (evt.status === 'done') {
-          setLifecycleLogs((prev) => ({
-            ...prev,
-            [phase]: [...prev[phase], `$ ${phase} finished (exit ${evt.exitCode ?? 0})\n`].slice(
-              -300
-            ),
-          }));
-        } else if (evt.status === 'error') {
-          const detail = typeof evt.error === 'string' ? `: ${evt.error}` : '';
-          setLifecycleLogs((prev) => ({
-            ...prev,
-            [phase]: [
-              ...prev[phase],
-              `$ ${phase} failed (exit ${evt.exitCode ?? 'unknown'})${detail}\n`,
-            ].slice(-300),
-          }));
-        } else if (phase === 'run' && evt.status === 'exit') {
-          const code = evt.exitCode === null ? 'signal' : evt.exitCode;
-          setLifecycleLogs((prev) => ({
-            ...prev,
-            run: [...prev.run, `$ run exited (${code})\n`].slice(-300),
-          }));
+          setRunStatus('running');
+          return;
+        }
+        if (evt.status === 'error') {
+          setRunStatus('failed');
+          return;
+        }
+        if (evt.status === 'exit') {
+          void (async () => {
+            if (cancelled) return;
+            const apiInner = window.electronAPI;
+            if (typeof apiInner?.lifecycleGetState === 'function') {
+              try {
+                const res = await apiInner.lifecycleGetState({ taskId: task.id });
+                if (!cancelled && res?.success && res.state?.run?.status) {
+                  setRunStatus(res.state.run.status);
+                  return;
+                }
+              } catch {}
+            }
+            if (cancelled) return;
+            if (evt.exitCode === 0) setRunStatus('succeeded');
+            else if (typeof evt.exitCode === 'number') setRunStatus('failed');
+            else setRunStatus('idle');
+          })();
         }
       }
-
-      if (evt.phase === 'setup') {
-        if (evt.status === 'starting') setSetupStatus('running');
-        if (evt.status === 'done') setSetupStatus('succeeded');
-        if (evt.status === 'error') setSetupStatus('failed');
-        return;
-      }
-      if (evt.phase === 'teardown') {
-        if (evt.status === 'starting') setTeardownStatus('running');
-        if (evt.status === 'done') setTeardownStatus('succeeded');
-        if (evt.status === 'error') setTeardownStatus('failed');
-        return;
-      }
-      if (evt.phase !== 'run') return;
-      if (evt.status === 'starting') {
-        setRunStatus('running');
-        return;
-      }
-      if (evt.status === 'error') {
-        setRunStatus('failed');
-        return;
-      }
-      if (evt.status === 'exit') {
-        void (async () => {
-          if (cancelled) return;
-          const apiInner = window.electronAPI;
-          if (typeof apiInner?.lifecycleGetState === 'function') {
-            try {
-              const res = await apiInner.lifecycleGetState({ taskId: task.id });
-              if (!cancelled && res?.success && res.state?.run?.status) {
-                setRunStatus(res.state.run.status);
-                return;
-              }
-            } catch {}
-          }
-          if (cancelled) return;
-          if (evt.exitCode === 0) setRunStatus('succeeded');
-          else if (typeof evt.exitCode === 'number') setRunStatus('failed');
-          else setRunStatus('idle');
-        })();
-      }
-    });
+    );
 
     return () => {
       cancelled = true;
@@ -279,7 +288,6 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
       setSelectedValue('');
     }
   }, [selectedValue, taskTerminals.terminals, globalTerminals.terminals, task]);
-
 
   const handleSelectChange = (value: string) => {
     setSelectedValue(value);
@@ -530,7 +538,6 @@ const TaskTerminalPanelComponent: React.FC<Props> = ({
                 ))}
               </SelectGroup>
             )}
-
 
             {task && (
               <SelectGroup>

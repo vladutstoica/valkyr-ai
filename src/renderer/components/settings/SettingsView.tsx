@@ -263,9 +263,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab, onBack, project
                   size="sm"
                   className="h-auto justify-start px-0 text-xs"
                   onClick={() =>
-                    openExternal(
-                      'https://x.com/rabanspiegel/status/1991220598538924097?s=20'
-                    )
+                    openExternal('https://x.com/rabanspiegel/status/1991220598538924097?s=20')
                   }
                 >
                   Watch the demo ↗

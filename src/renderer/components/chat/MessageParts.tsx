@@ -31,16 +31,9 @@ import { Task, TaskTrigger, TaskContent, TaskItem, TaskItemFile } from '../ai-el
 import { MessageResponse } from '../ai-elements/message';
 import { ToolRunMiniIcons } from './ToolRunMiniIcons';
 import { AcpErrorCard } from './AcpErrorCard';
-import {
-  renderTextWithCitations,
-  renderToolContent,
-} from './acpContentRenderers';
+import { renderTextWithCitations, renderToolContent } from './acpContentRenderers';
 import { renderToolPart, StreamingToolGroup } from './acpToolRenderers';
-import {
-  extractMarkdownSources,
-  findPlanFileInfo,
-  summarizeToolRun,
-} from './acpChatUtils';
+import { extractMarkdownSources, findPlanFileInfo, summarizeToolRun } from './acpChatUtils';
 
 interface MessagePartsProps {
   message: UIMessage;

@@ -22,7 +22,8 @@ export function getConversations(taskId: string): Promise<GetConversationsResult
 }
 
 export function saveConversation(
-  conversation: Omit<Conversation, 'createdAt' | 'updatedAt'> & Partial<Pick<Conversation, 'createdAt' | 'updatedAt'>>
+  conversation: Omit<Conversation, 'createdAt' | 'updatedAt'> &
+    Partial<Pick<Conversation, 'createdAt' | 'updatedAt'>>
 ): Promise<SaveConversationResult> {
   return window.electronAPI.saveConversation(conversation);
 }

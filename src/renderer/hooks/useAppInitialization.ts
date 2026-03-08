@@ -66,9 +66,7 @@ const migrateLocalStorageToDB = async (): Promise<void> => {
       const pinnedRaw = localStorage.getItem('valkyr-pinned-tasks');
       if (pinnedRaw) {
         const ids: string[] = JSON.parse(pinnedRaw);
-        await Promise.all(
-          ids.map((id) => setTaskPinned({ taskId: id, pinned: true }))
-        );
+        await Promise.all(ids.map((id) => setTaskPinned({ taskId: id, pinned: true })));
       }
     } catch {}
 
@@ -78,9 +76,7 @@ const migrateLocalStorageToDB = async (): Promise<void> => {
       if (kanbanRaw) {
         const map: Record<string, string> = JSON.parse(kanbanRaw);
         await Promise.all(
-          Object.entries(map).map(([taskId, status]) =>
-            setKanbanStatus({ taskId, status })
-          )
+          Object.entries(map).map(([taskId, status]) => setKanbanStatus({ taskId, status }))
         );
       }
     } catch {}

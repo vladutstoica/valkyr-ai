@@ -213,36 +213,36 @@ export function AppLayout({
 
         {/* Main Panel with Tabs */}
         <div className="min-w-0 flex-1 overflow-hidden p-3">
-        <div className="border-border flex h-full flex-col overflow-hidden rounded-md border">
-          {/* Tab Bar */}
-          <TabBar
-            openInPath={activeTask?.path || selectedProject?.path}
-            isRemote={!!selectedProject?.isRemote}
-            sshConnectionId={selectedProject?.sshConnectionId}
-          />
-
-          {/* Tab Content */}
-          <TabContainer
-            agentsContent={
-              <ErrorBoundary componentName="Chat" variant="panel">
-                {agentsContent}
-              </ErrorBoundary>
-            }
-            editorContent={editorContent}
-            gitContent={gitContent}
-            previewContent={previewContent}
-            className="min-h-0 flex-1"
-          />
-
-          {/* Bottom Terminal Panel */}
-          <ErrorBoundary componentName="Terminal" variant="panel">
-            <TerminalPanel
-              taskPath={taskPath}
-              taskId={taskId}
-              projectPath={selectedProject?.path}
+          <div className="border-border flex h-full flex-col overflow-hidden rounded-md border">
+            {/* Tab Bar */}
+            <TabBar
+              openInPath={activeTask?.path || selectedProject?.path}
+              isRemote={!!selectedProject?.isRemote}
+              sshConnectionId={selectedProject?.sshConnectionId}
             />
-          </ErrorBoundary>
-        </div>
+
+            {/* Tab Content */}
+            <TabContainer
+              agentsContent={
+                <ErrorBoundary componentName="Chat" variant="panel">
+                  {agentsContent}
+                </ErrorBoundary>
+              }
+              editorContent={editorContent}
+              gitContent={gitContent}
+              previewContent={previewContent}
+              className="min-h-0 flex-1"
+            />
+
+            {/* Bottom Terminal Panel */}
+            <ErrorBoundary componentName="Terminal" variant="panel">
+              <TerminalPanel
+                taskPath={taskPath}
+                taskId={taskId}
+                projectPath={selectedProject?.path}
+              />
+            </ErrorBoundary>
+          </div>
         </div>
       </div>
 

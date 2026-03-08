@@ -47,10 +47,7 @@ export function MoveToGroupMenu({
       </SubTrigger>
       <SubContent>
         {currentGroupId && (
-          <Item
-            className="cursor-pointer"
-            onClick={() => onMoveProjectToGroup(projectId, null)}
-          >
+          <Item className="cursor-pointer" onClick={() => onMoveProjectToGroup(projectId, null)}>
             No Group
           </Item>
         )}
@@ -103,15 +100,10 @@ export function MoveToWorkspaceMenu({
           <Item
             key={ws.id}
             className="cursor-pointer"
-            disabled={
-              currentWorkspaceId === ws.id ||
-              (!currentWorkspaceId && ws.isDefault)
-            }
+            disabled={currentWorkspaceId === ws.id || (!currentWorkspaceId && ws.isDefault)}
             onClick={() => onMoveProjectToWorkspace(projectId, ws.id)}
           >
-            <span
-              className={`mr-2 inline-block h-2 w-2 rounded-full bg-${ws.color}-500`}
-            />
+            <span className={`mr-2 inline-block h-2 w-2 rounded-full bg-${ws.color}-500`} />
             {ws.name}
           </Item>
         ))}

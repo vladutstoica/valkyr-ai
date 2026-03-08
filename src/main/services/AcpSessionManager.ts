@@ -1712,10 +1712,7 @@ export class AcpSessionManager {
           log.error(`Failed to drain pending prompt for ${sessionKey}`, err);
         });
       });
-    } else if (
-      status === 'ready' &&
-      (prevStatus === 'streaming' || prevStatus === 'submitted')
-    ) {
+    } else if (status === 'ready' && (prevStatus === 'streaming' || prevStatus === 'submitted')) {
       // Agent finished — fire desktop notification if app is not focused
       this.showAcpCompletionNotification(session.providerId);
     }

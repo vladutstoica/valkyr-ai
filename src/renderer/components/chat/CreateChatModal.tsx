@@ -43,7 +43,10 @@ export function CreateChatModal({
   const installedSet = useMemo(() => new Set(installedAgents), [installedAgents]);
 
   // Check if the selected agent supports ACP
-  const selectedProviderDef = useMemo(() => getProvider(selectedAgent as ProviderId), [selectedAgent]);
+  const selectedProviderDef = useMemo(
+    () => getProvider(selectedAgent as ProviderId),
+    [selectedAgent]
+  );
   const hasAcpSupport = !!selectedProviderDef?.acpSupport;
 
   // Load default agent from settings and reset state when modal opens
@@ -103,26 +106,23 @@ export function CreateChatModal({
   }, [isOpen, installedSet]);
 
   // Update mode when agent changes
-  const handleAgentChange = useCallback(
-    (newAgent: Agent) => {
-      setSelectedAgent(newAgent);
-      const providerDef = getProvider(newAgent as ProviderId);
-      if (!providerDef?.acpSupport) {
-        setSelectedMode('pty');
-      } else {
-        // Check provider overrides for default
-        getSettings().then((settings) => {
-          const override = settings?.providerOverrides?.[newAgent];
-          if (override?.defaultChatMode === 'cli') {
-            setSelectedMode('pty');
-          } else {
-            setSelectedMode('acp');
-          }
-        });
-      }
-    },
-    []
-  );
+  const handleAgentChange = useCallback((newAgent: Agent) => {
+    setSelectedAgent(newAgent);
+    const providerDef = getProvider(newAgent as ProviderId);
+    if (!providerDef?.acpSupport) {
+      setSelectedMode('pty');
+    } else {
+      // Check provider overrides for default
+      getSettings().then((settings) => {
+        const override = settings?.providerOverrides?.[newAgent];
+        if (override?.defaultChatMode === 'cli') {
+          setSelectedMode('pty');
+        } else {
+          setSelectedMode('acp');
+        }
+      });
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

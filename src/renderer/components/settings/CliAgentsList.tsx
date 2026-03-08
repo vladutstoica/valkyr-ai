@@ -25,9 +25,7 @@ export const BASE_CLI_AGENTS: CliAgentStatus[] = PROVIDERS.filter(
 const renderAgentRow = (agent: CliAgentStatus) => {
   const logo = agentAssets[agent.id as keyof typeof agentAssets]?.logo;
 
-  const handleNameClick = agent.docUrl
-    ? () => openExternal(agent.docUrl!)
-    : undefined;
+  const handleNameClick = agent.docUrl ? () => openExternal(agent.docUrl!) : undefined;
 
   const isDetected = agent.status === 'connected';
   const indicatorClass = isDetected ? 'bg-emerald-500' : 'bg-muted-foreground/50';

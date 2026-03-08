@@ -62,9 +62,7 @@ function mergeLoginShellPathAsync(): void {
     { encoding: 'utf8', timeout: 5000 },
     (err: Error | null, stdout: string) => {
       if (err || !stdout) return;
-      const merged = new Set(
-        (stdout + ':' + (process.env.PATH || '')).split(':').filter(Boolean)
-      );
+      const merged = new Set((stdout + ':' + (process.env.PATH || '')).split(':').filter(Boolean));
       process.env.PATH = Array.from(merged).join(':');
     }
   );

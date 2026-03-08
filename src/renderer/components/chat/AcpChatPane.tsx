@@ -35,11 +35,7 @@ import {
   normalizeToolName,
   normalizeFromKind,
 } from '../../lib/toolRenderer';
-import type {
-  AcpSessionStatus,
-  AcpSessionModes,
-  AcpSessionModels,
-} from '../../types/electron-api';
+import type { AcpSessionStatus, AcpSessionModes, AcpSessionModels } from '../../types/electron-api';
 import { acpStatusStore } from '../../lib/acpStatusStore';
 import { unifiedStatusStore } from '../../lib/unifiedStatusStore';
 import { agentConfig } from '../../lib/agentConfig';
@@ -57,10 +53,7 @@ import {
   summarizeToolRun,
 } from './acpChatUtils';
 import { getSettings } from '../../services/settingsService';
-import {
-  renderTextWithCitations,
-  renderToolContent,
-} from './acpContentRenderers';
+import { renderTextWithCitations, renderToolContent } from './acpContentRenderers';
 import { renderToolPart, StreamingToolGroup } from './acpToolRenderers';
 import { MessageParts } from './MessageParts';
 
@@ -73,9 +66,7 @@ import {
   MessageAction,
 } from '../ai-elements/message';
 import { Reasoning, ReasoningTrigger, ReasoningContent } from '../ai-elements/reasoning';
-import {
-  mapToolStateToStepStatus,
-} from '../ai-elements/tool';
+import { mapToolStateToStepStatus } from '../ai-elements/tool';
 import {
   ChainOfThought,
   ChainOfThoughtHeader,
@@ -733,7 +724,8 @@ function AcpChatInner({
 
   // Derive pending approvals as a stable boolean to avoid re-running the effect on every message chunk
   const hasPendingApprovals = useMemo(
-    () => messages.some((m) => m.parts.some((p) => 'state' in p && p.state === 'approval-requested')),
+    () =>
+      messages.some((m) => m.parts.some((p) => 'state' in p && p.state === 'approval-requested')),
     [messages]
   );
 
@@ -1010,7 +1002,10 @@ function AcpChatInner({
   }, []);
 
   /** Snapshot the current textarea + attachments, converting blob URLs to data URLs. */
-  const captureInputPayload = useCallback(async (): Promise<{ text: string; files?: { url: string; mediaType: string; filename?: string }[] } | null> => {
+  const captureInputPayload = useCallback(async (): Promise<{
+    text: string;
+    files?: { url: string; mediaType: string; filename?: string }[];
+  } | null> => {
     const text = textareaRef.current?.value?.trim();
     if (!text) return null;
     const currentFiles = promptAttachmentsRef.current?.files;

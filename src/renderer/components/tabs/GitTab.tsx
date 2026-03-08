@@ -20,15 +20,22 @@ import { Spinner } from '@/components/ui/spinner';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast, useToast } from '@/hooks/use-toast';
-import { getFileDiff, stageFile, unstageFile, stageAllFiles, revertFile, gitCommitAndPush } from '@/services/gitService';
+import {
+  getFileDiff,
+  stageFile,
+  unstageFile,
+  stageAllFiles,
+  revertFile,
+  gitCommitAndPush,
+} from '@/services/gitService';
 import { useFileChanges } from '@/hooks/useFileChanges';
 import { useTheme } from '@/hooks/useTheme';
 import { useGitState, type FileStatus } from '@/hooks/useGitState';
 import { useTabState } from '@/hooks/useTabState';
 import { FileChangeItem } from '@/components/git/FileChangeItem';
 import { CommitPanel } from '@/components/git/CommitPanel';
-const DiffViewer = React.lazy(
-  () => import('@/components/git/DiffViewer').then((m) => ({ default: m.DiffViewer }))
+const DiffViewer = React.lazy(() =>
+  import('@/components/git/DiffViewer').then((m) => ({ default: m.DiffViewer }))
 );
 
 import type { FileChange } from '@/hooks/useGitState';

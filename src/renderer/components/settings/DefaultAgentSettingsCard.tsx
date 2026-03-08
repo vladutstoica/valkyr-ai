@@ -15,7 +15,11 @@ const DefaultAgentSettingsCard: React.FC = () => {
     try {
       const settings = await getSettings();
       if (settings?.defaultProvider) {
-        setDefaultAgent(isValidProviderId(settings.defaultProvider) ? (settings.defaultProvider as Agent) : DEFAULT_AGENT);
+        setDefaultAgent(
+          isValidProviderId(settings.defaultProvider)
+            ? (settings.defaultProvider as Agent)
+            : DEFAULT_AGENT
+        );
       } else {
         setDefaultAgent(DEFAULT_AGENT);
       }

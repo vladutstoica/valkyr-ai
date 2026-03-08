@@ -66,7 +66,11 @@ interface UseTaskManagementOptions {
   setSelectedProject: React.Dispatch<React.SetStateAction<Project | null>>;
   setShowHomeView: React.Dispatch<React.SetStateAction<boolean>>;
   setShowTaskModal: React.Dispatch<React.SetStateAction<boolean>>;
-  toast: (opts: { title?: string; description?: string; variant?: 'default' | 'destructive' }) => void;
+  toast: (opts: {
+    title?: string;
+    description?: string;
+    variant?: 'default' | 'destructive';
+  }) => void;
   activateProjectView: (project: Project) => void;
 }
 
@@ -390,7 +394,9 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
         // IMPORTANT: Tasks without worktrees have useWorktree === false
         const shouldRemoveWorktree = task.useWorktree !== false;
 
-        const promises: Promise<{ success?: boolean; error?: string }>[] = [window.electronAPI.deleteTask(task.id)];
+        const promises: Promise<{ success?: boolean; error?: string }>[] = [
+          window.electronAPI.deleteTask(task.id),
+        ];
 
         if (shouldRemoveWorktree) {
           // Safety check: Don't try to remove worktree if the task path equals project path

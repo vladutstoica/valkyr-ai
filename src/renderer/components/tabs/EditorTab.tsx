@@ -196,7 +196,10 @@ export function EditorTab({ taskPath, taskName, className }: EditorTabProps) {
 
   // Handle keyboard shortcut for save
   const handleEditorMount = useCallback(
-    (editor: { addCommand: (keybinding: number, handler: () => void) => void }, monaco: { KeyMod: { CtrlCmd: number }; KeyCode: { KeyS: number } }) => {
+    (
+      editor: { addCommand: (keybinding: number, handler: () => void) => void },
+      monaco: { KeyMod: { CtrlCmd: number }; KeyCode: { KeyS: number } }
+    ) => {
       editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
         saveFile();
       });

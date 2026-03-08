@@ -35,9 +35,7 @@ export function useRemoteProject(project: Project | null): UseRemoteProjectResul
   const isMountedRef = useRef(true);
 
   // Determine if this is a remote project
-  const isRemote = Boolean(
-    project && (project.isRemote || project.sshConnectionId)
-  );
+  const isRemote = Boolean(project && (project.isRemote || project.sshConnectionId));
   const connectionId = project?.sshConnectionId ?? null;
 
   // Update connection state and cache

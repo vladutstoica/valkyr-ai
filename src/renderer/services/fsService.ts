@@ -8,11 +8,7 @@ export type FsWriteResult = Awaited<ReturnType<typeof window.electronAPI.fsWrite
 export type FsSearchResult = Awaited<ReturnType<typeof window.electronAPI.fsSearchContent>>;
 
 /** Read a file relative to a root path. */
-export function fsRead(
-  root: string,
-  relPath: string,
-  maxBytes?: number
-): Promise<FsReadResult> {
+export function fsRead(root: string, relPath: string, maxBytes?: number): Promise<FsReadResult> {
   return window.electronAPI.fsRead(root, relPath, maxBytes);
 }
 

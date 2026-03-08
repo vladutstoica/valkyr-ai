@@ -20,9 +20,7 @@ const TelemetryCard: React.FC = () => {
               variant="link"
               size="sm"
               className="group text-muted-foreground hover:text-foreground inline-flex h-auto items-center gap-1 px-0 text-xs font-normal hover:no-underline focus-visible:ring-0 focus-visible:outline-hidden"
-              onClick={() =>
-                openExternal('https://docs.valkyr.dev/security/telemetry')
-              }
+              onClick={() => openExternal('https://docs.valkyr.dev/security/telemetry')}
             >
               <span className="group-hover:text-foreground transition-colors">
                 Telemetry information

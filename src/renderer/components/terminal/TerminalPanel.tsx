@@ -152,11 +152,14 @@ export function TerminalPanel({
   const [scripts, setScripts] = useState<{ name: string; command: string }[]>([]);
   useEffect(() => {
     if (!terminalCwd) return;
-    window.electronAPI?.getScripts?.(terminalCwd).then((result) => {
-      if (result?.success && result.data) {
-        setScripts(result.data);
-      }
-    }).catch(() => {});
+    window.electronAPI
+      ?.getScripts?.(terminalCwd)
+      .then((result) => {
+        if (result?.success && result.data) {
+          setScripts(result.data);
+        }
+      })
+      .catch(() => {});
   }, [terminalCwd]);
 
   const handleRunScript = useCallback(

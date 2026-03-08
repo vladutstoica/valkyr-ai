@@ -40,7 +40,9 @@ export function useAgentStatus(agent: string, taskId: string, activated: boolean
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const maybeRefreshAgentStatus = async (statuses?: Record<string, Record<string, any>> | undefined | null) => {
+    const maybeRefreshAgentStatus = async (
+      statuses?: Record<string, Record<string, any>> | undefined | null
+    ) => {
       if (cancelled || refreshCheckRequested) return;
       if (!api?.getProviderStatuses) return;
 
@@ -89,16 +91,18 @@ export function useAgentStatus(agent: string, taskId: string, activated: boolean
 
     const off =
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      api?.onProviderStatusUpdated?.((payload: { providerId: string; status: Record<string, any> }) => {
-        if (!payload?.providerId) return;
-        setAgentStatuses((prev) => {
-          const next = { ...prev, [payload.providerId]: payload.status };
-          return next;
-        });
-        if (payload.providerId === agent) {
-          setIsAgentInstalled(payload.status?.installed === true);
+      api?.onProviderStatusUpdated?.(
+        (payload: { providerId: string; status: Record<string, any> }) => {
+          if (!payload?.providerId) return;
+          setAgentStatuses((prev) => {
+            const next = { ...prev, [payload.providerId]: payload.status };
+            return next;
+          });
+          if (payload.providerId === agent) {
+            setIsAgentInstalled(payload.status?.installed === true);
+          }
         }
-      }) || null;
+      ) || null;
 
     void load();
 

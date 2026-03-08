@@ -139,12 +139,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Provider API key management
   setProviderKey: (args: { envVar: string; value: string }) =>
     ipcRenderer.invoke('providerKeys:set', args),
-  getProviderKey: (args: { envVar: string }) =>
-    ipcRenderer.invoke('providerKeys:get', args),
-  deleteProviderKey: (args: { envVar: string }) =>
-    ipcRenderer.invoke('providerKeys:delete', args),
-  listProviderKeys: () =>
-    ipcRenderer.invoke('providerKeys:list'),
+  getProviderKey: (args: { envVar: string }) => ipcRenderer.invoke('providerKeys:get', args),
+  deleteProviderKey: (args: { envVar: string }) => ipcRenderer.invoke('providerKeys:delete', args),
+  listProviderKeys: () => ipcRenderer.invoke('providerKeys:list'),
 
   // Whisper (voice input)
   whisperDownloadModel: () => ipcRenderer.invoke('whisper:download-model'),
@@ -400,8 +397,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('db:cleanupSessionDirectory', args),
 
   // Multi-chat support
-  createConversation: (params: { taskId: string; title: string; provider?: string; isMain?: boolean; mode?: 'pty' | 'acp' }) =>
-    ipcRenderer.invoke('db:createConversation', params),
+  createConversation: (params: {
+    taskId: string;
+    title: string;
+    provider?: string;
+    isMain?: boolean;
+    mode?: 'pty' | 'acp';
+  }) => ipcRenderer.invoke('db:createConversation', params),
   setActiveConversation: (params: { taskId: string; conversationId: string }) =>
     ipcRenderer.invoke('db:setActiveConversation', params),
   getActiveConversation: (taskId: string) => ipcRenderer.invoke('db:getActiveConversation', taskId),
@@ -482,7 +484,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getProviderStatuses: (opts?: { refresh?: boolean; providers?: string[]; providerId?: string }) =>
     ipcRenderer.invoke('provider:getStatuses', opts) as Promise<{
       success: boolean;
-      statuses?: Record<string, { installed: boolean; path?: string | null; version?: string | null; lastChecked: number }>;
+      statuses?: Record<
+        string,
+        { installed: boolean; path?: string | null; version?: string | null; lastChecked: number }
+      >;
       error?: string;
     }>,
 

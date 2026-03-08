@@ -20,7 +20,9 @@ export async function updateSettings(update: SettingsUpdate): Promise<boolean> {
 }
 
 /** Get a single settings key. */
-export async function getSetting<K extends keyof Settings>(key: K): Promise<Settings[K] | undefined> {
+export async function getSetting<K extends keyof Settings>(
+  key: K
+): Promise<Settings[K] | undefined> {
   const settings = await getSettings();
   return settings?.[key];
 }

@@ -22,11 +22,7 @@ export function getFileDiff(args: {
   return window.electronAPI.getFileDiff(args);
 }
 
-export function stageFile(args: {
-  taskPath: string;
-  filePath: string;
-  repoCwd?: string;
-}) {
+export function stageFile(args: { taskPath: string; filePath: string; repoCwd?: string }) {
   return window.electronAPI.stageFile(args);
 }
 
@@ -34,19 +30,11 @@ export function stageAllFiles(args: { taskPath: string; repoCwds?: string[] }) {
   return window.electronAPI.stageAllFiles(args);
 }
 
-export function unstageFile(args: {
-  taskPath: string;
-  filePath: string;
-  repoCwd?: string;
-}) {
+export function unstageFile(args: { taskPath: string; filePath: string; repoCwd?: string }) {
   return window.electronAPI.unstageFile(args);
 }
 
-export function revertFile(args: {
-  taskPath: string;
-  filePath: string;
-  repoCwd?: string;
-}) {
+export function revertFile(args: { taskPath: string; filePath: string; repoCwd?: string }) {
   return window.electronAPI.revertFile(args);
 }
 
@@ -68,11 +56,7 @@ export function switchRepoBranch(args: {
   return window.electronAPI.switchRepoBranch(args);
 }
 
-export function renameBranch(args: {
-  repoPath: string;
-  oldBranch: string;
-  newBranch: string;
-}) {
+export function renameBranch(args: { repoPath: string; oldBranch: string; newBranch: string }) {
   return window.electronAPI.renameBranch(args);
 }
 

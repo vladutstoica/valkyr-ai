@@ -20,7 +20,11 @@ export interface CreateTaskCallbacks {
   setSelectedProject: React.Dispatch<React.SetStateAction<Project | null>>;
   setActiveTask: React.Dispatch<React.SetStateAction<Task | null>>;
   setActiveTaskAgent: React.Dispatch<React.SetStateAction<Agent | null>>;
-  toast: (opts: { title?: string; description?: string; variant?: 'default' | 'destructive' }) => void;
+  toast: (opts: {
+    title?: string;
+    description?: string;
+    variant?: 'default' | 'destructive';
+  }) => void;
 }
 
 async function runSetupOnCreate(
@@ -501,7 +505,6 @@ export async function createTask(params: CreateTaskParams, callbacks: CreateTask
           has_initial_prompt: !!taskMetadata?.initialPrompt,
         });
       });
-
     }
   } catch (error) {
     const { log } = await import('./logger');
