@@ -77,6 +77,7 @@ export class TerminalSessionManager {
   private lastSnapshotReason: 'interval' | 'detach' | 'dispose' | null = null;
   private customFontFamily = '';
   private themeFontFamily = '';
+  private wasHidden = false;
 
   // Timing for startup performance measurement
   private initStartTime: number = 0;
@@ -93,6 +94,8 @@ export class TerminalSessionManager {
       width: '100%',
       height: '100%',
       display: 'block',
+      boxSizing: 'border-box',
+      paddingBottom: '4px',
     } as CSSStyleDeclaration);
     ensureTerminalHost().appendChild(this.container);
 
@@ -225,7 +228,28 @@ export class TerminalSessionManager {
     this.fitPreservingViewport();
     this.sendSizeIfStarted();
 
-    this.resizeObserver = new ResizeObserver(() => {
+    this.resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      const isVisible =
+        entry && entry.contentRect.width > 0 && entry.contentRect.height > 0;
+
+      if (isVisible && this.wasHidden) {
+        // Container transitioned from hidden (display:none) to visible.
+        // fitAddon.fit() may skip if cols/rows haven't changed, leaving
+        // the canvas stale. Force a full repaint + re-fit.
+        this.wasHidden = false;
+        this.fitPreservingViewport();
+        this.sendSizeIfStarted();
+        try {
+          this.terminal.refresh(0, this.terminal.rows - 1);
+        } catch {}
+        return;
+      }
+
+      if (!isVisible) {
+        this.wasHidden = true;
+      }
+
       this.fitPreservingViewport();
     });
     this.resizeObserver.observe(container);

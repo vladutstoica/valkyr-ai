@@ -552,6 +552,11 @@ export function resizePty(id: string, cols: number, rows: number): void {
     // PTY not ready yet - this is normal during startup, ignore silently
     return;
   }
+  // Guard against invalid dimensions (e.g. from hidden/zero-size containers).
+  // node-pty crashes or kills the process when cols or rows is 0.
+  if (cols < 1 || rows < 1) {
+    return;
+  }
   try {
     rec.proc.resize(cols, rows);
   } catch (error: any) {

@@ -145,6 +145,12 @@ const ChatInterface: React.FC<Props> = ({
     return task.path || projectPath || undefined;
   }, [task.path, projectPath]);
 
+  // Use a ref for defaultBranch to avoid taskEnv reference changes when
+  // switching projects (defaultBranch toggles between a value and undefined
+  // for non-selected projects, causing unnecessary TerminalPane detach/reattach).
+  const defaultBranchRef = useRef(defaultBranch);
+  defaultBranchRef.current = defaultBranch;
+
   const taskEnv = useMemo(() => {
     if (!projectPath) return undefined;
     return getTaskEnvVars({
@@ -152,9 +158,12 @@ const ChatInterface: React.FC<Props> = ({
       taskName: task.name,
       taskPath: task.path,
       projectPath,
-      defaultBranch: defaultBranch || undefined,
+      defaultBranch: defaultBranchRef.current || undefined,
     });
-  }, [task.id, task.name, task.path, projectPath, defaultBranch]);
+    // Intentionally exclude defaultBranch — stored in ref to prevent
+    // env reference instability during project switches.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [task.id, task.name, task.path, projectPath]);
 
   // Provider CLI command overrides from settings
   const [providerOverrides, setProviderOverrides] = useState<

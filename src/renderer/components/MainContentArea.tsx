@@ -68,72 +68,42 @@ const MainContentArea: React.FC<MainContentAreaProps> = ({
   handleAddRemoteProject,
   setShowTaskModal,
 }) => {
-  // Settings is rendered as an overlay — task components stay mounted underneath
-  // so ACP transports, useChat state, and IPC listeners survive navigation.
-  if (showSettingsView) {
-    return (
-      <>
+  // Determine which overlay view is active (if any).
+  // Task components are ALWAYS kept mounted underneath to preserve
+  // ACP transports, PTY sessions, useChat state, and IPC listeners.
+  const showOverlay = showSettingsView || showSkillsView || showHomeView;
+  const showProjectView = !!selectedProject && !showOverlay;
+
+  return (
+    <>
+      {/* Overlay views — rendered on top, task components stay alive underneath */}
+      {showSettingsView && (
         <SettingsView
           initialTab={settingsViewTab}
           onBack={handleGoBackFromSettings}
           projectPath={settingsProjectPath}
         />
-        {/* Keep task components alive but hidden while settings is open */}
-        {selectedProject && (
-          <div className="hidden">
-            {allProjects.map((project) => {
-              const tasks = project.tasks || [];
-              return tasks.map((task) => {
-                const isMultiAgent = task.metadata?.multiAgent?.enabled;
-                return (
-                  <div key={task.id}>
-                    {isMultiAgent ? (
-                      <MultiAgentTask
-                        task={task}
-                        projectName={project.name}
-                        projectId={project.id}
-                        projectPath={project.path}
-                      />
-                    ) : (
-                      <ChatInterface
-                        task={task}
-                        isActive={false}
-                        projectName={project.name}
-                        projectPath={project.path}
-                        className="h-full min-h-0"
-                      />
-                    )}
-                  </div>
-                );
-              });
-            })}
-          </div>
-        )}
-      </>
-    );
-  }
+      )}
+      {showSkillsView && <SkillsView />}
+      {showHomeView && !showSettingsView && !showSkillsView && <HomeView />}
 
-  if (showSkillsView) {
-    return <SkillsView />;
-  }
-
-  if (showHomeView) {
-    return <HomeView />;
-  }
-
-  if (selectedProject) {
-    return (
-      <div className="flex h-full min-h-0 flex-col overflow-hidden">
-        {/* Render tasks from ALL projects simultaneously — hidden when inactive.
-            This keeps ACP transports, useChat state, and IPC listeners alive
-            so background agents continue working while the user switches
-            between sessions, projects, and workspaces. */}
+      {/* Task components — always mounted, hidden when an overlay or different task is active.
+          This keeps ACP transports, useChat state, PTY sessions, and IPC listeners alive
+          so background agents continue working while the user switches
+          between sessions, projects, workspaces, and overlay views. */}
+      <div
+        className="flex h-full min-h-0 flex-col overflow-hidden"
+        style={{ display: showOverlay ? 'none' : undefined }}
+      >
         {allProjects.map((project) => {
           const tasks = project.tasks || [];
-          const isSelectedProject = project.id === selectedProject.id;
+          const isSelectedProject = selectedProject
+            ? project.id === selectedProject.id
+            : false;
 
           return tasks.map((task) => {
-            const isActive = isSelectedProject && task.id === activeTask?.id;
+            const isActive =
+              showProjectView && isSelectedProject && task.id === activeTask?.id;
             const isMultiAgent = task.metadata?.multiAgent?.enabled;
 
             return (
@@ -167,7 +137,7 @@ const MainContentArea: React.FC<MainContentAreaProps> = ({
         })}
 
         {/* Project landing page when no task is selected */}
-        {!activeTask && (
+        {showProjectView && !activeTask && selectedProject && (
           <ProjectMainView
             project={selectedProject}
             onCreateTask={() => setShowTaskModal(true)}
@@ -182,10 +152,11 @@ const MainContentArea: React.FC<MainContentAreaProps> = ({
           />
         )}
       </div>
-    );
-  }
 
-  return null;
+      {/* Fallback when no project is selected and no overlay is active */}
+      {!selectedProject && !showOverlay && null}
+    </>
+  );
 };
 
 export default MainContentArea;
