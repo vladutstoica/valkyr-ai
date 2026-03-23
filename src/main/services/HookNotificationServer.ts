@@ -9,9 +9,12 @@
  */
 
 import http from 'http';
+import { Notification } from 'electron';
 import { log } from '../lib/logger';
 import { mapHookEvent, type HookStatus } from './hookEventMapper';
 import { broadcastToAllWindows } from '../lib/safeSend';
+import { getMainWindow } from '../app/window';
+import { getAppSettings } from '../settings';
 
 export type HookNotification = {
   sessionId: string;
@@ -120,6 +123,39 @@ class HookNotificationServer {
     });
   }
 
+  private maybeShowDesktopNotification(status: HookStatus): void {
+    // Only notify for actionable states
+    if (status === 'working') return;
+
+    const settings = getAppSettings();
+    if (!settings.notifications?.enabled) return;
+
+    // Skip if the app window is focused (user is already looking)
+    const win = getMainWindow();
+    if (win && !win.isDestroyed() && win.isFocused()) return;
+
+    const title = status === 'needs-input' ? 'Agent needs input' : 'Agent finished';
+    const body =
+      status === 'needs-input'
+        ? 'An agent is waiting for your approval.'
+        : 'An agent has completed its task.';
+
+    const notif = new Notification({
+      title,
+      body,
+      silent: !settings.notifications?.sound,
+    });
+
+    notif.on('click', () => {
+      if (win && !win.isDestroyed()) {
+        if (win.isMinimized()) win.restore();
+        win.focus();
+      }
+    });
+
+    notif.show();
+  }
+
   private handleNotification(data: Record<string, unknown>): void {
     const eventType = typeof data.event === 'string' ? data.event : '';
     const sessionId = typeof data.sessionId === 'string' ? data.sessionId : '';
@@ -136,6 +172,9 @@ class HookNotificationServer {
     }
 
     const notification: HookNotification = { sessionId, event: eventType, status };
+
+    // Show native desktop notification when window is not focused
+    this.maybeShowDesktopNotification(status);
 
     // Broadcast to renderer via IPC
     broadcastToAllWindows('hook:status-update', notification);
