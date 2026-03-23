@@ -6,6 +6,7 @@ import { log } from '../lib/logger';
 import { PROVIDERS } from '@shared/providers/registry';
 import { providerStatusCache } from './providerStatusCache';
 import { errorTracking } from '../errorTracking';
+import { hookNotificationServer } from './HookNotificationServer';
 
 /**
  * Environment variables to pass through for agent authentication.
@@ -252,6 +253,12 @@ export function startDirectPty(options: {
         useEnv[key] = value;
       }
     }
+  }
+
+  // Inject hook notification env vars for providers that support hooks (currently Claude)
+  if (providerId === 'claude' && hookNotificationServer.isRunning()) {
+    useEnv['VALKYR_SESSION_ID'] = id;
+    useEnv['VALKYR_HOOK_PORT'] = String(hookNotificationServer.getPort());
   }
 
   // Lazy load native module

@@ -646,6 +646,11 @@ declare global {
         error?: string;
       }>;
 
+      // Hook-based status updates (from Claude Code lifecycle hooks)
+      onHookStatusUpdate: (
+        listener: (data: { sessionId: string; event: string; status: string }) => void
+      ) => () => void;
+
       // Worktree management
       worktreeCreate: (args: {
         projectPath: string;
@@ -2020,6 +2025,11 @@ export interface ElectronAPI {
     listener: (info: { exitCode: number; signal?: number }) => void
   ) => () => void;
   onPtyStarted: (listener: (data: { id: string }) => void) => () => void;
+
+  // Hook-based status updates (from Claude Code lifecycle hooks)
+  onHookStatusUpdate: (
+    listener: (data: { sessionId: string; event: string; status: string }) => void
+  ) => () => void;
 
   // Worktree management
   worktreeCreate: (args: {

@@ -132,6 +132,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   terminalGetTheme: () => ipcRenderer.invoke('terminal:getTheme'),
 
+  // Hook-based status updates (from Claude Code lifecycle hooks)
+  onHookStatusUpdate: (
+    listener: (data: { sessionId: string; event: string; status: string }) => void
+  ) => {
+    const channel = 'hook:status-update';
+    const wrapped = (
+      _: Electron.IpcRendererEvent,
+      data: { sessionId: string; event: string; status: string }
+    ) => listener(data);
+    ipcRenderer.on(channel, wrapped);
+    return () => ipcRenderer.removeListener(channel, wrapped);
+  },
+
   // App settings
   getSettings: () => ipcRenderer.invoke('settings:get'),
   updateSettings: (settings: any) => ipcRenderer.invoke('settings:update', settings),

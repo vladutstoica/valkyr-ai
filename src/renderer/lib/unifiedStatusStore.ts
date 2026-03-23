@@ -1,7 +1,8 @@
 /**
  * Unified status store that aggregates status across multiple conversations
- * per task. Delegates to acpStatusStore (ACP sessions) or activityStore
- * (PTY sessions) and applies "worst status wins" for the sidebar dot.
+ * per task. Delegates to acpStatusStore (ACP sessions), hook-based status
+ * (Claude Code lifecycle hooks), or activityStore (PTY regex fallback)
+ * and applies "worst status wins" for the sidebar dot.
  *
  * Priority (highest urgency first):
  *   1. red pulsing   — any chat has pending approvals
@@ -9,6 +10,9 @@
  *   3. amber pulsing — any chat is streaming/working
  *   4. gray solid    — any chat initializing
  *   5. green solid   — all chats done/ready
+ *
+ * For PTY sessions, hook-based status takes priority over regex-based
+ * detection when available (i.e., when a hook event has been received).
  */
 
 import { activityStore } from './activityStore';
@@ -24,6 +28,8 @@ type ConversationEntry = {
 };
 
 type Listener = (dot: StatusDot) => void;
+
+type HookStatus = 'working' | 'needs-input' | 'done';
 
 const DOT_PRIORITY: Record<string, number> = {
   'red-pulsing': 5,
@@ -49,6 +55,17 @@ function ptyToDot(busy: boolean, idle: boolean): StatusDot {
   return DEFAULT_DOT;
 }
 
+function hookStatusToDot(status: HookStatus): StatusDot {
+  switch (status) {
+    case 'working':
+      return { color: 'amber', style: 'pulsing' };
+    case 'needs-input':
+      return { color: 'red', style: 'pulsing' };
+    case 'done':
+      return { color: 'green', style: 'solid' };
+  }
+}
+
 class UnifiedStatusStore {
   /** taskId → conversationId → entry */
   private tasks = new Map<string, Map<string, ConversationEntry>>();
@@ -58,6 +75,20 @@ class UnifiedStatusStore {
   private subs = new Map<string, () => void>();
   /** Cached PTY dots so getDot can read synchronously: `taskId:convId` → StatusDot */
   private ptyDots = new Map<string, StatusDot>();
+
+  /**
+   * Hook-based status: sessionId (VALKYR_SESSION_ID) → StatusDot.
+   * When present, takes priority over regex-based PTY status.
+   */
+  private hookDots = new Map<string, StatusDot>();
+  /** Maps sessionId → taskId for hook event routing */
+  private hookSessionToTask = new Map<string, string>();
+  /** Cleanup for the global hook listener */
+  private hookListenerCleanup: (() => void) | null = null;
+
+  constructor() {
+    this.initHookListener();
+  }
 
   /**
    * Register a conversation's mode so the store knows which backend to consult.
@@ -88,6 +119,22 @@ class UnifiedStatusStore {
    */
   setTaskMode(taskId: string, mode: TaskMode, acpSessionKey?: string): void {
     this.setConversationMode(taskId, '__primary__', mode, acpSessionKey);
+  }
+
+  /**
+   * Register a hook session ID → task mapping.
+   * Called when a PTY session starts with VALKYR_SESSION_ID env var.
+   */
+  registerHookSession(sessionId: string, taskId: string): void {
+    this.hookSessionToTask.set(sessionId, taskId);
+  }
+
+  /**
+   * Remove a hook session mapping (e.g., when PTY exits).
+   */
+  unregisterHookSession(sessionId: string): void {
+    this.hookSessionToTask.delete(sessionId);
+    this.hookDots.delete(sessionId);
   }
 
   removeConversation(taskId: string, conversationId: string): void {
@@ -133,6 +180,14 @@ class UnifiedStatusStore {
     }
     this.tasks.delete(taskId);
     this.listeners.delete(taskId);
+
+    // Clean up hook session mappings for this task
+    for (const [sessionId, tid] of this.hookSessionToTask) {
+      if (tid === taskId) {
+        this.hookSessionToTask.delete(sessionId);
+        this.hookDots.delete(sessionId);
+      }
+    }
   }
 
   /**
@@ -145,7 +200,7 @@ class UnifiedStatusStore {
     let worst: StatusDot = DEFAULT_DOT;
     for (const [convId, entry] of convMap) {
       const convKey = `${taskId}:${convId}`;
-      const dot = this.getConversationDot(convKey, entry);
+      const dot = this.getConversationDot(taskId, convKey, entry);
       worst = higherPriority(worst, dot);
     }
     return worst;
@@ -172,12 +227,57 @@ class UnifiedStatusStore {
     };
   }
 
-  private getConversationDot(convKey: string, entry: ConversationEntry): StatusDot {
+  private getConversationDot(taskId: string, convKey: string, entry: ConversationEntry): StatusDot {
     if (entry.mode === 'acp' && entry.acpSessionKey) {
       return acpStatusStore.getDot(entry.acpSessionKey);
     }
-    // PTY: read cached dot (updated via subscription callbacks)
+
+    // PTY mode: check hook-based status first (takes priority over regex)
+    const hookDot = this.getHookDotForTask(taskId);
+    if (hookDot) return hookDot;
+
+    // Fallback: regex-based PTY detection
     return this.ptyDots.get(convKey) || DEFAULT_DOT;
+  }
+
+  /**
+   * Find hook-based status dot for a task (if any hook session is mapped to it).
+   */
+  private getHookDotForTask(taskId: string): StatusDot | null {
+    for (const [sessionId, tid] of this.hookSessionToTask) {
+      if (tid === taskId) {
+        const dot = this.hookDots.get(sessionId);
+        if (dot) return dot;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Initialize the global IPC listener for hook status updates.
+   * Called once on construction.
+   */
+  private initHookListener(): void {
+    try {
+      const api = window.electronAPI;
+      if (!api?.onHookStatusUpdate) return;
+
+      this.hookListenerCleanup = api.onHookStatusUpdate(
+        (data: { sessionId: string; event: string; status: string }) => {
+          const { sessionId, status } = data;
+          if (!sessionId || !status) return;
+
+          const taskId = this.hookSessionToTask.get(sessionId);
+          if (!taskId) return;
+
+          const dot = hookStatusToDot(status as HookStatus);
+          this.hookDots.set(sessionId, dot);
+          this.notifyTask(taskId);
+        }
+      );
+    } catch {
+      // electronAPI may not be available (e.g., in tests)
+    }
   }
 
   private ensureConversationSub(
