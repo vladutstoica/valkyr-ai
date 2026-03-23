@@ -10,7 +10,7 @@ export function createMainWindow(): BrowserWindow {
   // In development, resolve icon from src/assets
   // In production (packaged), electron-builder handles the icon
   const iconPath = isDev
-    ? join(__dirname, '..', '..', '..', 'src', 'assets', 'images', 'valkyr', 'valkyr_logo.png')
+    ? join(__dirname, '..', '..', '..', 'src', 'assets', 'images', 'valkyr', 'app-icon-1024.png')
     : undefined;
 
   mainWindow = new BrowserWindow({

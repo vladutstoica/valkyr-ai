@@ -1,5 +1,4 @@
-import IconLight from '../../assets/images/valkyr/icon-light.png';
-import YTBanner from '../../assets/images/ytbanner.png';
+import Logomark from '../../assets/images/valkyr/logomark.png';
 import { Button } from '@/components/ui/button';
 import { motion, type Variants } from 'framer-motion';
 import { useTheme } from '@/hooks/useTheme';
@@ -29,39 +28,21 @@ export function WelcomeScreen({ onGetStarted }: WelcomeScreenProps) {
       y: 0,
       transition: {
         duration: 0.9,
-        ease: [0.25, 0.1, 0.25, 1] as [number, number, number, number], // Properly typed cubic-bezier
+        ease: [0.25, 0.1, 0.25, 1] as [number, number, number, number],
       },
     },
   };
 
   return (
     <div className="bg-background fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute right-0 bottom-0 left-0 h-3/5">
-        <div
-          className="absolute inset-0 opacity-40"
-          style={{
-            backgroundImage: `url(${YTBanner})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center top',
-            maskImage:
-              'linear-gradient(to bottom, transparent 0%, transparent 30%, rgba(0,0,0,0.4) 60%, rgba(0,0,0,0.8) 100%)',
-            WebkitMaskImage:
-              'linear-gradient(to bottom, transparent 0%, transparent 30%, rgba(0,0,0,0.4) 60%, rgba(0,0,0,0.8) 100%)',
-          }}
-        />
-      </div>
-
       <motion.div
         className="relative z-10 flex flex-col items-center justify-center space-y-4 p-8"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
       >
-        <motion.div
-          className="border-border/40 rounded-md border bg-white p-1.5 shadow-lg ring-1 shadow-black/5 ring-black/5 dark:shadow-white/5 dark:ring-white/10"
-          variants={itemVariants}
-        >
-          <img src={IconLight} alt="Valkyr" className="h-12 w-12 rounded-xs" />
+        <motion.div variants={itemVariants}>
+          <img src={Logomark} alt="Valkyr" className="h-16 w-16" />
         </motion.div>
 
         <motion.h1

@@ -192,6 +192,10 @@
       "!node_modules/@tailwindcss/**",
       "!node_modules/@types/**",
       "!node_modules/better-sqlite3/**",
+      "!node_modules/app-builder-bin/**",
+      "!node_modules/app-builder-lib/**",
+      "!node_modules/mermaid/**",
+      "!node_modules/react-icons/**",
       "drizzle/**/*"
     ],
     "asarUnpack": [
