@@ -230,6 +230,7 @@
       "icon": "src/assets/images/valkyr/valkyr.icns"
     },
     "linux": {
+      "icon": "src/assets/images/valkyr/app-icon-1024.png",
       "category": "Development",
       "target": [
         {
@@ -247,6 +248,7 @@
       ]
     },
     "win": {
+      "icon": "src/assets/images/valkyr/valkyr.ico",
       "target": [
         {
           "target": "nsis",
