@@ -81,10 +81,14 @@ class UnifiedStatusStore {
    * When present, takes priority over regex-based PTY status.
    */
   private hookDots = new Map<string, StatusDot>();
-  /** Maps sessionId → taskId for hook event routing */
+  /** Maps PTY sessionId → taskId for hook event routing */
   private hookSessionToTask = new Map<string, string>();
   /** Cleanup for the global hook listener */
   private hookListenerCleanup: (() => void) | null = null;
+  /** Auto-reset timer: resets to green if no events after working status */
+  private hookIdleTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  /** How long to wait before resetting working→done (ms) */
+  private static readonly HOOK_IDLE_TIMEOUT_MS = 5000;
 
   constructor() {
     this.initHookListener();
@@ -137,7 +141,14 @@ class UnifiedStatusStore {
   unregisterHookSession(sessionId: string): void {
     const taskId = this.hookSessionToTask.get(sessionId);
     this.hookSessionToTask.delete(sessionId);
-    if (taskId) this.hookDots.delete(taskId);
+    if (taskId) {
+      this.hookDots.delete(taskId);
+      const timer = this.hookIdleTimers.get(taskId);
+      if (timer) {
+        clearTimeout(timer);
+        this.hookIdleTimers.delete(taskId);
+      }
+    }
   }
 
   removeConversation(taskId: string, conversationId: string): void {
@@ -261,21 +272,41 @@ class UnifiedStatusStore {
 
       // Process a single hook status update
       const processUpdate = (data: { sessionId: string; event: string; status: string }) => {
-        const { status } = data;
+        const { sessionId, status } = data;
         if (!status) return;
-
-        // Route to any registered PTY task. Hook session IDs may not
-        // match exactly (PTY reuse, task switching), so we route to
-        // all registered tasks.
         if (this.hookSessionToTask.size === 0) return;
 
+        // Route: exact session match first, then fallback to most recent task
+        let taskId = sessionId ? this.hookSessionToTask.get(sessionId) : undefined;
+        if (!taskId) {
+          const entries = Array.from(this.hookSessionToTask.values());
+          taskId = entries[entries.length - 1];
+        }
+        if (!taskId) return;
+
         const dot = hookStatusToDot(status as HookStatus);
-        const notifiedTasks = new Set<string>();
-        for (const taskId of this.hookSessionToTask.values()) {
-          if (notifiedTasks.has(taskId)) continue;
-          notifiedTasks.add(taskId);
-          this.hookDots.set(taskId, dot);
-          this.notifyTask(taskId);
+        this.hookDots.set(taskId, dot);
+        this.notifyTask(taskId);
+
+        // Manage idle timeout: when working, start a timer to auto-reset
+        // to green if no further events arrive (handles missing Stop events,
+        // Esc/cancel, or any case where the agent stops without notification)
+        const existingTimer = this.hookIdleTimers.get(taskId);
+        if (existingTimer) clearTimeout(existingTimer);
+
+        if (status === 'working') {
+          const tid = taskId; // capture for closure
+          this.hookIdleTimers.set(
+            taskId,
+            setTimeout(() => {
+              this.hookIdleTimers.delete(tid);
+              this.hookDots.set(tid, { color: 'green', style: 'solid' });
+              this.notifyTask(tid);
+            }, UnifiedStatusStore.HOOK_IDLE_TIMEOUT_MS)
+          );
+        } else {
+          // done or needs-input: clear the timer
+          this.hookIdleTimers.delete(taskId);
         }
       };
 
