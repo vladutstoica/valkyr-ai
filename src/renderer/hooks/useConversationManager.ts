@@ -102,9 +102,9 @@ export function useConversationManager({
           const overrides = s?.providerOverrides;
           const agentOverride = overrides?.[taskAgent];
           const defaultMode =
-            agentOverride?.defaultChatMode === 'cli'
-              ? 'pty'
-              : defaultResult.conversation.mode || 'acp';
+            agentOverride?.defaultChatMode === 'acp'
+              ? 'acp'
+              : defaultResult.conversation.mode || 'pty';
 
           // Inject Claude session ID for PTY mode if not already set
           let convMetadata = defaultResult.conversation.metadata ?? null;

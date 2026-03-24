@@ -543,6 +543,7 @@ const ChatInterface: React.FC<Props> = ({
                             : { providerId: convAgent })}
                           env={taskEnv}
                           keepAlive
+                          autoApprove={!!task.metadata?.autoApprove}
                           className="min-h-0 flex-1"
                           claudeSessionId={
                             convAgent === 'claude'

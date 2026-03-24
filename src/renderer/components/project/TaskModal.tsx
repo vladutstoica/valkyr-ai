@@ -189,13 +189,15 @@ const TaskModal: React.FC<TaskModalProps> = ({
       const autoApproveByDefault = settings?.tasks?.autoApproveByDefault ?? false;
       setAutoApprove(autoApproveByDefault && !!agentMeta[agent]?.autoApproveFlag);
 
-      // Set default chat mode from provider overrides
-      const providerDef = getProvider(agent as ProviderId);
-      if (!providerDef?.acpSupport) {
-        setChatMode('pty');
-      } else if (settings?.providerOverrides) {
+      // Default to CLI; only use ACP if explicitly configured
+      if (settings?.providerOverrides) {
         const override = settings.providerOverrides[agent];
-        setChatMode(override?.defaultChatMode === 'cli' ? 'pty' : 'acp');
+        const providerDef = getProvider(agent as ProviderId);
+        setChatMode(
+          override?.defaultChatMode === 'acp' && providerDef?.acpSupport ? 'acp' : 'pty'
+        );
+      } else {
+        setChatMode('pty');
       }
 
       // Handle auto-generate setting
