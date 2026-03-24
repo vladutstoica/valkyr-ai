@@ -369,18 +369,14 @@ const ChatInterface: React.FC<Props> = ({
   }, [isTerminal, task.metadata, commentsContext]);
 
   // Register hook session mapping for PTY/CLI Claude sessions.
-  // Maps the PTY id (agent-chat-convId) to the real task.id so hook events
-  // from Claude Code can update the correct sidebar status dot.
+  // Maps PTY ids to task.id in UI tab order so pill sections match chat tabs.
   useEffect(() => {
     if (!isTerminal || agent !== 'claude') return;
-    for (const conv of conversations) {
-      const ptyId = `${agent}-chat-${conv.id}`;
-      unifiedStatusStore.registerHookSession(ptyId, task.id);
-    }
+    const sessionIds = conversations.map((conv) => `${agent}-chat-${conv.id}`);
+    unifiedStatusStore.registerHookSessions(sessionIds, task.id);
     return () => {
-      for (const conv of conversations) {
-        const ptyId = `${agent}-chat-${conv.id}`;
-        unifiedStatusStore.unregisterHookSession(ptyId);
+      for (const sid of sessionIds) {
+        unifiedStatusStore.unregisterHookSession(sid);
       }
     };
   }, [isTerminal, agent, task.id, conversations]);

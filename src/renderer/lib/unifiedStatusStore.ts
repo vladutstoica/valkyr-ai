@@ -77,12 +77,14 @@ class UnifiedStatusStore {
   private ptyDots = new Map<string, StatusDot>();
 
   /**
-   * Hook-based status: taskId → StatusDot.
-   * When present, takes priority over regex-based PTY status.
+   * Hook-based status: conversationKey (sessionId) → StatusDot.
+   * Per-conversation status so each pill section shows independently.
    */
   private hookDots = new Map<string, StatusDot>();
   /** Maps PTY sessionId → taskId for hook event routing */
   private hookSessionToTask = new Map<string, string>();
+  /** Ordered list of conversation keys per task, matching UI tab order */
+  private hookConvOrder = new Map<string, string[]>();
   /** Cleanup for the global hook listener */
   private hookListenerCleanup: (() => void) | null = null;
   /** Auto-reset timer: resets to green if no events after working status */
@@ -129,10 +131,44 @@ class UnifiedStatusStore {
    * Register a hook session ID → task mapping.
    * Called when a PTY session starts with VALKYR_SESSION_ID env var.
    */
+  /**
+   * Register hook sessions in UI tab order.
+   * Call with ALL conversation session IDs in their display order.
+   */
+  registerHookSessions(sessionIds: string[], taskId: string): void {
+    // Clear old mappings for this task
+    for (const [sid, tid] of this.hookSessionToTask) {
+      if (tid === taskId) {
+        this.hookSessionToTask.delete(sid);
+        // Don't delete hookDots — preserve status across re-registrations
+      }
+    }
+    // Remove old conversation entries for this task
+    const convMap = this.tasks.get(taskId);
+    if (convMap) {
+      for (const key of Array.from(convMap.keys())) {
+        if (key !== '__primary__') convMap.delete(key);
+      }
+    }
+
+    // Register in order
+    this.hookConvOrder.set(taskId, [...sessionIds]);
+    for (const sid of sessionIds) {
+      this.hookSessionToTask.set(sid, taskId);
+      this.setConversationMode(taskId, sid, 'pty');
+    }
+  }
+
+  /** @deprecated Use registerHookSessions for ordered registration */
   registerHookSession(sessionId: string, taskId: string): void {
     this.hookSessionToTask.set(sessionId, taskId);
-    // Register as a named conversation so getConversationDots returns one entry per chat
     this.setConversationMode(taskId, sessionId, 'pty');
+    // Append to order if not present
+    const order = this.hookConvOrder.get(taskId) || [];
+    if (!order.includes(sessionId)) {
+      order.push(sessionId);
+      this.hookConvOrder.set(taskId, order);
+    }
   }
 
   /**
@@ -142,13 +178,21 @@ class UnifiedStatusStore {
     const taskId = this.hookSessionToTask.get(sessionId);
     this.hookSessionToTask.delete(sessionId);
     if (taskId) {
-      // Remove the conversation entry so pill count updates
       this.removeConversation(taskId, sessionId);
-      this.hookDots.delete(taskId);
-      const timer = this.hookIdleTimers.get(taskId);
+      this.hookDots.delete(sessionId);
+      // Remove from ordered list
+      const order = this.hookConvOrder.get(taskId);
+      if (order) {
+        const idx = order.indexOf(sessionId);
+        if (idx >= 0) order.splice(idx, 1);
+        if (order.length === 0) this.hookConvOrder.delete(taskId);
+      }
+      // Clear idle timer for this conversation
+      const timerKey = `${taskId}:${sessionId}`;
+      const timer = this.hookIdleTimers.get(timerKey);
       if (timer) {
         clearTimeout(timer);
-        this.hookIdleTimers.delete(taskId);
+        this.hookIdleTimers.delete(timerKey);
       }
       this.notifyTask(taskId);
     }
@@ -228,9 +272,22 @@ class UnifiedStatusStore {
    * Returns array of dots (one per conversation).
    */
   getConversationDots(taskId: string): StatusDot[] {
+    const order = this.hookConvOrder.get(taskId);
     const convMap = this.tasks.get(taskId);
-    if (!convMap || convMap.size === 0) return [DEFAULT_DOT];
 
+    // Use ordered list if available (matches UI tab order)
+    if (order && order.length > 0) {
+      return order.map((sid) => {
+        const entry = convMap?.get(sid);
+        if (entry) {
+          return this.getConversationDot(taskId, sid, entry);
+        }
+        return this.hookDots.get(sid) || DEFAULT_DOT;
+      });
+    }
+
+    // Fallback: iterate convMap
+    if (!convMap || convMap.size === 0) return [DEFAULT_DOT];
     const dots: StatusDot[] = [];
     for (const [convId, entry] of convMap) {
       const convKey = `${taskId}:${convId}`;
@@ -265,19 +322,12 @@ class UnifiedStatusStore {
       return acpStatusStore.getDot(entry.acpSessionKey);
     }
 
-    // PTY mode: check hook-based status first (takes priority over regex)
-    const hookDot = this.getHookDotForTask(taskId);
+    // PTY mode: check per-conversation hook dot (convKey = sessionId)
+    const hookDot = this.hookDots.get(convKey);
     if (hookDot) return hookDot;
 
     // Fallback: regex-based PTY detection
     return this.ptyDots.get(convKey) || DEFAULT_DOT;
-  }
-
-  /**
-   * Find hook-based status dot for a task (if any hook session is mapped to it).
-   */
-  private getHookDotForTask(taskId: string): StatusDot | null {
-    return this.hookDots.get(taskId) ?? null;
   }
 
   /**
@@ -295,37 +345,43 @@ class UnifiedStatusStore {
         if (!status) return;
         if (this.hookSessionToTask.size === 0) return;
 
-        // Route: exact session match first, then fallback to most recent task
+        // Find which conversation this event belongs to
+        let convKey = sessionId;
         let taskId = sessionId ? this.hookSessionToTask.get(sessionId) : undefined;
+
+        // Fallback: route to most recent conversation of most recent task
         if (!taskId) {
-          const entries = Array.from(this.hookSessionToTask.values());
-          taskId = entries[entries.length - 1];
+          const entries = Array.from(this.hookSessionToTask.entries());
+          if (entries.length === 0) return;
+          const [lastSid, lastTid] = entries[entries.length - 1];
+          taskId = lastTid;
+          convKey = lastSid;
         }
         if (!taskId) return;
 
+        // Update ONLY this conversation's dot (not all conversations)
         const dot = hookStatusToDot(status as HookStatus);
-        this.hookDots.set(taskId, dot);
+        this.hookDots.set(convKey, dot);
         this.notifyTask(taskId);
 
-        // Manage idle timeout: when working, start a timer to auto-reset
-        // to green if no further events arrive (handles missing Stop events,
-        // Esc/cancel, or any case where the agent stops without notification)
-        const existingTimer = this.hookIdleTimers.get(taskId);
+        // Idle timeout per conversation
+        const timerKey = `${taskId}:${convKey}`;
+        const existingTimer = this.hookIdleTimers.get(timerKey);
         if (existingTimer) clearTimeout(existingTimer);
 
         if (status === 'working') {
-          const tid = taskId; // capture for closure
+          const capturedTaskId = taskId;
+          const capturedConvKey = convKey;
           this.hookIdleTimers.set(
-            taskId,
+            timerKey,
             setTimeout(() => {
-              this.hookIdleTimers.delete(tid);
-              this.hookDots.set(tid, { color: 'green', style: 'solid' });
-              this.notifyTask(tid);
+              this.hookIdleTimers.delete(timerKey);
+              this.hookDots.set(capturedConvKey, { color: 'green', style: 'solid' });
+              this.notifyTask(capturedTaskId);
             }, UnifiedStatusStore.HOOK_IDLE_TIMEOUT_MS)
           );
         } else {
-          // done or needs-input: clear the timer
-          this.hookIdleTimers.delete(taskId);
+          this.hookIdleTimers.delete(timerKey);
         }
       };
 
