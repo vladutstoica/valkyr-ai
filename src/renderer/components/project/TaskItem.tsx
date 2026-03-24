@@ -222,20 +222,22 @@ export const TaskItem: React.FC<TaskItemProps> = ({
             );
           }
 
-          // Pill: two halves side-by-side
+          // Pill: colored halves with divider
           return (
-            <span className="flex h-2.5 flex-shrink-0 overflow-hidden rounded-full">
+            <span className="bg-background flex h-2.5 flex-shrink-0 items-center overflow-hidden rounded-full">
               {dots.map((d, i) => {
                 const bg = colorMap[d.color] || 'bg-green-500';
                 const pulse = d.style === 'pulsing' ? 'animate-pulse' : '';
                 return (
-                  <span
-                    key={i}
-                    className={`h-full w-2 ${bg} ${pulse} ${
-                      i < dots.length - 1 ? 'border-r border-black/20' : ''
-                    }`}
-                    title={`Chat ${i + 1}: ${titleMap[d.color] || 'Unknown'}`}
-                  />
+                  <span key={i} className="flex h-full items-center">
+                    {i > 0 && (
+                      <span className="bg-background h-full w-px" />
+                    )}
+                    <span
+                      className={`h-full w-2 ${bg} ${pulse}`}
+                      title={`Chat ${i + 1}: ${titleMap[d.color] || 'Unknown'}`}
+                    />
+                  </span>
                 );
               })}
             </span>

@@ -142,12 +142,15 @@ class UnifiedStatusStore {
     const taskId = this.hookSessionToTask.get(sessionId);
     this.hookSessionToTask.delete(sessionId);
     if (taskId) {
+      // Remove the conversation entry so pill count updates
+      this.removeConversation(taskId, sessionId);
       this.hookDots.delete(taskId);
       const timer = this.hookIdleTimers.get(taskId);
       if (timer) {
         clearTimeout(timer);
         this.hookIdleTimers.delete(taskId);
       }
+      this.notifyTask(taskId);
     }
   }
 
