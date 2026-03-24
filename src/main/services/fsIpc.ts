@@ -1,489 +1,170 @@
-import { ipcMain, shell } from 'electron';
+import { ipcMain } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
-import { Worker } from 'worker_threads';
 import { execSync } from 'child_process';
-import { FsListWorkerResponse } from '../types/fsListWorker';
 import { DEFAULT_IGNORES } from '../utils/fsIgnores';
-import { safeStat } from '../utils/safeStat';
 import { createLogger } from '../lib/logger';
+import { fsService } from './fs/FsService';
+import { fsSearchService } from './fs/FsSearchService';
+import { fsListService } from './fs/FsListService';
+import { fsConfigService } from './fs/FsConfigService';
+import type { ListArgs } from './fs/FsListService';
 
 const log = createLogger('ipc:fs');
 
-const DEFAULT_VALKYR_CONFIG = `{
-  "preservePatterns": [
-    ".env",
-    ".env.keys",
-    ".env.local",
-    ".env.*.local",
-    ".envrc",
-    "docker-compose.override.yml"
-  ],
-  "scripts": {
-    "setup": "",
-    "run": "",
-    "teardown": ""
-  },
-  "mcpServers": []
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Broadcast a plan event to all renderer windows.
+ * Used to surface write/remove permission failures to the Plan Mode UI.
+ */
+function emitPlanEvent(payload: unknown): void {
+  try {
+    const { BrowserWindow } = require('electron');
+    for (const win of BrowserWindow.getAllWindows()) {
+      try {
+        win.webContents.send('plan:event', payload);
+      } catch {}
+    }
+  } catch {}
 }
-`;
 
-type ListArgs = {
-  root: string;
-  includeDirs?: boolean;
-  maxEntries?: number;
-  timeBudgetMs?: number;
-};
+/**
+ * Thin wrapper that standardises the try/catch/log pattern shared by every
+ * IPC handler. Each handler delegates to a service method and this wrapper
+ * converts thrown errors into the `{ success: false, error }` envelope.
+ */
+async function wrapIpcHandler<T>(
+  channel: string,
+  fn: () => Promise<T> | T
+): Promise<{ success: true } & T extends void ? Record<string, never> : T extends object ? T : { data: T }>;
+async function wrapIpcHandler<T>(channel: string, fn: () => Promise<T> | T): Promise<unknown> {
+  try {
+    const result = await fn();
+    if (result === undefined || result === null) return { success: true };
+    if (typeof result === 'object') return { success: true, ...result };
+    return { success: true, data: result };
+  } catch (error) {
+    log.error(`${channel} failed:`, error);
+    return { success: false, error: (error as Error).message ?? 'Unknown error' };
+  }
+}
 
-type ListWorkerState = {
-  worker: Worker;
-  requestId: number;
-  canceled: boolean;
-};
-
-const listWorkersBySender = new Map<number, ListWorkerState>();
-const DEFAULT_TIME_BUDGET_MS = 2000;
-const MIN_TIME_BUDGET_MS = 250;
-const MAX_TIME_BUDGET_MS = 10000;
-const MAX_FILES_TO_SEARCH = 10000;
-const DEFAULT_BATCH_SIZE = 250;
-
-// Centralized configuration/constants for attachments
-const ALLOWED_IMAGE_EXTENSIONS = new Set<string>([
-  '.png',
-  '.jpg',
-  '.jpeg',
-  '.gif',
-  '.webp',
-  '.bmp',
-  '.svg',
-]);
-const DEFAULT_ATTACHMENTS_SUBDIR = 'attachments' as const;
+// ---------------------------------------------------------------------------
+// IPC registration
+// ---------------------------------------------------------------------------
 
 export function registerFsIpc(): void {
-  function emitPlanEvent(payload: any) {
-    try {
-      const { BrowserWindow } = require('electron');
-      for (const win of BrowserWindow.getAllWindows()) {
-        try {
-          win.webContents.send('plan:event', payload);
-        } catch {}
+  // -------------------------------------------------------------------------
+  // fs:readdir — simple directory listing (no recursion)
+  // -------------------------------------------------------------------------
+  ipcMain.handle('fs:readdir', async (_event, args: { dirPath: string }) => {
+    return wrapIpcHandler('fs:readdir', () => {
+      const { dirPath } = args;
+      if (!dirPath || !fs.existsSync(dirPath)) {
+        return { success: false, error: 'Invalid path' };
       }
-    } catch {}
-  }
+      const items = fsService.readDirectory(dirPath);
+      return { items };
+    });
+  });
 
-  // Simple directory listing - no recursion, no limits (like IntelliJ/VS Code)
-  ipcMain.handle(
-    'fs:readdir',
-    async (
-      _event,
-      args: { dirPath: string }
-    ): Promise<{
-      success: boolean;
-      items?: Array<{ name: string; type: 'file' | 'dir' }>;
-      error?: string;
-    }> => {
-      try {
-        const { dirPath } = args;
-        if (!dirPath || !fs.existsSync(dirPath)) {
-          return { success: false, error: 'Invalid path' };
-        }
-
-        const stat = safeStat(dirPath);
-        if (!stat || !stat.isDirectory()) {
-          return { success: false, error: 'Not a directory' };
-        }
-
-        const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-        const items = entries.map((entry) => ({
-          name: entry.name,
-          type: entry.isDirectory() ? ('dir' as const) : ('file' as const),
-        }));
-
-        // Sort: directories first, then alphabetically
-        items.sort((a, b) => {
-          if (a.type !== b.type) return a.type === 'dir' ? -1 : 1;
-          return a.name.localeCompare(b.name);
-        });
-
-        return { success: true, items };
-      } catch (error) {
-        log.error('fs:readdir failed:', error);
-        return { success: false, error: 'Failed to read directory' };
-      }
-    }
-  );
-
-  // Check which files/directories are ignored by git
+  // -------------------------------------------------------------------------
+  // fs:check-ignored — check which paths are ignored by git
+  // -------------------------------------------------------------------------
   ipcMain.handle(
     'fs:check-ignored',
-    async (
-      _event,
-      args: { rootPath: string; paths: string[] }
-    ): Promise<{
-      success: boolean;
-      ignoredPaths?: string[];
-      error?: string;
-    }> => {
-      try {
+    async (_event, args: { rootPath: string; paths: string[] }) => {
+      return wrapIpcHandler('fs:check-ignored', () => {
         const { rootPath, paths } = args;
 
         if (!rootPath || !fs.existsSync(rootPath)) {
           return { success: false, error: 'Invalid root path' };
         }
-
         if (!paths || paths.length === 0) {
-          return { success: true, ignoredPaths: [] };
+          return { ignoredPaths: [] };
         }
 
-        // Check if it's a git repository
-        const gitDir = path.join(rootPath, '.git');
-        const isGitRepo = fs.existsSync(gitDir);
+        const isGitRepo = fs.existsSync(path.join(rootPath, '.git'));
 
         if (!isGitRepo) {
-          // Fallback to DEFAULT_IGNORES pattern matching for non-git directories
-          const ignoredPaths = paths.filter((p) => {
-            const name = path.basename(p);
-            return DEFAULT_IGNORES.has(name);
-          });
-          return { success: true, ignoredPaths };
+          return { ignoredPaths: paths.filter((p) => DEFAULT_IGNORES.has(path.basename(p))) };
         }
 
-        // Use git check-ignore --stdin to batch-check paths
         try {
-          const input = paths.join('\n');
           const result = execSync('git check-ignore --stdin', {
             cwd: rootPath,
-            input,
+            input: paths.join('\n'),
             encoding: 'utf8',
-            // Don't throw on non-zero exit (git returns 1 if no files are ignored)
             stdio: ['pipe', 'pipe', 'pipe'],
           });
 
-          // Result contains one ignored path per line
           const ignoredPaths = result
             .split('\n')
             .map((line) => line.trim())
             .filter((line) => line.length > 0);
 
-          return { success: true, ignoredPaths };
+          return { ignoredPaths };
         } catch (gitError: any) {
-          // git check-ignore returns exit code 1 if no files are ignored
-          // This is expected behavior, not an error
+          // git check-ignore exits 1 when no files are ignored — that is normal
           if (gitError.status === 1 && gitError.stdout !== undefined) {
-            const ignoredPaths = (gitError.stdout || '')
+            const ignoredPaths = (gitError.stdout as string)
               .split('\n')
-              .map((line: string) => line.trim())
-              .filter((line: string) => line.length > 0);
-            return { success: true, ignoredPaths };
+              .map((line) => line.trim())
+              .filter((line) => line.length > 0);
+            return { ignoredPaths };
           }
 
-          // For other git errors, fallback to DEFAULT_IGNORES
           log.warn('git check-ignore failed, falling back to DEFAULT_IGNORES:', gitError.message);
-          const ignoredPaths = paths.filter((p) => {
-            const name = path.basename(p);
-            return DEFAULT_IGNORES.has(name);
-          });
-          return { success: true, ignoredPaths };
+          return { ignoredPaths: paths.filter((p) => DEFAULT_IGNORES.has(path.basename(p))) };
         }
-      } catch (error) {
-        log.error('fs:check-ignored failed:', error);
-        return { success: false, error: 'Failed to check ignored files' };
-      }
+      });
     }
   );
 
+  // -------------------------------------------------------------------------
+  // fs:list — recursive file listing via worker pool
+  // -------------------------------------------------------------------------
   ipcMain.handle('fs:list', async (_event, args: ListArgs) => {
-    try {
-      const root = args.root;
-      const includeDirs = args.includeDirs ?? true;
-      const maxEntries = Math.min(Math.max(args.maxEntries ?? 5000, 100), MAX_FILES_TO_SEARCH);
-      const timeBudgetMs = Math.min(
-        Math.max(args.timeBudgetMs ?? DEFAULT_TIME_BUDGET_MS, MIN_TIME_BUDGET_MS),
-        MAX_TIME_BUDGET_MS
-      );
-      if (!root || !fs.existsSync(root)) {
-        return { success: false, error: 'Invalid root path' };
-      }
-
-      const senderId = _event.sender.id;
-      const prev = listWorkersBySender.get(senderId);
-      if (prev) {
-        prev.canceled = true;
-        prev.worker.terminate().catch(() => {});
-      }
-
-      const requestId = (prev?.requestId ?? 0) + 1;
-      const workerPath = path.join(__dirname, '..', 'workers', 'fsListWorker.js');
-      const worker = new Worker(workerPath);
-      const state: ListWorkerState = { worker, requestId, canceled: false };
-      listWorkersBySender.set(senderId, state);
-
-      const result = await new Promise<FsListWorkerResponse>((resolve, reject) => {
-        const cleanup = () => {
-          worker.removeAllListeners('message');
-          worker.removeAllListeners('error');
-          worker.removeAllListeners('exit');
-        };
-
-        worker.once('message', (message) => {
-          cleanup();
-          worker.terminate().catch(() => {});
-          resolve(message as FsListWorkerResponse);
-        });
-        worker.once('error', (error) => {
-          cleanup();
-          reject(error);
-        });
-        worker.once('exit', (code) => {
-          cleanup();
-          if (state.canceled) {
-            resolve({ taskId: requestId, ok: false, error: 'Canceled' });
-            return;
-          }
-          if (code === 0) {
-            resolve({
-              taskId: requestId,
-              ok: false,
-              error: 'Worker exited before responding',
-            });
-            return;
-          }
-          reject(new Error(`fs:list worker exited with code ${code}`));
-        });
-
-        worker.postMessage({
-          taskId: requestId,
-          root,
-          includeDirs,
-          maxEntries,
-          timeBudgetMs,
-          batchSize: DEFAULT_BATCH_SIZE,
-        });
-      });
-
-      const latest = listWorkersBySender.get(senderId);
-      if (!latest || latest.requestId !== requestId || state.canceled) {
-        return { success: true, canceled: true };
-      }
-
-      listWorkersBySender.delete(senderId);
-
-      if (!result.ok) {
-        if (result.error === 'Canceled') return { success: true, canceled: true };
-        return { success: false, error: result.error };
-      }
-
-      return {
-        success: true,
-        items: result.items,
-        truncated: result.truncated,
-        reason: result.reason,
-        durationMs: result.durationMs,
-      };
-    } catch (error) {
-      log.error('fs:list failed:', error);
-      return { success: false, error: 'Failed to list files' };
-    }
+    return wrapIpcHandler('fs:list', async () => {
+      const result = await fsListService.list(_event.sender.id, args);
+      return result;
+    });
   });
 
+  // -------------------------------------------------------------------------
+  // fs:read — read a text file relative to a root
+  // -------------------------------------------------------------------------
   ipcMain.handle(
     'fs:read',
     async (_event, args: { root: string; relPath: string; maxBytes?: number }) => {
-      try {
+      return wrapIpcHandler('fs:read', () => {
         const { root, relPath } = args;
         const maxBytes = Math.min(Math.max(args.maxBytes ?? 200 * 1024, 1024), 5 * 1024 * 1024);
         if (!root || !fs.existsSync(root)) return { success: false, error: 'Invalid root path' };
         if (!relPath) return { success: false, error: 'Invalid relPath' };
-
-        // Resolve and ensure within root
-        const abs = path.resolve(root, relPath);
-        const normRoot = path.resolve(root) + path.sep;
-        if (!abs.startsWith(normRoot)) return { success: false, error: 'Path escapes root' };
-
-        const st = safeStat(abs);
-        if (!st) return { success: false, error: 'Not found' };
-        if (st.isDirectory()) return { success: false, error: 'Is a directory' };
-
-        const size = st.size;
-        let truncated = false;
-        let content: string;
-        const fd = fs.openSync(abs, 'r');
-        try {
-          const bytesToRead = Math.min(size, maxBytes);
-          const buf = Buffer.alloc(bytesToRead);
-          fs.readSync(fd, buf, 0, bytesToRead, 0);
-          content = buf.toString('utf8');
-          truncated = size > bytesToRead;
-        } finally {
-          fs.closeSync(fd);
-        }
-
-        return { success: true, path: relPath, size, truncated, content };
-      } catch (error) {
-        log.error('fs:read failed:', error);
-        return { success: false, error: 'Failed to read file' };
-      }
+        return fsService.readFile(root, relPath, maxBytes);
+      });
     }
   );
 
-  // Read image file as base64
+  // -------------------------------------------------------------------------
+  // fs:read-image — read image as base64 data URL
+  // -------------------------------------------------------------------------
   ipcMain.handle('fs:read-image', async (_event, args: { root: string; relPath: string }) => {
-    try {
+    return wrapIpcHandler('fs:read-image', () => {
       const { root, relPath } = args;
       if (!root || !fs.existsSync(root)) return { success: false, error: 'Invalid root path' };
       if (!relPath) return { success: false, error: 'Invalid relPath' };
-
-      // Resolve and ensure within root
-      const abs = path.resolve(root, relPath);
-      const normRoot = path.resolve(root) + path.sep;
-      if (!abs.startsWith(normRoot)) return { success: false, error: 'Path escapes root' };
-
-      const st = safeStat(abs);
-      if (!st) return { success: false, error: 'Not found' };
-      if (st.isDirectory()) return { success: false, error: 'Is a directory' };
-
-      // Check if it's an allowed image type
-      const ext = path.extname(relPath).toLowerCase();
-      if (!ALLOWED_IMAGE_EXTENSIONS.has(ext)) {
-        return { success: false, error: 'Not an image file' };
-      }
-
-      // Read file as base64
-      const buffer = fs.readFileSync(abs);
-      const base64 = buffer.toString('base64');
-
-      // Determine MIME type
-      let mimeType = 'image/';
-      switch (ext) {
-        case '.svg':
-          mimeType += 'svg+xml';
-          break;
-        case '.jpg':
-        case '.jpeg':
-          mimeType += 'jpeg';
-          break;
-        default:
-          mimeType += ext.substring(1); // Remove the dot
-      }
-
-      return {
-        success: true,
-        dataUrl: `data:${mimeType};base64,${base64}`,
-        mimeType,
-        size: st.size,
-      };
-    } catch (error) {
-      log.error('fs:read-image failed:', error);
-      return { success: false, error: 'Failed to read image' };
-    }
+      return fsService.readImage(root, relPath);
+    });
   });
 
-  // Constants for search functionality
-  const SEARCH_PREVIEW_CONTEXT_LENGTH = 30;
-  const DEFAULT_MAX_SEARCH_RESULTS = 100; // Increased back for better coverage
-  const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB max file size
-  const MAX_SEARCH_FILES = 5000; // Increased to search more files
-  const BINARY_CHECK_BYTES = 512; // Check first 512 bytes for binary content (faster)
-
-  // Extended ignore patterns for performance
-  const SEARCH_IGNORES = new Set([
-    ...DEFAULT_IGNORES,
-    '.vscode',
-    '.idea',
-    'coverage',
-    '__pycache__',
-    '.pytest_cache',
-    'venv',
-    '.venv',
-    'target',
-    '.terraform',
-    '.serverless',
-    'vendor',
-    'bower_components',
-    '.turbo',
-    'worktrees',
-    '.worktrees',
-  ]);
-
-  // Binary file extensions to skip (blacklist approach)
-  const BINARY_EXTENSIONS = new Set([
-    '.png',
-    '.jpg',
-    '.jpeg',
-    '.gif',
-    '.bmp',
-    '.ico',
-    '.svg',
-    '.pdf',
-    '.zip',
-    '.tar',
-    '.gz',
-    '.rar',
-    '.7z',
-    '.exe',
-    '.dll',
-    '.so',
-    '.dylib',
-    '.a',
-    '.o',
-    '.mp3',
-    '.mp4',
-    '.avi',
-    '.mov',
-    '.wav',
-    '.flac',
-    '.ttf',
-    '.otf',
-    '.woff',
-    '.woff2',
-    '.eot',
-    '.pyc',
-    '.pyo',
-    '.class',
-    '.jar',
-    '.war',
-    '.node',
-    '.wasm',
-    '.map',
-    '.DS_Store',
-    '.lock',
-  ]);
-
-  // Check if file is likely binary
-  const isBinaryFile = (filePath: string): boolean => {
-    // First check extension
-    const ext = path.extname(filePath).toLowerCase();
-    if (BINARY_EXTENSIONS.has(ext)) return true;
-
-    try {
-      const fd = fs.openSync(filePath, 'r');
-      const buffer = Buffer.alloc(BINARY_CHECK_BYTES);
-      const bytesRead = fs.readSync(fd, buffer, 0, BINARY_CHECK_BYTES, 0);
-      fs.closeSync(fd);
-
-      // Check for null bytes (common in binary files)
-      for (let i = 0; i < bytesRead; i++) {
-        if (buffer[i] === 0) return true;
-      }
-
-      // Check if mostly non-printable characters
-      let nonPrintable = 0;
-      for (let i = 0; i < Math.min(bytesRead, 512); i++) {
-        const byte = buffer[i];
-        if (byte < 32 && byte !== 9 && byte !== 10 && byte !== 13) {
-          nonPrintable++;
-        }
-      }
-
-      // If more than 30% non-printable, likely binary
-      return nonPrintable > bytesRead * 0.3;
-    } catch {
-      return false; // Assume text if we can't read it, let the search handle the error
-    }
-  };
-
-  // Search for content in files - OPTIMIZED VERSION
+  // -------------------------------------------------------------------------
+  // fs:searchContent — content search across project files
+  // -------------------------------------------------------------------------
   ipcMain.handle(
     'fs:searchContent',
     async (
@@ -494,234 +175,50 @@ export function registerFsIpc(): void {
         options?: { caseSensitive?: boolean; maxResults?: number; fileExtensions?: string[] };
       }
     ) => {
-      try {
+      return wrapIpcHandler('fs:searchContent', async () => {
         const { root, query, options = {} } = args;
-        const {
-          caseSensitive = false,
-          maxResults = DEFAULT_MAX_SEARCH_RESULTS,
-          fileExtensions = [],
-        } = options;
-
         if (!root || !fs.existsSync(root)) return { success: false, error: 'Invalid root path' };
         if (!query || query.length < 2)
           return { success: false, error: 'Query too short (min 2 chars)' };
-
-        const results: Array<{
-          file: string;
-          matches: Array<{
-            line: number;
-            column: number;
-            text: string;
-            preview: string;
-          }>;
-        }> = [];
-
-        let totalMatches = 0;
-        let filesSearched = 0;
-        const searchQuery = caseSensitive ? query : query.toLowerCase();
-
-        // Helper function to check if file should be searched
-        const shouldSearchFile = (filePath: string, stat: fs.Stats): boolean => {
-          // Skip large files
-          if (stat.size > MAX_FILE_SIZE) return false;
-
-          const ext = path.extname(filePath).toLowerCase();
-
-          // Skip known binary extensions (but allow files without extensions)
-          if (ext && BINARY_EXTENSIONS.has(ext)) return false;
-
-          // If user specified extensions, use those
-          if (fileExtensions.length > 0) {
-            return fileExtensions.some((e) => {
-              const normalizedExt = e.toLowerCase().startsWith('.')
-                ? e.toLowerCase()
-                : '.' + e.toLowerCase();
-              return ext === normalizedExt;
-            });
-          }
-
-          // Otherwise search all non-binary files
-          return true;
-        };
-
-        // Optimized async file search
-        const searchInFile = async (filePath: string): Promise<void> => {
-          if (totalMatches >= maxResults || filesSearched >= MAX_SEARCH_FILES) return;
-
-          try {
-            filesSearched++;
-
-            // Check if binary file first
-            if (isBinaryFile(filePath)) return;
-
-            // Read file in chunks for better memory usage
-            const content = await fs.promises.readFile(filePath, 'utf8');
-
-            // Quick check if query exists at all (much faster)
-            const contentToSearch = caseSensitive ? content : content.toLowerCase();
-            if (!contentToSearch.includes(searchQuery)) return;
-
-            // Only split lines if we found something
-            const lines = content.split('\n');
-            const fileMatches: (typeof results)[0]['matches'] = [];
-
-            for (let lineNum = 0; lineNum < lines.length && totalMatches < maxResults; lineNum++) {
-              const line = lines[lineNum];
-              const searchLine = caseSensitive ? line : line.toLowerCase();
-
-              if (!searchLine.includes(searchQuery)) continue; // Quick skip
-
-              let columnIndex = searchLine.indexOf(searchQuery);
-              while (columnIndex !== -1 && totalMatches < maxResults) {
-                // Create preview with context
-                const previewStart = Math.max(0, columnIndex - SEARCH_PREVIEW_CONTEXT_LENGTH);
-                const previewEnd = Math.min(
-                  line.length,
-                  columnIndex + query.length + SEARCH_PREVIEW_CONTEXT_LENGTH
-                );
-                let preview = line.substring(previewStart, previewEnd).trim();
-
-                // Add ellipsis if truncated
-                if (previewStart > 0) preview = '...' + preview;
-                if (previewEnd < line.length) preview = preview + '...';
-
-                fileMatches.push({
-                  line: lineNum + 1,
-                  column: columnIndex + 1,
-                  text: line.substring(columnIndex, columnIndex + query.length),
-                  preview: preview,
-                });
-
-                totalMatches++;
-                columnIndex = searchLine.indexOf(searchQuery, columnIndex + 1);
-              }
-            }
-
-            if (fileMatches.length > 0) {
-              const relativePath = path.relative(root, filePath);
-              results.push({
-                file: relativePath,
-                matches: fileMatches,
-              });
-            }
-          } catch (err) {
-            // Skip files we can't read
-          }
-        };
-
-        // Collect files first, then search in parallel
-        const collectFiles = async (dirPath: string, files: string[] = []): Promise<string[]> => {
-          if (files.length >= MAX_SEARCH_FILES) return files;
-
-          try {
-            const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
-
-            for (const entry of entries) {
-              if (files.length >= MAX_SEARCH_FILES) break;
-
-              const fullPath = path.join(dirPath, entry.name);
-
-              if (entry.isDirectory()) {
-                if (!SEARCH_IGNORES.has(entry.name)) {
-                  await collectFiles(fullPath, files);
-                }
-              } else if (entry.isFile()) {
-                try {
-                  const stat = await fs.promises.stat(fullPath);
-                  if (shouldSearchFile(fullPath, stat)) {
-                    files.push(fullPath);
-                  }
-                } catch {}
-              }
-            }
-          } catch {}
-
-          return files;
-        };
-
-        // Collect files and search them in batches
-        const files = await collectFiles(root);
-
-        // Process files in parallel batches for speed
-        const BATCH_SIZE = 10;
-        for (let i = 0; i < files.length && totalMatches < maxResults; i += BATCH_SIZE) {
-          const batch = files.slice(i, i + BATCH_SIZE);
-          await Promise.all(batch.map((file) => searchInFile(file)));
-        }
-
-        return { success: true, results };
-      } catch (error) {
-        log.error('fs:searchContent failed:', error);
-        return { success: false, error: 'Failed to search files' };
-      }
+        return fsSearchService.searchContent(root, query, options);
+      });
     }
   );
 
-  // Save an attachment (e.g., image) into a task-managed folder
+  // -------------------------------------------------------------------------
+  // fs:save-attachment — copy an image into a task-managed folder
+  // -------------------------------------------------------------------------
   ipcMain.handle(
     'fs:save-attachment',
     async (_event, args: { taskPath: string; srcPath: string; subdir?: string }) => {
-      try {
-        const { taskPath, srcPath } = args;
+      return wrapIpcHandler('fs:save-attachment', () => {
+        const { taskPath, srcPath, subdir } = args;
         if (!taskPath || !fs.existsSync(taskPath))
           return { success: false, error: 'Invalid taskPath' };
         if (!srcPath || !fs.existsSync(srcPath))
           return { success: false, error: 'Invalid srcPath' };
-
-        const ext = path.extname(srcPath).toLowerCase();
-        if (!ALLOWED_IMAGE_EXTENSIONS.has(ext)) {
-          return { success: false, error: 'Unsupported attachment type' };
-        }
-
-        const baseDir = path.join(taskPath, '.valkyr', args.subdir || DEFAULT_ATTACHMENTS_SUBDIR);
-        fs.mkdirSync(baseDir, { recursive: true });
-
-        const baseName = path.basename(srcPath);
-        let destName = baseName;
-        let counter = 1;
-        let destAbs = path.join(baseDir, destName);
-        while (fs.existsSync(destAbs)) {
-          const name = path.basename(baseName, ext);
-          destName = `${name}-${counter}${ext}`;
-          destAbs = path.join(baseDir, destName);
-          counter++;
-        }
-
-        fs.copyFileSync(srcPath, destAbs);
-
-        const relFromTask = path.relative(taskPath, destAbs);
-        return {
-          success: true,
-          absPath: destAbs,
-          relPath: relFromTask,
-          fileName: destName,
-        };
-      } catch (error) {
-        log.error('fs:save-attachment failed:', error);
-        return { success: false, error: 'Failed to save attachment' };
-      }
+        return fsService.saveAttachment(taskPath, srcPath, subdir);
+      });
     }
   );
 
-  // Write a file relative to a root (creates parent directories)
+  // -------------------------------------------------------------------------
+  // fs:write — write a file relative to a root
+  // -------------------------------------------------------------------------
   ipcMain.handle(
     'fs:write',
-    async (_event, args: { root: string; relPath: string; content: string; mkdirs?: boolean }) => {
-      try {
+    async (
+      _event,
+      args: { root: string; relPath: string; content: string; mkdirs?: boolean }
+    ) => {
+      return wrapIpcHandler('fs:write', () => {
         const { root, relPath, content, mkdirs = true } = args;
         if (!root || !fs.existsSync(root)) return { success: false, error: 'Invalid root path' };
         if (!relPath) return { success: false, error: 'Invalid relPath' };
 
-        const abs = path.resolve(root, relPath);
-        const normRoot = path.resolve(root) + path.sep;
-        if (!abs.startsWith(normRoot)) return { success: false, error: 'Path escapes root' };
-
-        const dir = path.dirname(abs);
-        if (mkdirs) fs.mkdirSync(dir, { recursive: true });
         try {
-          fs.writeFileSync(abs, content, 'utf8');
+          fsService.writeFile(root, relPath, content, mkdirs);
         } catch (e: any) {
-          // Surface permission issues to renderer (Plan Mode lock likely)
           if ((e?.code || '').toUpperCase() === 'EACCES') {
             emitPlanEvent({
               type: 'write_blocked',
@@ -733,108 +230,74 @@ export function registerFsIpc(): void {
           }
           throw e;
         }
-        return { success: true };
-      } catch (error) {
-        log.error('fs:write failed:', error);
-        return { success: false, error: 'Failed to write file' };
-      }
+
+        return {};
+      });
     }
   );
 
-  // Remove a file relative to a root
+  // -------------------------------------------------------------------------
+  // fs:remove — delete a file relative to a root
+  // -------------------------------------------------------------------------
   ipcMain.handle('fs:remove', async (_event, args: { root: string; relPath: string }) => {
-    try {
+    return wrapIpcHandler('fs:remove', () => {
       const { root, relPath } = args;
       if (!root || !fs.existsSync(root)) return { success: false, error: 'Invalid root path' };
       if (!relPath) return { success: false, error: 'Invalid relPath' };
-      const abs = path.resolve(root, relPath);
-      const normRoot = path.resolve(root) + path.sep;
-      if (!abs.startsWith(normRoot)) return { success: false, error: 'Path escapes root' };
-      if (!fs.existsSync(abs)) return { success: true };
-      const st = safeStat(abs);
-      if (st && st.isDirectory()) return { success: false, error: 'Is a directory' };
+
       try {
-        fs.unlinkSync(abs);
+        fsService.removeFile(root, relPath);
       } catch (e: any) {
-        // Try to relax permissions and retry (useful after a plan lock)
-        try {
-          const dir = path.dirname(abs);
-          const dst = safeStat(dir);
-          if (dst) fs.chmodSync(dir, (dst.mode & 0o7777) | 0o222);
-        } catch {}
-        try {
-          const fst = safeStat(abs);
-          if (fst) fs.chmodSync(abs, (fst.mode & 0o7777) | 0o222);
-        } catch {}
-        try {
-          fs.unlinkSync(abs);
-        } catch (e2: any) {
-          if ((e2?.code || '').toUpperCase() === 'EACCES') {
-            emitPlanEvent({
-              type: 'remove_blocked',
-              root,
-              relPath,
-              code: e2?.code,
-              message: e2?.message || String(e2),
-            });
-          }
-          throw e2;
+        if ((e?.code || '').toUpperCase() === 'EACCES') {
+          emitPlanEvent({
+            type: 'remove_blocked',
+            root,
+            relPath,
+            code: e?.code,
+            message: e?.message || String(e),
+          });
         }
+        throw e;
       }
-      return { success: true };
-    } catch (error) {
-      log.error('fs:remove failed:', error);
-      return { success: false, error: 'Failed to remove file' };
-    }
+
+      return {};
+    });
   });
 
-  // Get .valkyr.json config file content (create with defaults if missing)
+  // -------------------------------------------------------------------------
+  // fs:getProjectConfig — read (or create) .valkyr.json
+  // -------------------------------------------------------------------------
   ipcMain.handle('fs:getProjectConfig', async (_event, args: { projectPath: string }) => {
-    try {
+    return wrapIpcHandler('fs:getProjectConfig', () => {
       const { projectPath } = args;
       if (!projectPath || !fs.existsSync(projectPath)) {
         return { success: false, error: 'Invalid project path' };
       }
-
-      const configPath = path.join(projectPath, '.valkyr.json');
-
-      // Create with defaults if missing
-      if (!fs.existsSync(configPath)) {
-        fs.writeFileSync(configPath, DEFAULT_VALKYR_CONFIG, 'utf8');
-      }
-
-      const content = fs.readFileSync(configPath, 'utf8');
-      return { success: true, path: configPath, content };
-    } catch (error) {
-      log.error('fs:getProjectConfig failed:', error);
-      return { success: false, error: 'Failed to read config file' };
-    }
+      return fsConfigService.getProjectConfig(projectPath);
+    });
   });
 
-  // Save .valkyr.json config file content
+  // -------------------------------------------------------------------------
+  // fs:saveProjectConfig — write validated JSON to .valkyr.json
+  // -------------------------------------------------------------------------
   ipcMain.handle(
     'fs:saveProjectConfig',
     async (_event, args: { projectPath: string; content: string }) => {
-      try {
+      return wrapIpcHandler('fs:saveProjectConfig', () => {
         const { projectPath, content } = args;
         if (!projectPath || !fs.existsSync(projectPath)) {
           return { success: false, error: 'Invalid project path' };
         }
-
-        // Validate JSON before saving
         try {
-          JSON.parse(content);
-        } catch {
-          return { success: false, error: 'Invalid JSON format' };
+          const configPath = fsConfigService.saveProjectConfig(projectPath, content);
+          return { path: configPath };
+        } catch (e: any) {
+          if (e instanceof SyntaxError) {
+            return { success: false, error: 'Invalid JSON format' };
+          }
+          throw e;
         }
-
-        const configPath = path.join(projectPath, '.valkyr.json');
-        fs.writeFileSync(configPath, content, 'utf8');
-        return { success: true, path: configPath };
-      } catch (error) {
-        log.error('fs:saveProjectConfig failed:', error);
-        return { success: false, error: 'Failed to save config file' };
-      }
+      });
     }
   );
 }
