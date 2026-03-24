@@ -34,13 +34,20 @@ async function callHandler(channel: string, ...args: any[]) {
  *  - `which <binary>` returns the path when installed = true, error otherwise
  *  - `<binary> --version` returns the version string when installed = true
  */
-function mockProbe(binary: string, { installed = true, version = '1.0.0', path = `/usr/local/bin/${binary}` } = {}) {
+function mockProbe(
+  binary: string,
+  {
+    installed = true,
+    version = '1.0.0',
+    path: binPath = `/usr/local/bin/${binary}`,
+  } = {}
+) {
   execFileMock.mockImplementation((cmd: string, args: string[], ...rest: any[]) => {
     // execFile(cmd, args, cb) or execFile(cmd, args, opts, cb)
     const cb = typeof rest[rest.length - 1] === 'function' ? rest[rest.length - 1] : rest[0];
 
     if (cmd === 'which' && args[0] === binary) {
-      if (installed) cb(null, path + '\n', '');
+      if (installed) cb(null, binPath + '\n', '');
       else cb(new Error('not found'), '', 'not found');
       return;
     }
@@ -49,7 +56,7 @@ function mockProbe(binary: string, { installed = true, version = '1.0.0', path =
       else cb(new Error('command not found'), '', '');
       return;
     }
-    // Unrecognised command — fail silently
+    // Unrecognised command — fail
     cb(new Error('unknown cmd'), '', '');
   });
 }
@@ -96,14 +103,6 @@ beforeEach(async () => {
     },
   }));
 
-  vi.mock('child_process', () => ({
-    execFile: execFileMock,
-  }));
-
-  vi.mock('../../main/lib/logger', () => ({
-    log: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
-  }));
-
   const mod = await import('../../main/ipc/connectionsIpc');
   mod.registerConnectionsIpc();
 });
@@ -114,10 +113,15 @@ beforeEach(async () => {
 
 describe('connections:getProviderStatuses', () => {
   it('returns installed: true with path and version for a found provider', async () => {
-    mockProbe('claude', { installed: true, version: '1.2.3', path: '/usr/local/bin/claude' });
+    mockProbe('claude', {
+      installed: true,
+      version: '1.2.3',
+      path: '/usr/local/bin/claude',
+    });
 
     const result = await callHandler('connections:getProviderStatuses', {
       providers: ['claude-code'],
+      refresh: true,
     });
 
     expect(result.success).toBe(true);
@@ -133,6 +137,7 @@ describe('connections:getProviderStatuses', () => {
 
     const result = await callHandler('connections:getProviderStatuses', {
       providers: ['claude-code'],
+      refresh: true,
     });
 
     expect(result.success).toBe(true);
@@ -147,6 +152,7 @@ describe('connections:getProviderStatuses', () => {
 
     const result = await callHandler('connections:getProviderStatuses', {
       providers: ['claude-code', 'codex', 'qwen-code'],
+      refresh: true,
     });
 
     expect(result.success).toBe(true);
@@ -158,7 +164,7 @@ describe('connections:getProviderStatuses', () => {
   it('checks the default provider set when no providers specified', async () => {
     mockAllProbes([]);
 
-    const result = await callHandler('connections:getProviderStatuses', {});
+    const result = await callHandler('connections:getProviderStatuses', { refresh: true });
 
     expect(result.success).toBe(true);
     // Default set includes at least these
@@ -171,6 +177,7 @@ describe('connections:getProviderStatuses', () => {
 
     const result = await callHandler('connections:getProviderStatuses', {
       providerId: 'codex',
+      refresh: true,
     });
 
     expect(result.success).toBe(true);
@@ -182,10 +189,13 @@ describe('connections:getProviderStatuses', () => {
     mockProbe('claude', { installed: true });
 
     // First call — populates cache
-    await callHandler('connections:getProviderStatuses', { providers: ['claude-code'] });
+    await callHandler('connections:getProviderStatuses', {
+      providers: ['claude-code'],
+      refresh: true,
+    });
     const callsAfterFirst = execFileMock.mock.calls.length;
 
-    // Second call — should use cache
+    // Second call without refresh — should use cache
     await callHandler('connections:getProviderStatuses', { providers: ['claude-code'] });
     expect(execFileMock.mock.calls.length).toBe(callsAfterFirst);
   });
@@ -194,10 +204,14 @@ describe('connections:getProviderStatuses', () => {
     mockProbe('claude', { installed: true });
 
     // First call — caches result
-    await callHandler('connections:getProviderStatuses', { providers: ['claude-code'] });
+    await callHandler('connections:getProviderStatuses', {
+      providers: ['claude-code'],
+      refresh: true,
+    });
     const callsAfterFirst = execFileMock.mock.calls.length;
 
     // Second call with refresh — should re-probe
+    mockProbe('claude', { installed: true });
     await callHandler('connections:getProviderStatuses', {
       providers: ['claude-code'],
       refresh: true,
@@ -205,13 +219,15 @@ describe('connections:getProviderStatuses', () => {
     expect(execFileMock.mock.calls.length).toBeGreaterThan(callsAfterFirst);
   });
 
-  it('handles a probe throwing unexpectedly and marks the provider not installed', async () => {
-    // Make which throw synchronously inside the cb
-    execFileMock.mockImplementation((_cmd: string, _args: string[], ...rest: any[]) => {
+  it('handles a probe throwing unexpectedly and marks provider as not installed', async () => {
+    // which succeeds but version check throws synchronously
+    execFileMock.mockImplementation((cmd: string, args: string[], ...rest: any[]) => {
       const cb = typeof rest[rest.length - 1] === 'function' ? rest[rest.length - 1] : rest[0];
-      // Simulate which succeeding but version check throwing
-      if (_cmd === 'which') cb(null, '/bin/amp\n', '');
-      else throw new Error('unexpected exec error');
+      if (cmd === 'which') {
+        cb(null, '/bin/amp\n', '');
+        return;
+      }
+      throw new Error('unexpected exec error');
     });
 
     const result = await callHandler('connections:getProviderStatuses', {
@@ -224,7 +240,7 @@ describe('connections:getProviderStatuses', () => {
     expect(result.statuses['amp'].installed).toBe(false);
   });
 
-  it('returns statuses with lastChecked as a recent timestamp', async () => {
+  it('records lastChecked as a recent timestamp', async () => {
     mockAllProbes([]);
     const before = Date.now();
 
@@ -237,12 +253,15 @@ describe('connections:getProviderStatuses', () => {
     expect(result.statuses['codex'].lastChecked).toBeLessThanOrEqual(Date.now());
   });
 
-  it('handles empty providers array by checking default set', async () => {
+  it('falls back to default set when providers is an empty array', async () => {
     mockAllProbes([]);
 
-    const result = await callHandler('connections:getProviderStatuses', { providers: [] });
+    const result = await callHandler('connections:getProviderStatuses', {
+      providers: [],
+      refresh: true,
+    });
     expect(result.success).toBe(true);
-    // Empty array falls through to default set
+    // Empty array triggers default set behaviour
     expect(Object.keys(result.statuses).length).toBeGreaterThan(0);
   });
 });
@@ -257,11 +276,14 @@ describe('connections:clearCache', () => {
     expect(result).toEqual({ success: true });
   });
 
-  it('causes a subsequent getProviderStatuses call to re-probe', async () => {
+  it('causes a subsequent getProviderStatuses call to re-probe after cache cleared', async () => {
     mockProbe('claude', { installed: true });
 
     // Populate cache
-    await callHandler('connections:getProviderStatuses', { providers: ['claude-code'] });
+    await callHandler('connections:getProviderStatuses', {
+      providers: ['claude-code'],
+      refresh: true,
+    });
     const callsAfterFirst = execFileMock.mock.calls.length;
 
     // Clear cache
@@ -271,5 +293,11 @@ describe('connections:clearCache', () => {
     mockProbe('claude', { installed: true });
     await callHandler('connections:getProviderStatuses', { providers: ['claude-code'] });
     expect(execFileMock.mock.calls.length).toBeGreaterThan(callsAfterFirst);
+  });
+
+  it('does not throw even if called multiple times in a row', async () => {
+    await callHandler('connections:clearCache');
+    const result = await callHandler('connections:clearCache');
+    expect(result).toEqual({ success: true });
   });
 });
