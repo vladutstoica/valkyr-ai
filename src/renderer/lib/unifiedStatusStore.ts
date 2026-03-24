@@ -131,8 +131,8 @@ class UnifiedStatusStore {
    */
   registerHookSession(sessionId: string, taskId: string): void {
     this.hookSessionToTask.set(sessionId, taskId);
-    // Ensure the task has a PTY conversation entry so getDot doesn't bail early
-    this.setTaskMode(taskId, 'pty');
+    // Register as a named conversation so getConversationDots returns one entry per chat
+    this.setConversationMode(taskId, sessionId, 'pty');
   }
 
   /**
