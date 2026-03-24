@@ -95,13 +95,8 @@ const AppContent: React.FC = () => {
     window.electronAPI.checkPrerequisites().then((result) => {
       if (result.success) {
         const { git, agents } = result.data;
-        if (!git) {
-          setPrerequisiteModal({ open: true, gitMissing: true, agents });
-        } else if (agents.length === 0) {
-          toast({
-            title: 'No coding agents detected',
-            description: 'Install at least one agent (e.g. Claude Code, Codex) to get started.',
-          });
+        if (!git || agents.length === 0) {
+          setPrerequisiteModal({ open: true, gitMissing: !git, agents });
         }
       }
     });
