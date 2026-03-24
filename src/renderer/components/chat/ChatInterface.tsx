@@ -140,6 +140,20 @@ const ChatInterface: React.FC<Props> = ({
     return conv?.mode === 'pty' ? 'pty' : 'acp';
   }, [conversations, activeConversationId]);
 
+  // Report active view to main process for smart notification triggering
+  useEffect(() => {
+    if (!isActive) return;
+    const sessionId = terminalId || activeConversationId || null;
+    // Also update the unified status store for in-app toast suppression
+    unifiedStatusStore.setActiveView(sessionId);
+    window.electronAPI.setActiveHookView(sessionId, task.name);
+    return () => {
+      // Clear when this task is no longer active
+      unifiedStatusStore.setActiveView(null);
+      window.electronAPI.setActiveHookView(null);
+    };
+  }, [isActive, terminalId, activeConversationId, task.name, task.projectId]);
+
   // Claude needs consistent working directory to maintain session state
   const terminalCwd = useMemo(() => {
     return task.path || projectPath || undefined;

@@ -50,6 +50,8 @@ import {
   Layers,
   Settings,
   Search,
+  BellOff,
+  Bell,
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -125,6 +127,8 @@ interface LeftSidebarProps {
     workspaceId: string | null
   ) => void | Promise<void>;
   onOpenSettings?: () => void;
+  mutedProjectIds?: Set<string>;
+  onToggleProjectMute?: (projectId: string) => void;
 }
 
 // Helper to determine if a project is remote
@@ -219,6 +223,8 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   onReorderWorkspaces,
   onMoveProjectToWorkspace,
   onOpenSettings,
+  mutedProjectIds,
+  onToggleProjectMute,
 }) => {
   const { open, isMobile, setOpen } = useSidebar();
   const sidebarRef = useWorkspaceSwipe(workspaces, activeWorkspaceId, onSwitchWorkspace);
@@ -803,6 +809,27 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                               )}
                               {moveToGroupContextItems}
                               {moveToWorkspaceContextItems}
+                              {onToggleProjectMute && (
+                                <ContextMenuItem
+                                  className="cursor-pointer"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onToggleProjectMute(typedProject.id);
+                                  }}
+                                >
+                                  {mutedProjectIds?.has(typedProject.id) ? (
+                                    <>
+                                      <Bell className="mr-2 h-3.5 w-3.5" />
+                                      Unmute notifications
+                                    </>
+                                  ) : (
+                                    <>
+                                      <BellOff className="mr-2 h-3.5 w-3.5" />
+                                      Mute notifications
+                                    </>
+                                  )}
+                                </ContextMenuItem>
+                              )}
                               <ContextMenuItem className="cursor-pointer" disabled>
                                 <Copy className="mr-2 h-3.5 w-3.5" />
                                 Make a copy

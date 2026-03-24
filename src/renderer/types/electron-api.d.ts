@@ -282,7 +282,7 @@ declare global {
           repository: { branchPrefix: string; pushOnCreate: boolean };
           projectPrep?: { autoInstallOnOpenInEditor: boolean };
           browserPreview?: { enabled: boolean; engine: 'chromium' };
-          notifications?: { enabled: boolean; sound: boolean };
+          notifications?: { enabled: boolean; sound: boolean; mutedProjects?: string[] };
           mcp?: {
             context7?: {
               enabled: boolean;
@@ -367,7 +367,7 @@ declare global {
           repository: { branchPrefix?: string; pushOnCreate?: boolean };
           projectPrep: { autoInstallOnOpenInEditor?: boolean };
           browserPreview: { enabled?: boolean; engine?: 'chromium' };
-          notifications: { enabled?: boolean; sound?: boolean };
+          notifications: { enabled?: boolean; sound?: boolean; mutedProjects?: string[] };
           mcp: {
             context7?: {
               enabled?: boolean;
@@ -451,7 +451,7 @@ declare global {
           repository: { branchPrefix: string; pushOnCreate: boolean };
           projectPrep?: { autoInstallOnOpenInEditor: boolean };
           browserPreview?: { enabled: boolean; engine: 'chromium' };
-          notifications?: { enabled: boolean; sound: boolean };
+          notifications?: { enabled: boolean; sound: boolean; mutedProjects?: string[] };
           mcp?: {
             context7?: {
               enabled: boolean;
@@ -654,6 +654,15 @@ declare global {
       pollHookStatus: () => Promise<
         Array<{ sessionId: string; event: string; status: string }>
       >;
+      // Report which session the user is currently viewing (smart notification trigger)
+      setActiveHookView: (
+        sessionId: string | null,
+        taskName?: string | null
+      ) => Promise<{ success: boolean }>;
+      // Deep-navigate to a specific session (triggered by notification click)
+      onHookNavigate: (
+        listener: (data: { sessionId: string }) => void
+      ) => () => void;
 
       // Worktree management
       worktreeCreate: (args: {
@@ -2039,6 +2048,15 @@ export interface ElectronAPI {
   pollHookStatus: () => Promise<
     Array<{ sessionId: string; event: string; status: string }>
   >;
+  // Report which session the user is currently viewing (smart notification trigger)
+  setActiveHookView: (
+    sessionId: string | null,
+    taskName?: string | null
+  ) => Promise<{ success: boolean }>;
+  // Deep-navigate to a specific session (triggered by notification click)
+  onHookNavigate: (
+    listener: (data: { sessionId: string }) => void
+  ) => () => void;
 
   // Worktree management
   worktreeCreate: (args: {

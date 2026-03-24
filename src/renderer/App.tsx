@@ -4,6 +4,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import LeftSidebar from './components/LeftSidebar';
 import MainContentArea from './components/MainContentArea';
+import { unifiedStatusStore } from './lib/unifiedStatusStore';
 import { ThemeProvider } from './components/ThemeProvider';
 
 // Lazy-loaded modals — only fetched when opened
@@ -141,6 +142,23 @@ const AppContent: React.FC = () => {
     activateProjectView: projectMgmt.activateProjectView,
   });
 
+  // Deep-navigation from notification clicks: listen for navigate events
+  // and select the corresponding task
+  useEffect(() => {
+    const unsub = unifiedStatusStore.onNavigate((taskId) => {
+      // Find the task across all projects
+      for (const project of projectMgmt.projects) {
+        const task = project.tasks?.find((t: { id: string }) => t.id === taskId);
+        if (task) {
+          projectMgmt.activateProjectView(project);
+          taskMgmt.handleSelectTask(task);
+          break;
+        }
+      }
+    });
+    return unsub;
+  }, [projectMgmt.projects, projectMgmt.activateProjectView, taskMgmt.handleSelectTask]);
+
   // Sidebar context change handler for LeftSidebar
   const handleSidebarContextChange = useCallback(
     (_state: { open: boolean; isMobile: boolean; setOpen: (next: boolean) => void }) => {
@@ -200,6 +218,36 @@ const AppContent: React.FC = () => {
       localStorage.setItem(PINNED_TASKS_KEY, JSON.stringify([...next]));
       try {
         window.electronAPI?.setTaskPinned?.({ taskId: task.id, pinned });
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  // --- Muted project notifications ---
+  const [mutedProjectIds, setMutedProjectIds] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem('valkyr:mutedProjects');
+      return stored ? new Set(JSON.parse(stored) as string[]) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  const handleToggleProjectMute = useCallback((projectId: string) => {
+    setMutedProjectIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(projectId)) {
+        next.delete(projectId);
+      } else {
+        next.add(projectId);
+      }
+      const arr = [...next];
+      localStorage.setItem('valkyr:mutedProjects', JSON.stringify(arr));
+      // Persist to settings so main process can check
+      try {
+        window.electronAPI?.updateSettings?.({
+          notifications: { mutedProjects: arr },
+        });
       } catch {}
       return next;
     });
@@ -417,6 +465,8 @@ const AppContent: React.FC = () => {
         onReorderWorkspaces={projectMgmt.handleReorderWorkspaces}
         onMoveProjectToWorkspace={projectMgmt.handleMoveProjectToWorkspace}
         onOpenSettings={() => openSettingsView('general')}
+        mutedProjectIds={mutedProjectIds}
+        onToggleProjectMute={handleToggleProjectMute}
       />
     ),
     [
@@ -459,6 +509,8 @@ const AppContent: React.FC = () => {
       projectMgmt.handleReorderWorkspaces,
       projectMgmt.handleMoveProjectToWorkspace,
       openSettingsView,
+      mutedProjectIds,
+      handleToggleProjectMute,
     ]
   );
 

@@ -151,6 +151,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
       Array<{ sessionId: string; event: string; status: string }>
     >,
 
+  // Report which session the user is currently viewing (for smart notifications)
+  setActiveHookView: (sessionId: string | null, taskName?: string | null) =>
+    ipcRenderer.invoke('hook:set-active-view', { sessionId, taskName }),
+
+  // Listen for deep-navigation requests from notification clicks
+  onHookNavigate: (listener: (data: { sessionId: string }) => void) => {
+    const channel = 'hook:navigate-to-session';
+    const wrapped = (_: Electron.IpcRendererEvent, data: { sessionId: string }) => listener(data);
+    ipcRenderer.on(channel, wrapped);
+    return () => ipcRenderer.removeListener(channel, wrapped);
+  },
+
   // App settings
   getSettings: () => ipcRenderer.invoke('settings:get'),
   updateSettings: (settings: any) => ipcRenderer.invoke('settings:update', settings),

@@ -17,8 +17,12 @@
 
 import { activityStore } from './activityStore';
 import { acpStatusStore, type DotColor, type DotStyle, type StatusDot } from './acpStatusStore';
+import { toast } from '../hooks/use-toast';
 
 export type { DotColor, DotStyle, StatusDot };
+
+/** Callback type for navigation requests from notification clicks */
+type NavigateCallback = (taskId: string) => void;
 
 type TaskMode = 'pty' | 'acp';
 
@@ -91,9 +95,19 @@ class UnifiedStatusStore {
   private hookIdleTimers = new Map<string, ReturnType<typeof setTimeout>>();
   /** How long to wait before resetting working→done (ms) */
   private static readonly HOOK_IDLE_TIMEOUT_MS = 5000;
+  /** Currently active session in the renderer (for toast suppression) */
+  private activeViewSessionId: string | null = null;
+  /** Navigation callback for notification deep-linking */
+  private navigateCallback: NavigateCallback | null = null;
+  /** Cleanup for the navigation IPC listener */
+  private navigateListenerCleanup: (() => void) | null = null;
+  /** Track active toasts to enforce max 3 stacked */
+  private activeToastCount = 0;
+  private static readonly MAX_TOASTS = 3;
 
   constructor() {
     this.initHookListener();
+    this.initNavigateListener();
   }
 
   /**
@@ -368,6 +382,9 @@ class UnifiedStatusStore {
         this.hookDots.set(convKey, dot);
         this.notifyTask(taskId);
 
+        // Show in-app toast if user is not viewing this conversation
+        this.maybeShowInAppToast(convKey, status as HookStatus);
+
         // Idle timeout per conversation
         const timerKey = `${taskId}:${convKey}`;
         const existingTimer = this.hookIdleTimers.get(timerKey);
@@ -415,6 +432,94 @@ class UnifiedStatusStore {
       }
     } catch {
       // electronAPI may not be available (e.g., in tests)
+    }
+  }
+
+  /**
+   * Set the currently active session (for toast suppression).
+   * Called from ChatInterface when the user switches conversations.
+   */
+  setActiveView(sessionId: string | null): void {
+    this.activeViewSessionId = sessionId;
+  }
+
+  /**
+   * Register a callback for notification-triggered navigation.
+   * The callback receives a taskId and should select that task in the UI.
+   */
+  onNavigate(callback: NavigateCallback): () => void {
+    this.navigateCallback = callback;
+    return () => {
+      if (this.navigateCallback === callback) {
+        this.navigateCallback = null;
+      }
+    };
+  }
+
+  /**
+   * Look up the taskId for a given sessionId.
+   * Used by the navigation handler to find which task to select.
+   */
+  getTaskIdForSession(sessionId: string): string | undefined {
+    return this.hookSessionToTask.get(sessionId);
+  }
+
+  /**
+   * Initialize the IPC listener for deep-navigation from notification clicks.
+   */
+  private initNavigateListener(): void {
+    try {
+      const api = window.electronAPI;
+      if (!api?.onHookNavigate) return;
+
+      this.navigateListenerCleanup = api.onHookNavigate((data: { sessionId: string }) => {
+        const taskId = this.hookSessionToTask.get(data.sessionId);
+        if (taskId && this.navigateCallback) {
+          this.navigateCallback(taskId);
+        }
+      });
+    } catch {
+      // electronAPI may not be available (e.g., in tests)
+    }
+  }
+
+  /**
+   * Show an in-app toast for a status change on a conversation the user is NOT viewing.
+   */
+  private maybeShowInAppToast(sessionId: string, status: HookStatus): void {
+    // Don't show toast if the user is viewing this exact conversation
+    if (this.activeViewSessionId === sessionId) return;
+    // Only show for actionable states
+    if (status === 'working') return;
+    // Enforce max toast count
+    if (this.activeToastCount >= UnifiedStatusStore.MAX_TOASTS) return;
+
+    const taskId = this.hookSessionToTask.get(sessionId);
+    const taskLabel = taskId ? `Task` : 'Agent';
+
+    const title =
+      status === 'needs-input' ? `${taskLabel} — Waiting for you` : `${taskLabel} — Agent finished`;
+
+    this.activeToastCount += 1;
+
+    const { dismiss } = toast({
+      title,
+      description:
+        status === 'needs-input' ? 'Agent is waiting for your approval.' : 'Agent completed its work.',
+    });
+
+    // Auto-dismiss done toasts after 4s, persist needs-input toasts
+    if (status === 'done') {
+      setTimeout(() => {
+        dismiss();
+        this.activeToastCount = Math.max(0, this.activeToastCount - 1);
+      }, 4000);
+    } else {
+      // For needs-input, still track cleanup (will be dismissed by user)
+      // Use a long timeout as a safety fallback
+      setTimeout(() => {
+        this.activeToastCount = Math.max(0, this.activeToastCount - 1);
+      }, 30000);
     }
   }
 
