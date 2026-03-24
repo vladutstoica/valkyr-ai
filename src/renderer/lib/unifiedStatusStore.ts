@@ -136,27 +136,31 @@ class UnifiedStatusStore {
    * Call with ALL conversation session IDs in their display order.
    */
   registerHookSessions(sessionIds: string[], taskId: string): void {
-    // Clear old mappings for this task
+    // Clear old mappings for this task (preserve hookDots values)
     for (const [sid, tid] of this.hookSessionToTask) {
-      if (tid === taskId) {
-        this.hookSessionToTask.delete(sid);
-        // Don't delete hookDots — preserve status across re-registrations
-      }
-    }
-    // Remove old conversation entries for this task
-    const convMap = this.tasks.get(taskId);
-    if (convMap) {
-      for (const key of Array.from(convMap.keys())) {
-        if (key !== '__primary__') convMap.delete(key);
-      }
+      if (tid === taskId) this.hookSessionToTask.delete(sid);
     }
 
-    // Register in order
+    // Rebuild conversation entries in new order
+    let convMap = this.tasks.get(taskId);
+    if (!convMap) {
+      convMap = new Map();
+      this.tasks.set(taskId, convMap);
+    }
+    // Remove old conv entries (keep __primary__ if it exists)
+    for (const key of Array.from(convMap.keys())) {
+      if (key !== '__primary__') convMap.delete(key);
+    }
+
+    // Register in new order — hookDots stay intact, just order changes
     this.hookConvOrder.set(taskId, [...sessionIds]);
     for (const sid of sessionIds) {
       this.hookSessionToTask.set(sid, taskId);
-      this.setConversationMode(taskId, sid, 'pty');
+      convMap.set(sid, { mode: 'pty' });
     }
+
+    // Single notification after all entries are set
+    this.notifyTask(taskId);
   }
 
   /** @deprecated Use registerHookSessions for ordered registration */
