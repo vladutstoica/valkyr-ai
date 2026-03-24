@@ -145,6 +145,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on(channel, wrapped);
     return () => ipcRenderer.removeListener(channel, wrapped);
   },
+  // Poll-based hook status (fallback when push doesn't work)
+  pollHookStatus: () =>
+    ipcRenderer.invoke('hook:poll-status') as Promise<
+      Array<{ sessionId: string; event: string; status: string }>
+    >,
 
   // App settings
   getSettings: () => ipcRenderer.invoke('settings:get'),

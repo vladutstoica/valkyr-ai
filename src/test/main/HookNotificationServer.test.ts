@@ -27,6 +27,9 @@ const mockGetAppSettings = vi.fn(() => ({ notifications: { enabled: true, sound:
 
 vi.mock('electron', () => ({
   Notification: MockNotification,
+  ipcMain: {
+    handle: vi.fn(),
+  },
   app: {
     isPackaged: false,
     getPath: vi.fn().mockReturnValue('/tmp'),
@@ -63,7 +66,7 @@ vi.mock('../../main/settings', () => ({
 async function freshServer() {
   vi.resetModules();
   // Re-apply all vi.mock factories after resetModules
-  vi.mock('electron', () => ({ Notification: MockNotification }));
+  vi.mock('electron', () => ({ Notification: MockNotification, ipcMain: { handle: vi.fn() } }));
   vi.mock('../../main/lib/logger', () => ({
     log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
   }));

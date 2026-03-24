@@ -12,7 +12,7 @@ import { getSettings } from '../services/settingsService';
 import { onTerminalFontChange } from '../lib/terminalFontStore';
 import { getProvider, type ProviderId } from '@shared/providers/registry';
 import { CTRL_J_ASCII, shouldMapShiftEnterToCtrlJ } from './terminalKeybindings';
-import { unifiedStatusStore } from '../lib/unifiedStatusStore';
+
 
 const SNAPSHOT_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
 const MAX_DATA_WINDOW_BYTES = 128 * 1024 * 1024; // 128 MB soft guardrail
@@ -304,10 +304,7 @@ export class TerminalSessionManager {
     if (!this.options.disableSnapshots) {
       void this.captureSnapshot('dispose');
     }
-    // Clean up hook session mapping
-    if (this.options.providerId === 'claude') {
-      unifiedStatusStore.unregisterHookSession(this.id);
-    }
+    // Hook session cleanup is handled by ChatInterface.tsx useEffect.
     // Clean up stored viewport position when session is disposed
     viewportPositions.delete(this.id);
     try {
@@ -670,10 +667,9 @@ export class TerminalSessionManager {
       this.sendSizeIfStarted();
       this.emitReady();
 
-      // Register hook session mapping for Claude provider (enables hook-based status)
-      if (this.options.providerId === 'claude') {
-        unifiedStatusStore.registerHookSession(id, this.options.taskId);
-      }
+      // Hook session mapping is registered in ChatInterface.tsx where
+      // we have access to the real task.id (this.id here is the PTY id,
+      // not the sidebar task id).
 
       try {
         const offStarted = window.electronAPI.onPtyStarted?.((payload: { id: string }) => {

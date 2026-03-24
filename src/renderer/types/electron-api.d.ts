@@ -651,6 +651,9 @@ declare global {
       onHookStatusUpdate: (
         listener: (data: { sessionId: string; event: string; status: string }) => void
       ) => () => void;
+      pollHookStatus: () => Promise<
+        Array<{ sessionId: string; event: string; status: string }>
+      >;
 
       // Worktree management
       worktreeCreate: (args: {
@@ -2033,6 +2036,9 @@ export interface ElectronAPI {
   onHookStatusUpdate: (
     listener: (data: { sessionId: string; event: string; status: string }) => void
   ) => () => void;
+  pollHookStatus: () => Promise<
+    Array<{ sessionId: string; event: string; status: string }>
+  >;
 
   // Worktree management
   worktreeCreate: (args: {

@@ -9,7 +9,7 @@
  */
 
 import http from 'http';
-import { Notification } from 'electron';
+import { Notification, ipcMain } from 'electron';
 import { log } from '../lib/logger';
 import { mapHookEvent, type HookStatus } from './hookEventMapper';
 import { broadcastToAllWindows } from '../lib/safeSend';
@@ -28,12 +28,25 @@ class HookNotificationServer {
   private server: http.Server | null = null;
   private port = 0;
   private listeners = new Set<HookListener>();
+  /** Pending notifications for renderer to poll via IPC */
+  private pendingNotifications: HookNotification[] = [];
+  private ipcRegistered = false;
 
   /**
    * Start the notification server on a random available port.
    * Returns the port number for use in hook registration.
    */
   async start(): Promise<number> {
+    if (!this.ipcRegistered) {
+      this.ipcRegistered = true;
+      // Renderer polls this to get hook status updates
+      ipcMain.handle('hook:poll-status', () => {
+        const pending = this.pendingNotifications;
+        this.pendingNotifications = [];
+        return pending;
+      });
+    }
+
     if (this.server) return this.port;
 
     return new Promise((resolve, reject) => {
@@ -176,7 +189,14 @@ class HookNotificationServer {
     // Show native desktop notification when window is not focused
     this.maybeShowDesktopNotification(status);
 
-    // Broadcast to renderer via IPC
+    // Queue for renderer polling
+    this.pendingNotifications.push(notification);
+    // Keep queue bounded
+    if (this.pendingNotifications.length > 100) {
+      this.pendingNotifications = this.pendingNotifications.slice(-50);
+    }
+
+    // Also try push-based broadcast (may not work in all Electron configs)
     broadcastToAllWindows('hook:status-update', notification);
 
     // Notify in-process listeners

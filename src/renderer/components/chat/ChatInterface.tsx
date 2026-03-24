@@ -368,6 +368,23 @@ const ChatInterface: React.FC<Props> = ({
     return null;
   }, [isTerminal, task.metadata, commentsContext]);
 
+  // Register hook session mapping for PTY/CLI Claude sessions.
+  // Maps the PTY id (agent-chat-convId) to the real task.id so hook events
+  // from Claude Code can update the correct sidebar status dot.
+  useEffect(() => {
+    if (!isTerminal || agent !== 'claude') return;
+    for (const conv of conversations) {
+      const ptyId = `${agent}-chat-${conv.id}`;
+      unifiedStatusStore.registerHookSession(ptyId, task.id);
+    }
+    return () => {
+      for (const conv of conversations) {
+        const ptyId = `${agent}-chat-${conv.id}`;
+        unifiedStatusStore.unregisterHookSession(ptyId);
+      }
+    };
+  }, [isTerminal, agent, task.id, conversations]);
+
   // Only use keystroke injection for agents WITHOUT CLI flag support
   // Agents with initialPromptFlag use CLI arg injection via TerminalPane instead
   useInitialPromptInjection({

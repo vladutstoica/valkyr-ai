@@ -77,7 +77,7 @@ class UnifiedStatusStore {
   private ptyDots = new Map<string, StatusDot>();
 
   /**
-   * Hook-based status: sessionId (VALKYR_SESSION_ID) → StatusDot.
+   * Hook-based status: taskId → StatusDot.
    * When present, takes priority over regex-based PTY status.
    */
   private hookDots = new Map<string, StatusDot>();
@@ -135,8 +135,9 @@ class UnifiedStatusStore {
    * Remove a hook session mapping (e.g., when PTY exits).
    */
   unregisterHookSession(sessionId: string): void {
+    const taskId = this.hookSessionToTask.get(sessionId);
     this.hookSessionToTask.delete(sessionId);
-    this.hookDots.delete(sessionId);
+    if (taskId) this.hookDots.delete(taskId);
   }
 
   removeConversation(taskId: string, conversationId: string): void {
@@ -246,13 +247,7 @@ class UnifiedStatusStore {
    * Find hook-based status dot for a task (if any hook session is mapped to it).
    */
   private getHookDotForTask(taskId: string): StatusDot | null {
-    for (const [sessionId, tid] of this.hookSessionToTask) {
-      if (tid === taskId) {
-        const dot = this.hookDots.get(sessionId);
-        if (dot) return dot;
-      }
-    }
-    return null;
+    return this.hookDots.get(taskId) ?? null;
   }
 
   /**
@@ -262,21 +257,52 @@ class UnifiedStatusStore {
   private initHookListener(): void {
     try {
       const api = window.electronAPI;
-      if (!api?.onHookStatusUpdate) return;
+      if (!api) return;
 
-      this.hookListenerCleanup = api.onHookStatusUpdate(
-        (data: { sessionId: string; event: string; status: string }) => {
-          const { sessionId, status } = data;
-          if (!sessionId || !status) return;
+      // Process a single hook status update
+      const processUpdate = (data: { sessionId: string; event: string; status: string }) => {
+        const { status } = data;
+        if (!status) return;
 
-          const taskId = this.hookSessionToTask.get(sessionId);
-          if (!taskId) return;
+        // Route to any registered PTY task. Hook session IDs may not
+        // match exactly (PTY reuse, task switching), so we route to
+        // all registered tasks.
+        if (this.hookSessionToTask.size === 0) return;
 
-          const dot = hookStatusToDot(status as HookStatus);
-          this.hookDots.set(sessionId, dot);
+        const dot = hookStatusToDot(status as HookStatus);
+        const notifiedTasks = new Set<string>();
+        for (const taskId of this.hookSessionToTask.values()) {
+          if (notifiedTasks.has(taskId)) continue;
+          notifiedTasks.add(taskId);
+          this.hookDots.set(taskId, dot);
           this.notifyTask(taskId);
         }
-      );
+      };
+
+      // Push-based listener (webContents.send)
+      if (api.onHookStatusUpdate) {
+        this.hookListenerCleanup = api.onHookStatusUpdate(processUpdate);
+      }
+
+      // Poll-based fallback (ipcMain.handle) — 500ms interval
+      if (api.pollHookStatus) {
+        const pollInterval = setInterval(async () => {
+          try {
+            const updates = await api.pollHookStatus();
+            if (Array.isArray(updates)) {
+              for (const u of updates) processUpdate(u);
+            }
+          } catch {
+            // ignore polling errors
+          }
+        }, 500);
+
+        const origCleanup = this.hookListenerCleanup;
+        this.hookListenerCleanup = () => {
+          clearInterval(pollInterval);
+          origCleanup?.();
+        };
+      }
     } catch {
       // electronAPI may not be available (e.g., in tests)
     }
