@@ -270,17 +270,25 @@ export function useConversationManager({
     const acpSessionKey = `${convAgent}-acp-${chatToDelete}`;
     window.electronAPI.acpKill({ sessionKey: acpSessionKey }).catch(() => {});
 
+    const wasMain = convToDelete?.isMain;
     await deleteConversation(chatToDelete);
 
     const result = await getConversations(taskId);
     if (result.success) {
-      setConversations(result.conversations || []);
+      const remaining = result.conversations || [];
+
+      // If we deleted the main chat, promote the first remaining to main
+      if (wasMain && remaining.length > 0 && !remaining.some((c) => c.isMain)) {
+        remaining[0].isMain = true;
+        await saveConversation(remaining[0]);
+      }
+
+      setConversations(remaining);
       if (
         chatToDelete === activeConversationId &&
-        result.conversations &&
-        result.conversations.length > 0
+        remaining.length > 0
       ) {
-        const newActive = result.conversations[0];
+        const newActive = remaining[0];
         await setActiveConversation({
           taskId,
           conversationId: newActive.id,

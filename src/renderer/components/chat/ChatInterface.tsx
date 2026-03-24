@@ -522,7 +522,7 @@ const ChatInterface: React.FC<Props> = ({
                                   <ArrowLeft className="size-4" />
                                   Move Left
                                 </DropdownMenuItem>
-                                {!conv.isMain && (
+                                {conversations.length > 1 && (
                                   <DropdownMenuItem
                                     onClick={() => handleDeleteChatById(conv.id)}
                                     className="text-destructive"
