@@ -221,6 +221,22 @@ class UnifiedStatusStore {
   }
 
   /**
+   * Get per-conversation status dots for a task.
+   * Returns array of dots (one per conversation).
+   */
+  getConversationDots(taskId: string): StatusDot[] {
+    const convMap = this.tasks.get(taskId);
+    if (!convMap || convMap.size === 0) return [DEFAULT_DOT];
+
+    const dots: StatusDot[] = [];
+    for (const [convId, entry] of convMap) {
+      const convKey = `${taskId}:${convId}`;
+      dots.push(this.getConversationDot(taskId, convKey, entry));
+    }
+    return dots;
+  }
+
+  /**
    * Subscribe to aggregated status dot changes for a task.
    * Returns unsubscribe function.
    */

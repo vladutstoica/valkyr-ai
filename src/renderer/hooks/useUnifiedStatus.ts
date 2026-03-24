@@ -15,3 +15,21 @@ export function useUnifiedStatus(taskId: string): StatusDot {
 
   return dot;
 }
+
+/**
+ * Subscribe to per-conversation status dots for a task.
+ * Returns an array of dots (one per chat/conversation).
+ */
+export function useConversationDots(taskId: string): StatusDot[] {
+  const [dots, setDots] = useState<StatusDot[]>(() =>
+    unifiedStatusStore.getConversationDots(taskId)
+  );
+
+  useEffect(() => {
+    return unifiedStatusStore.subscribe(taskId, () => {
+      setDots(unifiedStatusStore.getConversationDots(taskId));
+    });
+  }, [taskId]);
+
+  return dots;
+}

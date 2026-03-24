@@ -10,7 +10,7 @@ import {
   GitBranch,
 } from 'lucide-react';
 import { usePrStatus } from '../../hooks/usePrStatus';
-import { useUnifiedStatus } from '../../hooks/useUnifiedStatus';
+import { useConversationDots } from '../../hooks/useUnifiedStatus';
 import { normalizeTaskName, MAX_TASK_NAME_LENGTH } from '../../lib/taskNames';
 import { openExternal } from '../../services/shellService';
 import {
@@ -73,7 +73,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   showDelete,
 }) => {
   const { pr } = usePrStatus(task.path);
-  const unifiedDot = useUnifiedStatus(task.id);
+  const conversationDots = useConversationDots(task.id);
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -153,31 +153,6 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   const taskContent = (
     <div className="flex min-w-0 items-center justify-between">
       <div className="flex min-w-0 flex-1 items-center gap-2 py-1">
-        {/* Status dot indicator — unified across ACP and PTY modes */}
-        {(() => {
-          // Prefer unified status (handles both ACP and PTY)
-          const dot = unifiedDot;
-          const colorMap: Record<string, string> = {
-            green: 'bg-green-500',
-            amber: 'bg-amber-500',
-            red: 'bg-red-500',
-            gray: 'bg-gray-400',
-          };
-          const titleMap: Record<string, string> = {
-            green: 'Done',
-            amber: 'In progress',
-            red: 'Needs input',
-            gray: 'Initializing',
-          };
-          const bg = colorMap[dot.color] || 'bg-green-500';
-          const pulse = dot.style === 'pulsing' ? 'animate-pulse' : '';
-          return (
-            <span
-              className={`h-2 w-2 flex-shrink-0 rounded-full ${bg} ${pulse}`}
-              title={titleMap[dot.color] || 'Unknown'}
-            />
-          );
-        })()}
         {isEditing ? (
           <input
             ref={inputRef}
@@ -217,7 +192,55 @@ export const TaskItem: React.FC<TaskItemProps> = ({
           </>
         )}
       </div>
-      <div className="flex flex-shrink-0 items-center gap-1">
+      <div className="flex flex-shrink-0 items-center gap-1.5">
+        {/* Status indicator — dot for 1 chat, pill for 2+ chats */}
+        {(() => {
+          const colorMap: Record<string, string> = {
+            green: 'bg-green-500',
+            amber: 'bg-amber-500',
+            red: 'bg-red-500',
+            gray: 'bg-gray-400',
+          };
+          const titleMap: Record<string, string> = {
+            green: 'Done',
+            amber: 'In progress',
+            red: 'Needs input',
+            gray: 'Initializing',
+          };
+          const dots = conversationDots;
+
+          if (dots.length <= 1) {
+            // Single dot
+            const d = dots[0] || { color: 'green', style: 'solid' };
+            const bg = colorMap[d.color] || 'bg-green-500';
+            const pulse = d.style === 'pulsing' ? 'animate-pulse' : '';
+            return (
+              <span
+                className={`h-2 w-2 flex-shrink-0 rounded-full ${bg} ${pulse}`}
+                title={titleMap[d.color] || 'Unknown'}
+              />
+            );
+          }
+
+          // Pill: two halves side-by-side
+          return (
+            <span className="flex h-2.5 flex-shrink-0 overflow-hidden rounded-full">
+              {dots.map((d, i) => {
+                const bg = colorMap[d.color] || 'bg-green-500';
+                const pulse = d.style === 'pulsing' ? 'animate-pulse' : '';
+                return (
+                  <span
+                    key={i}
+                    className={`h-full w-2 ${bg} ${pulse} ${
+                      i < dots.length - 1 ? 'border-r border-black/20' : ''
+                    }`}
+                    title={`Chat ${i + 1}: ${titleMap[d.color] || 'Unknown'}`}
+                  />
+                );
+              })}
+            </span>
+          );
+        })()}
         {showDelete && (onDelete || onRename || onArchive || onPin) ? (
           <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
             <DropdownMenuTrigger asChild>
