@@ -127,6 +127,8 @@ class UnifiedStatusStore {
    */
   registerHookSession(sessionId: string, taskId: string): void {
     this.hookSessionToTask.set(sessionId, taskId);
+    // Ensure the task has a PTY conversation entry so getDot doesn't bail early
+    this.setTaskMode(taskId, 'pty');
   }
 
   /**
