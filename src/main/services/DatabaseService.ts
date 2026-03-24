@@ -665,7 +665,8 @@ export class DatabaseService {
     title: string,
     provider?: string,
     isMain?: boolean,
-    mode?: 'pty' | 'acp'
+    mode?: 'pty' | 'acp',
+    metadata?: string | null
   ): Promise<Conversation> {
     if (this.disabled) {
       return {
@@ -723,6 +724,7 @@ export class DatabaseService {
         isMain: (shouldBeMain ?? false) ? 1 : 0,
         displayOrder: maxOrder + 1,
         mode: mode ?? 'pty',
+        metadata: metadata ?? null,
       });
     });
 

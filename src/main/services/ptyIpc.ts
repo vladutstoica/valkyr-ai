@@ -652,6 +652,7 @@ export function registerPtyIpc(): void {
         initialPrompt?: string;
         env?: Record<string, string>;
         resume?: boolean;
+        resumeSessionId?: string;
       }
     ) => {
       if (process.env.VALKYR_DISABLE_PTY === '1') {
@@ -659,7 +660,7 @@ export function registerPtyIpc(): void {
       }
 
       try {
-        const { id, providerId, cwd, remote, cols, rows, autoApprove, initialPrompt, env, resume } =
+        const { id, providerId, cwd, remote, cols, rows, autoApprove, initialPrompt, env, resume, resumeSessionId } =
           args;
         const existing = getPty(id);
 
@@ -743,6 +744,7 @@ export function registerPtyIpc(): void {
           initialPrompt,
           env,
           resume,
+          resumeSessionId,
           storedKeys,
         });
 

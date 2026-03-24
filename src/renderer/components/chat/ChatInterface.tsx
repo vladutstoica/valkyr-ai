@@ -544,6 +544,20 @@ const ChatInterface: React.FC<Props> = ({
                           env={taskEnv}
                           keepAlive
                           className="min-h-0 flex-1"
+                          claudeSessionId={
+                            convAgent === 'claude'
+                              ? (() => {
+                                  try {
+                                    const meta = conv.metadata
+                                      ? JSON.parse(conv.metadata)
+                                      : {};
+                                    return meta.claudeSessionId as string | undefined;
+                                  } catch {
+                                    return undefined;
+                                  }
+                                })()
+                              : undefined
+                          }
                         />
                       </div>
                     ) : (

@@ -31,5 +31,6 @@ const EVENT_TO_STATUS: Record<string, HookStatus> = {
  * Returns null for unknown event types (forward-compatible).
  */
 export function mapHookEvent(eventType: string): HookStatus | null {
+  if (!Object.hasOwn(EVENT_TO_STATUS, eventType)) return null;
   return EVENT_TO_STATUS[eventType] ?? null;
 }

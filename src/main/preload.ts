@@ -105,6 +105,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     clickTime?: number;
     env?: Record<string, string>;
     resume?: boolean;
+    resumeSessionId?: string;
   }) => ipcRenderer.invoke('pty:startDirect', opts),
 
   onPtyData: (id: string, listener: (data: string) => void) => {
@@ -416,6 +417,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     provider?: string;
     isMain?: boolean;
     mode?: 'pty' | 'acp';
+    metadata?: string;
   }) => ipcRenderer.invoke('db:createConversation', params),
   setActiveConversation: (params: { taskId: string; conversationId: string }) =>
     ipcRenderer.invoke('db:setActiveConversation', params),

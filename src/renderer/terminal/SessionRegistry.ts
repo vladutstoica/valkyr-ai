@@ -23,6 +23,7 @@ interface AttachOptions {
   mapShiftEnterToCtrlJ?: boolean;
   disableSnapshots?: boolean;
   onLinkClick?: (url: string) => void;
+  claudeSessionId?: string;
 }
 
 class SessionRegistry {
@@ -76,6 +77,7 @@ class SessionRegistry {
       mapShiftEnterToCtrlJ: options.mapShiftEnterToCtrlJ,
       disableSnapshots: options.disableSnapshots,
       onLinkClick: options.onLinkClick,
+      claudeSessionId: options.claudeSessionId,
     };
 
     const session = new TerminalSessionManager(sessionOptions);

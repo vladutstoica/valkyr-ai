@@ -593,6 +593,7 @@ declare global {
         initialPrompt?: string;
         env?: Record<string, string>;
         resume?: boolean;
+        resumeSessionId?: string;
       }) => Promise<{ ok: boolean; reused?: boolean; error?: string }>;
       ptyInput: (args: { id: string; data: string }) => void;
       ptyResize: (args: { id: string; cols: number; rows?: number }) => void;
@@ -1499,6 +1500,7 @@ declare global {
         provider?: string;
         isMain?: boolean;
         mode?: 'pty' | 'acp';
+        metadata?: string;
       }) => Promise<{ success: boolean; conversation?: any; error?: string }>;
       setActiveConversation: (params: {
         taskId: string;
@@ -2005,6 +2007,7 @@ export interface ElectronAPI {
     initialPrompt?: string;
     env?: Record<string, string>;
     resume?: boolean;
+    resumeSessionId?: string;
   }) => Promise<{ ok: boolean; reused?: boolean; error?: string }>;
   ptyInput: (args: { id: string; data: string }) => void;
   ptyResize: (args: { id: string; cols: number; rows?: number }) => void;

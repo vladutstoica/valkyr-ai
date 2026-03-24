@@ -106,11 +106,18 @@ export function useConversationManager({
               ? 'pty'
               : defaultResult.conversation.mode || 'acp';
 
+          // Inject Claude session ID for PTY mode if not already set
+          let convMetadata = defaultResult.conversation.metadata ?? null;
+          if (defaultMode === 'pty' && taskAgent === 'claude' && !convMetadata) {
+            convMetadata = JSON.stringify({ claudeSessionId: crypto.randomUUID() });
+          }
+
           const conversationWithAgent = {
             ...defaultResult.conversation,
             provider: taskAgent,
             isMain: true,
             mode: defaultMode,
+            metadata: convMetadata,
           };
           setConversations([conversationWithAgent]);
           setActiveConversationId(defaultResult.conversation.id);
@@ -128,12 +135,20 @@ export function useConversationManager({
   const handleCreateChat = useCallback(
     async (title: string, newAgent: string, mode?: 'acp' | 'pty') => {
       try {
+        // Generate a Claude session ID for PTY chats so each chat
+        // can resume its specific session instead of "resume latest"
+        const metadata =
+          mode === 'pty' && newAgent === 'claude'
+            ? JSON.stringify({ claudeSessionId: crypto.randomUUID() })
+            : undefined;
+
         const result = await createConversation({
           taskId,
           title,
           provider: newAgent,
           isMain: false,
           mode,
+          metadata,
         });
 
         if (result.success && result.conversation) {

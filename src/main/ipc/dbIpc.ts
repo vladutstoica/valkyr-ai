@@ -423,12 +423,14 @@ export function registerDatabaseIpc() {
         provider,
         isMain,
         mode,
+        metadata,
       }: {
         taskId: string;
         title: string;
         provider?: string;
         isMain?: boolean;
         mode?: 'pty' | 'acp';
+        metadata?: string;
       }
     ) => {
       try {
@@ -437,7 +439,8 @@ export function registerDatabaseIpc() {
           title,
           provider,
           isMain,
-          mode ?? 'acp'
+          mode ?? 'acp',
+          metadata
         );
         return { success: true, conversation };
       } catch (error) {

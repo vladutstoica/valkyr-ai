@@ -159,6 +159,7 @@ export function startDirectPty(options: {
   initialPrompt?: string;
   env?: Record<string, string>;
   resume?: boolean;
+  resumeSessionId?: string;
   storedKeys?: Record<string, string>;
 }): IPty | null {
   if (process.env.VALKYR_DISABLE_PTY === '1') {
@@ -175,6 +176,7 @@ export function startDirectPty(options: {
     initialPrompt,
     env,
     resume,
+    resumeSessionId,
     storedKeys,
   } = options;
 
@@ -193,9 +195,21 @@ export function startDirectPty(options: {
 
   if (provider) {
     // Add resume flag if resuming an existing session (e.g., after app reload)
-    if (resume && provider.resumeFlag) {
-      const resumeParts = provider.resumeFlag.split(' ');
-      cliArgs.push(...resumeParts);
+    if (resume) {
+      if (resumeSessionId && providerId === 'claude') {
+        // Resume a specific Claude session by ID (avoids "resume latest" collision)
+        cliArgs.push('--resume', resumeSessionId);
+      } else if (provider.resumeFlag) {
+        // Generic resume: falls back to "resume latest" for other providers
+        const resumeParts = provider.resumeFlag.split(' ');
+        cliArgs.push(...resumeParts);
+      }
+    }
+
+    // For new Claude sessions (not resuming), assign a session ID so we can
+    // resume this specific session later instead of "resume latest"
+    if (!resume && providerId === 'claude' && resumeSessionId) {
+      cliArgs.push('--session-id', resumeSessionId);
     }
 
     // Add default args

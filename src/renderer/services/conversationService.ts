@@ -52,6 +52,7 @@ export function createConversation(params: {
   provider?: string;
   isMain?: boolean;
   mode?: 'pty' | 'acp';
+  metadata?: string;
 }) {
   return window.electronAPI.createConversation(params);
 }

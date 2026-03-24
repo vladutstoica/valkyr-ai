@@ -46,6 +46,7 @@ export interface TerminalSessionOptions {
   mapShiftEnterToCtrlJ?: boolean;
   disableSnapshots?: boolean;
   onLinkClick?: (url: string) => void;
+  claudeSessionId?: string;
 }
 
 type CleanupFn = () => void;
@@ -643,6 +644,7 @@ export class TerminalSessionManager {
             initialPrompt,
             env,
             resume: hasExistingSession,
+            resumeSessionId: this.options.claudeSessionId,
           })
         : window.electronAPI.ptyStart({
             id,
