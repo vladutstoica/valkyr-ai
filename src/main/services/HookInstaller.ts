@@ -27,7 +27,7 @@ const SETTINGS_FILE = path.join(CLAUDE_DIR, 'settings.json');
 const VALKYR_HOOK_MARKER = 'VALKYR_HOOK';
 
 // Hook events we register
-const HOOK_EVENTS = ['Stop', 'PostToolUse', 'PermissionRequest'] as const;
+const HOOK_EVENTS = ['UserPromptSubmit', 'Stop', 'PostToolUse', 'PermissionRequest'] as const;
 
 type ClaudeHookCommand = {
   type: 'command';
@@ -109,8 +109,10 @@ class HookInstaller {
 
         // Build the curl command that posts to our local server.
         // The VALKYR_SESSION_ID env var is injected into the PTY env when spawning Claude.
+        // Embed marker as an env var assignment (not a comment) so it doesn't
+        // break the command. The marker is used only for identification via includes().
         const command = [
-          `# ${VALKYR_HOOK_MARKER}`,
+          `${VALKYR_HOOK_MARKER}=1`,
           `curl -s -X POST http://127.0.0.1:${port}/hook/notify`,
           `--connect-timeout 1 --max-time 2`,
           `-H "Content-Type: application/json"`,
