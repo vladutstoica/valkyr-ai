@@ -15,6 +15,18 @@ export default defineConfig(({ command }) => ({
     dir: '.',
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'text-summary', 'html'],
+      reportsDirectory: './coverage',
+      include: ['src/main/**/*.ts', 'src/shared/**/*.ts'],
+      exclude: [
+        'src/main/preload.ts',
+        'src/main/entry.ts',
+        'src/**/*.test.ts',
+        'src/**/*.d.ts',
+      ],
+    },
   },
   build: {
     outDir: '../../dist/renderer',

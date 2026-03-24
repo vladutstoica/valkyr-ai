@@ -42,6 +42,12 @@ pnpm run format       # Format with Prettier
 # Testing
 pnpm exec vitest run                                         # Run all tests
 pnpm exec vitest run src/test/main/WorktreeService.test.ts   # Run specific test
+pnpm run test:coverage                                       # Run with coverage report
+
+# E2E (Playwright + Electron)
+pnpm run e2e            # Run E2E tests (builds main first)
+pnpm run e2e:debug      # Headed mode, no timeout
+pnpm run e2e:ui         # Playwright UI mode
 
 # Native modules
 pnpm run rebuild      # Rebuild native modules for Electron
@@ -253,6 +259,31 @@ Renderer-only changes hot-reload via Vite — no restart needed.
 - The app runs on `http://localhost:3000` (Vite dev server) inside Electron.
 - Main process logs go to `/tmp/valkyr-main.log`, renderer logs to `/tmp/valkyr-renderer.log`.
 - If `browser_snapshot` returns `ECONNREFUSED`, the app isn't running with CDP enabled — follow the setup steps above.
+
+## Testing Conventions
+
+**Target: 90%+ coverage.** Every new feature must include tests.
+
+### Unit Tests (Vitest)
+- **Location**: `src/test/main/` for main process, `src/test/renderer/` for renderer
+- **Naming**: `{ModuleName}.test.ts` (e.g., `HookInstaller.test.ts`)
+- **Helpers**: Use `src/test/helpers/electronMock.ts` for reusable Electron/fs/settings mocks
+- **Pattern**: Mock Electron modules with `vi.mock()`, test pure logic directly
+- **Run**: `pnpm exec vitest run` (all), `pnpm exec vitest run path/to/test.ts` (specific)
+- **Coverage**: `pnpm run test:coverage` — outputs to `./coverage/`
+
+### E2E Tests (Playwright + Electron)
+- **Location**: `e2e/*.e2e.ts`
+- **Fixtures**: Import `test`, `expect` from `e2e/fixtures.ts` (auto-launches/closes Electron)
+- **Helpers**: `skipOnboarding(page)`, `waitForAppReady(page)`, `collectConsoleErrors(page)`
+- **Run**: `pnpm run e2e` (headless), `pnpm run e2e:debug` (headed)
+- **Scenarios**: See `e2e/AI_TEST_SCENARIOS.md` for interactive MCP-based testing guide
+
+### When Adding a New Feature
+1. Write unit tests for all pure logic (mappers, services, utilities)
+2. Write unit tests for IPC handlers (mock electron, verify return format)
+3. Add E2E test if the feature has UI (settings, modals, navigation)
+4. Run `pnpm run test:coverage` to verify coverage didn't drop
 
 ## Common Pitfalls
 

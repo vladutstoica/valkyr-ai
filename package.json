@@ -29,6 +29,7 @@
     "e2e:ui": "pnpm run build:main && pnpm exec playwright test --ui",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "docs": "cd docs && pnpm run dev",
     "docs:build": "cd docs && pnpm run build",
     "prepare": "husky"
