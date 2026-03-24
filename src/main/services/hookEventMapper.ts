@@ -13,24 +13,18 @@
 
 export type HookStatus = 'working' | 'needs-input' | 'done';
 
-const EVENT_TO_STATUS: Record<string, HookStatus> = {
-  // Agent is actively working
-  UserPromptSubmit: 'working',
-  PostToolUse: 'working',
-  PostToolUseFailure: 'working',
-
-  // Agent needs user input/approval
-  PermissionRequest: 'needs-input',
-
-  // Agent finished
-  Stop: 'done',
-};
+const EVENT_TO_STATUS = new Map<string, HookStatus>([
+  ['UserPromptSubmit', 'working'],
+  ['PostToolUse', 'working'],
+  ['PostToolUseFailure', 'working'],
+  ['PermissionRequest', 'needs-input'],
+  ['Stop', 'done'],
+]);
 
 /**
  * Map a raw hook event type to a normalized status.
  * Returns null for unknown event types (forward-compatible).
  */
 export function mapHookEvent(eventType: string): HookStatus | null {
-  if (!Object.hasOwn(EVENT_TO_STATUS, eventType)) return null;
-  return EVENT_TO_STATUS[eventType] ?? null;
+  return EVENT_TO_STATUS.get(eventType) ?? null;
 }
