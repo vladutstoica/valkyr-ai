@@ -196,6 +196,13 @@
       "!node_modules/app-builder-lib/**",
       "!node_modules/mermaid/**",
       "!node_modules/react-icons/**",
+      "!node_modules/monaco-editor/**",
+      "!node_modules/lucide-react/**",
+      "!node_modules/react-syntax-highlighter/**",
+      "!node_modules/streamdown/**",
+      "!node_modules/posthog-js/**",
+      "!node_modules/@opentelemetry/**",
+      "!node_modules/core-js/**",
       "drizzle/**/*"
     ],
     "asarUnpack": [
