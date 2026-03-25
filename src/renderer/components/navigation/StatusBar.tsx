@@ -17,6 +17,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import { cn } from '../../lib/utils';
 import { switchRepoBranch } from '../../services/gitService';
 import { toast } from '../../hooks/use-toast';
+import { ResourceMonitor } from '../ResourceMonitor';
 import type { BranchInfo, RepoBranchesResult } from '@/types/electron-api';
 import type { SubRepo } from '@/types/app';
 
@@ -721,6 +722,14 @@ export const StatusBar: React.FC<StatusBarProps> = ({
             </p>
           </TooltipContent>
         </Tooltip>
+
+        {/* Spacer to push resource monitor to the right */}
+        <div className="flex-1" />
+
+        <Separator orientation="vertical" className="mx-1.5 h-3" />
+
+        {/* Resource Monitor */}
+        <ResourceMonitor />
       </div>
     </TooltipProvider>
   );

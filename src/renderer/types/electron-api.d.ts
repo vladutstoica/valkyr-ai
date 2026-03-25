@@ -72,6 +72,22 @@ export type ProviderStatusResult = {
   activeIncidents: { name: string; impact: string; startedAt: string }[];
 };
 
+// Resource metrics types
+export interface ResourceProcessInfo {
+  pid: number;
+  type: string;
+  name: string;
+  cpu: number;
+  memory: number;
+}
+
+export interface ResourceMetrics {
+  totalCpu: number;
+  totalMemory: number;
+  ramShare: number;
+  processes: ResourceProcessInfo[];
+}
+
 // Claude usage limits types
 export type ClaudeUsageBucket = {
   utilization: number;
@@ -1972,6 +1988,13 @@ declare global {
       modelMetadataGetStatus: (args: {
         providerId: string;
       }) => Promise<{ success: boolean; data?: ProviderStatusResult | null; error?: string }>;
+
+      // Resource metrics
+      getResourceMetrics: () => Promise<{
+        success: boolean;
+        data?: ResourceMetrics;
+        error?: string;
+      }>;
     };
   }
 }
@@ -2931,6 +2954,13 @@ export interface ElectronAPI {
   modelMetadataGetStatus: (args: {
     providerId: string;
   }) => Promise<{ success: boolean; data?: ProviderStatusResult | null; error?: string }>;
+
+  // Resource metrics
+  getResourceMetrics: () => Promise<{
+    success: boolean;
+    data?: ResourceMetrics;
+    error?: string;
+  }>;
 }
 import type { TerminalSnapshotPayload } from '#types/terminalSnapshot';
 import type { OpenInAppId } from '#shared/openInApps';

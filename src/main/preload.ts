@@ -767,6 +767,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('modelMetadata:getUptime', args),
   modelMetadataGetStatus: (args: { providerId: string }) =>
     ipcRenderer.invoke('modelMetadata:getStatus', args),
+
+  // Resource metrics
+  getResourceMetrics: () => ipcRenderer.invoke('resource:getMetrics'),
 });
 
 // Type definitions for the exposed API
@@ -1132,6 +1135,28 @@ export interface ElectronAPI {
   sshWriteFile: (connectionId: string, path: string, content: string) => Promise<void>;
   sshGetState: (connectionId: string) => Promise<any>;
   sshGetConfig: () => Promise<{ success: boolean; hosts?: any[]; error?: string }>;
+
+  // Resource metrics
+  getResourceMetrics: () => Promise<{
+    success: boolean;
+    data?: ResourceMetrics;
+    error?: string;
+  }>;
+}
+
+export interface ResourceProcessInfo {
+  pid: number;
+  type: string;
+  name: string;
+  cpu: number;
+  memory: number;
+}
+
+export interface ResourceMetrics {
+  totalCpu: number;
+  totalMemory: number;
+  ramShare: number;
+  processes: ResourceProcessInfo[];
 }
 
 declare global {
