@@ -283,6 +283,8 @@ export function startDirectPty(options: {
     throw new Error(`PTY unavailable: ${e?.message || String(e)}`);
   }
 
+  log.info('ptyManager: spawning CLI', { id, providerId, cliPath, cliArgs, resume, resumeSessionId });
+
   const proc = pty.spawn(cliPath, cliArgs, {
     name: 'xterm-256color',
     cols,
