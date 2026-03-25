@@ -293,61 +293,16 @@ export function startDirectPty(options: {
     env: useEnv,
   });
 
-  // Store record with cwd for shell respawn after CLI exits
-  ptys.set(id, { id, proc, cwd, isDirectSpawn: true, kind: 'local' });
+  // Store record with cwd and spawn metadata for resume-failure detection
+  ptys.set(id, {
+    id, proc, cwd, isDirectSpawn: true, kind: 'local',
+    spawnTime: Date.now(), wasResume: resume,
+  });
 
-  const spawnTime = Date.now();
-
-  // When CLI exits, check if it was a failed resume (quick exit after spawn).
-  // If so, retry without the resume flag to start a fresh session.
-  proc.onExit(({ exitCode }) => {
-    const elapsed = Date.now() - spawnTime;
+  // When CLI exits, spawn a shell so user can continue working
+  proc.onExit(() => {
     const rec = ptys.get(id);
-
-    // If the CLI exited within 5s with non-zero code and we were resuming,
-    // it likely means the session wasn't found — retry as a fresh session.
-    if (resume && exitCode !== 0 && elapsed < 5000 && rec?.isDirectSpawn) {
-      log.info('ptyManager: resume failed, retrying as fresh session', {
-        id, providerId, exitCode, elapsed,
-      });
-
-      // Build args without resume flags
-      const freshArgs = cliArgs.filter(
-        (a) => a !== '--resume' && a !== resumeSessionId && a !== '-c' && a !== '-r'
-      );
-      // Add --session-id for the new session so it can be resumed later
-      if (providerId === 'claude' && resumeSessionId) {
-        freshArgs.unshift('--session-id', resumeSessionId);
-      }
-
-      try {
-        const freshProc = pty.spawn(cliPath, freshArgs, {
-          name: 'xterm-256color',
-          cols,
-          rows,
-          cwd,
-          env: useEnv,
-        });
-
-        // Replace the PTY record
-        ptys.set(id, { id, proc: freshProc, cwd, isDirectSpawn: true, kind: 'local' });
-
-        // Wire up normal exit handler for the fresh process
-        freshProc.onExit(() => {
-          const freshRec = ptys.get(id);
-          if (freshRec?.isDirectSpawn && freshRec.cwd && onDirectCliExitCallback) {
-            onDirectCliExitCallback(id, freshRec.cwd);
-          }
-        });
-
-        return; // Don't spawn shell — we retried
-      } catch (retryErr) {
-        log.error('ptyManager: retry spawn failed', { error: String(retryErr) });
-      }
-    }
-
     if (rec?.isDirectSpawn && rec.cwd && onDirectCliExitCallback) {
-      // Normal exit — spawn shell so user can continue working
       onDirectCliExitCallback(id, rec.cwd);
     }
   });

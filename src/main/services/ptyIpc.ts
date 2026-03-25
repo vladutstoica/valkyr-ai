@@ -780,6 +780,48 @@ export function registerPtyIpc(): void {
           });
 
           proc.onExit(({ exitCode, signal }) => {
+            // Detect failed resume: quick exit (<5s) with non-zero code while resuming.
+            // Retry as fresh session instead of dropping to shell.
+            const rec = getPty(id) as any;
+            const elapsed = rec?.spawnTime ? Date.now() - rec.spawnTime : Infinity;
+            if (rec?.wasResume && exitCode !== 0 && elapsed < 5000 && !isAppQuitting) {
+              log.info('ptyIpc: resume failed, retrying as fresh session', { id, providerId, exitCode, elapsed });
+              listeners.delete(id);
+
+              // Retry without resume flag
+              const freshProc = startDirectPty({
+                id,
+                providerId,
+                cwd,
+                cols,
+                rows,
+                autoApprove,
+                initialPrompt,
+                env,
+                resume: false,
+                resumeSessionId,
+                storedKeys,
+              });
+
+              if (freshProc) {
+                // Re-wire data and exit handlers to the fresh process
+                freshProc.onData((data) => {
+                  bufferedSendPtyData(id, data);
+                });
+                freshProc.onExit(({ exitCode: ec, signal: sig }) => {
+                  flushPtyData(id);
+                  clearPtyData(id);
+                  safeSendToOwner(id, `pty:exit:${id}`, { exitCode: ec, signal: sig });
+                  maybeMarkProviderFinish(id, ec, sig, isAppQuitting ? 'app_quit' : 'process_exit');
+                  if (usedFallback) owners.delete(id);
+                  listeners.delete(id);
+                });
+                listeners.add(id);
+                maybeMarkProviderStart(id, providerId as ProviderId);
+                return;
+              }
+            }
+
             flushPtyData(id);
             clearPtyData(id);
             safeSendToOwner(id, `pty:exit:${id}`, { exitCode, signal });
