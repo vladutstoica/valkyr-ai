@@ -77,6 +77,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(task.name);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -151,7 +152,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   }, [isEditing]);
 
   const taskContent = (
-    <div className="flex min-w-0 items-center justify-between">
+    <div className="flex min-w-0 items-center justify-between gap-2">
       <div className="flex min-w-0 flex-1 items-center gap-2 py-1">
         {isEditing ? (
           <input
@@ -281,7 +282,19 @@ export const TaskItem: React.FC<TaskItemProps> = ({
                 </DropdownMenuItem>
               )}
               {onArchive && (
-                <DropdownMenuItem className="cursor-pointer" onClick={() => onArchive()}>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => {
+                    const hasRunning = conversationDots.some(
+                      (d) => d.color === 'amber' || d.color === 'red'
+                    );
+                    if (hasRunning) {
+                      setShowArchiveDialog(true);
+                    } else {
+                      onArchive();
+                    }
+                  }}
+                >
                   <Archive className="mr-2 h-3.5 w-3.5" />
                   Archive
                 </DropdownMenuItem>
@@ -345,11 +358,34 @@ export const TaskItem: React.FC<TaskItemProps> = ({
     </AlertDialog>
   );
 
+  const archiveDialog = onArchive ? (
+    <AlertDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Active processes running</AlertDialogTitle>
+          <AlertDialogDescription>
+            "{task.name}" has running agents or scripts. Archiving will kill all processes. Continue?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel className="cursor-pointer">Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer"
+            onClick={() => onArchive()}
+          >
+            Archive anyway
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  ) : null;
+
   // Wrap with context menu if rename, archive, delete, or pin is available
   if (onRename || onArchive || onPin || onDelete) {
     return (
       <>
         {deleteDialog}
+        {archiveDialog}
         <ContextMenu>
           <ContextMenuTrigger asChild>{taskContent}</ContextMenuTrigger>
           <ContextMenuContent>
@@ -391,7 +427,14 @@ export const TaskItem: React.FC<TaskItemProps> = ({
                 className="cursor-pointer"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onArchive();
+                  const hasRunning = conversationDots.some(
+                    (d) => d.color === 'amber' || d.color === 'red'
+                  );
+                  if (hasRunning) {
+                    setShowArchiveDialog(true);
+                  } else {
+                    onArchive();
+                  }
                 }}
               >
                 <Archive className="mr-2 h-3.5 w-3.5" />
@@ -422,6 +465,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   return (
     <>
       {deleteDialog}
+      {archiveDialog}
       {taskContent}
     </>
   );

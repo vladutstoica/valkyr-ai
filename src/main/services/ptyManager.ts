@@ -52,6 +52,8 @@ type PtyRecord = {
   cwd?: string; // Working directory (for respawning shell after CLI exit)
   isDirectSpawn?: boolean; // Whether this was a direct CLI spawn
   kind?: 'local' | 'ssh';
+  spawnTime?: number; // Timestamp of spawn (for resume-failure detection)
+  wasResume?: boolean; // Whether this was a resume attempt
 };
 
 const ptys = new Map<string, PtyRecord>();
