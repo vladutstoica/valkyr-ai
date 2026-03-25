@@ -56,6 +56,25 @@ export function useConversationManager({
 
       if (result.success && result.conversations && result.conversations.length > 0) {
         const convs = result.conversations;
+
+        // Backfill claudeSessionId for any Claude PTY conversation missing it.
+        // Without this, multiple chats both resume "latest" instead of their own session.
+        for (const conv of convs) {
+          if (conv.mode === 'pty' && conv.provider === 'claude') {
+            let meta: Record<string, unknown> = {};
+            try {
+              meta = conv.metadata ? JSON.parse(conv.metadata) : {};
+            } catch {
+              /* ignore */
+            }
+            if (!meta.claudeSessionId) {
+              meta.claudeSessionId = crypto.randomUUID();
+              conv.metadata = JSON.stringify(meta);
+              saveConversation(conv).catch(() => {});
+            }
+          }
+        }
+
         setConversations(convs);
 
         let chosen: Conversation | undefined;
