@@ -361,13 +361,33 @@ class UnifiedStatusStore {
       const processUpdate = (data: { sessionId: string; event: string; status: string }) => {
         const { sessionId, status } = data;
         if (!status) return;
-        if (this.hookSessionToTask.size === 0) return;
 
         // Find which conversation this event belongs to
         let convKey = sessionId;
         let taskId = sessionId ? this.hookSessionToTask.get(sessionId) : undefined;
 
-        // Fallback: route to most recent conversation of most recent task
+        // Parse taskId from sessionId if not in the registration map.
+        // PTY IDs follow the format: `{agent}-main-{taskId}` or `{agent}-chat-{convId}`.
+        // This eliminates dependency on React useEffect registration timing.
+        if (!taskId && sessionId) {
+          const mainMatch = sessionId.match(/^[^-]+-main-(.+)$/);
+          if (mainMatch) {
+            taskId = mainMatch[1];
+            // Auto-register so subsequent events for this session are fast-pathed
+            this.hookSessionToTask.set(sessionId, taskId);
+            // Ensure task has a conversation entry so getDot works
+            if (!this.tasks.has(taskId)) {
+              const convMap = new Map<string, ConversationEntry>();
+              convMap.set(sessionId, { mode: 'pty' });
+              this.tasks.set(taskId, convMap);
+            }
+            if (!this.hookConvOrder.has(taskId)) {
+              this.hookConvOrder.set(taskId, [sessionId]);
+            }
+          }
+        }
+
+        // Last resort: route to most recent registered session
         if (!taskId) {
           const entries = Array.from(this.hookSessionToTask.entries());
           if (entries.length === 0) return;

@@ -382,20 +382,10 @@ const ChatInterface: React.FC<Props> = ({
     return null;
   }, [isTerminal, task.metadata, commentsContext]);
 
-  // Register hook session mapping for PTY/CLI Claude sessions.
-  // Maps PTY ids to task.id so status dots work. Register the main session
-  // eagerly (before conversations load) so early hook events aren't dropped.
-  useEffect(() => {
-    if (!isTerminal || agent !== 'claude') return;
-    const mainId = `${agent}-main-${task.id}`;
-    unifiedStatusStore.registerHookSession(mainId, task.id);
-    return () => {
-      unifiedStatusStore.unregisterHookSession(mainId);
-    };
-  }, [isTerminal, agent, task.id]);
-
-  // Once conversations load, register all session IDs in UI tab order
-  // so per-conversation dots match the chat tabs.
+  // Register hook session IDs in UI tab order once conversations load,
+  // so per-conversation dots match the chat tabs. The main session ID
+  // is auto-parsed from hook events (no registration needed for it to work),
+  // but explicit registration is needed for ordered multi-chat pill display.
   useEffect(() => {
     if (!isTerminal || agent !== 'claude' || conversations.length === 0) return;
     const sessionIds = conversations.map((conv) =>
