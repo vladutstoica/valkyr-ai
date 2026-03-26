@@ -194,10 +194,18 @@ export function startDirectPty(options: {
     // Add resume flag if resuming an existing session (e.g., after app reload)
     if (resume) {
       if (resumeSessionId && providerId === 'claude') {
-        // Resume a specific Claude session by ID (avoids "resume latest" collision)
-        cliArgs.push('--resume', resumeSessionId);
+        // Always use generic resume for Claude instead of --resume <uuid>.
+        // Valkyr-generated UUIDs passed via --session-id on initial start are not
+        // guaranteed to persist across Claude Code restarts/compactions, causing
+        // "No conversation found with session ID" errors. Generic resume (resume
+        // latest) is more reliable and matches the user's expectation of picking
+        // up where they left off in this worktree.
+        if (provider.resumeFlag) {
+          const resumeParts = provider.resumeFlag.split(' ');
+          cliArgs.push(...resumeParts);
+        }
       } else if (provider.resumeFlag) {
-        // Generic resume: falls back to "resume latest" for other providers
+        // Generic resume for other providers
         const resumeParts = provider.resumeFlag.split(' ');
         cliArgs.push(...resumeParts);
       }

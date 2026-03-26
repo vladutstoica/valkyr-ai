@@ -346,7 +346,7 @@ describe('ptyManager — spawn behaviour', () => {
       expect(spawnedProcs[0]._spawnArgs.args).not.toContain('--dangerously-skip-permissions');
     });
 
-    it('adds --resume + session id when resuming a named claude session', () => {
+    it('uses generic resume flags for claude even when resumeSessionId is provided', () => {
       setupProvider();
       mgr.startDirectPty({
         id: 'resume-test',
@@ -357,8 +357,10 @@ describe('ptyManager — spawn behaviour', () => {
       });
 
       const args = spawnedProcs[0]._spawnArgs.args;
+      // Should use generic resume (resume latest) instead of --resume <sessionId>
+      // to avoid "No conversation found" errors with Valkyr-generated UUIDs
       expect(args).toContain('--resume');
-      expect(args).toContain('sess-abc');
+      expect(args).not.toContain('sess-abc');
     });
 
     it('adds --session-id for a new claude session when resumeSessionId is provided', () => {
