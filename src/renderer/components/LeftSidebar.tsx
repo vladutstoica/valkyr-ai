@@ -48,23 +48,14 @@ import {
   FolderClosed,
   GripVertical,
   Layers,
-  Settings,
-  Search,
   BellOff,
   Bell,
 } from 'lucide-react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from './ui/alert-dialog';
 import SidebarEmptyState from './SidebarEmptyState';
 import { AddProjectMenu } from './sidebar/AddProjectMenu';
+import { SidebarHeader as SidebarHeaderBar } from './sidebar/SidebarHeader';
+import { SidebarSearch } from './sidebar/SidebarSearch';
+import { DeleteProjectDialog } from './sidebar/DeleteProjectDialog';
 import { TaskItem } from './project/TaskItem';
 import { TaskDeleteButton } from './project/TaskDeleteButton';
 import { MoveToGroupMenu, MoveToWorkspaceMenu } from './sidebar/MoveToMenuItems';
@@ -364,68 +355,17 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
   return (
     <>
-      <AlertDialog
-        open={!!projectToDelete}
-        onOpenChange={(open) => !open && setProjectToDelete(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete project</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{projectToDelete?.name}"? This action cannot be
-              undone and will remove all sessions associated with this project.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="cursor-pointer">Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer"
-              onClick={() => projectToDelete && handleConfirmDeleteProject(projectToDelete)}
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteProjectDialog
+        project={projectToDelete}
+        onClose={() => setProjectToDelete(null)}
+        onConfirm={handleConfirmDeleteProject}
+      />
 
       <div ref={sidebarRef} className="h-full w-full">
         <Sidebar className="h-full w-full !border-r-0">
           <SidebarContent className="flex h-full w-full flex-col overflow-hidden !pb-0">
-            {/* Header: VALKYR AI + Settings */}
-            <div className="shrink-0 pb-0">
-              <Card className="w-full">
-                <CardContent className="flex items-center justify-between px-3 py-2">
-                  <span className="text-foreground text-xs font-semibold tracking-wider uppercase">
-                    Valkyr AI
-                  </span>
-                  {onOpenSettings && (
-                    <button
-                      type="button"
-                      className="text-muted-foreground hover:text-foreground rounded p-1 transition-colors"
-                      onClick={onOpenSettings}
-                      title="Settings"
-                    >
-                      <Settings className="h-4 w-4" />
-                    </button>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Search */}
-            <div className="shrink-0 py-2">
-              <div className="border-border bg-background flex items-center gap-2 rounded-md border px-2 py-1.5">
-                <Search className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  placeholder="Search sessions..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="text-foreground placeholder:text-muted-foreground w-full bg-transparent text-xs outline-none"
-                />
-              </div>
-            </div>
+            <SidebarHeaderBar onOpenSettings={onOpenSettings} />
+            <SidebarSearch value={searchQuery} onChange={setSearchQuery} inputRef={searchInputRef} />
 
             <ScrollArea className="min-h-0 w-full flex-1">
               <div className="w-full">

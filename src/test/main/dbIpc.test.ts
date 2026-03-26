@@ -117,13 +117,13 @@ describe('dbIpc', () => {
       const projects = [{ id: '1', name: 'Test' }];
       dbMock.getProjects.mockResolvedValue(projects);
       const result = await callHandler('db:getProjects');
-      expect(result).toEqual(projects);
+      expect(result).toEqual({ success: true, data: projects });
     });
 
-    it('returns empty array on error', async () => {
+    it('returns error on failure', async () => {
       dbMock.getProjects.mockRejectedValue(new Error('DB error'));
       const result = await callHandler('db:getProjects');
-      expect(result).toEqual([]);
+      expect(result).toEqual({ success: false, error: 'DB error' });
     });
   });
 
@@ -170,13 +170,13 @@ describe('dbIpc', () => {
       const tasks = [{ id: 't1' }];
       dbMock.getTasks.mockResolvedValue(tasks);
       const result = await callHandler('db:getTasks', 'proj-1');
-      expect(result).toEqual(tasks);
+      expect(result).toEqual({ success: true, data: tasks });
     });
 
-    it('returns empty array on error', async () => {
+    it('returns error on failure', async () => {
       dbMock.getTasks.mockRejectedValue(new Error('fail'));
       const result = await callHandler('db:getTasks');
-      expect(result).toEqual([]);
+      expect(result).toEqual({ success: false, error: 'fail' });
     });
   });
 

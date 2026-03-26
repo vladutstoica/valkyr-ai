@@ -65,11 +65,6 @@ export function setOnDirectCliExit(callback: (id: string, cwd: string) => void):
   onDirectCliExitCallback = callback;
 }
 
-function escapeShSingleQuoted(value: string): string {
-  // Safe for embedding into a single-quoted POSIX shell string.
-  return `'${value.replace(/'/g, "'\\''")}'`;
-}
-
 /**
  * Spawn an interactive SSH session in a PTY.
  *
@@ -384,19 +379,19 @@ export async function startPty(options: {
   if (process.platform === 'win32' && shell && !shell.includes('\\') && !shell.includes('/')) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { execSync } = require('child_process');
+      const { execFileSync } = require('child_process');
 
       // Try .cmd first (npm globals are typically .cmd files)
       let resolved = '';
       try {
-        resolved = execSync(`where ${shell}.cmd`, { encoding: 'utf8' })
+        resolved = execFileSync('where', [`${shell}.cmd`], { encoding: 'utf8' })
           .trim()
           .split('\n')[0]
           .replace(/\r/g, '')
           .trim();
       } catch {
         // If .cmd doesn't exist, try without extension
-        resolved = execSync(`where ${shell}`, { encoding: 'utf8' })
+        resolved = execFileSync('where', [shell], { encoding: 'utf8' })
           .trim()
           .split('\n')[0]
           .replace(/\r/g, '')

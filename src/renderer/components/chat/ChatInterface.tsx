@@ -384,9 +384,13 @@ const ChatInterface: React.FC<Props> = ({
 
   // Register hook session mapping for PTY/CLI Claude sessions.
   // Maps PTY ids to task.id in UI tab order so pill sections match chat tabs.
+  // IDs must match the terminal ID format: main conv uses `agent-main-taskId`,
+  // additional convs use `agent-chat-convId`.
   useEffect(() => {
     if (!isTerminal || agent !== 'claude') return;
-    const sessionIds = conversations.map((conv) => `${agent}-chat-${conv.id}`);
+    const sessionIds = conversations.map((conv) =>
+      conv.isMain ? `${agent}-main-${task.id}` : `${agent}-chat-${conv.id}`
+    );
     unifiedStatusStore.registerHookSessions(sessionIds, task.id);
     return () => {
       for (const sid of sessionIds) {
@@ -447,7 +451,7 @@ const ChatInterface: React.FC<Props> = ({
 
         <div className="flex min-h-0 flex-1 flex-col">
           {(() => {
-            if (isAgentInstalled !== true) {
+            if (isAgentInstalled === false) {
               return (
                 <InstallBanner
                   agent={agent}

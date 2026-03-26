@@ -250,9 +250,11 @@ export class TerminalSessionManager {
 
       if (!isVisible) {
         this.wasHidden = true;
+        return;
       }
 
       this.fitPreservingViewport();
+      this.sendSizeIfStarted();
     });
     this.resizeObserver.observe(container);
 
@@ -460,6 +462,11 @@ export class TerminalSessionManager {
    */
   private fitPreservingViewport() {
     try {
+      // Skip fit when the container has no usable dimensions (off-screen host, collapsed panel, etc.)
+      // This prevents the terminal from shrinking to 1-column width and sending bad resize to the PTY
+      const rect = this.container.getBoundingClientRect();
+      if (rect.width < 20 || rect.height < 20) return;
+
       const buffer = this.terminal.buffer?.active;
       const offsetFromBottom =
         buffer && typeof buffer.baseY === 'number' && typeof buffer.viewportY === 'number'
@@ -523,6 +530,9 @@ export class TerminalSessionManager {
           const targetLine = Math.max(0, buffer.baseY - storedOffset);
           this.terminal.scrollToLine(targetLine);
         }
+      } else {
+        // No saved position — scroll to bottom so the user sees the prompt
+        this.terminal.scrollToBottom();
       }
     } catch (error) {
       log.warn('Failed to restore viewport position', { id: this.id, error });

@@ -8,6 +8,7 @@ import {
   Archive,
   Trash2,
   GitBranch,
+  Loader2,
 } from 'lucide-react';
 import { usePrStatus } from '../../hooks/usePrStatus';
 import { useConversationDots } from '../../hooks/useUnifiedStatus';
@@ -72,8 +73,9 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   isPinned,
   showDelete,
 }) => {
-  const { pr } = usePrStatus(task.path);
-  const conversationDots = useConversationDots(task.id);
+  const isCreating = task.id.startsWith('creating-');
+  const { pr } = usePrStatus(isCreating ? '' : task.path);
+  const conversationDots = useConversationDots(isCreating ? '' : task.id);
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -184,7 +186,15 @@ export const TaskItem: React.FC<TaskItemProps> = ({
         ) : (
           <>
             {isPinned && <Pin className="text-muted-foreground h-3 w-3 flex-shrink-0" />}
-            <span className="text-foreground block truncate text-xs font-medium">{task.name}</span>
+            <span className="text-foreground block truncate text-xs font-medium">
+              {isCreating && (
+                <Loader2 className="text-muted-foreground mr-1 inline h-3 w-3 animate-spin" />
+              )}
+              {task.name}
+              {isCreating && (
+                <span className="text-muted-foreground ml-1 text-[10px] font-normal">Creating...</span>
+              )}
+            </span>
             {task.useWorktree !== false && (
               <span title="Running in worktree">
                 <GitBranch className="text-muted-foreground h-3 w-3 flex-shrink-0" />

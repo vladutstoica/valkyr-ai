@@ -12,6 +12,7 @@ vi.mock('os', () => ({
 
 vi.mock('child_process', () => ({
   execSync: vi.fn(),
+  execFileSync: vi.fn(),
 }));
 
 vi.mock('../../main/lib/logger', () => ({
@@ -24,14 +25,14 @@ vi.mock('../../main/lib/logger', () => ({
 }));
 
 import { existsSync, readFileSync } from 'fs';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import {
   detectAndLoadTerminalConfig,
 } from '../../main/services/TerminalConfigParser';
 
 const mockExistsSync = vi.mocked(existsSync);
 const mockReadFileSync = vi.mocked(readFileSync);
-const mockExecSync = vi.mocked(execSync);
+const mockExecFileSync = vi.mocked(execFileSync);
 
 const originalPlatform = process.platform;
 
@@ -140,7 +141,7 @@ describe('iTerm2 config parsing', () => {
       },
     });
 
-    mockExecSync.mockReturnValue(plistJson as any);
+    mockExecFileSync.mockReturnValue(plistJson as any);
 
     const result = detectAndLoadTerminalConfig();
     expect(result).not.toBeNull();
@@ -164,7 +165,7 @@ describe('iTerm2 config parsing', () => {
     mockExistsSync.mockImplementation((p: unknown) =>
       typeof p === 'string' && p.includes('com.googlecode.iterm2.plist')
     );
-    mockExecSync.mockReturnValue(JSON.stringify({ 'New Bookmarks': [] }) as any);
+    mockExecFileSync.mockReturnValue(JSON.stringify({ 'New Bookmarks': [] }) as any);
     const result = detectAndLoadTerminalConfig();
     expect(result).toBeNull();
   });
@@ -173,7 +174,7 @@ describe('iTerm2 config parsing', () => {
     mockExistsSync.mockImplementation((p: unknown) =>
       typeof p === 'string' && p.includes('com.googlecode.iterm2.plist')
     );
-    mockExecSync.mockReturnValue(
+    mockExecFileSync.mockReturnValue(
       JSON.stringify({ 'New Bookmarks': [{ 'Default Bookmark': 'Yes' }] }) as any
     );
     const result = detectAndLoadTerminalConfig();
@@ -184,7 +185,7 @@ describe('iTerm2 config parsing', () => {
     mockExistsSync.mockImplementation((p: unknown) =>
       typeof p === 'string' && p.includes('com.googlecode.iterm2.plist')
     );
-    mockExecSync.mockImplementation(() => {
+    mockExecFileSync.mockImplementation(() => {
       throw new Error('plutil failed');
     });
     // XML fallback currently returns null
@@ -198,7 +199,7 @@ describe('iTerm2 config parsing', () => {
     mockExistsSync.mockImplementation((p: unknown) =>
       typeof p === 'string' && p.includes('com.googlecode.iterm2.plist')
     );
-    mockExecSync.mockReturnValue('not-valid-json' as any);
+    mockExecFileSync.mockReturnValue('not-valid-json' as any);
     // Should not throw; returns null and falls through to next terminal
     const result = detectAndLoadTerminalConfig();
     expect(result).toBeNull();
@@ -216,7 +217,7 @@ describe('iTerm2 config parsing', () => {
         },
       },
     });
-    mockExecSync.mockReturnValue(plistJson as any);
+    mockExecFileSync.mockReturnValue(plistJson as any);
     const result = detectAndLoadTerminalConfig();
     expect(result).not.toBeNull();
     expect(result!.terminal).toBe('iTerm2');
@@ -236,7 +237,7 @@ describe('iTerm2 config parsing', () => {
         },
       },
     });
-    mockExecSync.mockReturnValue(plistJson as any);
+    mockExecFileSync.mockReturnValue(plistJson as any);
     const result = detectAndLoadTerminalConfig();
     expect(result).not.toBeNull();
     expect(result!.theme.background).toBe('#1c1c1e');
@@ -251,7 +252,7 @@ describe('iTerm2 config parsing', () => {
       'New Bookmarks': [{ 'Color Preset Name': 'P', 'Normal Font': 'NoSpaceFont' }],
       'Custom Color Presets': { P: {} },
     });
-    mockExecSync.mockReturnValue(plistJson as any);
+    mockExecFileSync.mockReturnValue(plistJson as any);
     const result = detectAndLoadTerminalConfig();
     expect(result).not.toBeNull();
     expect(result!.theme.fontFamily).toBeUndefined();
@@ -286,7 +287,7 @@ describe('Terminal.app config parsing', () => {
         },
       },
     });
-    mockExecSync.mockReturnValue(plistJson as any);
+    mockExecFileSync.mockReturnValue(plistJson as any);
 
     const result = detectAndLoadTerminalConfig();
     expect(result).not.toBeNull();
@@ -305,19 +306,19 @@ describe('Terminal.app config parsing', () => {
       'Default Window Settings': 'NonExistent',
       'Window Settings': {},
     });
-    mockExecSync.mockReturnValue(plistJson as any);
+    mockExecFileSync.mockReturnValue(plistJson as any);
     const result = detectAndLoadTerminalConfig();
     expect(result).toBeNull();
   });
 
   it('returns null when plist JSON parsing fails', () => {
-    mockExecSync.mockReturnValue('broken json' as any);
+    mockExecFileSync.mockReturnValue('broken json' as any);
     const result = detectAndLoadTerminalConfig();
     expect(result).toBeNull();
   });
 
   it('returns null when plutil fails', () => {
-    mockExecSync.mockImplementation(() => {
+    mockExecFileSync.mockImplementation(() => {
       throw new Error('plutil unavailable');
     });
     const result = detectAndLoadTerminalConfig();
@@ -340,7 +341,7 @@ describe('Terminal.app config parsing', () => {
       'Default Window Settings': 'Profile',
       'Window Settings': { Profile: profile },
     });
-    mockExecSync.mockReturnValue(plistJson as any);
+    mockExecFileSync.mockReturnValue(plistJson as any);
     const result = detectAndLoadTerminalConfig();
     expect(result).not.toBeNull();
     const theme = result!.theme;
@@ -783,7 +784,7 @@ describe('macOS terminal detection priority', () => {
         P: { 'Background Color': { 'Red Component': 0.1, 'Green Component': 0.2, 'Blue Component': 0.3 } },
       },
     });
-    mockExecSync.mockReturnValue(plistJson as any);
+    mockExecFileSync.mockReturnValue(plistJson as any);
     const result = detectAndLoadTerminalConfig();
     expect(result!.terminal).toBe('iTerm2');
   });

@@ -7,10 +7,11 @@ import path from 'path';
 export function registerDatabaseIpc() {
   ipcMain.handle('db:getProjects', async () => {
     try {
-      return await databaseService.getProjects();
+      const data = await databaseService.getProjects();
+      return { success: true, data };
     } catch (error) {
       log.error('Failed to get projects:', error);
-      return [];
+      return { success: false, error: (error as Error).message };
     }
   });
 
@@ -36,10 +37,11 @@ export function registerDatabaseIpc() {
 
   ipcMain.handle('db:getTasks', async (_, projectId?: string) => {
     try {
-      return await databaseService.getTasks(projectId);
+      const data = await databaseService.getTasks(projectId);
+      return { success: true, data };
     } catch (error) {
       log.error('Failed to get tasks:', error);
-      return [];
+      return { success: false, error: (error as Error).message };
     }
   });
 

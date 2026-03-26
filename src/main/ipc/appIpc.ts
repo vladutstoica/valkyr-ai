@@ -175,6 +175,8 @@ export function registerAppIpc() {
   ipcMain.handle('app:openExternal', async (_event, url: string) => {
     try {
       if (!url || typeof url !== 'string') throw new Error('Invalid URL');
+      const allowed = /^https?:\/\//i;
+      if (!allowed.test(url)) throw new Error('Only http and https URLs are allowed');
       await shell.openExternal(url);
       return { success: true };
     } catch (error) {
@@ -233,7 +235,7 @@ export function registerAppIpc() {
               '-p',
               String(connection.port),
               '-t',
-              `cd ${target} && exec $SHELL`,
+              `cd '${target.replace(/'/g, "'\\''")}' && exec $SHELL`,
             ];
             const sshCommandStr = `ssh ${sshArgs.join(' ')}`;
 

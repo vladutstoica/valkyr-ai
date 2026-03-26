@@ -1398,7 +1398,7 @@ declare global {
       ) => () => void;
 
       // Database operations
-      getProjects: () => Promise<any[]>;
+      getProjects: () => Promise<{ success: boolean; data?: any[]; error?: string }>;
       saveProject: (project: any) => Promise<{ success: boolean; error?: string }>;
       updateProjectOrder: (projectIds: string[]) => Promise<{ success: boolean; error?: string }>;
       // Project groups
@@ -1491,7 +1491,7 @@ declare global {
         projectId: string;
         workspaceId: string | null;
       }) => Promise<{ success: boolean; error?: string }>;
-      getTasks: (projectId?: string) => Promise<any[]>;
+      getTasks: (projectId?: string) => Promise<{ success: boolean; data?: any[]; error?: string }>;
       saveTask: (task: any) => Promise<{ success: boolean; error?: string }>;
       deleteProject: (projectId: string) => Promise<{ success: boolean; error?: string }>;
       renameProject: (args: {
@@ -2511,7 +2511,7 @@ export interface ElectronAPI {
   }>;
 
   // Database operations
-  getProjects: () => Promise<any[]>;
+  getProjects: () => Promise<{ success: boolean; data?: any[]; error?: string }>;
   saveProject: (project: any) => Promise<{ success: boolean; error?: string }>;
   updateProjectOrder: (projectIds: string[]) => Promise<{ success: boolean; error?: string }>;
   // Project groups
@@ -2600,7 +2600,7 @@ export interface ElectronAPI {
     projectId: string;
     workspaceId: string | null;
   }) => Promise<{ success: boolean; error?: string }>;
-  getTasks: (projectId?: string) => Promise<any[]>;
+  getTasks: (projectId?: string) => Promise<{ success: boolean; data?: any[]; error?: string }>;
   saveTask: (task: any) => Promise<{ success: boolean; error?: string }>;
   deleteProject: (projectId: string) => Promise<{ success: boolean; error?: string }>;
   renameProject: (args: {

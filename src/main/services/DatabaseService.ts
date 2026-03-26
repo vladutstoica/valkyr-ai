@@ -1,169 +1,53 @@
 import type sqlite3Type from 'sqlite3';
-import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { readMigrationFiles } from 'drizzle-orm/migrator';
 import { resolveDatabasePath, resolveMigrationsPath } from '../db/path';
 import { getDrizzleClient, resetDrizzleClient } from '../db/drizzleClient';
 import { errorTracking } from '../errorTracking';
 import { log } from '../lib/logger';
 import {
-  projects as projectsTable,
-  projectGroups as projectGroupsTable,
-  workspaces as workspacesTable,
-  tasks as tasksTable,
-  conversations as conversationsTable,
-  messages as messagesTable,
-  lineComments as lineCommentsTable,
-  sshConnections as sshConnectionsTable,
-  appState as appStateTable,
-  terminalSessions as terminalSessionsTable,
-  kanbanColumns as kanbanColumnsTable,
-  type ProjectRow,
-  type ProjectGroupRow,
-  type WorkspaceRow,
-  type TaskRow,
-  type ConversationRow,
-  type MessageRow,
   type LineCommentRow,
   type LineCommentInsert,
   type SshConnectionRow,
   type SshConnectionInsert,
-  type AppStateRow,
-  type TerminalSessionRow,
-  type KanbanColumnRow,
 } from '../db/schema';
 
-/** Git information for a sub-repository in a multi-repo project */
-export interface SubRepoGitInfo {
-  isGitRepo: boolean;
-  remote?: string;
-  branch?: string;
-  baseRef?: string;
-}
+// Re-export domain types from canonical location for backward compatibility
+export type {
+  SubRepoGitInfo,
+  SubRepo,
+  ProjectGroup,
+  Workspace,
+  Project,
+  Task,
+  Conversation,
+  Message,
+  MigrationSummary,
+  AppState,
+  TerminalSession,
+} from '../db/types';
 
-/** A sub-repository within a multi-repo project */
-export interface SubRepo {
-  path: string; // Absolute path to the sub-repo
-  name: string; // Folder name (e.g., "frontend")
-  relativePath: string; // Relative from project root (e.g., "frontend")
-  gitInfo: SubRepoGitInfo;
-}
-
-export interface ProjectGroup {
-  id: string;
-  name: string;
-  displayOrder: number;
-  isCollapsed: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Workspace {
-  id: string;
-  name: string;
-  color: string;
-  emoji: string | null;
-  displayOrder: number;
-  isDefault: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Project {
-  id: string;
-  name: string;
-  path: string;
-  // Remote project fields (optional for backward compatibility)
-  isRemote?: boolean;
-  sshConnectionId?: string | null;
-  remotePath?: string | null;
-  // Multi-repo project fields (optional)
-  subRepos?: SubRepo[] | null;
-  // Group assignment
-  groupId?: string | null;
-  // Workspace assignment
-  workspaceId?: string | null;
-  gitInfo: {
-    isGitRepo: boolean;
-    remote?: string;
-    branch?: string;
-    baseRef?: string;
-  };
-  githubInfo?: {
-    repository: string;
-    connected: boolean;
-  };
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Task {
-  id: string;
-  projectId: string;
-  name: string;
-  branch: string;
-  path: string;
-  status: 'active' | 'idle' | 'running';
-  agentId?: string | null;
-  metadata?: any;
-  useWorktree?: boolean;
-  archivedAt?: string | null;
-  isPinned?: boolean;
-  lastAgent?: string | null;
-  lockedAgent?: string | null;
-  initialPromptSent?: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Conversation {
-  id: string;
-  taskId: string;
-  title: string;
-  provider?: string | null;
-  mode?: 'pty' | 'acp' | null;
-  acpSessionId?: string | null;
-  isActive?: boolean;
-  isMain?: boolean;
-  displayOrder?: number;
-  metadata?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Message {
-  id: string;
-  conversationId: string;
-  content: string;
-  sender: 'user' | 'agent';
-  parts?: string | null; // JSON-serialized structured message parts
-  timestamp: string;
-  metadata?: string; // JSON string for additional data
-}
-
-export interface MigrationSummary {
-  appliedCount: number;
-  totalMigrations: number;
-  recovered: boolean;
-}
-
-export interface AppState {
-  activeProjectId: string | null;
-  activeTaskId: string | null;
-  activeWorkspaceId: string | null;
-  prMode: string | null;
-  prDraft: boolean;
-}
-
-export interface TerminalSession {
-  id: string;
-  taskKey: string;
-  terminalId: string;
-  title: string;
-  cwd: string | null;
-  isActive: boolean;
-  displayOrder: number;
-  createdAt: string;
-}
+import type {
+  SubRepo,
+  ProjectGroup,
+  Workspace,
+  Project,
+  Task,
+  Conversation,
+  Message,
+  MigrationSummary,
+  AppState,
+  TerminalSession,
+} from '../db/types';
+import { AppStateRepository } from '../db/repositories/AppStateRepository';
+import { TerminalSessionRepository } from '../db/repositories/TerminalSessionRepository';
+import { KanbanRepository } from '../db/repositories/KanbanRepository';
+import { SshConnectionRepository } from '../db/repositories/SshConnectionRepository';
+import { ConversationRepository } from '../db/repositories/ConversationRepository';
+import { ProjectRepository } from '../db/repositories/ProjectRepository';
+import { TaskRepository } from '../db/repositories/TaskRepository';
+import { LineCommentRepository } from '../db/repositories/LineCommentRepository';
+import { ProjectGroupRepository } from '../db/repositories/ProjectGroupRepository';
+import { WorkspaceRepository } from '../db/repositories/WorkspaceRepository';
 
 export class DatabaseService {
   private static migrationsApplied = false;
@@ -172,6 +56,18 @@ export class DatabaseService {
   private dbPath: string;
   private disabled: boolean = false;
   private lastMigrationSummary: MigrationSummary | null = null;
+
+  // Repositories
+  private readonly appStateRepo = new AppStateRepository(() => this.disabled);
+  private readonly terminalSessionRepo = new TerminalSessionRepository(() => this.disabled);
+  private readonly kanbanRepo = new KanbanRepository(() => this.disabled);
+  private readonly sshConnectionRepo = new SshConnectionRepository(() => this.disabled);
+  private readonly conversationRepo = new ConversationRepository(() => this.disabled);
+  private readonly projectRepo = new ProjectRepository(() => this.disabled);
+  private readonly taskRepo = new TaskRepository(() => this.disabled);
+  private readonly lineCommentRepo = new LineCommentRepository(() => this.disabled);
+  private readonly projectGroupRepo = new ProjectGroupRepository(() => this.disabled);
+  private readonly workspaceRepo = new WorkspaceRepository(() => this.disabled);
 
   constructor() {
     if (process.env.VALKYR_DISABLE_NATIVE_DB === '1') {
@@ -228,438 +124,90 @@ export class DatabaseService {
     return this.lastMigrationSummary;
   }
 
+  // Project methods (delegated to ProjectRepository)
   async saveProject(project: Omit<Project, 'createdAt' | 'updatedAt'>): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    const gitRemote = project.gitInfo.remote ?? null;
-    const gitBranch = project.gitInfo.branch ?? null;
-    const baseRef = this.computeBaseRef(
-      project.gitInfo.baseRef,
-      project.gitInfo.remote,
-      project.gitInfo.branch
-    );
-    const githubRepository = project.githubInfo?.repository ?? null;
-    const githubConnected = project.githubInfo?.connected ? 1 : 0;
-    const subReposJson =
-      project.subRepos && project.subRepos.length > 0 ? JSON.stringify(project.subRepos) : null;
-
-    await db
-      .insert(projectsTable)
-      .values({
-        id: project.id,
-        name: project.name,
-        path: project.path,
-        gitRemote,
-        gitBranch,
-        baseRef: baseRef ?? null,
-        githubRepository,
-        githubConnected,
-        sshConnectionId: project.sshConnectionId ?? null,
-        isRemote: project.isRemote ? 1 : 0,
-        remotePath: project.remotePath ?? null,
-        subRepos: subReposJson,
-        workspaceId: project.workspaceId ?? null,
-        updatedAt: new Date().toISOString(),
-      })
-      .onConflictDoUpdate({
-        target: projectsTable.path,
-        set: {
-          name: project.name,
-          gitRemote,
-          gitBranch,
-          baseRef: baseRef ?? null,
-          githubRepository,
-          githubConnected,
-          sshConnectionId: project.sshConnectionId ?? null,
-          isRemote: project.isRemote ? 1 : 0,
-          remotePath: project.remotePath ?? null,
-          subRepos: subReposJson,
-          workspaceId: project.workspaceId ?? null,
-          updatedAt: new Date().toISOString(),
-        },
-      });
+    return this.projectRepo.save(project);
   }
 
   async getProjects(): Promise<Project[]> {
-    if (this.disabled) return [];
-    const { db } = await getDrizzleClient();
-    const rows = await db
-      .select()
-      .from(projectsTable)
-      .orderBy(asc(projectsTable.displayOrder), desc(projectsTable.updatedAt));
-    return rows.map((row) => this.mapDrizzleProjectRow(row));
+    return this.projectRepo.getAll();
   }
 
   async updateProjectOrder(projectIds: string[]): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    const now = new Date().toISOString();
-
-    await db.transaction(async (tx) => {
-      await Promise.all(
-        projectIds.map((id, i) =>
-          tx
-            .update(projectsTable)
-            .set({ displayOrder: i, updatedAt: now })
-            .where(eq(projectsTable.id, id))
-        )
-      );
-    });
+    return this.projectRepo.updateOrder(projectIds);
   }
 
   async getProjectById(projectId: string): Promise<Project | null> {
-    if (this.disabled) return null;
-    if (!projectId) {
-      throw new Error('projectId is required');
-    }
-    const { db } = await getDrizzleClient();
-    const rows = await db
-      .select()
-      .from(projectsTable)
-      .where(eq(projectsTable.id, projectId))
-      .limit(1);
-
-    if (rows.length === 0) {
-      return null;
-    }
-
-    return this.mapDrizzleProjectRow(rows[0]);
+    return this.projectRepo.getById(projectId);
   }
 
   async updateProjectBaseRef(projectId: string, nextBaseRef: string): Promise<Project | null> {
-    if (this.disabled) return null;
-    if (!projectId) {
-      throw new Error('projectId is required');
-    }
-    const trimmed = typeof nextBaseRef === 'string' ? nextBaseRef.trim() : '';
-    if (!trimmed) {
-      throw new Error('baseRef cannot be empty');
-    }
-
-    const { db } = await getDrizzleClient();
-    const rows = await db
-      .select({
-        id: projectsTable.id,
-        gitRemote: projectsTable.gitRemote,
-        gitBranch: projectsTable.gitBranch,
-      })
-      .from(projectsTable)
-      .where(eq(projectsTable.id, projectId))
-      .limit(1);
-
-    if (rows.length === 0) {
-      throw new Error(`Project not found: ${projectId}`);
-    }
-
-    const source = rows[0];
-    const normalized = this.computeBaseRef(trimmed, source.gitRemote, source.gitBranch);
-
-    await db
-      .update(projectsTable)
-      .set({
-        baseRef: normalized,
-        updatedAt: new Date().toISOString(),
-      })
-      .where(eq(projectsTable.id, projectId));
-
-    return this.getProjectById(projectId);
+    return this.projectRepo.updateBaseRef(projectId, nextBaseRef);
   }
 
   async updateProjectName(projectId: string, newName: string): Promise<Project | null> {
-    if (this.disabled) return null;
-    if (!projectId) {
-      throw new Error('projectId is required');
-    }
-    const trimmed = typeof newName === 'string' ? newName.trim() : '';
-    if (!trimmed) {
-      throw new Error('name cannot be empty');
-    }
-
-    const { db } = await getDrizzleClient();
-    await db
-      .update(projectsTable)
-      .set({
-        name: trimmed,
-        updatedAt: new Date().toISOString(),
-      })
-      .where(eq(projectsTable.id, projectId));
-
-    return this.getProjectById(projectId);
+    return this.projectRepo.updateName(projectId, newName);
   }
 
+  // Task methods (delegated to TaskRepository)
   async saveTask(task: Omit<Task, 'createdAt' | 'updatedAt'>): Promise<void> {
-    if (this.disabled) return;
-    const metadataValue =
-      typeof task.metadata === 'string'
-        ? task.metadata
-        : task.metadata
-          ? JSON.stringify(task.metadata)
-          : null;
-    const { db } = await getDrizzleClient();
-    await db
-      .insert(tasksTable)
-      .values({
-        id: task.id,
-        projectId: task.projectId,
-        name: task.name,
-        branch: task.branch,
-        path: task.path,
-        status: task.status,
-        agentId: task.agentId ?? null,
-        metadata: metadataValue,
-        useWorktree: task.useWorktree !== false ? 1 : 0,
-        updatedAt: new Date().toISOString(),
-      })
-      .onConflictDoUpdate({
-        target: tasksTable.id,
-        set: {
-          projectId: task.projectId,
-          name: task.name,
-          branch: task.branch,
-          path: task.path,
-          status: task.status,
-          agentId: task.agentId ?? null,
-          metadata: metadataValue,
-          useWorktree: task.useWorktree !== false ? 1 : 0,
-          updatedAt: new Date().toISOString(),
-        },
-      });
+    return this.taskRepo.save(task);
   }
 
   async getTasks(projectId?: string): Promise<Task[]> {
-    if (this.disabled) return [];
-    const { db } = await getDrizzleClient();
-
-    // Filter out archived tasks by default
-    const rows: TaskRow[] = projectId
-      ? await db
-          .select()
-          .from(tasksTable)
-          .where(and(eq(tasksTable.projectId, projectId), isNull(tasksTable.archivedAt)))
-          .orderBy(desc(tasksTable.updatedAt))
-      : await db
-          .select()
-          .from(tasksTable)
-          .where(isNull(tasksTable.archivedAt))
-          .orderBy(desc(tasksTable.updatedAt));
-    return rows.map((row) => this.mapDrizzleTaskRow(row));
+    return this.taskRepo.getAll(projectId);
   }
 
   async getArchivedTasks(projectId?: string): Promise<Task[]> {
-    if (this.disabled) return [];
-    const { db } = await getDrizzleClient();
-
-    const rows: TaskRow[] = projectId
-      ? await db
-          .select()
-          .from(tasksTable)
-          .where(
-            and(eq(tasksTable.projectId, projectId), sql`${tasksTable.archivedAt} IS NOT NULL`)
-          )
-          .orderBy(desc(tasksTable.archivedAt))
-      : await db
-          .select()
-          .from(tasksTable)
-          .where(sql`${tasksTable.archivedAt} IS NOT NULL`)
-          .orderBy(desc(tasksTable.archivedAt));
-    return rows.map((row) => this.mapDrizzleTaskRow(row));
+    return this.taskRepo.getArchived(projectId);
   }
 
   async archiveTask(taskId: string): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    await db
-      .update(tasksTable)
-      .set({
-        archivedAt: new Date().toISOString(),
-        status: 'idle', // Reset status since PTY processes are killed on archive
-        updatedAt: new Date().toISOString(),
-      })
-      .where(eq(tasksTable.id, taskId));
+    return this.taskRepo.archive(taskId);
   }
 
   async restoreTask(taskId: string): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    await db
-      .update(tasksTable)
-      .set({
-        archivedAt: null,
-        updatedAt: new Date().toISOString(),
-      })
-      .where(eq(tasksTable.id, taskId));
+    return this.taskRepo.restore(taskId);
   }
 
   async getTaskByPath(taskPath: string): Promise<Task | null> {
-    if (this.disabled) return null;
-    const { db } = await getDrizzleClient();
-
-    const rows = await db.select().from(tasksTable).where(eq(tasksTable.path, taskPath)).limit(1);
-
-    if (rows.length === 0) return null;
-    return this.mapDrizzleTaskRow(rows[0]);
+    return this.taskRepo.getByPath(taskPath);
   }
 
   async deleteProject(projectId: string): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    await db.delete(projectsTable).where(eq(projectsTable.id, projectId));
+    return this.projectRepo.delete(projectId);
   }
 
   async deleteTask(taskId: string): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    await db.delete(tasksTable).where(eq(tasksTable.id, taskId));
+    return this.taskRepo.delete(taskId);
   }
 
   // Conversation management methods
-  async saveConversation(
-    conversation: Omit<Conversation, 'createdAt' | 'updatedAt'>
-  ): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    await db
-      .insert(conversationsTable)
-      .values({
-        id: conversation.id,
-        taskId: conversation.taskId,
-        title: conversation.title,
-        provider: conversation.provider ?? null,
-        isActive: conversation.isActive ? 1 : 0,
-        isMain: conversation.isMain ? 1 : 0,
-        displayOrder: conversation.displayOrder ?? 0,
-        metadata: conversation.metadata ?? null,
-        mode: conversation.mode ?? 'pty',
-        updatedAt: new Date().toISOString(),
-      })
-      .onConflictDoUpdate({
-        target: conversationsTable.id,
-        set: {
-          title: conversation.title,
-          provider: conversation.provider ?? null,
-          isActive: conversation.isActive ? 1 : 0,
-          isMain: conversation.isMain ? 1 : 0,
-          displayOrder: conversation.displayOrder ?? 0,
-          metadata: conversation.metadata ?? null,
-          mode: conversation.mode ?? 'pty',
-          updatedAt: new Date().toISOString(),
-        },
-      });
+  // Conversation methods (delegated to ConversationRepository)
+  async saveConversation(conversation: Omit<Conversation, 'createdAt' | 'updatedAt'>): Promise<void> {
+    return this.conversationRepo.save(conversation);
   }
 
   async getConversations(taskId: string): Promise<Conversation[]> {
-    if (this.disabled) return [];
-    const { db } = await getDrizzleClient();
-    const rows = await db
-      .select()
-      .from(conversationsTable)
-      .where(eq(conversationsTable.taskId, taskId))
-      .orderBy(asc(conversationsTable.displayOrder), desc(conversationsTable.updatedAt));
-    return rows.map((row) => this.mapDrizzleConversationRow(row));
+    return this.conversationRepo.getAll(taskId);
   }
 
   async getOrCreateDefaultConversation(taskId: string): Promise<Conversation> {
-    if (this.disabled) {
-      return {
-        id: `conv-${taskId}-default`,
-        taskId,
-        title: 'Default Conversation',
-        isMain: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-    }
-    const { db } = await getDrizzleClient();
-
-    const existingRows = await db
-      .select()
-      .from(conversationsTable)
-      .where(eq(conversationsTable.taskId, taskId))
-      .orderBy(asc(conversationsTable.createdAt))
-      .limit(1);
-
-    if (existingRows.length > 0) {
-      return this.mapDrizzleConversationRow(existingRows[0]);
-    }
-
-    const conversationId = `conv-${taskId}-${Date.now()}`;
-    await this.saveConversation({
-      id: conversationId,
-      taskId,
-      title: 'Default Conversation',
-      isMain: true,
-    });
-
-    const [createdRow] = await db
-      .select()
-      .from(conversationsTable)
-      .where(eq(conversationsTable.id, conversationId))
-      .limit(1);
-
-    if (createdRow) {
-      return this.mapDrizzleConversationRow(createdRow);
-    }
-
-    return {
-      id: conversationId,
-      taskId,
-      title: 'Default Conversation',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    return this.conversationRepo.getOrCreateDefault(taskId);
   }
 
-  // Message management methods
   async saveMessage(message: Omit<Message, 'timestamp'>): Promise<void> {
-    if (this.disabled) return;
-    const metadataValue =
-      typeof message.metadata === 'string'
-        ? message.metadata
-        : message.metadata
-          ? JSON.stringify(message.metadata)
-          : null;
-    const { db } = await getDrizzleClient();
-    await db.transaction(async (tx) => {
-      await tx
-        .insert(messagesTable)
-        .values({
-          id: message.id,
-          conversationId: message.conversationId,
-          content: message.content,
-          sender: message.sender,
-          parts: message.parts ?? null,
-          metadata: metadataValue,
-          timestamp: new Date().toISOString(),
-        })
-        .onConflictDoNothing()
-        .run();
-
-      await tx
-        .update(conversationsTable)
-        .set({ updatedAt: new Date().toISOString() })
-        .where(eq(conversationsTable.id, message.conversationId))
-        .run();
-    });
+    return this.conversationRepo.saveMessage(message);
   }
 
   async getMessages(conversationId: string): Promise<Message[]> {
-    if (this.disabled) return [];
-    const { db } = await getDrizzleClient();
-    const rows = await db
-      .select()
-      .from(messagesTable)
-      .where(eq(messagesTable.conversationId, conversationId))
-      .orderBy(asc(messagesTable.timestamp));
-    return rows.map((row) => this.mapDrizzleMessageRow(row));
+    return this.conversationRepo.getMessages(conversationId);
   }
 
   async deleteConversation(conversationId: string): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    await db.delete(conversationsTable).where(eq(conversationsTable.id, conversationId));
+    return this.conversationRepo.delete(conversationId);
   }
 
-  // New multi-chat methods
   async createConversation(
     taskId: string,
     title: string,
@@ -668,868 +216,195 @@ export class DatabaseService {
     mode?: 'pty' | 'acp',
     metadata?: string | null
   ): Promise<Conversation> {
-    if (this.disabled) {
-      return {
-        id: `conv-${taskId}-${Date.now()}`,
-        taskId,
-        title,
-        provider: provider ?? null,
-        isActive: true,
-        isMain: isMain ?? false,
-        displayOrder: 0,
-        metadata: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-    }
-
-    const { db } = await getDrizzleClient();
-    const conversationId = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    await db.transaction(async (tx) => {
-      // Get the next display order
-      const existingConversations = await tx
-        .select()
-        .from(conversationsTable)
-        .where(eq(conversationsTable.taskId, taskId));
-
-      const maxOrder = Math.max(...existingConversations.map((c) => c.displayOrder || 0), -1);
-
-      // Check if this should be the main conversation
-      let shouldBeMain = isMain;
-      // If explicitly set as main, check if one already exists
-      if (shouldBeMain === true) {
-        const hasMain = existingConversations.some((c) => c.isMain === 1);
-        if (hasMain) {
-          shouldBeMain = false; // Don't allow multiple main conversations
-        }
-      } else if (shouldBeMain === undefined) {
-        // If not specified, make it main only if it's the first conversation
-        shouldBeMain = existingConversations.length === 0;
-      }
-
-      // Deactivate other conversations
-      await tx
-        .update(conversationsTable)
-        .set({ isActive: 0 })
-        .where(eq(conversationsTable.taskId, taskId));
-
-      // Create the new conversation
-      await tx.insert(conversationsTable).values({
-        id: conversationId,
-        taskId,
-        title,
-        provider: provider ?? null,
-        isActive: 1,
-        isMain: (shouldBeMain ?? false) ? 1 : 0,
-        displayOrder: maxOrder + 1,
-        mode: mode ?? 'pty',
-        metadata: metadata ?? null,
-      });
-    });
-
-    // Fetch the created conversation
-    const [createdRow] = await db
-      .select()
-      .from(conversationsTable)
-      .where(eq(conversationsTable.id, conversationId))
-      .limit(1);
-
-    return this.mapDrizzleConversationRow(createdRow);
+    return this.conversationRepo.create(taskId, title, provider, isMain, mode, metadata);
   }
 
   async setActiveConversation(taskId: string, conversationId: string): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-
-    await db.transaction(async (tx) => {
-      // Deactivate all conversations for this task
-      await tx
-        .update(conversationsTable)
-        .set({ isActive: 0 })
-        .where(eq(conversationsTable.taskId, taskId));
-
-      // Activate the selected one
-      await tx
-        .update(conversationsTable)
-        .set({ isActive: 1, updatedAt: new Date().toISOString() })
-        .where(eq(conversationsTable.id, conversationId));
-    });
+    return this.conversationRepo.setActive(taskId, conversationId);
   }
 
   async getActiveConversation(taskId: string): Promise<Conversation | null> {
-    if (this.disabled) return null;
-    const { db } = await getDrizzleClient();
-
-    const results = await db
-      .select()
-      .from(conversationsTable)
-      .where(and(eq(conversationsTable.taskId, taskId), eq(conversationsTable.isActive, 1)))
-      .limit(1);
-
-    return results[0] ? this.mapDrizzleConversationRow(results[0]) : null;
+    return this.conversationRepo.getActive(taskId);
   }
 
   async reorderConversations(taskId: string, conversationIds: string[]): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-
-    await db.transaction(async (tx) => {
-      await Promise.all(
-        conversationIds.map((id, i) =>
-          tx
-            .update(conversationsTable)
-            .set({ displayOrder: i })
-            .where(eq(conversationsTable.id, id))
-        )
-      );
-    });
+    return this.conversationRepo.reorder(taskId, conversationIds);
   }
 
-  async updateConversationAcpSessionId(
-    conversationId: string,
-    acpSessionId: string
-  ): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-
-    await db
-      .update(conversationsTable)
-      .set({ acpSessionId, updatedAt: new Date().toISOString() })
-      .where(eq(conversationsTable.id, conversationId));
+  async updateConversationAcpSessionId(conversationId: string, acpSessionId: string): Promise<void> {
+    return this.conversationRepo.updateAcpSessionId(conversationId, acpSessionId);
   }
 
   async getConversationAcpSessionId(conversationId: string): Promise<string | null> {
-    if (this.disabled) return null;
-    const { db } = await getDrizzleClient();
-
-    const rows = await db
-      .select({ acpSessionId: conversationsTable.acpSessionId })
-      .from(conversationsTable)
-      .where(eq(conversationsTable.id, conversationId))
-      .limit(1);
-
-    return rows[0]?.acpSessionId ?? null;
+    return this.conversationRepo.getAcpSessionId(conversationId);
   }
 
   async updateConversationTitle(conversationId: string, title: string): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-
-    await db
-      .update(conversationsTable)
-      .set({ title, updatedAt: new Date().toISOString() })
-      .where(eq(conversationsTable.id, conversationId));
+    return this.conversationRepo.updateTitle(conversationId, title);
   }
 
   // Line comment management methods
+  // Line comment methods (delegated to LineCommentRepository)
   async saveLineComment(
     input: Omit<LineCommentInsert, 'id' | 'createdAt' | 'updatedAt'>
   ): Promise<string> {
-    if (this.disabled) return '';
-    const id = `comment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const { db } = await getDrizzleClient();
-    await db.insert(lineCommentsTable).values({
-      id,
-      taskId: input.taskId,
-      filePath: input.filePath,
-      lineNumber: input.lineNumber,
-      lineContent: input.lineContent ?? null,
-      content: input.content,
-      updatedAt: new Date().toISOString(),
-    });
-    return id;
+    return this.lineCommentRepo.save(input);
   }
 
   async getLineComments(taskId: string, filePath?: string): Promise<LineCommentRow[]> {
-    if (this.disabled) return [];
-    const { db } = await getDrizzleClient();
-
-    if (filePath) {
-      const rows = await db
-        .select()
-        .from(lineCommentsTable)
-        .where(
-          sql`${lineCommentsTable.taskId} = ${taskId} AND ${lineCommentsTable.filePath} = ${filePath}`
-        )
-        .orderBy(asc(lineCommentsTable.lineNumber));
-      return rows;
-    }
-
-    const rows = await db
-      .select()
-      .from(lineCommentsTable)
-      .where(eq(lineCommentsTable.taskId, taskId))
-      .orderBy(asc(lineCommentsTable.lineNumber));
-    return rows;
+    return this.lineCommentRepo.getAll(taskId, filePath);
   }
 
   async updateLineComment(id: string, content: string): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    await db
-      .update(lineCommentsTable)
-      .set({
-        content,
-        updatedAt: new Date().toISOString(),
-      })
-      .where(eq(lineCommentsTable.id, id));
+    return this.lineCommentRepo.update(id, content);
   }
 
   async deleteLineComment(id: string): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    await db.delete(lineCommentsTable).where(eq(lineCommentsTable.id, id));
+    return this.lineCommentRepo.delete(id);
   }
 
   async markCommentsSent(commentIds: string[]): Promise<void> {
-    if (this.disabled || commentIds.length === 0) return;
-    const { db } = await getDrizzleClient();
-    const now = new Date().toISOString();
-    await db
-      .update(lineCommentsTable)
-      .set({ sentAt: now })
-      .where(inArray(lineCommentsTable.id, commentIds));
+    return this.lineCommentRepo.markSent(commentIds);
   }
 
   async getUnsentComments(taskId: string): Promise<LineCommentRow[]> {
-    if (this.disabled) return [];
-    const { db } = await getDrizzleClient();
-    const rows = await db
-      .select()
-      .from(lineCommentsTable)
-      .where(and(eq(lineCommentsTable.taskId, taskId), isNull(lineCommentsTable.sentAt)))
-      .orderBy(asc(lineCommentsTable.filePath), asc(lineCommentsTable.lineNumber));
-    return rows;
+    return this.lineCommentRepo.getUnsent(taskId);
   }
 
-  // Project group management methods
+  // Project group methods (delegated to ProjectGroupRepository)
   async getProjectGroups(): Promise<ProjectGroup[]> {
-    if (this.disabled) return [];
-    const { db } = await getDrizzleClient();
-    const rows = await db
-      .select()
-      .from(projectGroupsTable)
-      .orderBy(asc(projectGroupsTable.displayOrder));
-    return rows.map((row) => this.mapDrizzleProjectGroupRow(row));
+    return this.projectGroupRepo.getAll();
   }
 
   async createProjectGroup(name: string): Promise<ProjectGroup> {
-    if (this.disabled) throw new Error('Database is disabled');
-    const { db } = await getDrizzleClient();
-
-    const existing = await db
-      .select()
-      .from(projectGroupsTable)
-      .orderBy(desc(projectGroupsTable.displayOrder))
-      .limit(1);
-    const maxOrder = existing.length > 0 ? existing[0].displayOrder : -1;
-
-    const id = `group_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    await db.insert(projectGroupsTable).values({
-      id,
-      name,
-      displayOrder: maxOrder + 1,
-    });
-
-    const [row] = await db
-      .select()
-      .from(projectGroupsTable)
-      .where(eq(projectGroupsTable.id, id))
-      .limit(1);
-    return this.mapDrizzleProjectGroupRow(row);
+    return this.projectGroupRepo.create(name);
   }
 
   async renameProjectGroup(id: string, name: string): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    await db
-      .update(projectGroupsTable)
-      .set({ name, updatedAt: new Date().toISOString() })
-      .where(eq(projectGroupsTable.id, id));
+    return this.projectGroupRepo.rename(id, name);
   }
 
   async deleteProjectGroup(id: string): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    // Projects inside become ungrouped (FK onDelete: 'set null' handles this)
-    await db.delete(projectGroupsTable).where(eq(projectGroupsTable.id, id));
+    return this.projectGroupRepo.delete(id);
   }
 
   async updateProjectGroupOrder(groupIds: string[]): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    const now = new Date().toISOString();
-    await db.transaction(async (tx) => {
-      await Promise.all(
-        groupIds.map((id, i) =>
-          tx
-            .update(projectGroupsTable)
-            .set({ displayOrder: i, updatedAt: now })
-            .where(eq(projectGroupsTable.id, id))
-        )
-      );
-    });
+    return this.projectGroupRepo.updateOrder(groupIds);
   }
 
   async setProjectGroup(projectId: string, groupId: string | null): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    await db
-      .update(projectsTable)
-      .set({ groupId, updatedAt: new Date().toISOString() })
-      .where(eq(projectsTable.id, projectId));
+    return this.projectGroupRepo.setProjectGroup(projectId, groupId);
   }
 
   async toggleProjectGroupCollapsed(id: string, isCollapsed: boolean): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    await db
-      .update(projectGroupsTable)
-      .set({ isCollapsed: isCollapsed ? 1 : 0, updatedAt: new Date().toISOString() })
-      .where(eq(projectGroupsTable.id, id));
+    return this.projectGroupRepo.toggleCollapsed(id, isCollapsed);
   }
 
-  // Workspace management methods
-
-  private mapDrizzleWorkspaceRow(row: WorkspaceRow): Workspace {
-    return {
-      id: row.id,
-      name: row.name,
-      color: row.color,
-      emoji: row.emoji,
-      displayOrder: row.displayOrder,
-      isDefault: row.isDefault === 1,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-    };
-  }
-
+  // Workspace methods (delegated to WorkspaceRepository)
   async ensureDefaultWorkspace(): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    const existing = await db
-      .select()
-      .from(workspacesTable)
-      .where(eq(workspacesTable.isDefault, 1))
-      .limit(1);
-    if (existing.length > 0) return;
-
-    const id = `ws_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    await db.insert(workspacesTable).values({
-      id,
-      name: 'Default',
-      color: 'blue',
-      displayOrder: 0,
-      isDefault: 1,
-    });
+    return this.workspaceRepo.ensureDefault();
   }
 
   async getWorkspaces(): Promise<Workspace[]> {
-    if (this.disabled) return [];
-    const { db } = await getDrizzleClient();
-    const rows = await db.select().from(workspacesTable).orderBy(asc(workspacesTable.displayOrder));
-    return rows.map((row) => this.mapDrizzleWorkspaceRow(row));
+    return this.workspaceRepo.getAll();
   }
 
   async createWorkspace(name: string, color: string = 'blue'): Promise<Workspace> {
-    if (this.disabled) throw new Error('Database is disabled');
-    const { db } = await getDrizzleClient();
-
-    const existing = await db
-      .select()
-      .from(workspacesTable)
-      .orderBy(desc(workspacesTable.displayOrder))
-      .limit(1);
-    const maxOrder = existing.length > 0 ? existing[0].displayOrder : -1;
-
-    const id = `ws_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    await db.insert(workspacesTable).values({
-      id,
-      name,
-      color,
-      displayOrder: maxOrder + 1,
-    });
-
-    const [row] = await db
-      .select()
-      .from(workspacesTable)
-      .where(eq(workspacesTable.id, id))
-      .limit(1);
-    return this.mapDrizzleWorkspaceRow(row);
+    return this.workspaceRepo.create(name, color);
   }
 
   async renameWorkspace(id: string, name: string): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    await db
-      .update(workspacesTable)
-      .set({ name, updatedAt: new Date().toISOString() })
-      .where(eq(workspacesTable.id, id));
+    return this.workspaceRepo.rename(id, name);
   }
 
   async updateWorkspaceColor(id: string, color: string): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    await db
-      .update(workspacesTable)
-      .set({ color, updatedAt: new Date().toISOString() })
-      .where(eq(workspacesTable.id, id));
+    return this.workspaceRepo.updateColor(id, color);
   }
 
   async updateWorkspaceEmoji(id: string, emoji: string | null): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    await db
-      .update(workspacesTable)
-      .set({ emoji, updatedAt: new Date().toISOString() })
-      .where(eq(workspacesTable.id, id));
+    return this.workspaceRepo.updateEmoji(id, emoji);
   }
 
   async deleteWorkspace(id: string): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-
-    await db.transaction(async (tx) => {
-      // Refuse to delete default workspace
-      const [ws] = await tx
-        .select()
-        .from(workspacesTable)
-        .where(eq(workspacesTable.id, id))
-        .limit(1);
-      if (!ws) return;
-      if (ws.isDefault === 1) throw new Error('Cannot delete the default workspace');
-
-      // Find the default workspace to reassign orphaned projects
-      const [defaultWs] = await tx
-        .select()
-        .from(workspacesTable)
-        .where(eq(workspacesTable.isDefault, 1))
-        .limit(1);
-
-      // Move orphaned projects to default workspace
-      if (defaultWs) {
-        await tx
-          .update(projectsTable)
-          .set({ workspaceId: defaultWs.id, updatedAt: new Date().toISOString() })
-          .where(eq(projectsTable.workspaceId, id));
-      }
-
-      await tx.delete(workspacesTable).where(eq(workspacesTable.id, id));
-    });
+    return this.workspaceRepo.delete(id);
   }
 
   async updateWorkspaceOrder(workspaceIds: string[]): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    const now = new Date().toISOString();
-    await db.transaction(async (tx) => {
-      await Promise.all(
-        workspaceIds.map((id, i) =>
-          tx
-            .update(workspacesTable)
-            .set({ displayOrder: i, updatedAt: now })
-            .where(eq(workspacesTable.id, id))
-        )
-      );
-    });
+    return this.workspaceRepo.updateOrder(workspaceIds);
   }
 
   async setProjectWorkspace(projectId: string, workspaceId: string | null): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    await db
-      .update(projectsTable)
-      .set({ workspaceId, updatedAt: new Date().toISOString() })
-      .where(eq(projectsTable.id, projectId));
+    return this.workspaceRepo.setProjectWorkspace(projectId, workspaceId);
   }
 
-  // SSH connection management methods
+  // SSH connection methods (delegated to SshConnectionRepository)
   async saveSshConnection(
     connection: Omit<SshConnectionInsert, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }
   ): Promise<SshConnectionRow> {
-    if (this.disabled) {
-      throw new Error('Database is disabled');
-    }
-    const { db } = await getDrizzleClient();
-
-    const id = connection.id ?? `ssh_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const now = new Date().toISOString();
-
-    const result = await db
-      .insert(sshConnectionsTable)
-      .values({
-        ...connection,
-        id,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .onConflictDoUpdate({
-        target: sshConnectionsTable.id,
-        set: {
-          name: connection.name,
-          host: connection.host,
-          port: connection.port,
-          username: connection.username,
-          authType: connection.authType,
-          privateKeyPath: connection.privateKeyPath ?? null,
-          useAgent: connection.useAgent,
-          updatedAt: now,
-        },
-      })
-      .returning();
-
-    return result[0];
+    return this.sshConnectionRepo.save(connection);
   }
 
   async getSshConnections(): Promise<SshConnectionRow[]> {
-    if (this.disabled) return [];
-    const { db } = await getDrizzleClient();
-    return db.select().from(sshConnectionsTable).orderBy(sshConnectionsTable.name);
+    return this.sshConnectionRepo.getAll();
   }
 
   async getSshConnection(id: string): Promise<SshConnectionRow | null> {
-    if (this.disabled) return null;
-    const { db } = await getDrizzleClient();
-    const rows = await db
-      .select()
-      .from(sshConnectionsTable)
-      .where(eq(sshConnectionsTable.id, id))
-      .limit(1);
-    return rows.length > 0 ? rows[0] : null;
+    return this.sshConnectionRepo.getById(id);
   }
 
   async deleteSshConnection(id: string): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-
-    // FK onDelete: 'set null' on projects.sshConnectionId handles clearing project references
-    await db.delete(sshConnectionsTable).where(eq(sshConnectionsTable.id, id));
+    return this.sshConnectionRepo.delete(id);
   }
 
-  private computeBaseRef(
-    preferred?: string | null,
-    remote?: string | null,
-    branch?: string | null
-  ): string {
-    const remoteName = this.getRemoteAlias(remote);
-    const normalize = (value?: string | null): string | undefined => {
-      if (!value) return undefined;
-      const trimmed = value.trim();
-      if (!trimmed || trimmed.includes('://')) return undefined;
-
-      if (trimmed.includes('/')) {
-        const [head, ...rest] = trimmed.split('/');
-        const branchPart = rest.join('/').replace(/^\/+/, '');
-        if (head && branchPart) {
-          return `${head}/${branchPart}`;
-        }
-        if (!head && branchPart) {
-          // Leading slash - prepend remote if available
-          return remoteName ? `${remoteName}/${branchPart}` : branchPart;
-        }
-        return undefined;
-      }
-
-      // Plain branch name - prepend remote only if one exists
-      const suffix = trimmed.replace(/^\/+/, '');
-      return remoteName ? `${remoteName}/${suffix}` : suffix;
-    };
-
-    // Default: use origin/main if remote exists, otherwise just 'main'
-    const defaultBranch = remoteName
-      ? `${remoteName}/${this.defaultBranchName()}`
-      : this.defaultBranchName();
-    return normalize(preferred) ?? normalize(branch) ?? defaultBranch;
-  }
-
-  private defaultRemoteName(): string {
-    return 'origin';
-  }
-
-  private getRemoteAlias(remote?: string | null): string {
-    if (!remote) return this.defaultRemoteName();
-    const trimmed = remote.trim();
-    if (!trimmed) return ''; // Empty string indicates no remote (local-only repo)
-    if (/^[A-Za-z0-9._-]+$/.test(trimmed) && !trimmed.includes('://')) {
-      return trimmed;
-    }
-    return this.defaultRemoteName();
-  }
-
-  private defaultBranchName(): string {
-    return 'main';
-  }
-
-  private mapDrizzleProjectGroupRow(row: ProjectGroupRow): ProjectGroup {
-    return {
-      id: row.id,
-      name: row.name,
-      displayOrder: row.displayOrder,
-      isCollapsed: row.isCollapsed === 1,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-    };
-  }
-
-  private mapDrizzleProjectRow(row: ProjectRow): Project {
-    // Parse subRepos from JSON if present
-    let subRepos: SubRepo[] | null = null;
-    if (row.subRepos) {
-      try {
-        subRepos = JSON.parse(row.subRepos) as SubRepo[];
-      } catch (e) {
-        log.warn(`Failed to parse subRepos for project ${row.id}:`, e);
-      }
-    }
-
-    return {
-      id: row.id,
-      name: row.name,
-      path: row.path,
-      isRemote: row.isRemote === 1,
-      sshConnectionId: row.sshConnectionId ?? null,
-      remotePath: row.remotePath ?? null,
-      subRepos,
-      groupId: row.groupId ?? null,
-      workspaceId: row.workspaceId ?? null,
-      gitInfo: {
-        isGitRepo: !!(row.gitRemote || row.gitBranch),
-        remote: row.gitRemote ?? undefined,
-        branch: row.gitBranch ?? undefined,
-        baseRef: this.computeBaseRef(row.baseRef, row.gitRemote, row.gitBranch),
-      },
-      githubInfo: row.githubRepository
-        ? {
-            repository: row.githubRepository,
-            connected: !!row.githubConnected,
-          }
-        : undefined,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-    };
-  }
-
-  private mapDrizzleTaskRow(row: TaskRow): Task {
-    return {
-      id: row.id,
-      projectId: row.projectId,
-      name: row.name,
-      branch: row.branch,
-      path: row.path,
-      status: (row.status as Task['status']) ?? 'idle',
-      agentId: row.agentId ?? null,
-      metadata:
-        typeof row.metadata === 'string' && row.metadata.length > 0
-          ? this.parseTaskMetadata(row.metadata, row.id)
-          : null,
-      useWorktree: row.useWorktree === 1,
-      archivedAt: row.archivedAt ?? null,
-      isPinned: row.isPinned === 1,
-      lastAgent: row.lastAgent ?? null,
-      lockedAgent: row.lockedAgent ?? null,
-      initialPromptSent: row.initialPromptSent === 1,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-    };
-  }
-
-  private mapDrizzleConversationRow(row: ConversationRow): Conversation {
-    return {
-      id: row.id,
-      taskId: row.taskId,
-      title: row.title,
-      provider: row.provider ?? null,
-      mode: (row.mode as 'pty' | 'acp') ?? 'pty',
-      acpSessionId: row.acpSessionId ?? null,
-      isActive: row.isActive === 1,
-      // For backward compatibility: treat missing isMain as true (assume first/only conversation is main)
-      isMain: row.isMain !== undefined ? row.isMain === 1 : true,
-      displayOrder: row.displayOrder ?? 0,
-      metadata: row.metadata ?? null,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-    };
-  }
-
-  private mapDrizzleMessageRow(row: MessageRow): Message {
-    return {
-      id: row.id,
-      conversationId: row.conversationId,
-      content: row.content,
-      sender: row.sender as Message['sender'],
-      parts: row.parts ?? null,
-      timestamp: row.timestamp,
-      metadata: row.metadata ?? undefined,
-    };
-  }
-
-  private parseTaskMetadata(serialized: string, taskId: string): any {
-    try {
-      return JSON.parse(serialized);
-    } catch (error) {
-      console.warn(`Failed to parse task metadata for ${taskId}`, error);
-      return null;
-    }
-  }
-
-  // App state methods
+  // App state methods (delegated to AppStateRepository)
   async getAppState(): Promise<AppState> {
-    if (this.disabled)
-      return {
-        activeProjectId: null,
-        activeTaskId: null,
-        activeWorkspaceId: null,
-        prMode: null,
-        prDraft: false,
-      };
-    const { db } = await getDrizzleClient();
-    const rows = await db.select().from(appStateTable).where(eq(appStateTable.id, 1)).limit(1);
-    if (rows.length === 0) {
-      // Initialize default row
-      await db.insert(appStateTable).values({ id: 1 }).onConflictDoNothing();
-      return {
-        activeProjectId: null,
-        activeTaskId: null,
-        activeWorkspaceId: null,
-        prMode: null,
-        prDraft: false,
-      };
-    }
-    const row = rows[0];
-    return {
-      activeProjectId: row.activeProjectId ?? null,
-      activeTaskId: row.activeTaskId ?? null,
-      activeWorkspaceId: row.activeWorkspaceId ?? null,
-      prMode: row.prMode ?? null,
-      prDraft: row.prDraft === 1,
-    };
+    return this.appStateRepo.get();
   }
 
   async updateAppState(partial: Partial<AppState>): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    const set: any = {};
-    if ('activeProjectId' in partial) set.activeProjectId = partial.activeProjectId ?? null;
-    if ('activeTaskId' in partial) set.activeTaskId = partial.activeTaskId ?? null;
-    if ('activeWorkspaceId' in partial) set.activeWorkspaceId = partial.activeWorkspaceId ?? null;
-    if ('prMode' in partial) set.prMode = partial.prMode ?? null;
-    if ('prDraft' in partial) set.prDraft = partial.prDraft ? 1 : 0;
-    if (Object.keys(set).length === 0) return;
-    // Upsert: insert if not exists, update if exists
-    await db
-      .insert(appStateTable)
-      .values({ id: 1, ...set })
-      .onConflictDoUpdate({
-        target: appStateTable.id,
-        set,
-      });
+    return this.appStateRepo.update(partial);
   }
 
-  // Task pinned/agent methods
+  // Task pinned/agent methods (delegated to TaskRepository)
   async setTaskPinned(taskId: string, pinned: boolean): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    await db
-      .update(tasksTable)
-      .set({ isPinned: pinned ? 1 : 0, updatedAt: new Date().toISOString() })
-      .where(eq(tasksTable.id, taskId));
+    return this.taskRepo.setPinned(taskId, pinned);
   }
 
   async getPinnedTaskIds(): Promise<string[]> {
-    if (this.disabled) return [];
-    const { db } = await getDrizzleClient();
-    const rows = await db
-      .select({ id: tasksTable.id })
-      .from(tasksTable)
-      .where(eq(tasksTable.isPinned, 1));
-    return rows.map((r) => r.id);
+    return this.taskRepo.getPinnedIds();
   }
 
   async setTaskAgent(
     taskId: string,
     update: { lastAgent?: string | null; lockedAgent?: string | null }
   ): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    const set: any = { updatedAt: new Date().toISOString() };
-    if ('lastAgent' in update) set.lastAgent = update.lastAgent ?? null;
-    if ('lockedAgent' in update) set.lockedAgent = update.lockedAgent ?? null;
-    await db.update(tasksTable).set(set).where(eq(tasksTable.id, taskId));
+    return this.taskRepo.setAgent(taskId, update);
   }
 
   async setTaskInitialPromptSent(taskId: string, sent: boolean): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    await db
-      .update(tasksTable)
-      .set({ initialPromptSent: sent ? 1 : 0, updatedAt: new Date().toISOString() })
-      .where(eq(tasksTable.id, taskId));
+    return this.taskRepo.setInitialPromptSent(taskId, sent);
   }
 
-  // Terminal sessions methods
+  // Terminal sessions methods (delegated to TerminalSessionRepository)
   async getTerminalSessions(taskKey: string): Promise<TerminalSession[]> {
-    if (this.disabled) return [];
-    const { db } = await getDrizzleClient();
-    const rows = await db
-      .select()
-      .from(terminalSessionsTable)
-      .where(eq(terminalSessionsTable.taskKey, taskKey))
-      .orderBy(asc(terminalSessionsTable.displayOrder));
-    return rows.map((row) => ({
-      id: row.id,
-      taskKey: row.taskKey,
-      terminalId: row.terminalId,
-      title: row.title,
-      cwd: row.cwd ?? null,
-      isActive: row.isActive === 1,
-      displayOrder: row.displayOrder ?? 0,
-      createdAt: row.createdAt ?? new Date().toISOString(),
-    }));
+    return this.terminalSessionRepo.getAll(taskKey);
   }
 
   async saveTerminalSessions(taskKey: string, sessions: TerminalSession[]): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    await db.transaction(async (tx) => {
-      // Delete existing sessions for this task key
-      await tx.delete(terminalSessionsTable).where(eq(terminalSessionsTable.taskKey, taskKey));
-      // Insert new sessions
-      for (const session of sessions) {
-        await tx.insert(terminalSessionsTable).values({
-          id: session.id,
-          taskKey,
-          terminalId: session.terminalId,
-          title: session.title,
-          cwd: session.cwd ?? null,
-          isActive: session.isActive ? 1 : 0,
-          displayOrder: session.displayOrder,
-        });
-      }
-    });
+    return this.terminalSessionRepo.save(taskKey, sessions);
   }
 
   async deleteTerminalSessions(taskKey: string): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    await db.delete(terminalSessionsTable).where(eq(terminalSessionsTable.taskKey, taskKey));
+    return this.terminalSessionRepo.delete(taskKey);
   }
 
-  // Kanban methods
+  // Kanban methods (delegated to KanbanRepository)
   async getKanbanStatuses(): Promise<Array<{ taskId: string; status: string }>> {
-    if (this.disabled) return [];
-    const { db } = await getDrizzleClient();
-    const rows = await db.select().from(kanbanColumnsTable);
-    return rows.map((row) => ({ taskId: row.taskId, status: row.status }));
+    return this.kanbanRepo.getStatuses();
   }
 
   async setKanbanStatus(taskId: string, status: string): Promise<void> {
-    if (this.disabled) return;
-    const { db } = await getDrizzleClient();
-    await db.insert(kanbanColumnsTable).values({ id: taskId, taskId, status }).onConflictDoUpdate({
-      target: kanbanColumnsTable.id,
-      set: { status },
-    });
+    return this.kanbanRepo.setStatus(taskId, status);
   }
 
   async close(): Promise<void> {

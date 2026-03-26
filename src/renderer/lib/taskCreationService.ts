@@ -314,6 +314,36 @@ export async function createTask(params: CreateTaskParams, callbacks: CreateTask
       let taskId: string;
       let multiRepoMeta: TaskMetadata['multiRepo'] = undefined;
 
+      // Show placeholder task immediately so the user sees feedback during worktree creation
+      const placeholderId = `creating-${taskName}-${Date.now()}`;
+      const placeholderTask: Task = {
+        id: placeholderId,
+        projectId: selectedProject.id,
+        name: taskName,
+        branch: '',
+        path: '',
+        status: 'idle',
+        agentId: primaryAgent,
+        metadata: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      if (useWorktree) {
+        setProjects((prev) =>
+          prev.map((project) =>
+            project.id === selectedProject.id
+              ? { ...project, tasks: [placeholderTask, ...(project.tasks || [])] }
+              : project
+          )
+        );
+        setSelectedProject((prev) =>
+          prev?.id === selectedProject.id
+            ? { ...prev, tasks: [placeholderTask, ...(prev.tasks || [])] }
+            : prev
+        );
+      }
+
       // Check if this is a multi-repo project with selected sub-repos
       const isMultiRepoTask =
         selectedSubRepos &&
@@ -442,25 +472,29 @@ export async function createTask(params: CreateTaskParams, callbacks: CreateTask
         useWorktree,
       };
 
-      // Optimistic UI update - show task immediately, save in background
+      // Replace placeholder with real task, or add if no placeholder was shown
       setProjects((prev) =>
         prev.map((project) =>
           project.id === selectedProject.id
             ? {
                 ...project,
-                tasks: [newTask, ...(project.tasks || [])],
+                tasks: (project.tasks || []).some((t) => t.id === placeholderId)
+                  ? (project.tasks || []).map((t) => (t.id === placeholderId ? newTask : t))
+                  : [newTask, ...(project.tasks || [])],
               }
             : project
         )
       );
 
       setSelectedProject((prev) =>
-        prev
+        prev?.id === selectedProject.id
           ? {
               ...prev,
-              tasks: [newTask, ...(prev.tasks || [])],
+              tasks: (prev.tasks || []).some((t) => t.id === placeholderId)
+                ? (prev.tasks || []).map((t) => (t.id === placeholderId ? newTask : t))
+                : [newTask, ...(prev.tasks || [])],
             }
-          : null
+          : prev
       );
 
       // Set the active task and its agent immediately
