@@ -194,13 +194,37 @@ export function startDirectPty(options: {
     // Add resume flag if resuming an existing session (e.g., after app reload)
     if (resume) {
       if (resumeSessionId && providerId === 'claude') {
-        // Always use generic resume for Claude instead of --resume <uuid>.
-        // Valkyr-generated UUIDs passed via --session-id on initial start are not
-        // guaranteed to persist across Claude Code restarts/compactions, causing
-        // "No conversation found with session ID" errors. Generic resume (resume
-        // latest) is more reliable and matches the user's expectation of picking
-        // up where they left off in this worktree.
-        if (provider.resumeFlag) {
+        // Try to resume by specific session ID first. If the session file doesn't
+        // exist in Claude's storage (e.g. session was never checkpointed, or was
+        // cleaned up), fall back to generic resume (resume latest).
+        let useSpecificId = false;
+        try {
+          const fs = require('fs');
+          const path = require('path');
+          const os = require('os');
+          const projectsDir = path.join(os.homedir(), '.claude', 'projects');
+          if (fs.existsSync(projectsDir)) {
+            const dirs = fs.readdirSync(projectsDir);
+            for (const dir of dirs) {
+              const sessionFile = path.join(
+                projectsDir,
+                dir,
+                `${resumeSessionId}.jsonl`
+              );
+              if (fs.existsSync(sessionFile)) {
+                useSpecificId = true;
+                break;
+              }
+            }
+          }
+        } catch {
+          // On error, fall back to generic resume
+        }
+
+        if (useSpecificId) {
+          cliArgs.push('--resume', resumeSessionId);
+        } else if (provider.resumeFlag) {
+          // Session not found — fall back to generic resume (resume latest)
           const resumeParts = provider.resumeFlag.split(' ');
           cliArgs.push(...resumeParts);
         }
