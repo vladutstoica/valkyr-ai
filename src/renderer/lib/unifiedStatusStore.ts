@@ -367,13 +367,13 @@ class UnifiedStatusStore {
         let taskId = sessionId ? this.hookSessionToTask.get(sessionId) : undefined;
 
         // Parse taskId from sessionId if not in the registration map.
-        // PTY IDs follow the format: `{agent}-main-{taskId}` or `{agent}-chat-{convId}`.
-        // This eliminates dependency on React useEffect registration timing.
+        // PTY IDs follow `{agent}-main-{taskId}` or `{agent}-chat-{convId}`.
+        // Use `-main-` as a literal delimiter (safe for hyphenated agent names like `qwen-code`).
         if (!taskId && sessionId) {
-          const mainMatch = sessionId.match(/^[^-]+-main-(.+)$/);
-          if (mainMatch) {
-            taskId = mainMatch[1];
-            // Auto-register so subsequent events for this session are fast-pathed
+          const mainIdx = sessionId.indexOf('-main-');
+          if (mainIdx !== -1) {
+            taskId = sessionId.slice(mainIdx + 6); // length of '-main-' = 6
+            // Auto-register so subsequent events are fast-pathed
             this.hookSessionToTask.set(sessionId, taskId);
             // Ensure task has a conversation entry so getDot works
             if (!this.tasks.has(taskId)) {
@@ -387,14 +387,8 @@ class UnifiedStatusStore {
           }
         }
 
-        // Last resort: route to most recent registered session
-        if (!taskId) {
-          const entries = Array.from(this.hookSessionToTask.entries());
-          if (entries.length === 0) return;
-          const [lastSid, lastTid] = entries[entries.length - 1];
-          taskId = lastTid;
-          convKey = lastSid;
-        }
+        // If still unresolved, drop the event rather than misrouting it
+        // to a random task (which corrupts status dots in multi-task scenarios).
         if (!taskId) return;
 
         // Update ONLY this conversation's dot (not all conversations)

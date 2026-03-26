@@ -543,6 +543,22 @@ export async function createTask(params: CreateTaskParams, callbacks: CreateTask
   } catch (error) {
     const { log } = await import('./logger');
     log.error('Failed to create task:', error);
+
+    // Remove placeholder task from UI if it was added (single-agent worktree path)
+    const { setProjects, setSelectedProject } = callbacks;
+    setProjects((prev) =>
+      prev.map((project) =>
+        project.id === selectedProject.id
+          ? { ...project, tasks: (project.tasks || []).filter((t) => !t.id.startsWith('creating-')) }
+          : project
+      )
+    );
+    setSelectedProject((prev) =>
+      prev?.id === selectedProject.id
+        ? { ...prev, tasks: (prev.tasks || []).filter((t) => !t.id.startsWith('creating-')) }
+        : prev
+    );
+
     callbacks.toast({
       title: 'Error',
       description:
