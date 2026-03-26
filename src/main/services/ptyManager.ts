@@ -223,11 +223,10 @@ export function startDirectPty(options: {
 
         if (useSpecificId) {
           cliArgs.push('--resume', resumeSessionId);
-        } else if (provider.resumeFlag) {
-          // Session not found — fall back to generic resume (resume latest)
-          const resumeParts = provider.resumeFlag.split(' ');
-          cliArgs.push(...resumeParts);
         }
+        // Session not found — skip resume entirely (start fresh).
+        // Don't fall back to generic resume, which would resume a different
+        // conversation and cause duplicate sessions in multi-chat scenarios.
       } else if (provider.resumeFlag) {
         // Generic resume for other providers
         const resumeParts = provider.resumeFlag.split(' ');

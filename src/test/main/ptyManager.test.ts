@@ -346,7 +346,7 @@ describe('ptyManager — spawn behaviour', () => {
       expect(spawnedProcs[0]._spawnArgs.args).not.toContain('--dangerously-skip-permissions');
     });
 
-    it('falls back to generic resume when claude session file does not exist', () => {
+    it('starts fresh when claude session file does not exist (no resume)', () => {
       setupProvider();
       mgr.startDirectPty({
         id: 'resume-test',
@@ -357,8 +357,10 @@ describe('ptyManager — spawn behaviour', () => {
       });
 
       const args = spawnedProcs[0]._spawnArgs.args;
-      // Session file doesn't exist → falls back to generic resume
-      expect(args).toContain('--resume');
+      // Session file doesn't exist → skip resume entirely (start fresh)
+      // to avoid resuming a different conversation in multi-chat scenarios
+      expect(args).not.toContain('--resume');
+      expect(args).not.toContain('-r');
       expect(args).not.toContain('sess-abc');
     });
 

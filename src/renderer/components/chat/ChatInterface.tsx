@@ -383,11 +383,21 @@ const ChatInterface: React.FC<Props> = ({
   }, [isTerminal, task.metadata, commentsContext]);
 
   // Register hook session mapping for PTY/CLI Claude sessions.
-  // Maps PTY ids to task.id in UI tab order so pill sections match chat tabs.
-  // IDs must match the terminal ID format: main conv uses `agent-main-taskId`,
-  // additional convs use `agent-chat-convId`.
+  // Maps PTY ids to task.id so status dots work. Register the main session
+  // eagerly (before conversations load) so early hook events aren't dropped.
   useEffect(() => {
     if (!isTerminal || agent !== 'claude') return;
+    const mainId = `${agent}-main-${task.id}`;
+    unifiedStatusStore.registerHookSession(mainId, task.id);
+    return () => {
+      unifiedStatusStore.unregisterHookSession(mainId);
+    };
+  }, [isTerminal, agent, task.id]);
+
+  // Once conversations load, register all session IDs in UI tab order
+  // so per-conversation dots match the chat tabs.
+  useEffect(() => {
+    if (!isTerminal || agent !== 'claude' || conversations.length === 0) return;
     const sessionIds = conversations.map((conv) =>
       conv.isMain ? `${agent}-main-${task.id}` : `${agent}-chat-${conv.id}`
     );
