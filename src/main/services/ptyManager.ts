@@ -196,12 +196,10 @@ export function startDirectPty(options: {
       if (resumeSessionId && providerId === 'claude') {
         // Try to resume by specific session ID first. If the session file doesn't
         // exist in Claude's storage (e.g. session was never checkpointed, or was
-        // cleaned up), fall back to generic resume (resume latest).
+        // cleaned up), start fresh instead.
         let useSpecificId = false;
+        let foundInDir: string | null = null;
         try {
-          const fs = require('fs');
-          const path = require('path');
-          const os = require('os');
           const projectsDir = path.join(os.homedir(), '.claude', 'projects');
           if (fs.existsSync(projectsDir)) {
             const dirs = fs.readdirSync(projectsDir);
@@ -212,17 +210,35 @@ export function startDirectPty(options: {
                 `${resumeSessionId}.jsonl`
               );
               if (fs.existsSync(sessionFile)) {
-                useSpecificId = true;
+                // Validate file is non-empty (empty files can't be resumed)
+                const stat = fs.statSync(sessionFile);
+                if (stat.size > 0) {
+                  useSpecificId = true;
+                  foundInDir = dir;
+                } else {
+                  log.warn('ptyManager: session file exists but is empty, skipping resume', {
+                    id, resumeSessionId, dir, size: stat.size,
+                  });
+                }
                 break;
               }
             }
           }
-        } catch {
-          // On error, fall back to generic resume
+        } catch (err) {
+          log.warn('ptyManager: error checking session file, starting fresh', {
+            id, resumeSessionId, error: String(err),
+          });
         }
 
         if (useSpecificId) {
+          log.info('ptyManager: resuming session by ID', {
+            id, resumeSessionId, foundInDir,
+          });
           cliArgs.push('--resume', resumeSessionId);
+        } else {
+          log.info('ptyManager: session file not found, starting fresh', {
+            id, resumeSessionId,
+          });
         }
         // Session not found — skip resume entirely (start fresh).
         // Don't fall back to generic resume, which would resume a different
@@ -327,10 +343,20 @@ export function startDirectPty(options: {
     spawnTime: Date.now(), wasResume: resume,
   });
 
-  // When CLI exits, spawn a shell so user can continue working
-  proc.onExit(() => {
+  // When CLI exits, spawn a shell so user can continue working.
+  // Skip shell respawn if this was a failed resume (quick exit <5s with non-zero code)
+  // — the retry logic in ptyIpc.ts will handle that case instead.
+  proc.onExit(({ exitCode }) => {
     const rec = ptys.get(id);
     if (rec?.isDirectSpawn && rec.cwd && onDirectCliExitCallback) {
+      // Check if this looks like a failed resume that ptyIpc will retry
+      const elapsed = rec.spawnTime ? Date.now() - rec.spawnTime : Infinity;
+      if (rec.wasResume && exitCode !== 0 && elapsed < 5000) {
+        log.info('ptyManager: skipping shell respawn for failed resume (ptyIpc will retry)', {
+          id, exitCode, elapsed,
+        });
+        return;
+      }
       onDirectCliExitCallback(id, rec.cwd);
     }
   });

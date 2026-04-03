@@ -38,6 +38,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }>,
   listInstalledFonts: (args?: { refresh?: boolean }) =>
     ipcRenderer.invoke('app:listInstalledFonts', args),
+  // Window state
+  onFullscreenChanged: (listener: (isFullscreen: boolean) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, isFullscreen: boolean) =>
+      listener(isFullscreen);
+    ipcRenderer.on('window:fullscreen-changed', handler);
+    return () => {
+      ipcRenderer.removeListener('window:fullscreen-changed', handler);
+    };
+  },
   // Updater
   checkForUpdates: () => ipcRenderer.invoke('update:check'),
   downloadUpdate: () => ipcRenderer.invoke('update:download'),

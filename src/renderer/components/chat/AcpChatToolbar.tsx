@@ -85,7 +85,7 @@ export function AcpChatToolbar({
   const currentModel = initialModels?.availableModels.find((m) => m.id === currentModelId);
 
   return (
-    <div className="border-border/50 flex shrink-0 items-center justify-between border-b p-3">
+    <div className="border-border/50 flex shrink-0 items-center justify-between border-b px-4 py-2.5">
       {/* Left: model name */}
       <div className="flex items-center">
         {agent && initialModels && initialModels.availableModels.length > 1 && currentModelId ? (
@@ -165,7 +165,7 @@ export function AcpChatToolbar({
       </div>
 
       {/* Right: plan usage + action buttons */}
-      <div className="flex items-center gap-0.5">
+      <div className="flex items-center gap-1">
         {claudeUsageLimits && (
           <PlanUsageHoverCard limits={claudeUsageLimits} side="bottom" align="end" />
         )}

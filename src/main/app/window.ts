@@ -95,6 +95,14 @@ export function createMainWindow(): BrowserWindow {
     });
   });
 
+  // Forward fullscreen state changes to renderer
+  mainWindow.on('enter-full-screen', () => {
+    mainWindow?.webContents.send('window:fullscreen-changed', true);
+  });
+  mainWindow.on('leave-full-screen', () => {
+    mainWindow?.webContents.send('window:fullscreen-changed', false);
+  });
+
   // Cleanup reference on close
   mainWindow.on('closed', () => {
     mainWindow = null;

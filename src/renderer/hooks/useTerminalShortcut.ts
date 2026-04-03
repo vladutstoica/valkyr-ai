@@ -8,8 +8,8 @@ const isMacPlatform =
  * Hook to handle terminal panel keyboard shortcuts
  * - Cmd+` (Mac) or Ctrl+` (Windows/Linux) toggles collapse
  */
-export function useTerminalShortcut(): void {
-  const { toggleCollapsed } = useTerminalPanelCollapsed();
+export function useTerminalShortcut(sessionKey?: string): void {
+  const { toggleCollapsed } = useTerminalPanelCollapsed(sessionKey);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {

@@ -364,7 +364,6 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
       <div ref={sidebarRef} className="h-full w-full">
         <Sidebar className="h-full w-full !border-r-0">
           <SidebarContent className="flex h-full w-full flex-col overflow-hidden !pb-0">
-            <SidebarHeaderBar onOpenSettings={onOpenSettings} />
             <SidebarSearch value={searchQuery} onChange={setSearchQuery} inputRef={searchInputRef} />
 
             <ScrollArea className="min-h-0 w-full flex-1">
@@ -802,7 +801,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                       if (viewMode === 'all' && workspaces.length > 0) {
                         const defaultWs = workspaces.find((ws) => ws.isDefault);
                         return (
-                          <div className="flex w-full flex-col gap-0 overflow-hidden">
+                          <div className="flex w-full flex-col gap-1.5 overflow-hidden">
                             {workspaces.map((ws) => {
                               const isDefault = ws.isDefault;
                               const wsProjects = filteredProjects.filter((p) => {
@@ -813,13 +812,15 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                               if (wsProjects.length === 0) return null;
                               return (
                                 <div key={ws.id} className="mt-3 first:mt-0">
-                                  <div className="border-border text-muted-foreground flex items-center gap-1.5 rounded-t-md border border-b-0 px-3 py-1.5">
+                                  <div className="text-muted-foreground flex items-center gap-1.5 px-3 py-1.5">
                                     <div className="bg-muted-foreground/60 h-2 w-2 rounded-sm" />
-                                    <span className="text-[11px] font-semibold tracking-wider uppercase">
+                                    <span className="text-[11px] font-medium tracking-wider uppercase">
                                       {ws.name}
                                     </span>
                                   </div>
-                                  {wsProjects.map((p) => renderProjectCard(p))}
+                                  <div className="flex flex-col gap-2">
+                                    {wsProjects.map((p) => renderProjectCard(p))}
+                                  </div>
                                 </div>
                               );
                             })}
@@ -828,7 +829,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                       }
 
                       return (
-                        <div className="flex w-full flex-col gap-0 overflow-hidden">
+                        <div className="flex w-full flex-col gap-1.5 overflow-hidden">
                           {/* Ungrouped projects */}
                           <ReorderList
                             items={ungrouped}
@@ -837,6 +838,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                               onReorderProjectsFull?.([...newOrder, ...grouped]);
                             }}
                             getKey={(p) => p.id}
+                            className="flex flex-col gap-2"
                           >
                             {(project) => renderProjectCard(project)}
                           </ReorderList>
@@ -848,6 +850,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                               onReorderGroups?.(newOrder.map((g) => g.id));
                             }}
                             getKey={(g) => g.id}
+                            className="flex flex-col gap-2"
                           >
                             {(group) => {
                               const groupProjects = filteredProjects.filter(
@@ -983,7 +986,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
                     {/* Add Project / Add Group buttons */}
                     {projects.length > 0 && (
-                      <div className="flex gap-1">
+                      <div className="flex gap-1 pb-1">
                         {onOpenProject && (
                           <AddProjectMenu
                             onOpenProject={onOpenProject}

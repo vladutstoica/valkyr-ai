@@ -9,12 +9,13 @@ import { StatusBar } from '@/components/navigation/StatusBar';
 import { TerminalPanel } from '@/components/terminal/TerminalPanel';
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 import { useTabState } from '@/hooks/useTabState';
+import { useAppMode } from '@/hooks/useAppMode';
 import type { Project, SubRepo, Task } from '@/types/app';
 import type { Agent } from '@/types';
 
 // Layout dimensions
-const TITLEBAR_HEIGHT = '36px';
-const STATUS_BAR_HEIGHT = '24px';
+const TITLEBAR_HEIGHT = '44px';
+const STATUS_BAR_HEIGHT = '28px';
 
 interface AppLayoutProps {
   /** Left sidebar content (sessions list) */
@@ -73,6 +74,10 @@ export function AppLayout({
   onAgentClick,
   onBranchChange,
 }: AppLayoutProps) {
+  // App mode (vibe vs ide)
+  const appMode = useAppMode((s) => s.mode);
+  const isVibeMode = appMode === 'vibe';
+
   // Register keyboard navigation for tabs (Cmd+1/2/3/4)
   useKeyboardNavigation();
 
@@ -205,34 +210,44 @@ export function AppLayout({
       {/* Main content area */}
       <div className={`flex flex-1 overflow-hidden ${showTitlebar ? 'pt-[var(--tb)]' : ''}`}>
         {/* Left Sidebar - Fixed width */}
-        <div className="w-[280px] flex-shrink-0 overflow-hidden border-r">
+        <div className="bg-sidebar w-[280px] flex-shrink-0 overflow-hidden">
           <ErrorBoundary componentName="Sidebar" variant="panel">
             {leftSidebar}
           </ErrorBoundary>
         </div>
 
-        {/* Main Panel with Tabs */}
+        {/* Main Panel */}
         <div className="min-w-0 flex-1 overflow-hidden p-3">
-          <div className="border-border flex h-full flex-col overflow-hidden rounded-md border">
-            {/* Tab Bar */}
-            <TabBar
-              openInPath={activeTask?.path || selectedProject?.path}
-              isRemote={!!selectedProject?.isRemote}
-              sshConnectionId={selectedProject?.sshConnectionId}
-            />
+          <div className="bg-card border-border/60 flex h-full flex-col overflow-hidden rounded-xl border shadow-sm">
+            {/* Tab Bar — hidden in Vibe mode */}
+            {!isVibeMode && (
+              <TabBar
+                openInPath={activeTask?.path || selectedProject?.path}
+                isRemote={!!selectedProject?.isRemote}
+                sshConnectionId={selectedProject?.sshConnectionId}
+              />
+            )}
 
-            {/* Tab Content */}
-            <TabContainer
-              agentsContent={
+            {/* Tab Content — Vibe mode shows only agents */}
+            {isVibeMode ? (
+              <div className="min-h-0 flex-1 overflow-hidden">
                 <ErrorBoundary componentName="Chat" variant="panel">
                   {agentsContent}
                 </ErrorBoundary>
-              }
-              editorContent={editorContent}
-              gitContent={gitContent}
-              previewContent={previewContent}
-              className="min-h-0 flex-1"
-            />
+              </div>
+            ) : (
+              <TabContainer
+                agentsContent={
+                  <ErrorBoundary componentName="Chat" variant="panel">
+                    {agentsContent}
+                  </ErrorBoundary>
+                }
+                editorContent={editorContent}
+                gitContent={gitContent}
+                previewContent={previewContent}
+                className="min-h-0 flex-1"
+              />
+            )}
 
             {/* Bottom Terminal Panel */}
             <ErrorBoundary componentName="Terminal" variant="panel">

@@ -110,10 +110,10 @@ export function TerminalPanel({
   children,
 }: TerminalPanelProps) {
   const { effectiveTheme } = useTheme();
-  const { isCollapsed, toggleCollapsed } = useTerminalPanel();
+  const { isCollapsed, toggleCollapsed } = useTerminalPanel(taskId);
 
   // Register keyboard shortcut
-  useTerminalShortcut();
+  useTerminalShortcut(taskId);
 
   // Determine the terminal store key and cwd
   const terminalKey = taskId ? `bottom::${taskId}::${taskPath}` : 'bottom::project';

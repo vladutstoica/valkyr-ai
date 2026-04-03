@@ -8,8 +8,8 @@ interface SidebarSearchProps {
 }
 
 export const SidebarSearch: React.FC<SidebarSearchProps> = ({ value, onChange, inputRef }) => (
-  <div className="shrink-0 py-2">
-    <div className="border-border bg-background flex items-center gap-2 rounded-md border px-2 py-1.5">
+  <div className="shrink-0 py-1.5">
+    <div className="border-border/50 bg-background/50 flex items-center gap-2 rounded-lg border px-2.5 py-2">
       <Search className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
       <input
         ref={inputRef}

@@ -150,6 +150,7 @@ class UnifiedStatusStore {
    * Call with ALL conversation session IDs in their display order.
    */
   registerHookSessions(sessionIds: string[], taskId: string): void {
+    console.debug('[hook-routing] registerHookSessions', { sessionIds, taskId });
     // Clear old mappings for this task (preserve hookDots values)
     for (const [sid, tid] of this.hookSessionToTask) {
       if (tid === taskId) this.hookSessionToTask.delete(sid);
@@ -363,14 +364,15 @@ class UnifiedStatusStore {
         if (!status) return;
 
         // Find which conversation this event belongs to
-        let convKey = sessionId;
+        const convKey = sessionId;
         let taskId = sessionId ? this.hookSessionToTask.get(sessionId) : undefined;
 
         // Parse taskId from sessionId if not in the registration map.
         // PTY IDs follow `{agent}-main-{taskId}` or `{agent}-chat-{convId}`.
-        // Use `-main-` as a literal delimiter (safe for hyphenated agent names like `qwen-code`).
+        // Use `-main-` / `-chat-` as literal delimiters (safe for hyphenated agent names like `qwen-code`).
         if (!taskId && sessionId) {
           const mainIdx = sessionId.indexOf('-main-');
+          const chatIdx = sessionId.indexOf('-chat-');
           if (mainIdx !== -1) {
             taskId = sessionId.slice(mainIdx + 6); // length of '-main-' = 6
             // Auto-register so subsequent events are fast-pathed
@@ -384,12 +386,26 @@ class UnifiedStatusStore {
             if (!this.hookConvOrder.has(taskId)) {
               this.hookConvOrder.set(taskId, [sessionId]);
             }
+          } else if (chatIdx !== -1) {
+            // Chat conversation: convId = sessionId after `-chat-`.
+            // Look up which task owns this conversation by scanning registered tasks.
+            const convId = sessionId.slice(chatIdx + 6); // length of '-chat-' = 6
+            for (const [tid, convMap] of this.tasks) {
+              if (convMap.has(sessionId) || convMap.has(convId)) {
+                taskId = tid;
+                this.hookSessionToTask.set(sessionId, taskId);
+                break;
+              }
+            }
           }
         }
 
         // If still unresolved, drop the event rather than misrouting it
         // to a random task (which corrupts status dots in multi-task scenarios).
-        if (!taskId) return;
+        if (!taskId) {
+          console.debug('[hook-routing] dropped event: no task found for sessionId', sessionId);
+          return;
+        }
 
         // Update ONLY this conversation's dot (not all conversations)
         const dot = hookStatusToDot(status as HookStatus);

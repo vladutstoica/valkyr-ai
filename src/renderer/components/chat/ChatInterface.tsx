@@ -476,7 +476,7 @@ const ChatInterface: React.FC<Props> = ({
           })()}
           <div
             ref={chatScrollContainerRef}
-            className="flex min-h-0 flex-1 gap-3 overflow-x-auto p-3 pt-3"
+            className="flex min-h-0 flex-1 gap-3 overflow-x-auto p-2"
           >
             {conversationsLoaded &&
               sortedConversations.map((conv, idx) => {
@@ -498,13 +498,13 @@ const ChatInterface: React.FC<Props> = ({
                 return (
                   <div
                     key={conv.id}
-                    className={`border-border/50 min-w-[400px] flex-1 overflow-hidden rounded-md border ${agentBg}`}
+                    className={`border-border/50 min-w-[400px] flex-1 overflow-hidden rounded-lg border ${agentBg}`}
                     onClick={() => setActiveConversationId(conv.id)}
                   >
                     {conv.mode === 'pty' ? (
                       <div className="flex h-full flex-col">
                         {/* Per-pane toolbar */}
-                        <div className="border-border/50 flex shrink-0 items-center justify-between border-b p-3">
+                        <div className="border-border/50 flex shrink-0 items-center justify-between border-b px-4 py-2.5">
                           {/* Left: agent logo + name */}
                           <div className="text-muted-foreground flex h-7 shrink-0 items-center gap-1.5 px-1 text-xs">
                             {agentConfig[convAgent as Agent] && (
@@ -519,7 +519,7 @@ const ChatInterface: React.FC<Props> = ({
                             </span>
                           </div>
                           {/* Right: action buttons */}
-                          <div className="flex items-center gap-0.5">
+                          <div className="flex items-center gap-1">
                             <button
                               type="button"
                               onClick={handleCreateNewChat}
@@ -567,7 +567,7 @@ const ChatInterface: React.FC<Props> = ({
                           </div>
                         </div>
                         <TerminalPane
-                          id={`${convAgent}-chat-${conv.id}`}
+                          id={conv.isMain ? `${convAgent}-main-${task.id}` : `${convAgent}-chat-${conv.id}`}
                           cwd={terminalCwd || task.path || '.'}
                           {...(providerOverrides[convAgent]?.cliCommand
                             ? { shell: providerOverrides[convAgent]!.cliCommand }

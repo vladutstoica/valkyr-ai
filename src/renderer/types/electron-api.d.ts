@@ -278,6 +278,8 @@ declare global {
       listInstalledFonts: (args?: {
         refresh?: boolean;
       }) => Promise<{ success: boolean; fonts?: string[]; cached?: boolean; error?: string }>;
+      // Window state
+      onFullscreenChanged: (listener: (isFullscreen: boolean) => void) => () => void;
       // Updater
       checkForUpdates: () => Promise<{ success: boolean; result?: any; error?: string }>;
       downloadUpdate: () => Promise<{ success: boolean; error?: string }>;
@@ -2007,6 +2009,8 @@ export interface ElectronAPI {
   listInstalledFonts: (args?: {
     refresh?: boolean;
   }) => Promise<{ success: boolean; fonts?: string[]; cached?: boolean; error?: string }>;
+  // Window state
+  onFullscreenChanged: (listener: (isFullscreen: boolean) => void) => () => void;
   // Updater
   checkForUpdates: () => Promise<{ success: boolean; result?: any; error?: string }>;
   downloadUpdate: () => Promise<{ success: boolean; error?: string }>;
