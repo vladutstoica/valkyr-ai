@@ -86,7 +86,9 @@ export class FsSearchService {
 
     if (fileExtensions.length > 0) {
       return fileExtensions.some((e) => {
-        const normalizedExt = e.toLowerCase().startsWith('.') ? e.toLowerCase() : '.' + e.toLowerCase();
+        const normalizedExt = e.toLowerCase().startsWith('.')
+          ? e.toLowerCase()
+          : '.' + e.toLowerCase();
         return ext === normalizedExt;
       });
     }
@@ -97,7 +99,11 @@ export class FsSearchService {
   /**
    * Recursively collect files under `dirPath` up to MAX_SEARCH_FILES.
    */
-  async collectFiles(dirPath: string, fileExtensions: string[], files: string[] = []): Promise<string[]> {
+  async collectFiles(
+    dirPath: string,
+    fileExtensions: string[],
+    files: string[] = []
+  ): Promise<string[]> {
     if (files.length >= MAX_SEARCH_FILES) return files;
 
     try {
@@ -171,7 +177,10 @@ export class FsSearchService {
         while ((match = lineRegex.exec(line)) !== null && state.totalMatches < maxResults) {
           const columnIndex = match.index;
           const previewStart = Math.max(0, columnIndex - SEARCH_PREVIEW_CONTEXT_LENGTH);
-          const previewEnd = Math.min(line.length, columnIndex + query.length + SEARCH_PREVIEW_CONTEXT_LENGTH);
+          const previewEnd = Math.min(
+            line.length,
+            columnIndex + query.length + SEARCH_PREVIEW_CONTEXT_LENGTH
+          );
           let preview = line.substring(previewStart, previewEnd).trim();
           if (previewStart > 0) preview = '...' + preview;
           if (previewEnd < line.length) preview = preview + '...';
@@ -198,8 +207,16 @@ export class FsSearchService {
   /**
    * Search for `query` across all text files under `root`.
    */
-  async searchContent(root: string, query: string, options: SearchOptions = {}): Promise<SearchResult> {
-    const { caseSensitive = false, maxResults = DEFAULT_MAX_SEARCH_RESULTS, fileExtensions = [] } = options;
+  async searchContent(
+    root: string,
+    query: string,
+    options: SearchOptions = {}
+  ): Promise<SearchResult> {
+    const {
+      caseSensitive = false,
+      maxResults = DEFAULT_MAX_SEARCH_RESULTS,
+      fileExtensions = [],
+    } = options;
 
     const results: SearchFileResult[] = [];
     const state = { totalMatches: 0, filesSearched: 0 };
@@ -210,7 +227,9 @@ export class FsSearchService {
     for (let i = 0; i < files.length && state.totalMatches < maxResults; i += BATCH_SIZE) {
       const batch = files.slice(i, i + BATCH_SIZE);
       await Promise.all(
-        batch.map((file) => this.searchInFile(file, root, query, caseSensitive, maxResults, state, results))
+        batch.map((file) =>
+          this.searchInFile(file, root, query, caseSensitive, maxResults, state, results)
+        )
       );
     }
 

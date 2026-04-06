@@ -549,7 +549,10 @@ export async function createTask(params: CreateTaskParams, callbacks: CreateTask
     setProjects((prev) =>
       prev.map((project) =>
         project.id === selectedProject.id
-          ? { ...project, tasks: (project.tasks || []).filter((t) => !t.id.startsWith('creating-')) }
+          ? {
+              ...project,
+              tasks: (project.tasks || []).filter((t) => !t.id.startsWith('creating-')),
+            }
           : project
       )
     );

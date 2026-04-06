@@ -86,7 +86,12 @@ describe('browserIpc', () => {
         throw new Error('View not initialized');
       });
 
-      const result = await callHandler('browser:view:show', { x: 0, y: 0, width: 100, height: 100 });
+      const result = await callHandler('browser:view:show', {
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 100,
+      });
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('View not initialized');
@@ -136,7 +141,12 @@ describe('browserIpc', () => {
         throw new Error('Invalid bounds');
       });
 
-      const result = await callHandler('browser:view:setBounds', { x: -1, y: -1, width: 0, height: 0 });
+      const result = await callHandler('browser:view:setBounds', {
+        x: -1,
+        y: -1,
+        width: 0,
+        height: 0,
+      });
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Invalid bounds');

@@ -6,7 +6,8 @@ const shellOpenExternalMock = vi.fn();
 
 // Captured handlers registered on webContents
 let windowOpenHandler: ((details: { url: string }) => { action: string }) | null = null;
-let willNavigateHandler: ((event: { preventDefault: () => void }, url: string) => void) | null = null;
+let willNavigateHandler: ((event: { preventDefault: () => void }, url: string) => void) | null =
+  null;
 
 const preventDefaultMock = vi.fn();
 

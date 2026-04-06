@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/rules-of-hooks */
 /**
  * Shared Playwright fixtures for Valkyr Electron E2E tests.
  *
@@ -12,7 +13,12 @@
  * Make sure `dist/main/main/entry.js` exists.
  */
 
-import { test as base, _electron as electron, type ElectronApplication, type Page } from '@playwright/test';
+import {
+  test as base,
+  _electron as electron,
+  type ElectronApplication,
+  type Page,
+} from '@playwright/test';
 import path from 'path';
 
 type ValkyrFixtures = {
@@ -84,9 +90,11 @@ export async function skipOnboarding(page: Page): Promise<void> {
 export async function waitForAppReady(page: Page): Promise<void> {
   await skipOnboarding(page);
   // Wait for sidebar to render (indicates app is fully loaded)
-  await page.waitForSelector('[data-testid="sidebar"], nav, aside', { timeout: 10000 }).catch(() => {
-    // Fallback: just wait
-  });
+  await page
+    .waitForSelector('[data-testid="sidebar"], nav, aside', { timeout: 10000 })
+    .catch(() => {
+      // Fallback: just wait
+    });
 }
 
 /**

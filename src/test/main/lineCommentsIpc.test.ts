@@ -87,7 +87,12 @@ describe('lineCommentsIpc', () => {
     it('returns success with generated id when comment is saved', async () => {
       dbMock.saveLineComment.mockResolvedValue('comment-uuid-001');
 
-      const input = { taskId: 'task-1', filePath: 'src/foo.ts', lineNumber: 42, content: 'Fix this' };
+      const input = {
+        taskId: 'task-1',
+        filePath: 'src/foo.ts',
+        lineNumber: 42,
+        content: 'Fix this',
+      };
       const result = await callHandler('lineComments:create', input);
 
       expect(result).toEqual({ success: true, id: 'comment-uuid-001' });

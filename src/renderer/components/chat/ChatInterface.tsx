@@ -567,7 +567,11 @@ const ChatInterface: React.FC<Props> = ({
                           </div>
                         </div>
                         <TerminalPane
-                          id={conv.isMain ? `${convAgent}-main-${task.id}` : `${convAgent}-chat-${conv.id}`}
+                          id={
+                            conv.isMain
+                              ? `${convAgent}-main-${task.id}`
+                              : `${convAgent}-chat-${conv.id}`
+                          }
                           cwd={terminalCwd || task.path || '.'}
                           {...(providerOverrides[convAgent]?.cliCommand
                             ? { shell: providerOverrides[convAgent]!.cliCommand }
@@ -580,9 +584,7 @@ const ChatInterface: React.FC<Props> = ({
                             convAgent === 'claude'
                               ? (() => {
                                   try {
-                                    const meta = conv.metadata
-                                      ? JSON.parse(conv.metadata)
-                                      : {};
+                                    const meta = conv.metadata ? JSON.parse(conv.metadata) : {};
                                     return meta.claudeSessionId as string | undefined;
                                   } catch {
                                     return undefined;

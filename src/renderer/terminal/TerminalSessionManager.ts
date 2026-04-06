@@ -13,7 +13,6 @@ import { onTerminalFontChange } from '../lib/terminalFontStore';
 import { getProvider, type ProviderId } from '@shared/providers/registry';
 import { CTRL_J_ASCII, shouldMapShiftEnterToCtrlJ } from './terminalKeybindings';
 
-
 const SNAPSHOT_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
 const MAX_DATA_WINDOW_BYTES = 128 * 1024 * 1024; // 128 MB soft guardrail
 const FALLBACK_FONTS = 'Menlo, Monaco, Courier New, monospace';
@@ -232,8 +231,7 @@ export class TerminalSessionManager {
 
     this.resizeObserver = new ResizeObserver((entries) => {
       const entry = entries[0];
-      const isVisible =
-        entry && entry.contentRect.width > 0 && entry.contentRect.height > 0;
+      const isVisible = entry && entry.contentRect.width > 0 && entry.contentRect.height > 0;
 
       if (isVisible && this.wasHidden) {
         // Container transitioned from hidden (display:none) to visible.

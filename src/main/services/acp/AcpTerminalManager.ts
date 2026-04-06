@@ -14,11 +14,7 @@ import type {
 } from '@agentclientprotocol/sdk';
 import { log } from '../../lib/logger';
 import type { AcpSession, AcpTerminal } from './acpTypes';
-import {
-  MAX_TERMINALS_PER_SESSION,
-  DEFAULT_OUTPUT_BYTE_LIMIT,
-  KILL_TIMEOUT_MS,
-} from './acpTypes';
+import { MAX_TERMINALS_PER_SESSION, DEFAULT_OUTPUT_BYTE_LIMIT, KILL_TIMEOUT_MS } from './acpTypes';
 import * as path from 'path';
 
 // ---------------------------------------------------------------------------

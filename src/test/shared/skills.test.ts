@@ -2,7 +2,11 @@ import { describe, it, expect } from 'vitest';
 import os from 'os';
 import path from 'path';
 
-import { agentTargets, skillScanPaths, type AgentSyncTarget } from '../../shared/skills/agentTargets';
+import {
+  agentTargets,
+  skillScanPaths,
+  type AgentSyncTarget,
+} from '../../shared/skills/agentTargets';
 
 const home = os.homedir();
 
@@ -129,9 +133,7 @@ describe('agentTargets', () => {
     });
 
     it('getSkillDir returns path under ~/.cursor/skills/<skillId>', () => {
-      expect(target.getSkillDir('my-skill')).toBe(
-        path.join(home, '.cursor', 'skills', 'my-skill')
-      );
+      expect(target.getSkillDir('my-skill')).toBe(path.join(home, '.cursor', 'skills', 'my-skill'));
     });
   });
 
@@ -149,9 +151,7 @@ describe('agentTargets', () => {
     });
 
     it('getSkillDir returns path under ~/.gemini/skills/<skillId>', () => {
-      expect(target.getSkillDir('my-skill')).toBe(
-        path.join(home, '.gemini', 'skills', 'my-skill')
-      );
+      expect(target.getSkillDir('my-skill')).toBe(path.join(home, '.gemini', 'skills', 'my-skill'));
     });
   });
 
@@ -169,9 +169,7 @@ describe('agentTargets', () => {
     });
 
     it('getSkillDir returns path under ~/.roo/skills/<skillId>', () => {
-      expect(target.getSkillDir('my-skill')).toBe(
-        path.join(home, '.roo', 'skills', 'my-skill')
-      );
+      expect(target.getSkillDir('my-skill')).toBe(path.join(home, '.roo', 'skills', 'my-skill'));
     });
   });
 
@@ -189,9 +187,7 @@ describe('agentTargets', () => {
     });
 
     it('getSkillDir returns path under ~/.vibe/skills/<skillId>', () => {
-      expect(target.getSkillDir('my-skill')).toBe(
-        path.join(home, '.vibe', 'skills', 'my-skill')
-      );
+      expect(target.getSkillDir('my-skill')).toBe(path.join(home, '.vibe', 'skills', 'my-skill'));
     });
   });
 
@@ -261,9 +257,7 @@ describe('skillScanPaths', () => {
   });
 
   it('includes derived parent dirs from agentTargets', () => {
-    const derivedParents = agentTargets.map((t) =>
-      path.dirname(t.getSkillDir('_placeholder'))
-    );
+    const derivedParents = agentTargets.map((t) => path.dirname(t.getSkillDir('_placeholder')));
     for (const derived of derivedParents) {
       expect(skillScanPaths).toContain(derived);
     }

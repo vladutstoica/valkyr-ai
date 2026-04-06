@@ -39,19 +39,14 @@ export class AcpClientFactory {
 
   createForConnection(connectionKey: string): Client {
     const resolver: SessionResolver = {
-      resolveSession: (acpSessionId, connKey) =>
-        this.deps.resolveSession(acpSessionId, connKey),
+      resolveSession: (acpSessionId, connKey) => this.deps.resolveSession(acpSessionId, connKey),
     };
 
     const terminalCallbacks = buildTerminalCallbacks(connectionKey, resolver);
 
     return {
       sessionUpdate: async (params: SessionNotification) => {
-        const r = this.resolveOrLog(
-          (params as any).sessionId,
-          connectionKey,
-          'sessionUpdate'
-        );
+        const r = this.resolveOrLog((params as any).sessionId, connectionKey, 'sessionUpdate');
         if (!r) return;
         const { sessionKey, session } = r;
 
@@ -75,11 +70,7 @@ export class AcpClientFactory {
       requestPermission: async (
         params: RequestPermissionRequest
       ): Promise<RequestPermissionResponse> => {
-        const r = this.resolveOrLog(
-          (params as any).sessionId,
-          connectionKey,
-          'requestPermission'
-        );
+        const r = this.resolveOrLog((params as any).sessionId, connectionKey, 'requestPermission');
         if (!r) return { outcome: { outcome: 'cancelled' } };
         const { sessionKey, session } = r;
 

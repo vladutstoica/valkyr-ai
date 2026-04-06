@@ -303,10 +303,7 @@ export function useConversationManager({
       }
 
       setConversations(remaining);
-      if (
-        chatToDelete === activeConversationId &&
-        remaining.length > 0
-      ) {
+      if (chatToDelete === activeConversationId && remaining.length > 0) {
         const newActive = remaining[0];
         await setActiveConversation({
           taskId,

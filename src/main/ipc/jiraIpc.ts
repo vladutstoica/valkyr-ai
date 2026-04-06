@@ -180,9 +180,7 @@ export function registerJiraIpc(): void {
       const safeLimit = Math.min(Math.max(1, Number(limit) || 20), 100);
       // Escape double-quotes in the search term to prevent JQL injection
       const safeTerm = searchTerm.replace(/"/g, '\\"');
-      const jql = encodeURIComponent(
-        `text ~ "${safeTerm}" ORDER BY updated DESC`
-      );
+      const jql = encodeURIComponent(`text ~ "${safeTerm}" ORDER BY updated DESC`);
       const data = await jiraRequest(
         creds,
         `/search?jql=${jql}&maxResults=${safeLimit}&fields=summary,status,priority,assignee,updated,issuetype,project`

@@ -63,7 +63,10 @@ beforeEach(async () => {
   });
 
   // Patch globalThis.fetch so the IPC handlers use our mock
-  vi.stubGlobal('fetch', vi.fn(async (url: string, opts: any) => fetchImpl(url, opts)));
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string, opts: any) => fetchImpl(url, opts))
+  );
 
   const mod = await import('../../main/ipc/linearIpc');
   mod.registerLinearIpc();
@@ -206,8 +209,24 @@ describe('linear:checkConnection', () => {
 
 describe('linear:initialFetch', () => {
   const sampleIssues = [
-    { id: 'i1', identifier: 'VLK-1', title: 'Fix bug', state: { name: 'In Progress', color: '#ff0' }, priority: 2, url: 'https://linear.app/i/1', updatedAt: '2024-01-01' },
-    { id: 'i2', identifier: 'VLK-2', title: 'New feature', state: { name: 'Todo', color: '#aaa' }, priority: 1, url: 'https://linear.app/i/2', updatedAt: '2024-01-02' },
+    {
+      id: 'i1',
+      identifier: 'VLK-1',
+      title: 'Fix bug',
+      state: { name: 'In Progress', color: '#ff0' },
+      priority: 2,
+      url: 'https://linear.app/i/1',
+      updatedAt: '2024-01-01',
+    },
+    {
+      id: 'i2',
+      identifier: 'VLK-2',
+      title: 'New feature',
+      state: { name: 'Todo', color: '#aaa' },
+      priority: 1,
+      url: 'https://linear.app/i/2',
+      updatedAt: '2024-01-02',
+    },
   ];
 
   it('returns issues list on success', async () => {
@@ -283,7 +302,15 @@ describe('linear:initialFetch', () => {
 
 describe('linear:searchIssues', () => {
   const searchResults = [
-    { id: 's1', identifier: 'VLK-5', title: 'Auth refactor', state: { name: 'In Review', color: '#0f0' }, priority: 3, url: 'https://linear.app/i/5', updatedAt: '2024-03-01' },
+    {
+      id: 's1',
+      identifier: 'VLK-5',
+      title: 'Auth refactor',
+      state: { name: 'In Review', color: '#0f0' },
+      priority: 3,
+      url: 'https://linear.app/i/5',
+      updatedAt: '2024-03-01',
+    },
   ];
 
   it('returns matching issues', async () => {

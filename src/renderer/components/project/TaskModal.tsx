@@ -193,9 +193,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
       if (settings?.providerOverrides) {
         const override = settings.providerOverrides[agent];
         const providerDef = getProvider(agent as ProviderId);
-        setChatMode(
-          override?.defaultChatMode === 'acp' && providerDef?.acpSupport ? 'acp' : 'pty'
-        );
+        setChatMode(override?.defaultChatMode === 'acp' && providerDef?.acpSupport ? 'acp' : 'pty');
       } else {
         setChatMode('pty');
       }

@@ -237,11 +237,7 @@ describe('acp:prompt', () => {
   it('forwards message to acpSessionManager.sendPrompt', async () => {
     acpSessionManagerMock.sendPrompt.mockResolvedValue({ success: true });
 
-    const result = await callHandler(
-      'acp:prompt',
-      {},
-      { sessionKey: 'sk-1', message: 'Hello' }
-    );
+    const result = await callHandler('acp:prompt', {}, { sessionKey: 'sk-1', message: 'Hello' });
 
     expect(result.success).toBe(true);
     expect(acpSessionManagerMock.sendPrompt).toHaveBeenCalledWith('sk-1', 'Hello', undefined);
@@ -265,11 +261,7 @@ describe('acp:prompt', () => {
   it('returns error when sendPrompt throws', async () => {
     acpSessionManagerMock.sendPrompt.mockRejectedValue(new Error('session dead'));
 
-    const result = await callHandler(
-      'acp:prompt',
-      {},
-      { sessionKey: 'sk-dead', message: 'hello' }
-    );
+    const result = await callHandler('acp:prompt', {}, { sessionKey: 'sk-dead', message: 'hello' });
     expect(result.success).toBe(false);
     expect(result.error).toBe('session dead');
   });
@@ -349,11 +341,15 @@ describe('acp:approve', () => {
   it('approves a permission request', async () => {
     acpSessionManagerMock.approvePermission.mockResolvedValue({ success: true });
 
-    const result = await callHandler('acp:approve', {}, {
-      sessionKey: 'sk-a',
-      toolCallId: 'tc-1',
-      optionId: 'allow',
-    });
+    const result = await callHandler(
+      'acp:approve',
+      {},
+      {
+        sessionKey: 'sk-a',
+        toolCallId: 'tc-1',
+        optionId: 'allow',
+      }
+    );
 
     expect(result.success).toBe(true);
     expect(acpSessionManagerMock.approvePermission).toHaveBeenCalledWith('sk-a', 'tc-1', 'allow');
@@ -362,21 +358,29 @@ describe('acp:approve', () => {
   it('accepts null optionId (deny/dismiss)', async () => {
     acpSessionManagerMock.approvePermission.mockResolvedValue({ success: true });
 
-    const result = await callHandler('acp:approve', {}, {
-      sessionKey: 'sk-a',
-      toolCallId: 'tc-2',
-      optionId: null,
-    });
+    const result = await callHandler(
+      'acp:approve',
+      {},
+      {
+        sessionKey: 'sk-a',
+        toolCallId: 'tc-2',
+        optionId: null,
+      }
+    );
 
     expect(result.success).toBe(true);
     expect(acpSessionManagerMock.approvePermission).toHaveBeenCalledWith('sk-a', 'tc-2', null);
   });
 
   it('returns validation error when toolCallId is missing', async () => {
-    const result = await callHandler('acp:approve', {}, {
-      sessionKey: 'sk-a',
-      optionId: 'allow',
-    });
+    const result = await callHandler(
+      'acp:approve',
+      {},
+      {
+        sessionKey: 'sk-a',
+        optionId: 'allow',
+      }
+    );
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/Validation error/);
   });
@@ -390,10 +394,14 @@ describe('acp:setMode', () => {
   it('sets the session mode', async () => {
     acpSessionManagerMock.setMode.mockResolvedValue({ success: true });
 
-    const result = await callHandler('acp:setMode', {}, {
-      sessionKey: 'sk-m',
-      mode: 'auto',
-    });
+    const result = await callHandler(
+      'acp:setMode',
+      {},
+      {
+        sessionKey: 'sk-m',
+        mode: 'auto',
+      }
+    );
 
     expect(result.success).toBe(true);
     expect(acpSessionManagerMock.setMode).toHaveBeenCalledWith('sk-m', 'auto');
@@ -414,10 +422,14 @@ describe('acp:setModel', () => {
   it('sets the session model', async () => {
     acpSessionManagerMock.setModel.mockResolvedValue({ success: true });
 
-    const result = await callHandler('acp:setModel', {}, {
-      sessionKey: 'sk-m',
-      modelId: 'claude-opus-4-5',
-    });
+    const result = await callHandler(
+      'acp:setModel',
+      {},
+      {
+        sessionKey: 'sk-m',
+        modelId: 'claude-opus-4-5',
+      }
+    );
 
     expect(result.success).toBe(true);
     expect(acpSessionManagerMock.setModel).toHaveBeenCalledWith('sk-m', 'claude-opus-4-5');
@@ -438,22 +450,34 @@ describe('acp:setConfigOption', () => {
   it('sets a config option on the session', async () => {
     acpSessionManagerMock.setConfigOption.mockResolvedValue({ success: true });
 
-    const result = await callHandler('acp:setConfigOption', {}, {
-      sessionKey: 'sk-cfg',
-      optionId: 'verbosity',
-      value: 'high',
-    });
+    const result = await callHandler(
+      'acp:setConfigOption',
+      {},
+      {
+        sessionKey: 'sk-cfg',
+        optionId: 'verbosity',
+        value: 'high',
+      }
+    );
 
     expect(result.success).toBe(true);
-    expect(acpSessionManagerMock.setConfigOption).toHaveBeenCalledWith('sk-cfg', 'verbosity', 'high');
+    expect(acpSessionManagerMock.setConfigOption).toHaveBeenCalledWith(
+      'sk-cfg',
+      'verbosity',
+      'high'
+    );
   });
 
   it('returns validation error when optionId is empty', async () => {
-    const result = await callHandler('acp:setConfigOption', {}, {
-      sessionKey: 'sk-cfg',
-      optionId: '',
-      value: 'x',
-    });
+    const result = await callHandler(
+      'acp:setConfigOption',
+      {},
+      {
+        sessionKey: 'sk-cfg',
+        optionId: '',
+        value: 'x',
+      }
+    );
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/Validation error/);
   });
@@ -508,11 +532,15 @@ describe('acp:extMethod', () => {
   it('calls an extension method with params', async () => {
     acpSessionManagerMock.extMethod.mockResolvedValue({ success: true, data: 'pong' });
 
-    const result = await callHandler('acp:extMethod', {}, {
-      sessionKey: 'sk-e',
-      method: 'ping',
-      params: { timeout: 5000 },
-    });
+    const result = await callHandler(
+      'acp:extMethod',
+      {},
+      {
+        sessionKey: 'sk-e',
+        method: 'ping',
+        params: { timeout: 5000 },
+      }
+    );
 
     expect(result.success).toBe(true);
     expect(acpSessionManagerMock.extMethod).toHaveBeenCalledWith('sk-e', 'ping', { timeout: 5000 });

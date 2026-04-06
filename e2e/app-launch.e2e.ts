@@ -54,9 +54,7 @@ test.describe('App Launch', () => {
     await page.waitForTimeout(2000);
 
     // Filter out known non-critical errors
-    const criticalErrors = errors.filter(
-      (e) => !e.includes('net::ERR_') && !e.includes('favicon')
-    );
+    const criticalErrors = errors.filter((e) => !e.includes('net::ERR_') && !e.includes('favicon'));
 
     expect(criticalErrors).toEqual([]);
   });
@@ -71,7 +69,8 @@ test.describe('Settings', () => {
     await page.waitForTimeout(500);
 
     // Check for settings content
-    const settingsVisible = await page.getByText(/general|appearance|agents/i)
+    const settingsVisible = await page
+      .getByText(/general|appearance|agents/i)
       .first()
       .isVisible({ timeout: 3000 })
       .catch(() => false);

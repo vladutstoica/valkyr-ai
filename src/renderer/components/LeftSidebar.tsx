@@ -364,7 +364,11 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
       <div ref={sidebarRef} className="h-full w-full">
         <Sidebar className="h-full w-full !border-r-0">
           <SidebarContent className="flex h-full w-full flex-col overflow-hidden !pb-0">
-            <SidebarSearch value={searchQuery} onChange={setSearchQuery} inputRef={searchInputRef} />
+            <SidebarSearch
+              value={searchQuery}
+              onChange={setSearchQuery}
+              inputRef={searchInputRef}
+            />
 
             <ScrollArea className="min-h-0 w-full flex-1">
               <div className="w-full">

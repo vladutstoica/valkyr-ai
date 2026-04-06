@@ -10,9 +10,7 @@ export class AcpEventBuffer {
   private eventBuffers = new Map<string, AcpUpdateEvent[]>();
   private eventTimers = new Map<string, NodeJS.Timeout>();
 
-  constructor(
-    private readonly onFlush: (sessionKey: string, events: AcpUpdateEvent[]) => void
-  ) {}
+  constructor(private readonly onFlush: (sessionKey: string, events: AcpUpdateEvent[]) => void) {}
 
   buffer(sessionKey: string, event: AcpUpdateEvent): void {
     const buf = this.eventBuffers.get(sessionKey) ?? [];

@@ -312,9 +312,7 @@ describe('McpConfigService.getMergedServersForSession', () => {
   it('converts stdio servers to ACP format with env as array', async () => {
     mockGetAppSettings.mockReturnValue({
       mcp: {
-        servers: [
-          makeStdioServer({ name: 'srv', env: { FOO: 'bar', BAZ: 'qux' } }),
-        ],
+        servers: [makeStdioServer({ name: 'srv', env: { FOO: 'bar', BAZ: 'qux' } })],
       },
     } as any);
     const result = await service.getMergedServersForSession();
@@ -362,9 +360,7 @@ describe('McpConfigService.getMergedServersForSession', () => {
 
     mockGetAppSettings.mockReturnValue({ mcp: { servers: [globalServer] } } as any);
     mockExistsSync.mockReturnValue(true);
-    mockReadFile.mockResolvedValue(
-      JSON.stringify({ mcpServers: [projectServer] }) as any
-    );
+    mockReadFile.mockResolvedValue(JSON.stringify({ mcpServers: [projectServer] }) as any);
 
     const result = await service.getMergedServersForSession('/my/project');
     expect(result).toHaveLength(1);
@@ -377,9 +373,7 @@ describe('McpConfigService.getMergedServersForSession', () => {
 
     mockGetAppSettings.mockReturnValue({ mcp: { servers: [globalServer] } } as any);
     mockExistsSync.mockReturnValue(true);
-    mockReadFile.mockResolvedValue(
-      JSON.stringify({ mcpServers: [projectServer] }) as any
-    );
+    mockReadFile.mockResolvedValue(JSON.stringify({ mcpServers: [projectServer] }) as any);
 
     const result = await service.getMergedServersForSession('/my/project');
     expect(result).toHaveLength(2);
@@ -430,8 +424,8 @@ describe('McpConfigService.detectAgentServers', () => {
   });
 
   it('discovers Claude Code global config', async () => {
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.endsWith('.claude.json')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.endsWith('.claude.json')
     );
     mockReadFile.mockResolvedValue(
       JSON.stringify({
@@ -452,8 +446,8 @@ describe('McpConfigService.detectAgentServers', () => {
   });
 
   it('discovers Cursor global config', async () => {
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.endsWith('.cursor/mcp.json')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.endsWith('.cursor/mcp.json')
     );
     mockReadFile.mockResolvedValue(
       JSON.stringify({
@@ -470,8 +464,8 @@ describe('McpConfigService.detectAgentServers', () => {
   });
 
   it('discovers Windsurf global config', async () => {
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.includes('windsurf')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.includes('windsurf')
     );
     mockReadFile.mockResolvedValue(
       JSON.stringify({
@@ -487,8 +481,8 @@ describe('McpConfigService.detectAgentServers', () => {
   });
 
   it('discovers project-level Claude Code config when projectPath is provided', async () => {
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.endsWith('.mcp.json')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.endsWith('.mcp.json')
     );
     mockReadFile.mockResolvedValue(
       JSON.stringify({
@@ -499,14 +493,16 @@ describe('McpConfigService.detectAgentServers', () => {
     );
 
     const result = await service.detectAgentServers('/my/project');
-    const claudeProjectResult = result.find((r) => r.agent === 'Claude Code' && r.scope === 'project');
+    const claudeProjectResult = result.find(
+      (r) => r.agent === 'Claude Code' && r.scope === 'project'
+    );
     expect(claudeProjectResult).toBeDefined();
     expect(claudeProjectResult!.servers[0].name).toBe('project-server');
   });
 
   it('skips agent config files with missing or invalid mcpServers field', async () => {
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.endsWith('.claude.json')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.endsWith('.claude.json')
     );
     mockReadFile.mockResolvedValue(JSON.stringify({ someOtherKey: {} }) as any);
 
@@ -515,8 +511,8 @@ describe('McpConfigService.detectAgentServers', () => {
   });
 
   it('skips agent config file entries when mcpServers is not an object', async () => {
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.endsWith('.claude.json')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.endsWith('.claude.json')
     );
     mockReadFile.mockResolvedValue(JSON.stringify({ mcpServers: [] }) as any);
 
@@ -533,8 +529,8 @@ describe('McpConfigService.detectAgentServers', () => {
   });
 
   it('converts http type agent server entries', async () => {
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.endsWith('.claude.json')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.endsWith('.claude.json')
     );
     mockReadFile.mockResolvedValue(
       JSON.stringify({
@@ -550,8 +546,8 @@ describe('McpConfigService.detectAgentServers', () => {
   });
 
   it('converts streamable-http type agent server entries as http transport', async () => {
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.endsWith('.claude.json')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.endsWith('.claude.json')
     );
     mockReadFile.mockResolvedValue(
       JSON.stringify({
@@ -566,8 +562,8 @@ describe('McpConfigService.detectAgentServers', () => {
   });
 
   it('converts sse type agent server entries', async () => {
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.endsWith('.claude.json')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.endsWith('.claude.json')
     );
     mockReadFile.mockResolvedValue(
       JSON.stringify({
@@ -582,8 +578,8 @@ describe('McpConfigService.detectAgentServers', () => {
   });
 
   it('returns null (skips) for unrecognized server types', async () => {
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.endsWith('.claude.json')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.endsWith('.claude.json')
     );
     mockReadFile.mockResolvedValue(
       JSON.stringify({
@@ -599,8 +595,8 @@ describe('McpConfigService.detectAgentServers', () => {
   });
 
   it('defaults to stdio when server type is not specified', async () => {
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.endsWith('.claude.json')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.endsWith('.claude.json')
     );
     mockReadFile.mockResolvedValue(
       JSON.stringify({
@@ -615,8 +611,8 @@ describe('McpConfigService.detectAgentServers', () => {
   });
 
   it('defaults to empty strings/arrays/objects for missing stdio fields', async () => {
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.endsWith('.claude.json')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.endsWith('.claude.json')
     );
     mockReadFile.mockResolvedValue(
       JSON.stringify({
@@ -635,8 +631,8 @@ describe('McpConfigService.detectAgentServers', () => {
   });
 
   it('skips null/non-object server config entries', async () => {
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.endsWith('.claude.json')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.endsWith('.claude.json')
     );
     mockReadFile.mockResolvedValue(
       JSON.stringify({

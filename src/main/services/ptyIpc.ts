@@ -19,7 +19,12 @@ import { errorTracking } from '../errorTracking';
 import type { TerminalSnapshotPayload } from '../types/terminalSnapshot';
 import * as telemetry from '../telemetry';
 import { getProvider, type ProviderId } from '../../shared/providers/registry';
-import { parseProviderPty, markStart, markFinish, getProviderForPty } from './pty/PtyTelemetryTracker';
+import {
+  parseProviderPty,
+  markStart,
+  markFinish,
+  getProviderForPty,
+} from './pty/PtyTelemetryTracker';
 import { detectAndLoadTerminalConfig } from './TerminalConfigParser';
 import { getStoredProviderKeys } from '../ipc/settingsIpc';
 import {
@@ -350,12 +355,7 @@ export function registerPtyIpc(): void {
               return;
             }
             safeSendToOwner(id, `pty:exit:${id}`, { exitCode, signal });
-            markFinish(
-              id,
-              exitCode,
-              signal,
-              isAppQuitting ? 'app_quit' : 'process_exit'
-            );
+            markFinish(id, exitCode, signal, isAppQuitting ? 'app_quit' : 'process_exit');
             owners.delete(id);
             listeners.delete(id);
           });
@@ -529,8 +529,19 @@ export function registerPtyIpc(): void {
       }
 
       try {
-        const { id, providerId, cwd, remote, cols, rows, autoApprove, initialPrompt, env, resume, resumeSessionId } =
-          args;
+        const {
+          id,
+          providerId,
+          cwd,
+          remote,
+          cols,
+          rows,
+          autoApprove,
+          initialPrompt,
+          env,
+          resume,
+          resumeSessionId,
+        } = args;
         const existing = getPty(id);
 
         if (remote?.connectionId) {
@@ -654,7 +665,12 @@ export function registerPtyIpc(): void {
             const rec = getPty(id) as any;
             const elapsed = rec?.spawnTime ? Date.now() - rec.spawnTime : Infinity;
             if (rec?.wasResume && exitCode !== 0 && elapsed < 5000 && !isAppQuitting) {
-              log.info('ptyIpc: resume failed, retrying as fresh session', { id, providerId, exitCode, elapsed });
+              log.info('ptyIpc: resume failed, retrying as fresh session', {
+                id,
+                providerId,
+                exitCode,
+                elapsed,
+              });
               listeners.delete(id);
 
               // Retry without resume flag
@@ -694,12 +710,7 @@ export function registerPtyIpc(): void {
             flushPtyData(id);
             clearPtyData(id);
             safeSendToOwner(id, `pty:exit:${id}`, { exitCode, signal });
-            markFinish(
-              id,
-              exitCode,
-              signal,
-              isAppQuitting ? 'app_quit' : 'process_exit'
-            );
+            markFinish(id, exitCode, signal, isAppQuitting ? 'app_quit' : 'process_exit');
             // For direct spawn: keep owner (shell respawn reuses it), delete listeners (shell respawn re-adds)
             // For fallback: clean up owner since no shell respawn happens
             if (usedFallback) {

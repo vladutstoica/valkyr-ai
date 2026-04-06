@@ -281,12 +281,7 @@ class HookNotificationServer {
     if (batch.count === 0) return;
 
     const effectiveStatus: HookStatus = batch.hasNeedsInput ? 'needs-input' : 'done';
-    this.fireDesktopNotification(
-      sessionId,
-      effectiveStatus,
-      batch.taskName,
-      batch.count
-    );
+    this.fireDesktopNotification(sessionId, effectiveStatus, batch.taskName, batch.count);
   }
 
   /**

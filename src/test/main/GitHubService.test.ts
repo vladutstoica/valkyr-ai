@@ -71,9 +71,7 @@ describe('RemoteGitService', () => {
         stderr: 'fatal: not a git repository',
       });
 
-      await expect(service.getStatus('conn-1', '/bad-path')).rejects.toThrow(
-        'Git status failed'
-      );
+      await expect(service.getStatus('conn-1', '/bad-path')).rejects.toThrow('Git status failed');
     });
 
     it('handles branch with upstream divergence info', async () => {
@@ -236,9 +234,9 @@ describe('RemoteGitService', () => {
           stderr: 'fatal: branch already checked out',
         }); // worktree add
 
-      await expect(
-        service.createWorktree('conn-1', '/project', 'task', 'main')
-      ).rejects.toThrow('Failed to create worktree');
+      await expect(service.createWorktree('conn-1', '/project', 'task', 'main')).rejects.toThrow(
+        'Failed to create worktree'
+      );
     });
 
     it('uses "task" as branch slug fallback when name is empty', async () => {
@@ -422,10 +420,7 @@ describe('RemoteGitService', () => {
     it('stages specific files before committing when files array provided', async () => {
       executeCommandMock.mockResolvedValue({ exitCode: 0, stdout: '', stderr: '' });
 
-      await service.commit('conn-1', '/project/worktree', 'Add feature', [
-        'src/a.ts',
-        'src/b.ts',
-      ]);
+      await service.commit('conn-1', '/project/worktree', 'Add feature', ['src/a.ts', 'src/b.ts']);
 
       const [, cmd] = executeCommandMock.mock.calls[0];
       expect(cmd).toContain('git add');

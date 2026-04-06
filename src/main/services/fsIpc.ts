@@ -39,7 +39,9 @@ function emitPlanEvent(payload: unknown): void {
 async function wrapIpcHandler<T>(
   channel: string,
   fn: () => Promise<T> | T
-): Promise<{ success: true } & T extends void ? Record<string, never> : T extends object ? T : { data: T }>;
+): Promise<
+  { success: true } & T extends void ? Record<string, never> : T extends object ? T : { data: T }
+>;
 async function wrapIpcHandler<T>(channel: string, fn: () => Promise<T> | T): Promise<unknown> {
   try {
     const result = await fn();
@@ -207,10 +209,7 @@ export function registerFsIpc(): void {
   // -------------------------------------------------------------------------
   ipcMain.handle(
     'fs:write',
-    async (
-      _event,
-      args: { root: string; relPath: string; content: string; mkdirs?: boolean }
-    ) => {
+    async (_event, args: { root: string; relPath: string; content: string; mkdirs?: boolean }) => {
       return wrapIpcHandler('fs:write', () => {
         const { root, relPath, content, mkdirs = true } = args;
         if (!root || !fs.existsSync(root)) return { success: false, error: 'Invalid root path' };

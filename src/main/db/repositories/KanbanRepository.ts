@@ -14,12 +14,9 @@ export class KanbanRepository {
   async setStatus(taskId: string, status: string): Promise<void> {
     if (this.disabled()) return;
     const { db } = await getDrizzleClient();
-    await db
-      .insert(kanbanColumnsTable)
-      .values({ id: taskId, taskId, status })
-      .onConflictDoUpdate({
-        target: kanbanColumnsTable.id,
-        set: { status },
-      });
+    await db.insert(kanbanColumnsTable).values({ id: taskId, taskId, status }).onConflictDoUpdate({
+      target: kanbanColumnsTable.id,
+      set: { status },
+    });
   }
 }

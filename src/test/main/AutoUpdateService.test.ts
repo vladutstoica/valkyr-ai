@@ -59,7 +59,7 @@ function captureEventHandlers(): Record<string, (...args: any[]) => void> {
 
 describe('AutoUpdateService', () => {
   let service: Awaited<typeof import('../../main/services/AutoUpdateService')>['autoUpdateService'];
-  let AutoUpdateServiceClass: typeof import('../../main/services/AutoUpdateService')['UpdateChannel'];
+  let AutoUpdateServiceClass: (typeof import('../../main/services/AutoUpdateService'))['UpdateChannel'];
 
   beforeEach(async () => {
     vi.resetModules();
@@ -333,7 +333,13 @@ describe('AutoUpdateService', () => {
 
     it('handles destroyed windows gracefully (send throws)', () => {
       getAllWindowsMock.mockReturnValue([
-        { webContents: { send: () => { throw new Error('destroyed'); } } },
+        {
+          webContents: {
+            send: () => {
+              throw new Error('destroyed');
+            },
+          },
+        },
       ]);
 
       // quitAndInstall triggers saveRollbackInfo + setTimeout, safe to call

@@ -272,11 +272,14 @@ app.whenReady().then(async () => {
 
   // Start hook notification server and install Claude Code hooks
   // This enables accurate status detection via lifecycle events
-  hookNotificationServer.start().then((port) => {
-    hookInstaller.install(port);
-  }).catch((err) => {
-    console.warn('Failed to start hook notification server:', err);
-  });
+  hookNotificationServer
+    .start()
+    .then((port) => {
+      hookInstaller.install(port);
+    })
+    .catch((err) => {
+      console.warn('Failed to start hook notification server:', err);
+    });
 
   // Pre-warm ACP SDK and registry caches so first session doesn't pay cold-start costs
   warmAcpSdk();

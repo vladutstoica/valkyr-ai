@@ -7,16 +7,16 @@ import path from 'path';
 // that can be referenced safely inside factory closures.
 
 const { mockFs, mockHttpsGet, mockUserDataPath } = vi.hoisted(() => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
   const _os = require('os') as typeof import('os');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
   const _path = require('path') as typeof import('path');
   const tmpdir = _os.tmpdir();
   return {
     mockUserDataPath: _path.join(tmpdir, 'valkyr-icon-test'),
     mockFs: {
       mkdirSync: vi.fn(),
-      existsSync: vi.fn(() => false),
+      existsSync: vi.fn((_p?: unknown) => false),
       readFileSync: vi.fn(),
       writeFileSync: vi.fn(),
     },
@@ -182,10 +182,9 @@ describe('iconService', () => {
   describe('resolveServiceIcon — userData cache', () => {
     it('creates the icons cache directory', async () => {
       await resolveServiceIcon({ service: 'postgres' });
-      expect(mockFs.mkdirSync).toHaveBeenCalledWith(
-        expect.stringContaining('icons'),
-        { recursive: true }
-      );
+      expect(mockFs.mkdirSync).toHaveBeenCalledWith(expect.stringContaining('icons'), {
+        recursive: true,
+      });
     });
 
     it('returns cached icon when cache file exists', async () => {
@@ -252,7 +251,11 @@ describe('iconService', () => {
       mockFs.existsSync.mockReturnValue(false);
 
       const iconData = Buffer.from('ICON_BINARY');
-      const res = makeFakeResponse({ statusCode: 200, contentType: 'image/x-icon', data: iconData });
+      const res = makeFakeResponse({
+        statusCode: 200,
+        contentType: 'image/x-icon',
+        data: iconData,
+      });
 
       mockHttpsGet.mockImplementation((_url: string, cb: (r: typeof res) => void) => {
         setImmediate(() => {
@@ -276,7 +279,11 @@ describe('iconService', () => {
       mockFs.existsSync.mockReturnValue(false);
 
       const iconData = Buffer.from('ICON_BINARY');
-      const res = makeFakeResponse({ statusCode: 200, contentType: 'image/x-icon', data: iconData });
+      const res = makeFakeResponse({
+        statusCode: 200,
+        contentType: 'image/x-icon',
+        data: iconData,
+      });
 
       mockHttpsGet.mockImplementation((_url: string, cb: (r: typeof res) => void) => {
         setImmediate(() => {
@@ -358,26 +365,32 @@ describe('iconService', () => {
         statusCode: 301,
         location: 'https://icons.duckduckgo.com/ip3/redirected.ico',
       });
-      const finalRes = makeFakeResponse({ statusCode: 200, contentType: 'image/x-icon', data: iconData });
+      const finalRes = makeFakeResponse({
+        statusCode: 200,
+        contentType: 'image/x-icon',
+        data: iconData,
+      });
 
       let callCount = 0;
-      mockHttpsGet.mockImplementation((_url: string, cb: (r: typeof redirectRes | typeof finalRes) => void) => {
-        callCount++;
-        if (callCount === 1) {
-          // First call: emit redirect
-          setImmediate(() => cb(redirectRes));
-        } else {
-          // Second call: emit final response with data
-          setImmediate(() => {
-            cb(finalRes);
+      mockHttpsGet.mockImplementation(
+        (_url: string, cb: (r: typeof redirectRes | typeof finalRes) => void) => {
+          callCount++;
+          if (callCount === 1) {
+            // First call: emit redirect
+            setImmediate(() => cb(redirectRes));
+          } else {
+            // Second call: emit final response with data
             setImmediate(() => {
-              finalRes.emit('data', iconData);
-              finalRes.emit('end');
+              cb(finalRes);
+              setImmediate(() => {
+                finalRes.emit('data', iconData);
+                finalRes.emit('end');
+              });
             });
-          });
+          }
+          return { on: vi.fn() };
         }
-        return { on: vi.fn() };
-      });
+      );
 
       const result = await resolveServiceIcon({ service: 'postgres', allowNetwork: true });
       // The redirect chain is handled — we simply check no crash occurred
@@ -435,7 +448,11 @@ describe('iconService', () => {
       mockFs.existsSync.mockReturnValue(false);
 
       const iconData = Buffer.from('ICON');
-      const res = makeFakeResponse({ statusCode: 200, contentType: 'image/x-icon', data: iconData });
+      const res = makeFakeResponse({
+        statusCode: 200,
+        contentType: 'image/x-icon',
+        data: iconData,
+      });
 
       mockHttpsGet.mockImplementation((_url: string, cb: (r: typeof res) => void) => {
         setImmediate(() => {

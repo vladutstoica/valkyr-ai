@@ -101,7 +101,13 @@ describe('TerminalSnapshotService', () => {
     const filePath = path.join(tempDir, 'bad-version.json');
     fs.writeFileSync(
       filePath,
-      JSON.stringify({ version: 99, createdAt: new Date().toISOString(), cols: 80, rows: 24, data: 'x' }),
+      JSON.stringify({
+        version: 99,
+        createdAt: new Date().toISOString(),
+        cols: 80,
+        rows: 24,
+        data: 'x',
+      }),
       'utf8'
     );
 

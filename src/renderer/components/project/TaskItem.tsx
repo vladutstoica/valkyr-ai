@@ -187,10 +187,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
         ) : (
           <>
             {isUnread && (
-              <span
-                className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-blue-500"
-                title="Unread"
-              />
+              <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-blue-500" title="Unread" />
             )}
             {isPinned && <Pin className="text-muted-foreground h-3 w-3 flex-shrink-0" />}
             <span className="text-foreground block truncate text-xs font-medium">
@@ -199,7 +196,9 @@ export const TaskItem: React.FC<TaskItemProps> = ({
               )}
               {task.name}
               {isCreating && (
-                <span className="text-muted-foreground ml-1 text-[10px] font-normal">Creating...</span>
+                <span className="text-muted-foreground ml-1 text-[10px] font-normal">
+                  Creating...
+                </span>
               )}
             </span>
             {task.useWorktree !== false && (
@@ -248,9 +247,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
                 const pulse = d.style === 'pulsing' ? 'animate-pulse' : '';
                 return (
                   <span key={i} className="flex h-full items-center">
-                    {i > 0 && (
-                      <span className="bg-background h-full w-px" />
-                    )}
+                    {i > 0 && <span className="bg-background h-full w-px" />}
                     <span
                       className={`h-full w-2 ${bg} ${pulse}`}
                       title={`Chat ${i + 1}: ${titleMap[d.color] || 'Unknown'}`}
@@ -381,7 +378,8 @@ export const TaskItem: React.FC<TaskItemProps> = ({
         <AlertDialogHeader>
           <AlertDialogTitle>Active processes running</AlertDialogTitle>
           <AlertDialogDescription>
-            "{task.name}" has running agents or scripts. Archiving will kill all processes. Continue?
+            "{task.name}" has running agents or scripts. Archiving will kill all processes.
+            Continue?
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

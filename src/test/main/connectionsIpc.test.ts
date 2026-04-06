@@ -36,11 +36,7 @@ async function callHandler(channel: string, ...args: any[]) {
  */
 function mockProbe(
   binary: string,
-  {
-    installed = true,
-    version = '1.0.0',
-    path: binPath = `/usr/local/bin/${binary}`,
-  } = {}
+  { installed = true, version = '1.0.0', path: binPath = `/usr/local/bin/${binary}` } = {}
 ) {
   execFileMock.mockImplementation((cmd: string, args: string[], ...rest: any[]) => {
     // execFile(cmd, args, cb) or execFile(cmd, args, opts, cb)

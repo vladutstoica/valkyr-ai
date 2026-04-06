@@ -70,7 +70,10 @@ beforeEach(async () => {
   }));
 
   fetchImpl = async () => ({ ok: true, json: async () => ({}) });
-  vi.stubGlobal('fetch', vi.fn(async (url: string, opts: any) => fetchImpl(url, opts)));
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string, opts: any) => fetchImpl(url, opts))
+  );
 
   const mod = await import('../../main/ipc/jiraIpc');
   mod.registerJiraIpc();
@@ -115,7 +118,9 @@ describe('jira:saveCredentials', () => {
     const calls = keytarMock.setPassword.mock.calls;
     expect(calls.some((c: any[]) => c[1] === 'api-token' && c[2] === 'tok-xyz')).toBe(true);
     expect(calls.some((c: any[]) => c[1] === 'email' && c[2] === 'bob@acme.com')).toBe(true);
-    expect(calls.some((c: any[]) => c[1] === 'site-url' && c[2] === 'https://acme.atlassian.net')).toBe(true);
+    expect(
+      calls.some((c: any[]) => c[1] === 'site-url' && c[2] === 'https://acme.atlassian.net')
+    ).toBe(true);
   });
 
   it('returns error when siteUrl is missing', async () => {
@@ -245,7 +250,9 @@ describe('jira:checkConnection', () => {
 
   it('returns connected: false when fetch throws (network error)', async () => {
     mockStoredCreds();
-    fetchImpl = async () => { throw new Error('ECONNREFUSED'); };
+    fetchImpl = async () => {
+      throw new Error('ECONNREFUSED');
+    };
 
     const result = await callHandler('jira:checkConnection');
     expect(result.connected).toBe(false);

@@ -61,10 +61,7 @@ export function registerConnectionsIpc(): void {
   // ---------------------------------------------------------------------------
   ipcMain.handle(
     'connections:getProviderStatuses',
-    async (
-      _event,
-      opts: { refresh?: boolean; providers?: string[]; providerId?: string } = {}
-    ) => {
+    async (_event, opts: { refresh?: boolean; providers?: string[]; providerId?: string } = {}) => {
       try {
         const { refresh = false, providers, providerId } = opts ?? {};
 

@@ -34,7 +34,14 @@ vi.mock('../../main/services/DatabaseService', () => ({
 // Fixtures
 // ---------------------------------------------------------------------------
 
-function makeProject(overrides: Partial<ReturnType<typeof makeProject>> = {}) {
+type ProjectFixture = {
+  id: string;
+  name: string;
+  path: string;
+  gitInfo: { remote: string; branch: string; baseRef: string };
+};
+
+function makeProject(overrides: Partial<ProjectFixture> = {}): ProjectFixture {
   return {
     id: 'proj-001',
     name: 'My Project',
@@ -164,15 +171,15 @@ describe('ProjectSettingsService', () => {
     });
 
     it('throws when projectId is empty string', async () => {
-      await expect(
-        service.updateProjectSettings('', { baseRef: 'main' })
-      ).rejects.toThrow('projectId is required');
+      await expect(service.updateProjectSettings('', { baseRef: 'main' })).rejects.toThrow(
+        'projectId is required'
+      );
     });
 
     it('throws when baseRef is not provided (undefined)', async () => {
-      await expect(
-        service.updateProjectSettings('proj-001', {} as any)
-      ).rejects.toThrow('baseRef is required');
+      await expect(service.updateProjectSettings('proj-001', {} as any)).rejects.toThrow(
+        'baseRef is required'
+      );
     });
 
     it('throws when baseRef is null', async () => {
@@ -184,9 +191,9 @@ describe('ProjectSettingsService', () => {
     it('throws "Project not found" when db returns null after update', async () => {
       dbMock.updateProjectBaseRef.mockResolvedValue(null);
 
-      await expect(
-        service.updateProjectSettings('proj-404', { baseRef: 'main' })
-      ).rejects.toThrow('Project not found');
+      await expect(service.updateProjectSettings('proj-404', { baseRef: 'main' })).rejects.toThrow(
+        'Project not found'
+      );
     });
 
     it('accepts an empty string as a valid baseRef (clears the value)', async () => {
@@ -205,9 +212,9 @@ describe('ProjectSettingsService', () => {
     it('propagates database errors during update', async () => {
       dbMock.updateProjectBaseRef.mockRejectedValue(new Error('write conflict'));
 
-      await expect(
-        service.updateProjectSettings('proj-001', { baseRef: 'main' })
-      ).rejects.toThrow('write conflict');
+      await expect(service.updateProjectSettings('proj-001', { baseRef: 'main' })).rejects.toThrow(
+        'write conflict'
+      );
     });
 
     it('passes the projectId and baseRef to databaseService.updateProjectBaseRef', async () => {

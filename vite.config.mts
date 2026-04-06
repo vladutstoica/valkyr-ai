@@ -26,11 +26,7 @@ export default defineConfig(({ command }) => ({
         'src/main/utils/**/*.ts',
         'src/shared/**/*.ts',
       ],
-      exclude: [
-        '**/*.test.ts',
-        '**/*.d.ts',
-        '**/__tests__/**',
-      ],
+      exclude: ['**/*.test.ts', '**/*.d.ts', '**/__tests__/**'],
     },
   },
   build: {

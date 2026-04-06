@@ -28,8 +28,7 @@ function mockExec(responses: Array<{ match: string | RegExp; stdout?: string; er
     // The callback is always the last argument
     const cb: (err: any, stdout: string, stderr: string) => void = args[args.length - 1];
     for (const r of responses) {
-      const matched =
-        typeof r.match === 'string' ? cmd.includes(r.match) : r.match.test(cmd);
+      const matched = typeof r.match === 'string' ? cmd.includes(r.match) : r.match.test(cmd);
       if (matched) {
         if (r.err) return cb(r.err, '', '');
         return cb(null, r.stdout ?? '', '');
@@ -42,7 +41,9 @@ function mockExec(responses: Array<{ match: string | RegExp; stdout?: string; er
 
 describe('RepositoryManager', () => {
   let RepositoryManager: typeof import('../../main/services/RepositoryManager').RepositoryManager;
-  let manager: InstanceType<typeof import('../../main/services/RepositoryManager').RepositoryManager>;
+  let manager: InstanceType<
+    typeof import('../../main/services/RepositoryManager').RepositoryManager
+  >;
 
   beforeEach(async () => {
     vi.resetModules();
@@ -159,9 +160,7 @@ describe('RepositoryManager', () => {
     });
 
     it('throws when rev-parse returns something other than "true"', async () => {
-      mockExec([
-        { match: 'rev-parse --is-inside-work-tree', stdout: 'false\n' },
-      ]);
+      mockExec([{ match: 'rev-parse --is-inside-work-tree', stdout: 'false\n' }]);
 
       await expect(manager.addRepository('/not-a-repo')).rejects.toThrow(
         'Failed to add repository'
@@ -169,13 +168,9 @@ describe('RepositoryManager', () => {
     });
 
     it('throws when rev-parse command itself errors', async () => {
-      mockExec([
-        { match: 'rev-parse --is-inside-work-tree', err: new Error('not a git repo') },
-      ]);
+      mockExec([{ match: 'rev-parse --is-inside-work-tree', err: new Error('not a git repo') }]);
 
-      await expect(manager.addRepository('/bad-path')).rejects.toThrow(
-        'Failed to add repository'
-      );
+      await expect(manager.addRepository('/bad-path')).rejects.toThrow('Failed to add repository');
     });
 
     it('error message wraps the original error detail', async () => {

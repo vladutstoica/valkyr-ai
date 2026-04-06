@@ -184,7 +184,9 @@ export class DatabaseService {
 
   // Conversation management methods
   // Conversation methods (delegated to ConversationRepository)
-  async saveConversation(conversation: Omit<Conversation, 'createdAt' | 'updatedAt'>): Promise<void> {
+  async saveConversation(
+    conversation: Omit<Conversation, 'createdAt' | 'updatedAt'>
+  ): Promise<void> {
     return this.conversationRepo.save(conversation);
   }
 
@@ -231,7 +233,10 @@ export class DatabaseService {
     return this.conversationRepo.reorder(taskId, conversationIds);
   }
 
-  async updateConversationAcpSessionId(conversationId: string, acpSessionId: string): Promise<void> {
+  async updateConversationAcpSessionId(
+    conversationId: string,
+    acpSessionId: string
+  ): Promise<void> {
     return this.conversationRepo.updateAcpSessionId(conversationId, acpSessionId);
   }
 

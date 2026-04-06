@@ -202,7 +202,8 @@ describe('PR URL extraction from gh CLI output', () => {
 // Error code classification — mirrors logic in git:create-pr handler
 // -------------------------------------------------------------------------
 describe('PR error code classification', () => {
-  const restrictionRe = /Auth App access restrictions|authorized OAuth apps|third-parties is limited/i;
+  const restrictionRe =
+    /Auth App access restrictions|authorized OAuth apps|third-parties is limited/i;
   const prExistsRe = /already exists|already has.*pull request|pull request for branch/i;
 
   function classifyError(combined: string): string | undefined {
@@ -218,9 +219,7 @@ describe('PR error code classification', () => {
   });
 
   it('classifies authorized OAuth apps restriction', () => {
-    expect(classifyError('authorized OAuth apps are not allowed')).toBe(
-      'ORG_AUTH_APP_RESTRICTED'
-    );
+    expect(classifyError('authorized OAuth apps are not allowed')).toBe('ORG_AUTH_APP_RESTRICTED');
   });
 
   it('classifies third-parties restriction', () => {

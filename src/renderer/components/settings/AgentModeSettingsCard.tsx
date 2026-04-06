@@ -38,9 +38,7 @@ const AgentModeSettingsCard: React.FC = () => {
   }, []);
 
   const toggleMode = async (providerId: ProviderId, newMode: ChatMode) => {
-    setProviders((prev) =>
-      prev.map((p) => (p.id === providerId ? { ...p, mode: newMode } : p))
-    );
+    setProviders((prev) => prev.map((p) => (p.id === providerId ? { ...p, mode: newMode } : p)));
     try {
       const settings = await getSettings();
       const overrides = { ...(settings?.providerOverrides ?? {}) };

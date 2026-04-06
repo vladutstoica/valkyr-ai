@@ -127,9 +127,7 @@ export class AcpSessionManager {
   // Guard helper — eliminates the 7x repeated pattern in session operations
   // -----------------------------------------------------------------------
 
-  private getSessionAndConnection(
-    sessionKey: string
-  ):
+  private getSessionAndConnection(sessionKey: string):
     | {
         session: AcpSession;
         conn: import('./acp/acpTypes').AcpConnection;
@@ -160,24 +158,28 @@ export class AcpSessionManager {
       conn.idleTimer = null;
     }
 
-    this.connectionPool.forEachSessionOnConnection(connectionKey, this.sessions, (sessionKey, session) => {
-      if (this.finalizedSessions.has(sessionKey)) return;
+    this.connectionPool.forEachSessionOnConnection(
+      connectionKey,
+      this.sessions,
+      (sessionKey, session) => {
+        if (this.finalizedSessions.has(sessionKey)) return;
 
-      cleanupSessionTerminals(session);
+        cleanupSessionTerminals(session);
 
-      if (this.detachedSessions.has(sessionKey)) {
-        log.info(`[ConnPool] Connection died while session detached: ${sessionKey}`);
-        this.finalizedSessions.add(sessionKey);
-        this.sessions.delete(sessionKey);
-        return;
+        if (this.detachedSessions.has(sessionKey)) {
+          log.info(`[ConnPool] Connection died while session detached: ${sessionKey}`);
+          this.finalizedSessions.add(sessionKey);
+          this.sessions.delete(sessionKey);
+          return;
+        }
+
+        this.setStatus(sessionKey, 'error');
+        this.bufferEvent(sessionKey, {
+          type: 'session_error',
+          error: errorMessage,
+        });
       }
-
-      this.setStatus(sessionKey, 'error');
-      this.bufferEvent(sessionKey, {
-        type: 'session_error',
-        error: errorMessage,
-      });
-    });
+    );
 
     this.connectionPool.destroy(connectionKey);
   }

@@ -162,7 +162,12 @@ describe('ProviderStatusCache', () => {
 
     it('overwrites an existing entry', () => {
       cache.set('claude', { installed: false, path: null, version: null, lastChecked: 1 });
-      cache.set('claude', { installed: true, path: '/usr/bin/claude', version: '2.0', lastChecked: 2 });
+      cache.set('claude', {
+        installed: true,
+        path: '/usr/bin/claude',
+        version: '2.0',
+        lastChecked: 2,
+      });
 
       const entry = cache.get('claude');
       expect(entry?.installed).toBe(true);
@@ -230,9 +235,7 @@ describe('ProviderStatusCache', () => {
       writeFileMock.mockReset();
       writeFileMock.mockRejectedValue(new Error('permission denied'));
 
-      expect(() =>
-        cache.set('safe', { installed: true, lastChecked: Date.now() })
-      ).not.toThrow();
+      expect(() => cache.set('safe', { installed: true, lastChecked: Date.now() })).not.toThrow();
 
       // Allow the rejection handler to run
       await new Promise((r) => setTimeout(r, 20));

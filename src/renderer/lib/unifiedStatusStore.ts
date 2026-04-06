@@ -597,7 +597,9 @@ class UnifiedStatusStore {
     const { dismiss } = toast({
       title,
       description:
-        status === 'needs-input' ? 'Agent is waiting for your approval.' : 'Agent completed its work.',
+        status === 'needs-input'
+          ? 'Agent is waiting for your approval.'
+          : 'Agent completed its work.',
     });
 
     // Auto-dismiss done toasts after 4s, persist needs-input toasts

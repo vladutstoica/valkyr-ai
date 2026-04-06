@@ -669,18 +669,14 @@ declare global {
       onHookStatusUpdate: (
         listener: (data: { sessionId: string; event: string; status: string }) => void
       ) => () => void;
-      pollHookStatus: () => Promise<
-        Array<{ sessionId: string; event: string; status: string }>
-      >;
+      pollHookStatus: () => Promise<Array<{ sessionId: string; event: string; status: string }>>;
       // Report which session the user is currently viewing (smart notification trigger)
       setActiveHookView: (
         sessionId: string | null,
         taskName?: string | null
       ) => Promise<{ success: boolean }>;
       // Deep-navigate to a specific session (triggered by notification click)
-      onHookNavigate: (
-        listener: (data: { sessionId: string }) => void
-      ) => () => void;
+      onHookNavigate: (listener: (data: { sessionId: string }) => void) => () => void;
 
       // Worktree management
       worktreeCreate: (args: {
@@ -2072,18 +2068,14 @@ export interface ElectronAPI {
   onHookStatusUpdate: (
     listener: (data: { sessionId: string; event: string; status: string }) => void
   ) => () => void;
-  pollHookStatus: () => Promise<
-    Array<{ sessionId: string; event: string; status: string }>
-  >;
+  pollHookStatus: () => Promise<Array<{ sessionId: string; event: string; status: string }>>;
   // Report which session the user is currently viewing (smart notification trigger)
   setActiveHookView: (
     sessionId: string | null,
     taskName?: string | null
   ) => Promise<{ success: boolean }>;
   // Deep-navigate to a specific session (triggered by notification click)
-  onHookNavigate: (
-    listener: (data: { sessionId: string }) => void
-  ) => () => void;
+  onHookNavigate: (listener: (data: { sessionId: string }) => void) => () => void;
 
   // Worktree management
   worktreeCreate: (args: {

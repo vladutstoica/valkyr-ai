@@ -97,7 +97,11 @@ export class ProjectRepository {
     const { db } = await getDrizzleClient();
     const gitRemote = project.gitInfo.remote ?? null;
     const gitBranch = project.gitInfo.branch ?? null;
-    const baseRef = computeBaseRef(project.gitInfo.baseRef, project.gitInfo.remote, project.gitInfo.branch);
+    const baseRef = computeBaseRef(
+      project.gitInfo.baseRef,
+      project.gitInfo.remote,
+      project.gitInfo.branch
+    );
     const githubRepository = project.githubInfo?.repository ?? null;
     const githubConnected = project.githubInfo?.connected ? 1 : 0;
     const subReposJson =
@@ -170,7 +174,10 @@ export class ProjectRepository {
     await db.transaction(async (tx) => {
       await Promise.all(
         projectIds.map((id, i) =>
-          tx.update(projectsTable).set({ displayOrder: i, updatedAt: now }).where(eq(projectsTable.id, id))
+          tx
+            .update(projectsTable)
+            .set({ displayOrder: i, updatedAt: now })
+            .where(eq(projectsTable.id, id))
         )
       );
     });
@@ -184,7 +191,11 @@ export class ProjectRepository {
 
     const { db } = await getDrizzleClient();
     const rows = await db
-      .select({ id: projectsTable.id, gitRemote: projectsTable.gitRemote, gitBranch: projectsTable.gitBranch })
+      .select({
+        id: projectsTable.id,
+        gitRemote: projectsTable.gitRemote,
+        gitBranch: projectsTable.gitBranch,
+      })
       .from(projectsTable)
       .where(eq(projectsTable.id, projectId))
       .limit(1);

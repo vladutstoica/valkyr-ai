@@ -902,7 +902,10 @@ describe('DatabaseService', () => {
 
   describe('archiveTask', () => {
     it('updates archivedAt and resets status to idle', async () => {
-      const updateChain = { set: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue(undefined) };
+      const updateChain = {
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue(undefined),
+      };
       mockDb.update = vi.fn().mockReturnValue(updateChain);
 
       const svc = await getService();
@@ -917,7 +920,10 @@ describe('DatabaseService', () => {
 
   describe('restoreTask', () => {
     it('sets archivedAt to null', async () => {
-      const updateChain = { set: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue(undefined) };
+      const updateChain = {
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue(undefined),
+      };
       mockDb.update = vi.fn().mockReturnValue(updateChain);
 
       const svc = await getService();
@@ -935,7 +941,10 @@ describe('DatabaseService', () => {
 
   describe('setTaskPinned', () => {
     it('sets isPinned=1 when pinned=true', async () => {
-      const updateChain = { set: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue(undefined) };
+      const updateChain = {
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue(undefined),
+      };
       mockDb.update = vi.fn().mockReturnValue(updateChain);
 
       const svc = await getService();
@@ -946,7 +955,10 @@ describe('DatabaseService', () => {
     });
 
     it('sets isPinned=0 when pinned=false', async () => {
-      const updateChain = { set: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue(undefined) };
+      const updateChain = {
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue(undefined),
+      };
       mockDb.update = vi.fn().mockReturnValue(updateChain);
 
       const svc = await getService();
@@ -980,7 +992,10 @@ describe('DatabaseService', () => {
 
   describe('setTaskAgent', () => {
     it('sets lastAgent and lockedAgent', async () => {
-      const updateChain = { set: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue(undefined) };
+      const updateChain = {
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue(undefined),
+      };
       mockDb.update = vi.fn().mockReturnValue(updateChain);
 
       const svc = await getService();
@@ -992,7 +1007,10 @@ describe('DatabaseService', () => {
     });
 
     it('only sets fields that are present in the update object', async () => {
-      const updateChain = { set: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue(undefined) };
+      const updateChain = {
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue(undefined),
+      };
       mockDb.update = vi.fn().mockReturnValue(updateChain);
 
       const svc = await getService();
@@ -1010,7 +1028,10 @@ describe('DatabaseService', () => {
 
   describe('setTaskInitialPromptSent', () => {
     it('sets initialPromptSent=1 when sent=true', async () => {
-      const updateChain = { set: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue(undefined) };
+      const updateChain = {
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue(undefined),
+      };
       mockDb.update = vi.fn().mockReturnValue(updateChain);
 
       const svc = await getService();
@@ -1219,7 +1240,10 @@ describe('DatabaseService', () => {
 
   describe('updateConversationAcpSessionId', () => {
     it('calls db.update with acpSessionId', async () => {
-      const updateChain = { set: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue(undefined) };
+      const updateChain = {
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue(undefined),
+      };
       mockDb.update = vi.fn().mockReturnValue(updateChain);
 
       const svc = await getService();
@@ -1232,7 +1256,10 @@ describe('DatabaseService', () => {
 
   describe('updateConversationTitle', () => {
     it('calls db.update with new title', async () => {
-      const updateChain = { set: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue(undefined) };
+      const updateChain = {
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue(undefined),
+      };
       mockDb.update = vi.fn().mockReturnValue(updateChain);
 
       const svc = await getService();
@@ -1407,7 +1434,10 @@ describe('DatabaseService', () => {
 
   describe('renameProjectGroup', () => {
     it('calls db.update with new name', async () => {
-      const updateChain = { set: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue(undefined) };
+      const updateChain = {
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue(undefined),
+      };
       mockDb.update = vi.fn().mockReturnValue(updateChain);
 
       const svc = await getService();
@@ -1431,7 +1461,10 @@ describe('DatabaseService', () => {
 
   describe('setProjectGroup', () => {
     it('updates groupId on a project', async () => {
-      const updateChain = { set: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue(undefined) };
+      const updateChain = {
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue(undefined),
+      };
       mockDb.update = vi.fn().mockReturnValue(updateChain);
 
       const svc = await getService();
@@ -1442,7 +1475,10 @@ describe('DatabaseService', () => {
     });
 
     it('sets groupId to null (remove from group)', async () => {
-      const updateChain = { set: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue(undefined) };
+      const updateChain = {
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue(undefined),
+      };
       mockDb.update = vi.fn().mockReturnValue(updateChain);
 
       const svc = await getService();
@@ -1455,7 +1491,10 @@ describe('DatabaseService', () => {
 
   describe('toggleProjectGroupCollapsed', () => {
     it('sets isCollapsed=1 when collapsed=true', async () => {
-      const updateChain = { set: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue(undefined) };
+      const updateChain = {
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue(undefined),
+      };
       mockDb.update = vi.fn().mockReturnValue(updateChain);
 
       const svc = await getService();
@@ -1466,7 +1505,10 @@ describe('DatabaseService', () => {
     });
 
     it('sets isCollapsed=0 when collapsed=false', async () => {
-      const updateChain = { set: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue(undefined) };
+      const updateChain = {
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue(undefined),
+      };
       mockDb.update = vi.fn().mockReturnValue(updateChain);
 
       const svc = await getService();
@@ -1507,7 +1549,10 @@ describe('DatabaseService', () => {
 
   describe('renameWorkspace', () => {
     it('calls db.update with new name', async () => {
-      const updateChain = { set: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue(undefined) };
+      const updateChain = {
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue(undefined),
+      };
       mockDb.update = vi.fn().mockReturnValue(updateChain);
 
       const svc = await getService();
@@ -1520,7 +1565,10 @@ describe('DatabaseService', () => {
 
   describe('updateWorkspaceColor', () => {
     it('calls db.update with new color', async () => {
-      const updateChain = { set: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue(undefined) };
+      const updateChain = {
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue(undefined),
+      };
       mockDb.update = vi.fn().mockReturnValue(updateChain);
 
       const svc = await getService();
@@ -1533,7 +1581,10 @@ describe('DatabaseService', () => {
 
   describe('updateWorkspaceEmoji', () => {
     it('sets emoji to a value', async () => {
-      const updateChain = { set: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue(undefined) };
+      const updateChain = {
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue(undefined),
+      };
       mockDb.update = vi.fn().mockReturnValue(updateChain);
 
       const svc = await getService();
@@ -1544,7 +1595,10 @@ describe('DatabaseService', () => {
     });
 
     it('sets emoji to null', async () => {
-      const updateChain = { set: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue(undefined) };
+      const updateChain = {
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue(undefined),
+      };
       mockDb.update = vi.fn().mockReturnValue(updateChain);
 
       const svc = await getService();
@@ -1557,7 +1611,10 @@ describe('DatabaseService', () => {
 
   describe('setProjectWorkspace', () => {
     it('updates workspaceId on a project', async () => {
-      const updateChain = { set: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue(undefined) };
+      const updateChain = {
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue(undefined),
+      };
       mockDb.update = vi.fn().mockReturnValue(updateChain);
 
       const svc = await getService();
@@ -1801,7 +1858,11 @@ describe('DatabaseService', () => {
     });
 
     it('uses stored baseRef when set', async () => {
-      const row = makeProjectRow({ gitRemote: 'origin', gitBranch: 'main', baseRef: 'upstream/main' });
+      const row = makeProjectRow({
+        gitRemote: 'origin',
+        gitBranch: 'main',
+        baseRef: 'upstream/main',
+      });
       mockDb.select = vi.fn().mockReturnValue(thenableRows([row]));
 
       const svc = await getService();

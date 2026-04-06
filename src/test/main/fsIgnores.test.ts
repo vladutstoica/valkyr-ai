@@ -141,7 +141,17 @@ describe('DEFAULT_IGNORES', () => {
   // ─── AI agent directories ──────────────────────────────────────────────
 
   describe('AI agent configuration directories', () => {
-    const agentDirs = ['.claude', '.cursor', '.amp', '.codex', '.aider', '.continue', '.cody', '.windsurf', '.conductor'];
+    const agentDirs = [
+      '.claude',
+      '.cursor',
+      '.amp',
+      '.codex',
+      '.aider',
+      '.continue',
+      '.cody',
+      '.windsurf',
+      '.conductor',
+    ];
 
     it.each(agentDirs)('ignores %s', (dir) => {
       expect(DEFAULT_IGNORES.has(dir)).toBe(true);

@@ -91,16 +91,13 @@ export function PrerequisiteModal({
           {noAgents && (
             <div className="space-y-2">
               <p className="text-muted-foreground text-xs">
-                Agents marked <span className="text-amber-400 font-medium">ACP</span> support
+                Agents marked <span className="font-medium text-amber-400">ACP</span> support
                 structured communication with richer status tracking and chat UI. Others run in
                 terminal mode.
               </p>
               <div className="space-y-1.5">
                 {AGENT_INSTALL_COMMANDS.map((agent) => (
-                  <div
-                    key={agent.name}
-                    className="border-border/40 rounded-md border p-2.5"
-                  >
+                  <div key={agent.name} className="border-border/40 rounded-md border p-2.5">
                     <div className="mb-1 flex items-center gap-2">
                       <span className="text-foreground text-sm font-medium">{agent.name}</span>
                       {agent.badge && (

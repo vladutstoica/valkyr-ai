@@ -53,7 +53,9 @@ function countValkyrGroups(settings: Record<string, unknown>, event: string): nu
     (g) => {
       // New format
       if (Array.isArray(g.hooks)) {
-        return g.hooks.some((h) => typeof h.command === 'string' && h.command.includes(VALKYR_HOOK_MARKER));
+        return g.hooks.some(
+          (h) => typeof h.command === 'string' && h.command.includes(VALKYR_HOOK_MARKER)
+        );
       }
       // Old flat format
       return typeof g.command === 'string' && g.command.includes(VALKYR_HOOK_MARKER);
@@ -327,7 +329,9 @@ describe('HookInstaller', () => {
       installer.uninstall();
 
       const settings = readSettings();
-      const hooks = (settings as Record<string, unknown>).hooks as Record<string, unknown> | undefined;
+      const hooks = (settings as Record<string, unknown>).hooks as
+        | Record<string, unknown>
+        | undefined;
       expect(hooks?.['Stop']).toBeUndefined();
     });
 

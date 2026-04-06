@@ -200,9 +200,7 @@ describe('ptyManager — pure logic (no spawn)', () => {
 
     it('returns null when provider has no cache entry', () => {
       providerStatusCacheMock.get.mockReturnValue(undefined);
-      expect(
-        mgr.startDirectPty({ id: 'no-cache', providerId: 'claude', cwd: '/tmp' })
-      ).toBeNull();
+      expect(mgr.startDirectPty({ id: 'no-cache', providerId: 'claude', cwd: '/tmp' })).toBeNull();
     });
 
     it('returns null when provider is marked not installed', () => {
@@ -214,18 +212,16 @@ describe('ptyManager — pure logic (no spawn)', () => {
 
     it('returns null when provider entry has no path', () => {
       providerStatusCacheMock.get.mockReturnValue({ installed: true, path: null, lastChecked: 0 });
-      expect(
-        mgr.startDirectPty({ id: 'no-path', providerId: 'claude', cwd: '/tmp' })
-      ).toBeNull();
+      expect(mgr.startDirectPty({ id: 'no-path', providerId: 'claude', cwd: '/tmp' })).toBeNull();
     });
   });
 
   describe('startSshPty — guard paths', () => {
     it('throws when VALKYR_DISABLE_PTY=1', () => {
       process.env.VALKYR_DISABLE_PTY = '1';
-      expect(() =>
-        mgr.startSshPty({ id: 'ssh-disabled', target: 'user@host' })
-      ).toThrow('PTY disabled via VALKYR_DISABLE_PTY=1');
+      expect(() => mgr.startSshPty({ id: 'ssh-disabled', target: 'user@host' })).toThrow(
+        'PTY disabled via VALKYR_DISABLE_PTY=1'
+      );
     });
   });
 
@@ -301,7 +297,11 @@ describe('ptyManager — spawn behaviour', () => {
 
   describe('startDirectPty', () => {
     function setupProvider(path = '/usr/local/bin/claude') {
-      providerStatusCacheMock.get.mockReturnValue({ installed: true, path, lastChecked: Date.now() });
+      providerStatusCacheMock.get.mockReturnValue({
+        installed: true,
+        path,
+        lastChecked: Date.now(),
+      });
     }
 
     it('spawns the CLI binary at the cached path', () => {
@@ -316,7 +316,13 @@ describe('ptyManager — spawn behaviour', () => {
 
     it('uses provided cols and rows', () => {
       setupProvider();
-      mgr.startDirectPty({ id: 'size-test', providerId: 'claude', cwd: '/tmp', cols: 100, rows: 40 });
+      mgr.startDirectPty({
+        id: 'size-test',
+        providerId: 'claude',
+        cwd: '/tmp',
+        cols: 100,
+        rows: 40,
+      });
 
       const spawned = spawnedProcs[0];
       expect(spawned._spawnArgs.options.cols).toBe(100);
@@ -334,14 +340,24 @@ describe('ptyManager — spawn behaviour', () => {
 
     it('adds autoApproveFlag when autoApprove=true', () => {
       setupProvider();
-      mgr.startDirectPty({ id: 'auto-approve', providerId: 'claude', cwd: '/tmp', autoApprove: true });
+      mgr.startDirectPty({
+        id: 'auto-approve',
+        providerId: 'claude',
+        cwd: '/tmp',
+        autoApprove: true,
+      });
 
       expect(spawnedProcs[0]._spawnArgs.args).toContain('--dangerously-skip-permissions');
     });
 
     it('omits autoApproveFlag when autoApprove=false', () => {
       setupProvider();
-      mgr.startDirectPty({ id: 'no-approve', providerId: 'claude', cwd: '/tmp', autoApprove: false });
+      mgr.startDirectPty({
+        id: 'no-approve',
+        providerId: 'claude',
+        cwd: '/tmp',
+        autoApprove: false,
+      });
 
       expect(spawnedProcs[0]._spawnArgs.args).not.toContain('--dangerously-skip-permissions');
     });
@@ -380,8 +396,17 @@ describe('ptyManager — spawn behaviour', () => {
     });
 
     it('adds initialPrompt with flag for codex provider', () => {
-      providerStatusCacheMock.get.mockReturnValue({ installed: true, path: '/usr/bin/codex', lastChecked: Date.now() });
-      mgr.startDirectPty({ id: 'prompt-test', providerId: 'codex', cwd: '/tmp', initialPrompt: 'Fix the bug' });
+      providerStatusCacheMock.get.mockReturnValue({
+        installed: true,
+        path: '/usr/bin/codex',
+        lastChecked: Date.now(),
+      });
+      mgr.startDirectPty({
+        id: 'prompt-test',
+        providerId: 'codex',
+        cwd: '/tmp',
+        initialPrompt: 'Fix the bug',
+      });
 
       const args = spawnedProcs[0]._spawnArgs.args;
       expect(args).toContain('-p');
@@ -441,7 +466,11 @@ describe('ptyManager — spawn behaviour', () => {
       patchNodePtyCache();
       const freshMgr = await import('../../main/services/ptyManager');
 
-      providerStatusCacheMock.get.mockReturnValue({ installed: true, path: '/usr/bin/codex', lastChecked: Date.now() });
+      providerStatusCacheMock.get.mockReturnValue({
+        installed: true,
+        path: '/usr/bin/codex',
+        lastChecked: Date.now(),
+      });
       freshMgr.startDirectPty({ id: 'codex-no-hook', providerId: 'codex', cwd: '/tmp' });
 
       const env = spawnedProcs[spawnedProcs.length - 1]._spawnArgs.options.env;
@@ -596,7 +625,11 @@ describe('ptyManager — spawn behaviour', () => {
 
   describe('writePty', () => {
     it('writes data to the process', () => {
-      providerStatusCacheMock.get.mockReturnValue({ installed: true, path: '/usr/local/bin/claude', lastChecked: Date.now() });
+      providerStatusCacheMock.get.mockReturnValue({
+        installed: true,
+        path: '/usr/local/bin/claude',
+        lastChecked: Date.now(),
+      });
       mgr.startDirectPty({ id: 'write-me', providerId: 'claude', cwd: '/tmp' });
 
       mgr.writePty('write-me', 'echo hello\n');
@@ -611,7 +644,11 @@ describe('ptyManager — spawn behaviour', () => {
 
   describe('resizePty', () => {
     it('calls proc.resize with the new dimensions', () => {
-      providerStatusCacheMock.get.mockReturnValue({ installed: true, path: '/usr/local/bin/claude', lastChecked: Date.now() });
+      providerStatusCacheMock.get.mockReturnValue({
+        installed: true,
+        path: '/usr/local/bin/claude',
+        lastChecked: Date.now(),
+      });
       mgr.startDirectPty({ id: 'resize-me', providerId: 'claude', cwd: '/tmp' });
 
       mgr.resizePty('resize-me', 200, 50);
@@ -620,7 +657,11 @@ describe('ptyManager — spawn behaviour', () => {
     });
 
     it('does not resize when cols=0', () => {
-      providerStatusCacheMock.get.mockReturnValue({ installed: true, path: '/usr/local/bin/claude', lastChecked: Date.now() });
+      providerStatusCacheMock.get.mockReturnValue({
+        installed: true,
+        path: '/usr/local/bin/claude',
+        lastChecked: Date.now(),
+      });
       mgr.startDirectPty({ id: 'zero-cols', providerId: 'claude', cwd: '/tmp' });
 
       mgr.resizePty('zero-cols', 0, 24);
@@ -629,7 +670,11 @@ describe('ptyManager — spawn behaviour', () => {
     });
 
     it('does not resize when rows=0', () => {
-      providerStatusCacheMock.get.mockReturnValue({ installed: true, path: '/usr/local/bin/claude', lastChecked: Date.now() });
+      providerStatusCacheMock.get.mockReturnValue({
+        installed: true,
+        path: '/usr/local/bin/claude',
+        lastChecked: Date.now(),
+      });
       mgr.startDirectPty({ id: 'zero-rows', providerId: 'claude', cwd: '/tmp' });
 
       mgr.resizePty('zero-rows', 80, 0);
@@ -638,7 +683,11 @@ describe('ptyManager — spawn behaviour', () => {
     });
 
     it('suppresses EBADF errors during shutdown', () => {
-      providerStatusCacheMock.get.mockReturnValue({ installed: true, path: '/usr/local/bin/claude', lastChecked: Date.now() });
+      providerStatusCacheMock.get.mockReturnValue({
+        installed: true,
+        path: '/usr/local/bin/claude',
+        lastChecked: Date.now(),
+      });
       mgr.startDirectPty({ id: 'ebadf', providerId: 'claude', cwd: '/tmp' });
 
       spawnedProcs[0].resize.mockImplementation(() => {
@@ -649,7 +698,11 @@ describe('ptyManager — spawn behaviour', () => {
     });
 
     it('suppresses ENOTTY errors', () => {
-      providerStatusCacheMock.get.mockReturnValue({ installed: true, path: '/usr/local/bin/claude', lastChecked: Date.now() });
+      providerStatusCacheMock.get.mockReturnValue({
+        installed: true,
+        path: '/usr/local/bin/claude',
+        lastChecked: Date.now(),
+      });
       mgr.startDirectPty({ id: 'enotty', providerId: 'claude', cwd: '/tmp' });
 
       spawnedProcs[0].resize.mockImplementation(() => {
@@ -660,7 +713,11 @@ describe('ptyManager — spawn behaviour', () => {
     });
 
     it('suppresses "not open" errors', () => {
-      providerStatusCacheMock.get.mockReturnValue({ installed: true, path: '/usr/local/bin/claude', lastChecked: Date.now() });
+      providerStatusCacheMock.get.mockReturnValue({
+        installed: true,
+        path: '/usr/local/bin/claude',
+        lastChecked: Date.now(),
+      });
       mgr.startDirectPty({ id: 'not-open', providerId: 'claude', cwd: '/tmp' });
 
       spawnedProcs[0].resize.mockImplementation(() => {
@@ -677,7 +734,11 @@ describe('ptyManager — spawn behaviour', () => {
 
   describe('killPty', () => {
     it('calls kill and removes the PTY record', () => {
-      providerStatusCacheMock.get.mockReturnValue({ installed: true, path: '/usr/local/bin/claude', lastChecked: Date.now() });
+      providerStatusCacheMock.get.mockReturnValue({
+        installed: true,
+        path: '/usr/local/bin/claude',
+        lastChecked: Date.now(),
+      });
       mgr.startDirectPty({ id: 'kill-me', providerId: 'claude', cwd: '/tmp' });
       expect(mgr.hasPty('kill-me')).toBe(true);
 
@@ -688,7 +749,11 @@ describe('ptyManager — spawn behaviour', () => {
     });
 
     it('falls back to SIGKILL when default kill() throws', () => {
-      providerStatusCacheMock.get.mockReturnValue({ installed: true, path: '/usr/local/bin/claude', lastChecked: Date.now() });
+      providerStatusCacheMock.get.mockReturnValue({
+        installed: true,
+        path: '/usr/local/bin/claude',
+        lastChecked: Date.now(),
+      });
       mgr.startDirectPty({ id: 'sigkill', providerId: 'claude', cwd: '/tmp' });
 
       spawnedProcs[0].kill.mockImplementationOnce(() => {
@@ -700,7 +765,11 @@ describe('ptyManager — spawn behaviour', () => {
     });
 
     it('still removes PTY record even when both kill() calls throw', () => {
-      providerStatusCacheMock.get.mockReturnValue({ installed: true, path: '/usr/local/bin/claude', lastChecked: Date.now() });
+      providerStatusCacheMock.get.mockReturnValue({
+        installed: true,
+        path: '/usr/local/bin/claude',
+        lastChecked: Date.now(),
+      });
       mgr.startDirectPty({ id: 'double-fail', providerId: 'claude', cwd: '/tmp' });
 
       spawnedProcs[0].kill.mockImplementation(() => {
@@ -718,7 +787,11 @@ describe('ptyManager — spawn behaviour', () => {
 
   describe('removePtyRecord', () => {
     it('removes the record without killing the process', () => {
-      providerStatusCacheMock.get.mockReturnValue({ installed: true, path: '/usr/local/bin/claude', lastChecked: Date.now() });
+      providerStatusCacheMock.get.mockReturnValue({
+        installed: true,
+        path: '/usr/local/bin/claude',
+        lastChecked: Date.now(),
+      });
       mgr.startDirectPty({ id: 'remove-me', providerId: 'claude', cwd: '/tmp' });
 
       mgr.removePtyRecord('remove-me');
@@ -734,7 +807,11 @@ describe('ptyManager — spawn behaviour', () => {
 
   describe('getPty', () => {
     it('returns the proc for a registered PTY', () => {
-      providerStatusCacheMock.get.mockReturnValue({ installed: true, path: '/usr/local/bin/claude', lastChecked: Date.now() });
+      providerStatusCacheMock.get.mockReturnValue({
+        installed: true,
+        path: '/usr/local/bin/claude',
+        lastChecked: Date.now(),
+      });
       mgr.startDirectPty({ id: 'get-me', providerId: 'claude', cwd: '/tmp' });
 
       const proc = mgr.getPty('get-me');

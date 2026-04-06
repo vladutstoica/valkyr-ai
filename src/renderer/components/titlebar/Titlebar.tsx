@@ -40,7 +40,9 @@ const Titlebar: React.FC<TitlebarProps> = ({
   return (
     <header className="border-border/50 bg-muted dark:bg-background fixed inset-x-0 top-0 z-[80] flex h-[var(--tb,44px)] items-center justify-between border-b px-4 [-webkit-app-region:drag]">
       {/* Left: Logo + Mode toggle — offset for macOS traffic lights (collapse in fullscreen) */}
-      <div className={`flex items-center gap-3 ${isFullscreen ? 'pl-2' : 'pl-[76px]'} [-webkit-app-region:no-drag]`}>
+      <div
+        className={`flex items-center gap-3 ${isFullscreen ? 'pl-2' : 'pl-[76px]'} [-webkit-app-region:no-drag]`}
+      >
         <img
           src={isDark ? logomarkWhite : logomarkBlack}
           alt="Valkyr"

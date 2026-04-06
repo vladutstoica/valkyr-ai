@@ -204,11 +204,7 @@ export function startDirectPty(options: {
           if (fs.existsSync(projectsDir)) {
             const dirs = fs.readdirSync(projectsDir);
             for (const dir of dirs) {
-              const sessionFile = path.join(
-                projectsDir,
-                dir,
-                `${resumeSessionId}.jsonl`
-              );
+              const sessionFile = path.join(projectsDir, dir, `${resumeSessionId}.jsonl`);
               if (fs.existsSync(sessionFile)) {
                 // Validate file is non-empty (empty files can't be resumed)
                 const stat = fs.statSync(sessionFile);
@@ -217,7 +213,10 @@ export function startDirectPty(options: {
                   foundInDir = dir;
                 } else {
                   log.warn('ptyManager: session file exists but is empty, skipping resume', {
-                    id, resumeSessionId, dir, size: stat.size,
+                    id,
+                    resumeSessionId,
+                    dir,
+                    size: stat.size,
                   });
                 }
                 break;
@@ -226,18 +225,23 @@ export function startDirectPty(options: {
           }
         } catch (err) {
           log.warn('ptyManager: error checking session file, starting fresh', {
-            id, resumeSessionId, error: String(err),
+            id,
+            resumeSessionId,
+            error: String(err),
           });
         }
 
         if (useSpecificId) {
           log.info('ptyManager: resuming session by ID', {
-            id, resumeSessionId, foundInDir,
+            id,
+            resumeSessionId,
+            foundInDir,
           });
           cliArgs.push('--resume', resumeSessionId);
         } else {
           log.info('ptyManager: session file not found, starting fresh', {
-            id, resumeSessionId,
+            id,
+            resumeSessionId,
           });
         }
         // Session not found — skip resume entirely (start fresh).
@@ -327,7 +331,14 @@ export function startDirectPty(options: {
     throw new Error(`PTY unavailable: ${e?.message || String(e)}`);
   }
 
-  log.info('ptyManager: spawning CLI', { id, providerId, cliPath, cliArgs, resume, resumeSessionId });
+  log.info('ptyManager: spawning CLI', {
+    id,
+    providerId,
+    cliPath,
+    cliArgs,
+    resume,
+    resumeSessionId,
+  });
 
   const proc = pty.spawn(cliPath, cliArgs, {
     name: 'xterm-256color',
@@ -339,8 +350,13 @@ export function startDirectPty(options: {
 
   // Store record with cwd and spawn metadata for resume-failure detection
   ptys.set(id, {
-    id, proc, cwd, isDirectSpawn: true, kind: 'local',
-    spawnTime: Date.now(), wasResume: resume,
+    id,
+    proc,
+    cwd,
+    isDirectSpawn: true,
+    kind: 'local',
+    spawnTime: Date.now(),
+    wasResume: resume,
   });
 
   // When CLI exits, spawn a shell so user can continue working.
@@ -353,7 +369,9 @@ export function startDirectPty(options: {
       const elapsed = rec.spawnTime ? Date.now() - rec.spawnTime : Infinity;
       if (rec.wasResume && exitCode !== 0 && elapsed < 5000) {
         log.info('ptyManager: skipping shell respawn for failed resume (ptyIpc will retry)', {
-          id, exitCode, elapsed,
+          id,
+          exitCode,
+          elapsed,
         });
         return;
       }

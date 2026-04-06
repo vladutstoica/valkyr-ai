@@ -24,7 +24,13 @@ export async function createPullRequest(args: {
   draft?: boolean;
   web?: boolean;
   fill?: boolean;
-}): Promise<{ success: boolean; url?: string | null; output?: string; error?: string; code?: string }> {
+}): Promise<{
+  success: boolean;
+  url?: string | null;
+  output?: string;
+  error?: string;
+  code?: string;
+}> {
   const { taskPath, title, body, base, head, draft, web, fill } =
     args ||
     ({} as {
@@ -438,10 +444,13 @@ export async function getCheckRuns(args: {
   }
 }
 
-export async function getPrComments(args: {
-  taskPath: string;
-  prNumber?: number;
-}): Promise<{ success: boolean; comments?: any[]; reviews?: any[]; error?: string; code?: string }> {
+export async function getPrComments(args: { taskPath: string; prNumber?: number }): Promise<{
+  success: boolean;
+  comments?: any[];
+  reviews?: any[];
+  error?: string;
+  code?: string;
+}> {
   const { taskPath, prNumber } = args || ({} as { taskPath: string; prNumber?: number });
   try {
     validateTaskPath(taskPath);

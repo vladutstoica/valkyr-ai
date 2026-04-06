@@ -511,7 +511,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
 
   return (
     <TooltipProvider>
-      <div className="bg-muted dark:bg-background text-muted-foreground flex h-7 items-center border-t border-border/50 px-3 text-xs">
+      <div className="bg-muted dark:bg-background text-muted-foreground border-border/50 flex h-7 items-center border-t px-3 text-xs">
         {/* Agent Status */}
         <Tooltip>
           <TooltipTrigger asChild>

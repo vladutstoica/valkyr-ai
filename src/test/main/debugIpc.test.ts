@@ -193,10 +193,9 @@ describe('debugIpc', () => {
       const result = await callHandler('debug:append-log', nestedPath, 'nested log');
 
       expect(result.success).toBe(true);
-      expect(mkdirMock).toHaveBeenCalledWith(
-        `${USER_DATA_PATH}${sep}logs${sep}agent`,
-        { recursive: true }
-      );
+      expect(mkdirMock).toHaveBeenCalledWith(`${USER_DATA_PATH}${sep}logs${sep}agent`, {
+        recursive: true,
+      });
     });
   });
 });

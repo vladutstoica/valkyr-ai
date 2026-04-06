@@ -26,9 +26,7 @@ vi.mock('../../main/lib/logger', () => ({
 
 import { existsSync, readFileSync } from 'fs';
 import { execFileSync } from 'child_process';
-import {
-  detectAndLoadTerminalConfig,
-} from '../../main/services/TerminalConfigParser';
+import { detectAndLoadTerminalConfig } from '../../main/services/TerminalConfigParser';
 
 const mockExistsSync = vi.mocked(existsSync);
 const mockReadFileSync = vi.mocked(readFileSync);
@@ -103,8 +101,8 @@ describe('iTerm2 config parsing', () => {
 
   it('detects iTerm2 and returns a valid TerminalConfig with colors and font', () => {
     // Only the iTerm2 plist path should exist
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.includes('com.googlecode.iterm2.plist')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.includes('com.googlecode.iterm2.plist')
     );
 
     const plistJson = JSON.stringify({
@@ -120,7 +118,11 @@ describe('iTerm2 config parsing', () => {
           'Background Color': { 'Red Component': 0, 'Green Component': 0, 'Blue Component': 0 },
           'Foreground Color': { 'Red Component': 1, 'Green Component': 1, 'Blue Component': 1 },
           'Cursor Color': { 'Red Component': 0.5, 'Green Component': 0.5, 'Blue Component': 0.5 },
-          'Selection Color': { 'Red Component': 0.2, 'Green Component': 0.4, 'Blue Component': 0.6 },
+          'Selection Color': {
+            'Red Component': 0.2,
+            'Green Component': 0.4,
+            'Blue Component': 0.6,
+          },
           'Ansi 0 Color': { 'Red Component': 0, 'Green Component': 0, 'Blue Component': 0 },
           'Ansi 1 Color': { 'Red Component': 1, 'Green Component': 0, 'Blue Component': 0 },
           'Ansi 2 Color': { 'Red Component': 0, 'Green Component': 1, 'Blue Component': 0 },
@@ -162,8 +164,8 @@ describe('iTerm2 config parsing', () => {
   });
 
   it('returns null when iTerm2 plist has no bookmarks', () => {
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.includes('com.googlecode.iterm2.plist')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.includes('com.googlecode.iterm2.plist')
     );
     mockExecFileSync.mockReturnValue(JSON.stringify({ 'New Bookmarks': [] }) as any);
     const result = detectAndLoadTerminalConfig();
@@ -171,8 +173,8 @@ describe('iTerm2 config parsing', () => {
   });
 
   it('returns null when default profile has no Color Preset Name', () => {
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.includes('com.googlecode.iterm2.plist')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.includes('com.googlecode.iterm2.plist')
     );
     mockExecFileSync.mockReturnValue(
       JSON.stringify({ 'New Bookmarks': [{ 'Default Bookmark': 'Yes' }] }) as any
@@ -182,8 +184,8 @@ describe('iTerm2 config parsing', () => {
   });
 
   it('falls back to XML parser when plutil fails, returning null for basic XML', () => {
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.includes('com.googlecode.iterm2.plist')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.includes('com.googlecode.iterm2.plist')
     );
     mockExecFileSync.mockImplementation(() => {
       throw new Error('plutil failed');
@@ -196,8 +198,8 @@ describe('iTerm2 config parsing', () => {
   });
 
   it('returns null when plist JSON is invalid', () => {
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.includes('com.googlecode.iterm2.plist')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.includes('com.googlecode.iterm2.plist')
     );
     mockExecFileSync.mockReturnValue('not-valid-json' as any);
     // Should not throw; returns null and falls through to next terminal
@@ -206,14 +208,18 @@ describe('iTerm2 config parsing', () => {
   });
 
   it('uses first bookmark if none is marked as default', () => {
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.includes('com.googlecode.iterm2.plist')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.includes('com.googlecode.iterm2.plist')
     );
     const plistJson = JSON.stringify({
       'New Bookmarks': [{ 'Color Preset Name': 'APreset' }],
       'Custom Color Presets': {
         APreset: {
-          'Background Color': { 'Red Component': 0.1, 'Green Component': 0.2, 'Blue Component': 0.3 },
+          'Background Color': {
+            'Red Component': 0.1,
+            'Green Component': 0.2,
+            'Blue Component': 0.3,
+          },
         },
       },
     });
@@ -225,8 +231,8 @@ describe('iTerm2 config parsing', () => {
   });
 
   it('handles color preset already stored as a hex string', () => {
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.includes('com.googlecode.iterm2.plist')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.includes('com.googlecode.iterm2.plist')
     );
     const plistJson = JSON.stringify({
       'New Bookmarks': [{ 'Color Preset Name': 'FlatPreset' }],
@@ -245,8 +251,8 @@ describe('iTerm2 config parsing', () => {
   });
 
   it('skips font parsing when Normal Font does not match expected format', () => {
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.includes('com.googlecode.iterm2.plist')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.includes('com.googlecode.iterm2.plist')
     );
     const plistJson = JSON.stringify({
       'New Bookmarks': [{ 'Color Preset Name': 'P', 'Normal Font': 'NoSpaceFont' }],
@@ -268,8 +274,8 @@ describe('Terminal.app config parsing', () => {
   beforeEach(() => {
     setPlatform('darwin');
     // iTerm2 plist absent, Terminal.app plist present
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.includes('com.apple.Terminal.plist')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.includes('com.apple.Terminal.plist')
     );
   });
 
@@ -327,11 +333,22 @@ describe('Terminal.app config parsing', () => {
 
   it('maps all ANSI colors from Terminal.app profile', () => {
     const colorNames = [
-      'ANSIBlackColor', 'ANSIRedColor', 'ANSIGreenColor', 'ANSIYellowColor',
-      'ANSIBlueColor', 'ANSIMagentaColor', 'ANSICyanColor', 'ANSIWhiteColor',
-      'ANSIBrightBlackColor', 'ANSIBrightRedColor', 'ANSIBrightGreenColor',
-      'ANSIBrightYellowColor', 'ANSIBrightBlueColor', 'ANSIBrightMagentaColor',
-      'ANSIBrightCyanColor', 'ANSIBrightWhiteColor',
+      'ANSIBlackColor',
+      'ANSIRedColor',
+      'ANSIGreenColor',
+      'ANSIYellowColor',
+      'ANSIBlueColor',
+      'ANSIMagentaColor',
+      'ANSICyanColor',
+      'ANSIWhiteColor',
+      'ANSIBrightBlackColor',
+      'ANSIBrightRedColor',
+      'ANSIBrightGreenColor',
+      'ANSIBrightYellowColor',
+      'ANSIBrightBlueColor',
+      'ANSIBrightMagentaColor',
+      'ANSIBrightCyanColor',
+      'ANSIBrightWhiteColor',
     ];
     const profile: Record<string, unknown> = {};
     colorNames.forEach((name) => {
@@ -358,8 +375,8 @@ describe('Alacritty TOML config parsing', () => {
   beforeEach(() => {
     setPlatform('darwin');
     // Alacritty TOML path present
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.includes('alacritty.toml')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.includes('alacritty.toml')
     );
   });
 
@@ -426,8 +443,8 @@ describe('Alacritty YAML config parsing', () => {
   beforeEach(() => {
     setPlatform('linux');
     // TOML absent, YAML present
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.includes('alacritty.yml')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.includes('alacritty.yml')
     );
   });
 
@@ -462,8 +479,8 @@ colors:
 describe('Ghostty config parsing', () => {
   beforeEach(() => {
     setPlatform('darwin');
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.includes('ghostty')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.includes('ghostty')
     );
   });
 
@@ -560,8 +577,8 @@ justakeynoequals
 describe('Kitty config parsing', () => {
   beforeEach(() => {
     setPlatform('linux');
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.includes('kitty.conf')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.includes('kitty.conf')
     );
   });
 
@@ -649,8 +666,8 @@ describe('Windows Terminal config parsing', () => {
   beforeEach(() => {
     setPlatform('win32');
     process.env.LOCALAPPDATA = 'C:\\Users\\Test\\AppData\\Local';
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.includes('Microsoft.WindowsTerminal_8wekyb3d8bbwe')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.includes('Microsoft.WindowsTerminal_8wekyb3d8bbwe')
     );
   });
 
@@ -731,7 +748,9 @@ describe('Windows Terminal config parsing', () => {
 
   it('returns Windows Terminal config without color scheme when no matching scheme found', () => {
     const settings = JSON.stringify({
-      profiles: { list: [{ default: true, colorScheme: 'Missing', font: { face: 'Consolas', size: 11 } }] },
+      profiles: {
+        list: [{ default: true, colorScheme: 'Missing', font: { face: 'Consolas', size: 11 } }],
+      },
       schemes: [],
     });
     mockReadFileSync.mockReturnValue(settings as any);
@@ -781,7 +800,13 @@ describe('macOS terminal detection priority', () => {
     const plistJson = JSON.stringify({
       'New Bookmarks': [{ 'Color Preset Name': 'P' }],
       'Custom Color Presets': {
-        P: { 'Background Color': { 'Red Component': 0.1, 'Green Component': 0.2, 'Blue Component': 0.3 } },
+        P: {
+          'Background Color': {
+            'Red Component': 0.1,
+            'Green Component': 0.2,
+            'Blue Component': 0.3,
+          },
+        },
       },
     });
     mockExecFileSync.mockReturnValue(plistJson as any);
@@ -790,8 +815,8 @@ describe('macOS terminal detection priority', () => {
   });
 
   it('falls through to Ghostty when iTerm2, Terminal.app, and Alacritty are absent', () => {
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.includes('ghostty')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.includes('ghostty')
     );
     mockReadFileSync.mockReturnValue('background = 000000\n' as any);
     const result = detectAndLoadTerminalConfig();
@@ -799,8 +824,8 @@ describe('macOS terminal detection priority', () => {
   });
 
   it('falls through to Kitty when iTerm2, Terminal.app, Alacritty, and Ghostty are absent', () => {
-    mockExistsSync.mockImplementation((p: unknown) =>
-      typeof p === 'string' && p.includes('kitty.conf')
+    mockExistsSync.mockImplementation(
+      (p: unknown) => typeof p === 'string' && p.includes('kitty.conf')
     );
     mockReadFileSync.mockReturnValue('background #000000\n' as any);
     const result = detectAndLoadTerminalConfig();

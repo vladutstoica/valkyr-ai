@@ -97,13 +97,10 @@ const MainContentArea: React.FC<MainContentAreaProps> = ({
       >
         {allProjects.map((project) => {
           const tasks = project.tasks || [];
-          const isSelectedProject = selectedProject
-            ? project.id === selectedProject.id
-            : false;
+          const isSelectedProject = selectedProject ? project.id === selectedProject.id : false;
 
           return tasks.map((task) => {
-            const isActive =
-              showProjectView && isSelectedProject && task.id === activeTask?.id;
+            const isActive = showProjectView && isSelectedProject && task.id === activeTask?.id;
             const isMultiAgent = task.metadata?.multiAgent?.enabled;
 
             return (
