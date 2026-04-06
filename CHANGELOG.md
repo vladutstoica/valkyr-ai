@@ -1,5 +1,63 @@
 # Changelog
 
+## [0.4.0](https://github.com/vladutstoica/valkyr-ai/compare/valkyr-v0.3.1...valkyr-v0.4.0) (2026-04-06)
+
+
+### Features
+
+* add connections, Jira, Linear IPC handlers and provider status cache tests ([e6df7b4](https://github.com/vladutstoica/valkyr-ai/commit/e6df7b43220182c00467c5dd093a59d7909a39f5))
+* **notifications:** add native desktop notifications for agent status ([428a3cf](https://github.com/vladutstoica/valkyr-ai/commit/428a3cf1ae936f12165dd0f779c70748f56745d5))
+* **notifications:** smart triggers, deep-nav, toasts, batching, mute ([3f53ec3](https://github.com/vladutstoica/valkyr-ai/commit/3f53ec35515c03578c52bce7a4cfb64896b402d1))
+* **onboarding:** improve setup modal with agent install guide ([ce76bf3](https://github.com/vladutstoica/valkyr-ai/commit/ce76bf382a41f93daffde39012af69da0961d662))
+* **scripts:** add custom scripts support with CRUD and per-folder cwd ([4fa5007](https://github.com/vladutstoica/valkyr-ai/commit/4fa500792d8a3f6a0f8a4749c570942baf5055b2))
+* **settings:** add per-agent ACP/CLI mode toggle in settings ([ad97033](https://github.com/vladutstoica/valkyr-ai/commit/ad970336bf72544a1e7fd61940e41c96c9681294))
+* **status:** add Claude Code hook-based status detection ([47efaf9](https://github.com/vladutstoica/valkyr-ai/commit/47efaf94191e16779fd89144b9b27184d6801b13))
+* **ui:** add resource usage monitor in status bar ([e6ba7db](https://github.com/vladutstoica/valkyr-ai/commit/e6ba7dbe120394b9d974e716a2c9696717e697ae))
+* **ui:** add unread indicator for tasks with unseen status changes ([72ffd9d](https://github.com/vladutstoica/valkyr-ai/commit/72ffd9de810834de0aebca55c02eb5e53ab19295))
+* **ui:** per-conversation status dots in sidebar (dot/pill layout) ([e498cc8](https://github.com/vladutstoica/valkyr-ai/commit/e498cc84dea7ea2c166ca74ebdb5ce765c19ec45))
+* **ui:** UI/UX polish with Nova theme, surface hierarchy, and layout improvements ([332b00f](https://github.com/vladutstoica/valkyr-ai/commit/332b00fc35819ae7f90d5ede5f208b0f9f934c0e))
+* **ui:** warn before archiving session with running processes ([b1a5216](https://github.com/vladutstoica/valkyr-ai/commit/b1a521695a6120dcf6605727c5de5efc0d7b0a5a))
+
+
+### Bug Fixes
+
+* **build:** use Map for hookEventMapper (ES2020 compat, prototype-safe) ([f3715c4](https://github.com/vladutstoica/valkyr-ai/commit/f3715c4e6426f6f79d61bf3938d4e004e6082702))
+* **chat:** allow deleting any chat when multiple exist ([54af278](https://github.com/vladutstoica/valkyr-ai/commit/54af2786a3386b9d40e72ea8f19e57982a64f41d))
+* **chat:** backfill claudeSessionId so each chat resumes its own session ([9ac8943](https://github.com/vladutstoica/valkyr-ai/commit/9ac894352eeb713b192cab8def5e0847a9d5eef9))
+* **editor:** stabilize editor tab with file loading, state sync, and layout fixes ([922fdbd](https://github.com/vladutstoica/valkyr-ai/commit/922fdbdcacd0258d244957e29f576318897b683a))
+* **pty:** auto-retry as fresh session when Claude resume fails ([2687986](https://github.com/vladutstoica/valkyr-ai/commit/2687986f429979b0a7a3bcf8f3ac7907e38c1b59))
+* **pty:** move resume retry to ptyIpc so terminal display re-wires ([9f5292b](https://github.com/vladutstoica/valkyr-ai/commit/9f5292b94e237421021f73f42ac9aaff19d18a97))
+* **pty:** skip resume when session file missing, fix status dot timing ([17c410b](https://github.com/vladutstoica/valkyr-ai/commit/17c410bc60dbe07141f13d5485d4e35588c7c48c))
+* **pty:** use generic resume for Claude instead of Valkyr-generated session IDs ([871631b](https://github.com/vladutstoica/valkyr-ai/commit/871631bc9bc3e8aed7b914aecce83dd2def3db11))
+* **pty:** validate Claude session file before resume by ID, fallback to generic ([8357ac0](https://github.com/vladutstoica/valkyr-ai/commit/8357ac05933fc6aaca578e762ff75feeb420fbb4))
+* **sessions:** default to CLI mode, pass autoApprove to terminal ([19fc382](https://github.com/vladutstoica/valkyr-ai/commit/19fc3824670d59cb77ed3a240d478b68811ea578))
+* **sessions:** resume specific Claude session per chat instead of latest ([4e5ad06](https://github.com/vladutstoica/valkyr-ai/commit/4e5ad06361fc7763f81c70cf7ab770ac6c64663d))
+* **status:** add idle timeout, fix routing for multi-chat sessions ([e656c4b](https://github.com/vladutstoica/valkyr-ai/commit/e656c4b19be5031aed42bbc1087ad752c91ec779))
+* **status:** auto-parse taskId from hook sessionId, no registration needed ([8520d40](https://github.com/vladutstoica/valkyr-ai/commit/8520d40aaa96402766923ed2f5f1fa0f8549fb28))
+* **status:** fix hook commands being commented out, add UserPromptSubmit ([400d896](https://github.com/vladutstoica/valkyr-ai/commit/400d89630a118d3a30bc4fc5d34955e954e14232))
+* **status:** fix hook status dots with poll-based IPC and task ID keying ([ada9fe4](https://github.com/vladutstoica/valkyr-ai/commit/ada9fe4618757b73b7318cdc3b47ffbd0486bf2c))
+* **status:** per-conversation pill colors and order matching UI tabs ([cdf085a](https://github.com/vladutstoica/valkyr-ai/commit/cdf085a04efa6d9744789badc53e0f080233bbb8))
+* **status:** preserve pill colors on conversation reorder ([7a5d921](https://github.com/vladutstoica/valkyr-ai/commit/7a5d921d55229bff52addd2f4126608b34922080))
+* **status:** register per-conversation entries so pill shows correct count ([0d192ab](https://github.com/vladutstoica/valkyr-ai/commit/0d192ab34b414ea70d3c3226bfaeeed73ab23fb2))
+* **status:** register PTY task mode on hook session so status dots update ([39e1ba6](https://github.com/vladutstoica/valkyr-ai/commit/39e1ba66000da97a40d76e28e36a77f41b96671b))
+* **status:** use indexOf for hyphen-safe parsing, remove dangerous fallback ([d148066](https://github.com/vladutstoica/valkyr-ai/commit/d148066f6ee8721ac2bfc7b4b4e6ff0a87bdb576))
+* **terminal:** stabilize PTY resize, view mounting, and terminal repaint ([0e2eccd](https://github.com/vladutstoica/valkyr-ai/commit/0e2eccd303a6cc2a660d0215b3cc6d975c75c3d1))
+* **test:** mock native modules for CI where electron/keytar are unavailable ([d56b221](https://github.com/vladutstoica/valkyr-ai/commit/d56b22190f920ca36ba2346e319c1d69a179b25b))
+* **ui:** add pill divider, update pill on chat add/delete ([9e42667](https://github.com/vladutstoica/valkyr-ai/commit/9e426678da56fa01159d5e34fba6c1dc999b09e4))
+
+
+### Performance
+
+* **build:** exclude remaining renderer-only transitive deps from ASAR ([dab3930](https://github.com/vladutstoica/valkyr-ai/commit/dab3930cee0bb64642eb94943d29d1d687b6325e))
+* **build:** exclude renderer-only packages from ASAR (-163MB) ([546e58b](https://github.com/vladutstoica/valkyr-ai/commit/546e58b6636016fd9eeb6a3a3537531f2d9e31ce))
+
+
+### Code Refactoring
+
+* **branding:** replace emdash assets with Hotshot logomark, reduce bundle size ([a443ff0](https://github.com/vladutstoica/valkyr-ai/commit/a443ff01b003ca8baa781dc50f4fc1fa88c3fe11))
+* decompose AcpSessionManager and fsIpc into focused modules ([813b170](https://github.com/vladutstoica/valkyr-ai/commit/813b1709b69ff48a61e33e615d48a7ab425aac50))
+* decompose god classes, fix security issues, and improve UX ([e1d1faa](https://github.com/vladutstoica/valkyr-ai/commit/e1d1faa4672a86492c56c1c8c147f8662bbd815e))
+
 ## [0.4.0](https://github.com/vladutstoica/valkyr-ai/compare/valkyr-v0.3.1...valkyr-v0.4.0) (2026-03-25)
 
 
