@@ -17,7 +17,7 @@ const SkillIcon: React.FC<{ skill: CatalogSkill }> = ({ skill }) => {
 
   if (skill.iconUrl && !imgError) {
     return (
-      <div className="bg-muted/40 flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl">
+      <div className="bg-muted/40 flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg">
         <img
           src={skill.iconUrl}
           alt=""
@@ -30,7 +30,7 @@ const SkillIcon: React.FC<{ skill: CatalogSkill }> = ({ skill }) => {
   }
 
   return (
-    <div className="bg-muted/40 text-foreground/60 flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl text-base font-semibold dark:text-white">
+    <div className="bg-muted/40 text-foreground/60 flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg text-base font-semibold dark:text-white">
       {letter}
     </div>
   );

@@ -77,7 +77,7 @@ const TaskSettingsCard: React.FC = () => {
   };
 
   return (
-    <div className="border-border/60 bg-muted/10 rounded-xl border p-4">
+    <div className="border-border/60 bg-muted/10 rounded-lg border p-4">
       <div className="space-y-3">
         <label className="flex items-center justify-between gap-2">
           <span className="text-sm">Auto-generate session names</span>

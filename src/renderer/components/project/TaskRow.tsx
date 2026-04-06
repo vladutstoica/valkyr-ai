@@ -50,7 +50,7 @@ export const TaskRow = React.memo(function TaskRow({
   };
 
   return (
-    <div className={['bg-background overflow-hidden rounded-xl border', 'border-border'].join(' ')}>
+    <div className={['bg-background overflow-hidden rounded-lg border', 'border-border'].join(' ')}>
       <div
         onClick={handleRowClick}
         role="button"

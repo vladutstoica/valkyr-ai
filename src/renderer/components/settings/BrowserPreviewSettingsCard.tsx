@@ -74,7 +74,7 @@ export default function BrowserPreviewSettingsCard() {
   };
 
   return (
-    <div className="border-border/60 bg-muted/10 rounded-xl border p-4">
+    <div className="border-border/60 bg-muted/10 rounded-lg border p-4">
       <div className="text-muted-foreground mb-2 text-sm">
         Preview UI changes using the built-in browser view.
       </div>

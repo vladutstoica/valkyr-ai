@@ -263,7 +263,7 @@ const KeyboardSettingsCard: React.FC = () => {
   };
 
   return (
-    <div className="border-border/60 bg-muted/10 rounded-xl border p-4">
+    <div className="border-border/60 bg-muted/10 rounded-lg border p-4">
       <div className="space-y-4">
         {CONFIGURABLE_SHORTCUTS.map((shortcut) => (
           <div key={shortcut.id} className="flex items-center justify-between gap-2">
