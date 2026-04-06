@@ -11,7 +11,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { usePrStatus } from '../../hooks/usePrStatus';
-import { useConversationDots } from '../../hooks/useUnifiedStatus';
+import { useConversationDots, useUnreadStatus } from '../../hooks/useUnifiedStatus';
 import { normalizeTaskName, MAX_TASK_NAME_LENGTH } from '../../lib/taskNames';
 import { openExternal } from '../../services/shellService';
 import {
@@ -76,6 +76,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   const isCreating = task.id.startsWith('creating-');
   const { pr } = usePrStatus(isCreating ? '' : task.path);
   const conversationDots = useConversationDots(isCreating ? '' : task.id);
+  const isUnread = useUnreadStatus(isCreating ? '' : task.id);
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -185,6 +186,12 @@ export const TaskItem: React.FC<TaskItemProps> = ({
           />
         ) : (
           <>
+            {isUnread && (
+              <span
+                className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-blue-500"
+                title="Unread"
+              />
+            )}
             {isPinned && <Pin className="text-muted-foreground h-3 w-3 flex-shrink-0" />}
             <span className="text-foreground block truncate text-xs font-medium">
               {isCreating && (

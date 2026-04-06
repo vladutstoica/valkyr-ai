@@ -15,6 +15,20 @@ export function useUnifiedStatus(taskId: string): StatusDot {
 }
 
 /**
+ * Subscribe to unread state for a task.
+ * Returns true if the task has unread status changes (finished/needs-input while not viewed).
+ */
+export function useUnreadStatus(taskId: string): boolean {
+  const [unread, setUnread] = useState(() => unifiedStatusStore.isUnread(taskId));
+
+  useEffect(() => {
+    return unifiedStatusStore.subscribeUnread(taskId, setUnread);
+  }, [taskId]);
+
+  return unread;
+}
+
+/**
  * Subscribe to per-conversation status dots for a task.
  * Returns an array of dots (one per chat/conversation).
  */

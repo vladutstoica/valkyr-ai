@@ -70,6 +70,8 @@ function hookStatusToDot(status: HookStatus): StatusDot {
   }
 }
 
+type UnreadListener = (unread: boolean) => void;
+
 class UnifiedStatusStore {
   /** taskId → conversationId → entry */
   private tasks = new Map<string, Map<string, ConversationEntry>>();
@@ -79,6 +81,11 @@ class UnifiedStatusStore {
   private subs = new Map<string, () => void>();
   /** Cached PTY dots so getDot can read synchronously: `taskId:convId` → StatusDot */
   private ptyDots = new Map<string, StatusDot>();
+
+  /** Tasks with unread status changes (done/needs-input while not viewed) */
+  private unreadTasks = new Set<string>();
+  /** taskId → Set<UnreadListener> */
+  private unreadListeners = new Map<string, Set<UnreadListener>>();
 
   /**
    * Hook-based status: conversationKey (sessionId) → StatusDot.
@@ -260,6 +267,8 @@ class UnifiedStatusStore {
     }
     this.tasks.delete(taskId);
     this.listeners.delete(taskId);
+    this.unreadTasks.delete(taskId);
+    this.unreadListeners.delete(taskId);
 
     // Clean up hook session mappings for this task
     for (const [sessionId, tid] of this.hookSessionToTask) {
@@ -474,6 +483,56 @@ class UnifiedStatusStore {
   }
 
   /**
+   * Mark a task as having unread status changes.
+   */
+  markUnread(taskId: string): void {
+    if (this.unreadTasks.has(taskId)) return;
+    this.unreadTasks.add(taskId);
+    this.notifyUnread(taskId);
+  }
+
+  /**
+   * Mark a task as read (user has viewed it).
+   */
+  markRead(taskId: string): void {
+    if (!this.unreadTasks.has(taskId)) return;
+    this.unreadTasks.delete(taskId);
+    this.notifyUnread(taskId);
+  }
+
+  /**
+   * Check if a task has unread status changes.
+   */
+  isUnread(taskId: string): boolean {
+    return this.unreadTasks.has(taskId);
+  }
+
+  /**
+   * Subscribe to unread state changes for a task.
+   */
+  subscribeUnread(taskId: string, listener: UnreadListener): () => void {
+    let set = this.unreadListeners.get(taskId);
+    if (!set) {
+      set = new Set();
+      this.unreadListeners.set(taskId, set);
+    }
+    set.add(listener);
+    // Emit current state immediately
+    listener(this.isUnread(taskId));
+    return () => {
+      set!.delete(listener);
+      if (set!.size === 0) this.unreadListeners.delete(taskId);
+    };
+  }
+
+  private notifyUnread(taskId: string): void {
+    const set = this.unreadListeners.get(taskId);
+    if (!set || set.size === 0) return;
+    const unread = this.isUnread(taskId);
+    for (const l of set) l(unread);
+  }
+
+  /**
    * Register a callback for notification-triggered navigation.
    * The callback receives a taskId and should select that task in the UI.
    */
@@ -521,10 +580,13 @@ class UnifiedStatusStore {
     if (this.activeViewSessionId === sessionId) return;
     // Only show for actionable states
     if (status === 'working') return;
+
+    // Mark the task as unread since user isn't viewing it
+    const taskId = this.hookSessionToTask.get(sessionId);
+    if (taskId) this.markUnread(taskId);
     // Enforce max toast count
     if (this.activeToastCount >= UnifiedStatusStore.MAX_TOASTS) return;
 
-    const taskId = this.hookSessionToTask.get(sessionId);
     const taskLabel = taskId ? `Task` : 'Agent';
 
     const title =
@@ -566,7 +628,14 @@ class UnifiedStatusStore {
     if (prev) prev();
 
     if (mode === 'acp' && acpSessionKey) {
-      const unsub = acpStatusStore.subscribe(acpSessionKey, () => {
+      const unsub = acpStatusStore.subscribe(acpSessionKey, (dot) => {
+        // Mark unread if task finished/needs-input and user isn't viewing it
+        if (
+          (dot.color === 'green' || dot.color === 'red') &&
+          this.activeViewSessionId !== conversationId
+        ) {
+          this.markUnread(taskId);
+        }
         this.notifyTask(taskId);
       });
       this.subs.set(subKey, unsub);

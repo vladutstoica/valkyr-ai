@@ -11,6 +11,7 @@ import type { Project, Task } from '../types/app';
 import { getConversations } from '../services/conversationService';
 import { renameBranch } from '../services/gitService';
 import { getTasks, saveTask } from '../services/projectService';
+import { unifiedStatusStore } from '../lib/unifiedStatusStore';
 
 const log = createLogger('hook:useTaskManagement');
 
@@ -114,6 +115,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
 
   const handleSelectTask = useCallback((task: Task) => {
     log.debug('Task selected', { taskId: task.id, name: task.name });
+    unifiedStatusStore.markRead(task.id);
     setActiveTask(task);
     setActiveTaskAgent(getAgentForTask(task));
     saveActiveIds(task.projectId, task.id);
@@ -130,6 +132,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
       : -1;
     const nextIndex = (currentIndex + 1) % tasks.length;
     const { task, project } = tasks[nextIndex];
+    unifiedStatusStore.markRead(task.id);
     setSelectedProject(project);
     setShowHomeView(false);
     setActiveTask(task);
@@ -148,6 +151,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
       : -1;
     const prevIndex = currentIndex <= 0 ? tasks.length - 1 : currentIndex - 1;
     const { task, project } = tasks[prevIndex];
+    unifiedStatusStore.markRead(task.id);
     setSelectedProject(project);
     setShowHomeView(false);
     setActiveTask(task);
