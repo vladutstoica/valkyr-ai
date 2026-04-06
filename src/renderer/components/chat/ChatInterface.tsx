@@ -491,7 +491,7 @@ const ChatInterface: React.FC<Props> = ({
           })()}
           <div
             ref={chatScrollContainerRef}
-            className={`flex min-h-0 flex-1 gap-3 p-2 ${multiView ? '' : 'overflow-x-auto'}`}
+            className={`flex min-h-0 flex-1 p-2 ${multiView ? 'gap-2' : 'gap-3 overflow-x-auto'}`}
           >
             {conversationsLoaded &&
               sortedConversations.map((conv, idx) => {
