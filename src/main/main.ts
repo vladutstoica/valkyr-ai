@@ -62,9 +62,7 @@ function mergeLoginShellPathAsync(): void {
     { encoding: 'utf8', timeout: 5000 },
     (err: Error | null, stdout: string) => {
       if (err || !stdout) return;
-      const merged = new Set(
-        (stdout + ':' + (process.env.PATH || '')).split(':').filter(Boolean)
-      );
+      const merged = new Set((stdout + ':' + (process.env.PATH || '')).split(':').filter(Boolean));
       process.env.PATH = Array.from(merged).join(':');
     }
   );
@@ -133,6 +131,8 @@ import { taskLifecycleService } from './services/TaskLifecycleService';
 import * as telemetry from './telemetry';
 import { errorTracking } from './errorTracking';
 import { join } from 'path';
+import { hookNotificationServer } from './services/HookNotificationServer';
+import { hookInstaller } from './services/HookInstaller';
 
 // Set app name for macOS dock and menu bar
 app.setName('Valkyr');
@@ -169,7 +169,7 @@ if (process.platform === 'darwin' && !app.isPackaged) {
     'assets',
     'images',
     'valkyr',
-    'icon-dock.png'
+    'app-icon-512.png'
   );
   try {
     app.dock.setIcon(iconPath);
@@ -270,6 +270,17 @@ app.whenReady().then(async () => {
     // ignore errors — telemetry is best-effort only
   }
 
+  // Start hook notification server and install Claude Code hooks
+  // This enables accurate status detection via lifecycle events
+  hookNotificationServer
+    .start()
+    .then((port) => {
+      hookInstaller.install(port);
+    })
+    .catch((err) => {
+      console.warn('Failed to start hook notification server:', err);
+    });
+
   // Pre-warm ACP SDK and registry caches so first session doesn't pay cold-start costs
   warmAcpSdk();
   acpRegistryService.getInstalledAgents().catch(() => {});
@@ -306,6 +317,10 @@ app.on('before-quit', () => {
   telemetry.capture('app_session');
   telemetry.capture('app_closed');
   telemetry.shutdown();
+
+  // Uninstall Claude Code hooks and stop notification server
+  hookInstaller.uninstall();
+  hookNotificationServer.stop().catch(() => {});
 
   // Cleanup auto-update service
   autoUpdateService.shutdown();

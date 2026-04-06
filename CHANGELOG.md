@@ -1,5 +1,53 @@
 # Changelog
 
+## [0.4.0](https://github.com/vladutstoica/valkyr-ai/compare/valkyr-v0.3.1...valkyr-v0.4.0) (2026-03-25)
+
+
+### Features
+
+* **branding:** replace all emdash assets with Hotshot logomark — new app icon following Apple HIG, welcome screen, home view, docs, favicon
+* **status:** hook-based status detection for Claude Code via lifecycle hooks (Stop, PostToolUse, PermissionRequest) replacing fragile regex parsing
+* **status:** per-conversation status dots in sidebar — single dot for 1 chat, pill shape for 2+ chats with independent colors matching tab order
+* **notifications:** native desktop notifications when agents finish or need input — smart triggers based on active view, deep-navigate on click, 3-second batching, per-project mute
+* **notifications:** in-app toasts for cross-task/cross-project events with auto-dismiss
+* **settings:** per-agent ACP/CLI mode toggle in settings UI
+* **settings:** per-project notification mute via right-click menu
+* **onboarding:** improved setup modal with agent install guide and ACP badge indicators
+* **ui:** resource usage monitor in status bar with CPU/memory popover breakdown
+* **build:** Windows .ico and Linux icon for cross-platform builds
+
+
+### Performance
+
+* **build:** app bundle 723MB → 376MB (48% reduction), DMG 208MB → 132MB — excluded 20+ renderer-only packages from ASAR
+* **acp:** O(1) session lookup via reverse index in AcpConnectionPool (was O(n) linear scan)
+* **acp:** cached terminal output in AcpTerminalManager (eliminates repeated Buffer.byteLength and .join calls)
+* **fs:** worker pool for file listing (eliminates ~50-100ms worker spawn per call)
+* **fs:** RegExp with i-flag for search (avoids toLowerCase full-string copy)
+
+
+### Code Refactoring
+
+* **acp:** decompose AcpSessionManager (1749 → 837 lines) into 7 focused modules: AcpConnectionPool, AcpTerminalManager, AcpEventBuffer, AcpClientFactory, AcpSdkLoader, acpTypes
+* **fs:** decompose fsIpc (840 → 303 lines) into 6 focused modules: FsService, FsSearchService, FsListService, FsConfigService, fsConstants
+* **status:** DRY session-routing boilerplate (9x duplication eliminated), gracefulKill helper, wrapIpcHandler utility
+
+
+### Bug Fixes
+
+* **status:** fix hook status dots — store per-conversation (not per-task), preserve colors on reorder, idle timeout auto-reset to green after 5s
+* **chat:** backfill claudeSessionId so each chat resumes its own Claude session on restart
+* **build:** use Map for hookEventMapper (ES2020 compat, prototype-safe)
+
+
+### Tests
+
+* 286 → 1268 unit tests across 51 files (all passing)
+* Coverage: 18% → 39% statements, 78% branches, 73% functions
+* Test infrastructure: shared mock helpers, Playwright E2E fixtures, vitest coverage config
+* Testing conventions documented in CLAUDE.md
+
+
 ## [0.3.1](https://github.com/vladutstoica/valkyr-ai/compare/valkyr-v0.3.0...valkyr-v0.3.1) (2026-03-08)
 
 

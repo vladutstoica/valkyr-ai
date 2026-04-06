@@ -23,7 +23,11 @@ interface UseConversationManagerOptions {
   setAgent: (agent: Agent) => void;
   initialAgentRef: RefObject<Agent | undefined>;
   chatScrollContainerRef: RefObject<HTMLDivElement | null>;
-  toast: (opts: { title: string; description?: string; variant?: 'default' | 'destructive' }) => void;
+  toast: (opts: {
+    title: string;
+    description?: string;
+    variant?: 'default' | 'destructive';
+  }) => void;
 }
 
 export function useConversationManager({
@@ -52,6 +56,25 @@ export function useConversationManager({
 
       if (result.success && result.conversations && result.conversations.length > 0) {
         const convs = result.conversations;
+
+        // Backfill claudeSessionId for any Claude PTY conversation missing it.
+        // Without this, multiple chats both resume "latest" instead of their own session.
+        for (const conv of convs) {
+          if (conv.mode === 'pty' && conv.provider === 'claude') {
+            let meta: Record<string, unknown> = {};
+            try {
+              meta = conv.metadata ? JSON.parse(conv.metadata) : {};
+            } catch {
+              /* ignore */
+            }
+            if (!meta.claudeSessionId) {
+              meta.claudeSessionId = crypto.randomUUID();
+              conv.metadata = JSON.stringify(meta);
+              saveConversation(conv).catch(() => {});
+            }
+          }
+        }
+
         setConversations(convs);
 
         let chosen: Conversation | undefined;
@@ -98,15 +121,22 @@ export function useConversationManager({
           const overrides = s?.providerOverrides;
           const agentOverride = overrides?.[taskAgent];
           const defaultMode =
-            agentOverride?.defaultChatMode === 'cli'
-              ? 'pty'
-              : defaultResult.conversation.mode || 'acp';
+            agentOverride?.defaultChatMode === 'acp'
+              ? 'acp'
+              : defaultResult.conversation.mode || 'pty';
+
+          // Inject Claude session ID for PTY mode if not already set
+          let convMetadata = defaultResult.conversation.metadata ?? null;
+          if (defaultMode === 'pty' && taskAgent === 'claude' && !convMetadata) {
+            convMetadata = JSON.stringify({ claudeSessionId: crypto.randomUUID() });
+          }
 
           const conversationWithAgent = {
             ...defaultResult.conversation,
             provider: taskAgent,
             isMain: true,
             mode: defaultMode,
+            metadata: convMetadata,
           };
           setConversations([conversationWithAgent]);
           setActiveConversationId(defaultResult.conversation.id);
@@ -124,12 +154,20 @@ export function useConversationManager({
   const handleCreateChat = useCallback(
     async (title: string, newAgent: string, mode?: 'acp' | 'pty') => {
       try {
+        // Generate a Claude session ID for PTY chats so each chat
+        // can resume its specific session instead of "resume latest"
+        const metadata =
+          mode === 'pty' && newAgent === 'claude'
+            ? JSON.stringify({ claudeSessionId: crypto.randomUUID() })
+            : undefined;
+
         const result = await createConversation({
           taskId,
           title,
           provider: newAgent,
           isMain: false,
           mode,
+          metadata,
         });
 
         if (result.success && result.conversation) {
@@ -251,17 +289,22 @@ export function useConversationManager({
     const acpSessionKey = `${convAgent}-acp-${chatToDelete}`;
     window.electronAPI.acpKill({ sessionKey: acpSessionKey }).catch(() => {});
 
+    const wasMain = convToDelete?.isMain;
     await deleteConversation(chatToDelete);
 
     const result = await getConversations(taskId);
     if (result.success) {
-      setConversations(result.conversations || []);
-      if (
-        chatToDelete === activeConversationId &&
-        result.conversations &&
-        result.conversations.length > 0
-      ) {
-        const newActive = result.conversations[0];
+      const remaining = result.conversations || [];
+
+      // If we deleted the main chat, promote the first remaining to main
+      if (wasMain && remaining.length > 0 && !remaining.some((c) => c.isMain)) {
+        remaining[0].isMain = true;
+        await saveConversation(remaining[0]);
+      }
+
+      setConversations(remaining);
+      if (chatToDelete === activeConversationId && remaining.length > 0) {
+        const newActive = remaining[0];
         await setActiveConversation({
           taskId,
           conversationId: newActive.id,
@@ -342,9 +385,7 @@ export function useConversationManager({
   }, []);
 
   const updateConversationTitle = useCallback((conversationId: string, title: string) => {
-    setConversations((prev) =>
-      prev.map((c) => (c.id === conversationId ? { ...c, title } : c))
-    );
+    setConversations((prev) => prev.map((c) => (c.id === conversationId ? { ...c, title } : c)));
   }, []);
 
   return {

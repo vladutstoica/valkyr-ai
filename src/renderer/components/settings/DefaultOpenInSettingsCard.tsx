@@ -16,7 +16,9 @@ const DefaultOpenInSettingsCard: React.FC = () => {
     try {
       const settings = await getSettings();
       if (settings?.defaultOpenInApp) {
-        setDefaultApp(isValidOpenInAppId(settings.defaultOpenInApp) ? settings.defaultOpenInApp : DEFAULT_APP);
+        setDefaultApp(
+          isValidOpenInAppId(settings.defaultOpenInApp) ? settings.defaultOpenInApp : DEFAULT_APP
+        );
       }
     } catch {
       // Use default on error

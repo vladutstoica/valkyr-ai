@@ -1,6 +1,6 @@
 {
   "name": "valkyr",
-  "version": "0.3.1",
+  "version": "0.5.0",
   "description": "A cross-platform Electron app that orchestrates multiple coding agents in parallel",
   "main": "dist/main/main/entry.js",
   "packageManager": "pnpm@10.28.2",
@@ -29,6 +29,7 @@
     "e2e:ui": "pnpm run build:main && pnpm exec playwright test --ui",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "docs": "cd docs && pnpm run dev",
     "docs:build": "cd docs && pnpm run build",
     "prepare": "husky"
@@ -58,6 +59,7 @@
     "@typescript-eslint/eslint-plugin": "^6.14.0",
     "@typescript-eslint/parser": "^6.14.0",
     "@vitejs/plugin-react": "^4.7.0",
+    "@vitest/coverage-v8": "^3.2.4",
     "better-sqlite3": "^12.6.0",
     "concurrently": "^8.2.2",
     "drizzle-kit": "^0.24.2",
@@ -192,6 +194,34 @@
       "!node_modules/@tailwindcss/**",
       "!node_modules/@types/**",
       "!node_modules/better-sqlite3/**",
+      "!node_modules/app-builder-bin/**",
+      "!node_modules/app-builder-lib/**",
+      "!node_modules/mermaid/**",
+      "!node_modules/react-icons/**",
+      "!node_modules/monaco-editor/**",
+      "!node_modules/lucide-react/**",
+      "!node_modules/react-syntax-highlighter/**",
+      "!node_modules/streamdown/**",
+      "!node_modules/posthog-js/**",
+      "!node_modules/@opentelemetry/**",
+      "!node_modules/core-js/**",
+      "!node_modules/@chevrotain/**",
+      "!node_modules/chevrotain/**",
+      "!node_modules/chevrotain-allstar/**",
+      "!node_modules/shiki/**",
+      "!node_modules/@shikijs/**",
+      "!node_modules/refractor/**",
+      "!node_modules/highlight.js/**",
+      "!node_modules/katex/**",
+      "!node_modules/dagre-d3-es/**",
+      "!node_modules/langium/**",
+      "!node_modules/framer-motion/**",
+      "!node_modules/motion-dom/**",
+      "!node_modules/dayjs/**",
+      "!node_modules/@posthog/**",
+      "!node_modules/@babel/**",
+      "!node_modules/ai/**",
+      "!node_modules/@ai-sdk/**",
       "drizzle/**/*"
     ],
     "asarUnpack": [
@@ -226,6 +256,7 @@
       "icon": "src/assets/images/valkyr/valkyr.icns"
     },
     "linux": {
+      "icon": "src/assets/images/valkyr/app-icon-1024.png",
       "category": "Development",
       "target": [
         {
@@ -243,6 +274,7 @@
       ]
     },
     "win": {
+      "icon": "src/assets/images/valkyr/valkyr.ico",
       "target": [
         {
           "target": "nsis",

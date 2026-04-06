@@ -17,6 +17,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import { cn } from '../../lib/utils';
 import { switchRepoBranch } from '../../services/gitService';
 import { toast } from '../../hooks/use-toast';
+import { ResourceMonitor } from '../ResourceMonitor';
 import type { BranchInfo, RepoBranchesResult } from '@/types/electron-api';
 import type { SubRepo } from '@/types/app';
 
@@ -291,6 +292,36 @@ const RepoBranchPopover: React.FC<RepoBranchPopoverProps> = ({
   );
 };
 
+// ─── Path Breadcrumb ─────────────────────────────────────────────────
+
+const PathBreadcrumb: React.FC<{ path: string }> = ({ path }) => {
+  // Show last 3 segments of the path for brevity
+  const segments = path.replace(/^\//, '').split('/');
+  const visible = segments.length > 3 ? segments.slice(-3) : segments;
+  const truncated = segments.length > 3;
+
+  return (
+    <div className="flex items-center gap-0.5 text-[10px]">
+      {truncated && <span className="text-muted-foreground/50">...</span>}
+      {visible.map((seg, i) => (
+        <React.Fragment key={i}>
+          {(i > 0 || truncated) && (
+            <ChevronRight className="text-muted-foreground/40 h-2.5 w-2.5 flex-shrink-0" />
+          )}
+          <span
+            className={cn(
+              'max-w-[120px] truncate',
+              i === visible.length - 1 ? 'text-foreground/70' : 'text-muted-foreground/60'
+            )}
+          >
+            {seg}
+          </span>
+        </React.Fragment>
+      ))}
+    </div>
+  );
+};
+
 // ─── Main StatusBar ───────────────────────────────────────────────────
 
 export const StatusBar: React.FC<StatusBarProps> = ({
@@ -480,7 +511,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
 
   return (
     <TooltipProvider>
-      <div className="bg-muted text-muted-foreground flex h-6 items-center border-t px-2 text-xs">
+      <div className="bg-muted dark:bg-background text-muted-foreground border-border/50 flex h-7 items-center border-t px-3 text-xs">
         {/* Agent Status */}
         <Tooltip>
           <TooltipTrigger asChild>
@@ -502,7 +533,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
           </TooltipContent>
         </Tooltip>
 
-        <Separator orientation="vertical" className="mx-1.5 h-3" />
+        <Separator orientation="vertical" className="mx-2 h-3.5" />
 
         {/* Branch Info — Popover */}
         <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
@@ -672,7 +703,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
           </PopoverContent>
         </Popover>
 
-        <Separator orientation="vertical" className="mx-1.5 h-3" />
+        <Separator orientation="vertical" className="mx-2 h-3.5" />
 
         {/* Changes Count */}
         <Tooltip>
@@ -697,7 +728,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
           </TooltipContent>
         </Tooltip>
 
-        <Separator orientation="vertical" className="mx-1.5 h-3" />
+        <Separator orientation="vertical" className="mx-2 h-3.5" />
 
         {/* Worktree ID */}
         <Tooltip>
@@ -721,6 +752,22 @@ export const StatusBar: React.FC<StatusBarProps> = ({
             </p>
           </TooltipContent>
         </Tooltip>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Breadcrumb path */}
+        {worktreePath && (
+          <>
+            <Separator orientation="vertical" className="mx-2 h-3.5" />
+            <PathBreadcrumb path={worktreePath} />
+          </>
+        )}
+
+        <Separator orientation="vertical" className="mx-2 h-3.5" />
+
+        {/* Resource Monitor */}
+        <ResourceMonitor />
       </div>
     </TooltipProvider>
   );

@@ -7,26 +7,10 @@ import { getMainWindow } from '../app/window';
 import { errorTracking } from '../errorTracking';
 import { databaseService } from '../services/DatabaseService';
 import { log } from '../lib/logger';
+import { resolveGitBin } from '../lib/gitBin';
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
-
-// Helper to resolve git binary path
-function resolveGitBin(): string {
-  const fromEnv = (process.env.GIT_PATH || '').trim();
-  const candidates = [
-    fromEnv,
-    '/opt/homebrew/bin/git',
-    '/usr/local/bin/git',
-    '/usr/bin/git',
-  ].filter(Boolean) as string[];
-  for (const p of candidates) {
-    try {
-      if (p && fs.existsSync(p)) return p;
-    } catch {}
-  }
-  return 'git';
-}
 
 const GIT = resolveGitBin();
 

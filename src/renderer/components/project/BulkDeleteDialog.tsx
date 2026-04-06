@@ -107,10 +107,7 @@ export function BulkDeleteDialog({
                 transition={{ duration: 0.18, ease: 'easeOut' }}
                 className="border-border/70 bg-muted/30 flex items-start gap-3 rounded-md border px-4 py-4"
               >
-                <Spinner
-                  className="text-muted-foreground mt-0.5 h-5 w-5 flex-shrink-0"
-                  size="sm"
-                />
+                <Spinner className="text-muted-foreground mt-0.5 h-5 w-5 flex-shrink-0" size="sm" />
                 <div className="flex min-w-0 flex-col gap-1">
                   <span className="text-foreground text-sm font-semibold">Please wait...</span>
                   <span className="text-muted-foreground text-xs">

@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getTelemetryStatus, setTelemetryEnabled as setTelemetryEnabledSvc } from '../services/appService';
+import {
+  getTelemetryStatus,
+  setTelemetryEnabled as setTelemetryEnabledSvc,
+} from '../services/appService';
 
 type TelemetryState = {
   prefEnabled: boolean;

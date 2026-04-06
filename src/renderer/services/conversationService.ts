@@ -22,7 +22,8 @@ export function getConversations(taskId: string): Promise<GetConversationsResult
 }
 
 export function saveConversation(
-  conversation: Omit<Conversation, 'createdAt' | 'updatedAt'> & Partial<Pick<Conversation, 'createdAt' | 'updatedAt'>>
+  conversation: Omit<Conversation, 'createdAt' | 'updatedAt'> &
+    Partial<Pick<Conversation, 'createdAt' | 'updatedAt'>>
 ): Promise<SaveConversationResult> {
   return window.electronAPI.saveConversation(conversation);
 }
@@ -51,6 +52,7 @@ export function createConversation(params: {
   provider?: string;
   isMain?: boolean;
   mode?: 'pty' | 'acp';
+  metadata?: string;
 }) {
   return window.electronAPI.createConversation(params);
 }

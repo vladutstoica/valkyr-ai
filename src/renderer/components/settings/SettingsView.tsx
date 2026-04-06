@@ -23,6 +23,7 @@ import TerminalSettingsCard from './TerminalSettingsCard';
 import ProjectPrepSettingsCard from './ProjectPrepSettingsCard';
 import Context7SettingsCard from './Context7SettingsCard';
 import DefaultAgentSettingsCard from './DefaultAgentSettingsCard';
+import AgentModeSettingsCard from './AgentModeSettingsCard';
 import AcpAgentsList from './AcpAgentsList';
 import DefaultOpenInSettingsCard from './DefaultOpenInSettingsCard';
 import TaskSettingsCard from './TaskSettingsCard';
@@ -203,6 +204,11 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab, onBack, project
         sections: [
           { title: 'Default agent', render: () => <DefaultAgentSettingsCard /> },
           {
+            title: 'Agent mode',
+            description: 'Choose how each agent communicates with Valkyr.',
+            render: () => <AgentModeSettingsCard />,
+          },
+          {
             title: 'ACP Agents',
             description: 'Browse and install ACP-compatible agents from the official registry.',
             render: () => <AcpAgentsList />,
@@ -263,9 +269,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ initialTab, onBack, project
                   size="sm"
                   className="h-auto justify-start px-0 text-xs"
                   onClick={() =>
-                    openExternal(
-                      'https://x.com/rabanspiegel/status/1991220598538924097?s=20'
-                    )
+                    openExternal('https://x.com/rabanspiegel/status/1991220598538924097?s=20')
                   }
                 >
                   Watch the demo ↗

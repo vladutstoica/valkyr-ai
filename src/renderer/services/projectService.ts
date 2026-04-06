@@ -4,8 +4,10 @@
 
 import type { Project, Task } from '../types/app';
 
-export function getProjects(): Promise<Project[]> {
-  return window.electronAPI.getProjects();
+export async function getProjects(): Promise<Project[]> {
+  const result = await window.electronAPI.getProjects();
+  if (result?.success) return (result.data as Project[]) ?? [];
+  return [];
 }
 
 export function saveProject(project: Project) {
@@ -31,8 +33,10 @@ export function openProject() {
   return window.electronAPI.openProject();
 }
 
-export function getTasks(projectId?: string): Promise<Task[]> {
-  return window.electronAPI.getTasks(projectId);
+export async function getTasks(projectId?: string): Promise<Task[]> {
+  const result = await window.electronAPI.getTasks(projectId);
+  if (result?.success) return (result.data as Task[]) ?? [];
+  return [];
 }
 
 export function saveTask(task: Task) {

@@ -1,10 +1,11 @@
 import React from 'react';
-import valkyrLogo from '../../assets/images/valkyr/valkyr_logo.svg';
-import valkyrLogoWhite from '../../assets/images/valkyr/valkyr_logo_white.svg';
+import logomarkBlack from '../../assets/images/valkyr/logomark-black.png';
+import logomarkWhite from '../../assets/images/valkyr/logomark-white.png';
 import { useTheme } from '../hooks/useTheme';
 
 const HomeView: React.FC = () => {
   const { effectiveTheme } = useTheme();
+  const isDark = effectiveTheme === 'dark' || effectiveTheme === 'dark-black';
 
   return (
     <div className="bg-background text-foreground flex h-full flex-col overflow-y-auto">
@@ -14,11 +15,7 @@ const HomeView: React.FC = () => {
             <div className="logo-shimmer-container">
               <img
                 key={effectiveTheme}
-                src={
-                  effectiveTheme === 'dark' || effectiveTheme === 'dark-black'
-                    ? valkyrLogoWhite
-                    : valkyrLogo
-                }
+                src={isDark ? logomarkWhite : logomarkBlack}
                 alt="Valkyr"
                 className="logo-shimmer-image"
               />
@@ -26,8 +23,8 @@ const HomeView: React.FC = () => {
                 className="logo-shimmer-overlay"
                 aria-hidden="true"
                 style={{
-                  WebkitMaskImage: `url(${effectiveTheme === 'dark' || effectiveTheme === 'dark-black' ? valkyrLogoWhite : valkyrLogo})`,
-                  maskImage: `url(${effectiveTheme === 'dark' || effectiveTheme === 'dark-black' ? valkyrLogoWhite : valkyrLogo})`,
+                  WebkitMaskImage: `url(${isDark ? logomarkWhite : logomarkBlack})`,
+                  maskImage: `url(${isDark ? logomarkWhite : logomarkBlack})`,
                   WebkitMaskRepeat: 'no-repeat',
                   maskRepeat: 'no-repeat',
                   WebkitMaskSize: 'contain',

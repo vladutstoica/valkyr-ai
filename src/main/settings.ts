@@ -55,6 +55,7 @@ export interface AppSettings {
   notifications?: {
     enabled: boolean;
     sound: boolean;
+    mutedProjects?: string[];
   };
   mcp?: {
     context7?: {
@@ -263,6 +264,9 @@ function normalizeSettings(input: AppSettings): AppSettings {
   out.notifications = {
     enabled: Boolean(notif?.enabled ?? DEFAULT_SETTINGS.notifications!.enabled),
     sound: Boolean(notif?.sound ?? DEFAULT_SETTINGS.notifications!.sound),
+    mutedProjects: Array.isArray(notif?.mutedProjects)
+      ? notif.mutedProjects.filter((id: unknown) => typeof id === 'string')
+      : [],
   };
 
   // MCP

@@ -6,6 +6,7 @@ import { log } from '../lib/logger';
 import { PROVIDERS } from '@shared/providers/registry';
 import { providerStatusCache } from './providerStatusCache';
 import { errorTracking } from '../errorTracking';
+import { hookNotificationServer } from './HookNotificationServer';
 
 /**
  * Environment variables to pass through for agent authentication.
@@ -51,6 +52,8 @@ type PtyRecord = {
   cwd?: string; // Working directory (for respawning shell after CLI exit)
   isDirectSpawn?: boolean; // Whether this was a direct CLI spawn
   kind?: 'local' | 'ssh';
+  spawnTime?: number; // Timestamp of spawn (for resume-failure detection)
+  wasResume?: boolean; // Whether this was a resume attempt
 };
 
 const ptys = new Map<string, PtyRecord>();
@@ -60,11 +63,6 @@ let onDirectCliExitCallback: ((id: string, cwd: string) => void) | null = null;
 
 export function setOnDirectCliExit(callback: (id: string, cwd: string) => void): void {
   onDirectCliExitCallback = callback;
-}
-
-function escapeShSingleQuoted(value: string): string {
-  // Safe for embedding into a single-quoted POSIX shell string.
-  return `'${value.replace(/'/g, "'\\''")}'`;
 }
 
 /**
@@ -158,6 +156,7 @@ export function startDirectPty(options: {
   initialPrompt?: string;
   env?: Record<string, string>;
   resume?: boolean;
+  resumeSessionId?: string;
   storedKeys?: Record<string, string>;
 }): IPty | null {
   if (process.env.VALKYR_DISABLE_PTY === '1') {
@@ -174,6 +173,7 @@ export function startDirectPty(options: {
     initialPrompt,
     env,
     resume,
+    resumeSessionId,
     storedKeys,
   } = options;
 
@@ -192,9 +192,72 @@ export function startDirectPty(options: {
 
   if (provider) {
     // Add resume flag if resuming an existing session (e.g., after app reload)
-    if (resume && provider.resumeFlag) {
-      const resumeParts = provider.resumeFlag.split(' ');
-      cliArgs.push(...resumeParts);
+    if (resume) {
+      if (resumeSessionId && providerId === 'claude') {
+        // Try to resume by specific session ID first. If the session file doesn't
+        // exist in Claude's storage (e.g. session was never checkpointed, or was
+        // cleaned up), start fresh instead.
+        let useSpecificId = false;
+        let foundInDir: string | null = null;
+        try {
+          const projectsDir = path.join(os.homedir(), '.claude', 'projects');
+          if (fs.existsSync(projectsDir)) {
+            const dirs = fs.readdirSync(projectsDir);
+            for (const dir of dirs) {
+              const sessionFile = path.join(projectsDir, dir, `${resumeSessionId}.jsonl`);
+              if (fs.existsSync(sessionFile)) {
+                // Validate file is non-empty (empty files can't be resumed)
+                const stat = fs.statSync(sessionFile);
+                if (stat.size > 0) {
+                  useSpecificId = true;
+                  foundInDir = dir;
+                } else {
+                  log.warn('ptyManager: session file exists but is empty, skipping resume', {
+                    id,
+                    resumeSessionId,
+                    dir,
+                    size: stat.size,
+                  });
+                }
+                break;
+              }
+            }
+          }
+        } catch (err) {
+          log.warn('ptyManager: error checking session file, starting fresh', {
+            id,
+            resumeSessionId,
+            error: String(err),
+          });
+        }
+
+        if (useSpecificId) {
+          log.info('ptyManager: resuming session by ID', {
+            id,
+            resumeSessionId,
+            foundInDir,
+          });
+          cliArgs.push('--resume', resumeSessionId);
+        } else {
+          log.info('ptyManager: session file not found, starting fresh', {
+            id,
+            resumeSessionId,
+          });
+        }
+        // Session not found — skip resume entirely (start fresh).
+        // Don't fall back to generic resume, which would resume a different
+        // conversation and cause duplicate sessions in multi-chat scenarios.
+      } else if (provider.resumeFlag) {
+        // Generic resume for other providers
+        const resumeParts = provider.resumeFlag.split(' ');
+        cliArgs.push(...resumeParts);
+      }
+    }
+
+    // For new Claude sessions (not resuming), assign a session ID so we can
+    // resume this specific session later instead of "resume latest"
+    if (!resume && providerId === 'claude' && resumeSessionId) {
+      cliArgs.push('--session-id', resumeSessionId);
     }
 
     // Add default args
@@ -254,6 +317,12 @@ export function startDirectPty(options: {
     }
   }
 
+  // Inject hook notification env vars for providers that support hooks (currently Claude)
+  if (providerId === 'claude' && hookNotificationServer.isRunning()) {
+    useEnv['VALKYR_SESSION_ID'] = id;
+    useEnv['VALKYR_HOOK_PORT'] = String(hookNotificationServer.getPort());
+  }
+
   // Lazy load native module
   let pty: typeof import('node-pty');
   try {
@@ -261,6 +330,15 @@ export function startDirectPty(options: {
   } catch (e: any) {
     throw new Error(`PTY unavailable: ${e?.message || String(e)}`);
   }
+
+  log.info('ptyManager: spawning CLI', {
+    id,
+    providerId,
+    cliPath,
+    cliArgs,
+    resume,
+    resumeSessionId,
+  });
 
   const proc = pty.spawn(cliPath, cliArgs, {
     name: 'xterm-256color',
@@ -270,14 +348,33 @@ export function startDirectPty(options: {
     env: useEnv,
   });
 
-  // Store record with cwd for shell respawn after CLI exits
-  ptys.set(id, { id, proc, cwd, isDirectSpawn: true, kind: 'local' });
+  // Store record with cwd and spawn metadata for resume-failure detection
+  ptys.set(id, {
+    id,
+    proc,
+    cwd,
+    isDirectSpawn: true,
+    kind: 'local',
+    spawnTime: Date.now(),
+    wasResume: resume,
+  });
 
-  // When CLI exits, spawn a shell so user can continue working
-  proc.onExit(() => {
+  // When CLI exits, spawn a shell so user can continue working.
+  // Skip shell respawn if this was a failed resume (quick exit <5s with non-zero code)
+  // — the retry logic in ptyIpc.ts will handle that case instead.
+  proc.onExit(({ exitCode }) => {
     const rec = ptys.get(id);
     if (rec?.isDirectSpawn && rec.cwd && onDirectCliExitCallback) {
-      // Spawn shell immediately after CLI exits
+      // Check if this looks like a failed resume that ptyIpc will retry
+      const elapsed = rec.spawnTime ? Date.now() - rec.spawnTime : Infinity;
+      if (rec.wasResume && exitCode !== 0 && elapsed < 5000) {
+        log.info('ptyManager: skipping shell respawn for failed resume (ptyIpc will retry)', {
+          id,
+          exitCode,
+          elapsed,
+        });
+        return;
+      }
       onDirectCliExitCallback(id, rec.cwd);
     }
   });
@@ -357,19 +454,19 @@ export async function startPty(options: {
   if (process.platform === 'win32' && shell && !shell.includes('\\') && !shell.includes('/')) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { execSync } = require('child_process');
+      const { execFileSync } = require('child_process');
 
       // Try .cmd first (npm globals are typically .cmd files)
       let resolved = '';
       try {
-        resolved = execSync(`where ${shell}.cmd`, { encoding: 'utf8' })
+        resolved = execFileSync('where', [`${shell}.cmd`], { encoding: 'utf8' })
           .trim()
           .split('\n')[0]
           .replace(/\r/g, '')
           .trim();
       } catch {
         // If .cmd doesn't exist, try without extension
-        resolved = execSync(`where ${shell}`, { encoding: 'utf8' })
+        resolved = execFileSync('where', [shell], { encoding: 'utf8' })
           .trim()
           .split('\n')[0]
           .replace(/\r/g, '')
@@ -550,6 +647,11 @@ export function resizePty(id: string, cols: number, rows: number): void {
   const rec = ptys.get(id);
   if (!rec) {
     // PTY not ready yet - this is normal during startup, ignore silently
+    return;
+  }
+  // Guard against invalid dimensions (e.g. from hidden/zero-size containers).
+  // node-pty crashes or kills the process when cols or rows is 0.
+  if (cols < 1 || rows < 1) {
     return;
   }
   try {

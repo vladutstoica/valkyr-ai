@@ -184,11 +184,7 @@ export const ChangesDiffModal: React.FC<ChangesDiffModalProps> = ({
 
           // Try to read actual current content for better accuracy
           try {
-            const readRes = await fsRead(
-              safeTaskPath,
-              filePath,
-              2 * 1024 * 1024
-            );
+            const readRes = await fsRead(safeTaskPath, filePath, 2 * 1024 * 1024);
             if (readRes?.success && readRes.content) {
               modifiedContent = readRes.content;
             }
@@ -218,10 +214,14 @@ export const ChangesDiffModal: React.FC<ChangesDiffModalProps> = ({
             initialModified: '',
             language,
             loading: false,
-            error: (error instanceof Error ? error.message : String(error)) || 'Failed to load file diff',
+            error:
+              (error instanceof Error ? error.message : String(error)) ||
+              'Failed to load file diff',
           });
           setModifiedDraft('');
-          setSaveError((error instanceof Error ? error.message : String(error)) || 'Failed to load file diff');
+          setSaveError(
+            (error instanceof Error ? error.message : String(error)) || 'Failed to load file diff'
+          );
         }
       }
     };
@@ -597,7 +597,8 @@ export const ChangesDiffModal: React.FC<ChangesDiffModalProps> = ({
         await onRefreshChanges();
       }
     } catch (error: unknown) {
-      const message = (error instanceof Error ? error.message : String(error)) || 'Failed to save file';
+      const message =
+        (error instanceof Error ? error.message : String(error)) || 'Failed to save file';
       setSaveError(message);
       toast({
         title: 'Save failed',

@@ -82,11 +82,7 @@ export function TabBar({ openInPath, isRemote = false, sshConnectionId = null }:
       {openInPath && (
         <div className="flex items-center gap-1 pr-2">
           <ScriptsMenu path={openInPath} />
-          <OpenInMenu
-            path={openInPath}
-            isRemote={isRemote}
-            sshConnectionId={sshConnectionId}
-          />
+          <OpenInMenu path={openInPath} isRemote={isRemote} sshConnectionId={sshConnectionId} />
         </div>
       )}
     </div>

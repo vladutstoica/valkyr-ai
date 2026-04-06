@@ -45,6 +45,7 @@ export interface TerminalSessionOptions {
   mapShiftEnterToCtrlJ?: boolean;
   disableSnapshots?: boolean;
   onLinkClick?: (url: string) => void;
+  claudeSessionId?: string;
 }
 
 type CleanupFn = () => void;
@@ -77,6 +78,7 @@ export class TerminalSessionManager {
   private lastSnapshotReason: 'interval' | 'detach' | 'dispose' | null = null;
   private customFontFamily = '';
   private themeFontFamily = '';
+  private wasHidden = false;
 
   // Timing for startup performance measurement
   private initStartTime: number = 0;
@@ -93,6 +95,8 @@ export class TerminalSessionManager {
       width: '100%',
       height: '100%',
       display: 'block',
+      boxSizing: 'border-box',
+      paddingBottom: '4px',
     } as CSSStyleDeclaration);
     ensureTerminalHost().appendChild(this.container);
 
@@ -225,8 +229,30 @@ export class TerminalSessionManager {
     this.fitPreservingViewport();
     this.sendSizeIfStarted();
 
-    this.resizeObserver = new ResizeObserver(() => {
+    this.resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      const isVisible = entry && entry.contentRect.width > 0 && entry.contentRect.height > 0;
+
+      if (isVisible && this.wasHidden) {
+        // Container transitioned from hidden (display:none) to visible.
+        // fitAddon.fit() may skip if cols/rows haven't changed, leaving
+        // the canvas stale. Force a full repaint + re-fit.
+        this.wasHidden = false;
+        this.fitPreservingViewport();
+        this.sendSizeIfStarted();
+        try {
+          this.terminal.refresh(0, this.terminal.rows - 1);
+        } catch {}
+        return;
+      }
+
+      if (!isVisible) {
+        this.wasHidden = true;
+        return;
+      }
+
       this.fitPreservingViewport();
+      this.sendSizeIfStarted();
     });
     this.resizeObserver.observe(container);
 
@@ -278,6 +304,7 @@ export class TerminalSessionManager {
     if (!this.options.disableSnapshots) {
       void this.captureSnapshot('dispose');
     }
+    // Hook session cleanup is handled by ChatInterface.tsx useEffect.
     // Clean up stored viewport position when session is disposed
     viewportPositions.delete(this.id);
     try {
@@ -433,6 +460,11 @@ export class TerminalSessionManager {
    */
   private fitPreservingViewport() {
     try {
+      // Skip fit when the container has no usable dimensions (off-screen host, collapsed panel, etc.)
+      // This prevents the terminal from shrinking to 1-column width and sending bad resize to the PTY
+      const rect = this.container.getBoundingClientRect();
+      if (rect.width < 20 || rect.height < 20) return;
+
       const buffer = this.terminal.buffer?.active;
       const offsetFromBottom =
         buffer && typeof buffer.baseY === 'number' && typeof buffer.viewportY === 'number'
@@ -496,6 +528,9 @@ export class TerminalSessionManager {
           const targetLine = Math.max(0, buffer.baseY - storedOffset);
           this.terminal.scrollToLine(targetLine);
         }
+      } else {
+        // No saved position — scroll to bottom so the user sees the prompt
+        this.terminal.scrollToBottom();
       }
     } catch (error) {
       log.warn('Failed to restore viewport position', { id: this.id, error });
@@ -560,7 +595,12 @@ export class TerminalSessionManager {
     return !!provider?.resumeFlag;
   }
 
-  private async fetchSnapshot(): Promise<{ data?: string; cols?: number; rows?: number; version?: number } | null> {
+  private async fetchSnapshot(): Promise<{
+    data?: string;
+    cols?: number;
+    rows?: number;
+    version?: number;
+  } | null> {
     if (this.options.disableSnapshots) return null;
     if (!window.electronAPI.ptyGetSnapshot) return null;
 
@@ -609,6 +649,7 @@ export class TerminalSessionManager {
             initialPrompt,
             env,
             resume: hasExistingSession,
+            resumeSessionId: this.options.claudeSessionId,
           })
         : window.electronAPI.ptyStart({
             id,
@@ -633,6 +674,11 @@ export class TerminalSessionManager {
       this.ptyStarted = true;
       this.sendSizeIfStarted();
       this.emitReady();
+
+      // Hook session mapping is registered in ChatInterface.tsx where
+      // we have access to the real task.id (this.id here is the PTY id,
+      // not the sidebar task id).
+
       try {
         const offStarted = window.electronAPI.onPtyStarted?.((payload: { id: string }) => {
           if (payload?.id === id) {

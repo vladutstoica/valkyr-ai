@@ -10,7 +10,7 @@ export function createMainWindow(): BrowserWindow {
   // In development, resolve icon from src/assets
   // In production (packaged), electron-builder handles the icon
   const iconPath = isDev
-    ? join(__dirname, '..', '..', '..', 'src', 'assets', 'images', 'valkyr', 'valkyr_logo.png')
+    ? join(__dirname, '..', '..', '..', 'src', 'assets', 'images', 'valkyr', 'app-icon-1024.png')
     : undefined;
 
   mainWindow = new BrowserWindow({
@@ -93,6 +93,14 @@ export function createMainWindow(): BrowserWindow {
       // Also check for daily active user when window gains focus
       checkAndReportDailyActiveUser();
     });
+  });
+
+  // Forward fullscreen state changes to renderer
+  mainWindow.on('enter-full-screen', () => {
+    mainWindow?.webContents.send('window:fullscreen-changed', true);
+  });
+  mainWindow.on('leave-full-screen', () => {
+    mainWindow?.webContents.send('window:fullscreen-changed', false);
   });
 
   // Cleanup reference on close

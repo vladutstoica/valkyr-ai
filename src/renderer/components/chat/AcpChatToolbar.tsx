@@ -22,10 +22,7 @@ import { PopoverContent } from '../ui/popover';
 import { SessionHistoryPopover } from './SessionHistoryPopover';
 import { Command } from '../ui/command';
 import { ModelInfoCard } from '../agents/ModelInfoCard';
-import {
-  PlanUsageHoverCard,
-  useClaudeUsageLimits,
-} from '../ai-elements/plan-usage';
+import { PlanUsageHoverCard, useClaudeUsageLimits } from '../ai-elements/plan-usage';
 import {
   ModelSelector,
   ModelSelectorTrigger,
@@ -36,10 +33,7 @@ import {
   ModelSelectorItem,
   ModelSelectorName,
 } from '../ai-elements/model-selector';
-import {
-  messagesToMarkdown,
-  type ConversationMessage,
-} from '../ai-elements/conversation';
+import { messagesToMarkdown, type ConversationMessage } from '../ai-elements/conversation';
 import { agentConfig } from '../../lib/agentConfig';
 import { getTextFromParts } from './acpChatUtils';
 import type { UIMessage } from 'ai';
@@ -91,7 +85,7 @@ export function AcpChatToolbar({
   const currentModel = initialModels?.availableModels.find((m) => m.id === currentModelId);
 
   return (
-    <div className="border-border/50 flex shrink-0 items-center justify-between border-b p-3">
+    <div className="border-border/50 flex shrink-0 items-center justify-between border-b px-4 py-2.5">
       {/* Left: model name */}
       <div className="flex items-center">
         {agent && initialModels && initialModels.availableModels.length > 1 && currentModelId ? (
@@ -171,7 +165,7 @@ export function AcpChatToolbar({
       </div>
 
       {/* Right: plan usage + action buttons */}
-      <div className="flex items-center gap-0.5">
+      <div className="flex items-center gap-1">
         {claudeUsageLimits && (
           <PlanUsageHoverCard limits={claudeUsageLimits} side="bottom" align="end" />
         )}

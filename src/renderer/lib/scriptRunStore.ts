@@ -6,6 +6,10 @@
 export interface ScriptRunEvent {
   scriptName: string;
   path: string;
+  /** Raw command for custom scripts (omit for package.json scripts) */
+  command?: string;
+  /** Working directory relative to project root (custom scripts only) */
+  cwd?: string;
 }
 
 type ScriptRunListener = (event: ScriptRunEvent) => void;

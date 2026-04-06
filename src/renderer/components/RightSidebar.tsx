@@ -245,7 +245,6 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
                               defaultBranch={projectDefaultBranch || undefined}
                               portSeed={v.worktreeId}
                               className="min-h-[200px]"
-
                             />
                           </TaskScopeProvider>
                         )}

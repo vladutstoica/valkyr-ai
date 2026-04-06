@@ -34,6 +34,7 @@ type Props = {
   initialPrompt?: string;
   mapShiftEnterToCtrlJ?: boolean;
   disableSnapshots?: boolean; // If true, don't save/restore terminal snapshots (for non-main chats)
+  claudeSessionId?: string; // Claude CLI session ID for specific session resume
   onActivity?: () => void;
   onStartError?: (message: string) => void;
   onStartSuccess?: () => void;
@@ -60,6 +61,7 @@ const TerminalPaneComponent = forwardRef<{ focus: () => void }, Props>(
       initialPrompt,
       mapShiftEnterToCtrlJ,
       disableSnapshots = false,
+      claudeSessionId,
       onActivity,
       onStartError,
       onStartSuccess,
@@ -134,6 +136,7 @@ const TerminalPaneComponent = forwardRef<{ focus: () => void }, Props>(
         mapShiftEnterToCtrlJ,
         disableSnapshots,
         onLinkClick: handleLinkClick,
+        claudeSessionId,
       });
       sessionRef.current = session;
 

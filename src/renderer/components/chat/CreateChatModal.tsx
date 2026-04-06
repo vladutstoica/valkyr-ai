@@ -36,14 +36,17 @@ export function CreateChatModal({
   existingConversations = [],
 }: CreateChatModalProps) {
   const [selectedAgent, setSelectedAgent] = useState<Agent>(DEFAULT_AGENT);
-  const [selectedMode, setSelectedMode] = useState<'acp' | 'pty'>('acp');
+  const [selectedMode, setSelectedMode] = useState<'acp' | 'pty'>('pty');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const installedSet = useMemo(() => new Set(installedAgents), [installedAgents]);
 
   // Check if the selected agent supports ACP
-  const selectedProviderDef = useMemo(() => getProvider(selectedAgent as ProviderId), [selectedAgent]);
+  const selectedProviderDef = useMemo(
+    () => getProvider(selectedAgent as ProviderId),
+    [selectedAgent]
+  );
   const hasAcpSupport = !!selectedProviderDef?.acpSupport;
 
   // Load default agent from settings and reset state when modal opens
@@ -82,17 +85,14 @@ export function CreateChatModal({
         // Set default mode from provider overrides
         if (chosenAgent && settings?.providerOverrides) {
           const override = settings.providerOverrides[chosenAgent];
-          const providerDef = getProvider(chosenAgent as ProviderId);
-          if (!providerDef?.acpSupport) {
-            setSelectedMode('pty');
-          } else if (override?.defaultChatMode === 'cli') {
-            setSelectedMode('pty');
+          if (override?.defaultChatMode === 'acp') {
+            const providerDef = getProvider(chosenAgent as ProviderId);
+            setSelectedMode(providerDef?.acpSupport ? 'acp' : 'pty');
           } else {
-            setSelectedMode('acp');
+            setSelectedMode('pty');
           }
-        } else if (chosenAgent) {
-          const providerDef = getProvider(chosenAgent as ProviderId);
-          setSelectedMode(providerDef?.acpSupport ? 'acp' : 'pty');
+        } else {
+          setSelectedMode('pty');
         }
       });
 
@@ -103,26 +103,19 @@ export function CreateChatModal({
   }, [isOpen, installedSet]);
 
   // Update mode when agent changes
-  const handleAgentChange = useCallback(
-    (newAgent: Agent) => {
-      setSelectedAgent(newAgent);
-      const providerDef = getProvider(newAgent as ProviderId);
-      if (!providerDef?.acpSupport) {
-        setSelectedMode('pty');
+  const handleAgentChange = useCallback((newAgent: Agent) => {
+    setSelectedAgent(newAgent);
+    // Default to CLI; only switch to ACP if explicitly configured
+    getSettings().then((settings) => {
+      const override = settings?.providerOverrides?.[newAgent];
+      if (override?.defaultChatMode === 'acp') {
+        const providerDef = getProvider(newAgent as ProviderId);
+        setSelectedMode(providerDef?.acpSupport ? 'acp' : 'pty');
       } else {
-        // Check provider overrides for default
-        getSettings().then((settings) => {
-          const override = settings?.providerOverrides?.[newAgent];
-          if (override?.defaultChatMode === 'cli') {
-            setSelectedMode('pty');
-          } else {
-            setSelectedMode('acp');
-          }
-        });
+        setSelectedMode('pty');
       }
-    },
-    []
-  );
+    });
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,17 +172,6 @@ export function CreateChatModal({
                 <button
                   type="button"
                   className={`px-3 py-1 text-xs font-medium transition-colors ${
-                    selectedMode === 'acp'
-                      ? 'bg-primary text-primary-foreground rounded-none'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                  onClick={() => setSelectedMode('acp')}
-                >
-                  ACP
-                </button>
-                <button
-                  type="button"
-                  className={`px-3 py-1 text-xs font-medium transition-colors ${
                     selectedMode === 'pty'
                       ? 'bg-primary text-primary-foreground rounded-none'
                       : 'text-muted-foreground hover:text-foreground'
@@ -197,6 +179,17 @@ export function CreateChatModal({
                   onClick={() => setSelectedMode('pty')}
                 >
                   CLI
+                </button>
+                <button
+                  type="button"
+                  className={`px-3 py-1 text-xs font-medium transition-colors ${
+                    selectedMode === 'acp'
+                      ? 'bg-primary text-primary-foreground rounded-none'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  onClick={() => setSelectedMode('acp')}
+                >
+                  ACP
                 </button>
               </div>
               <span className="text-muted-foreground text-[10px]">

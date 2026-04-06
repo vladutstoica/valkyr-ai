@@ -1,10 +1,5 @@
 import React, { useState } from 'react';
-import {
-  BotIcon,
-  CheckCircleIcon,
-  ChevronRightIcon,
-  Loader2Icon,
-} from 'lucide-react';
+import { BotIcon, CheckCircleIcon, ChevronRightIcon, Loader2Icon } from 'lucide-react';
 import { useToolOutput } from '../../lib/toolOutputStore';
 
 function parseSubAgentInfo(input: Record<string, unknown>): {

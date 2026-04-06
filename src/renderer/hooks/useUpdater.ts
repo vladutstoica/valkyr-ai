@@ -63,7 +63,7 @@ export function useUpdater() {
 
   const check = useCallback(async () => {
     setState({ status: 'checking' });
-    const res = await window.electronAPI?.checkForUpdates?.() as UpdateIpcResult | undefined;
+    const res = (await window.electronAPI?.checkForUpdates?.()) as UpdateIpcResult | undefined;
     if (!res) {
       return updaterUnavailableResult(setState);
     }
@@ -78,7 +78,7 @@ export function useUpdater() {
 
   const download = useCallback(async () => {
     // Don't change state to downloading immediately - wait for backend confirmation
-    const res = await window.electronAPI?.downloadUpdate?.() as UpdateIpcResult | undefined;
+    const res = (await window.electronAPI?.downloadUpdate?.()) as UpdateIpcResult | undefined;
     if (!res) {
       return updaterUnavailableResult(setState);
     }
@@ -92,7 +92,7 @@ export function useUpdater() {
   }, []);
 
   const install = useCallback(async () => {
-    const res = await window.electronAPI?.quitAndInstallUpdate?.() as UpdateIpcResult | undefined;
+    const res = (await window.electronAPI?.quitAndInstallUpdate?.()) as UpdateIpcResult | undefined;
     if (!res) {
       return updaterUnavailableResult(setState);
     }
@@ -100,7 +100,7 @@ export function useUpdater() {
   }, []);
 
   const openLatest = useCallback(async () => {
-    const res = await window.electronAPI?.openLatestDownload?.() as UpdateIpcResult | undefined;
+    const res = (await window.electronAPI?.openLatestDownload?.()) as UpdateIpcResult | undefined;
     if (!res) {
       return updaterUnavailableResult(setState);
     }

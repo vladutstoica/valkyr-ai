@@ -139,8 +139,8 @@ const WorkspaceBar: React.FC<WorkspaceBarProps> = ({
   if (workspaces.length === 0) return null;
 
   return (
-    <div className="border-border/50 flex h-9 shrink-0 items-center justify-center border-t px-3">
-      <div className="flex items-center justify-center gap-0.5">
+    <div className="border-border/50 flex h-10 shrink-0 items-center justify-center border-t px-3">
+      <div className="flex items-center justify-center gap-1.5">
         <TooltipProvider delayDuration={300}>
           {onViewModeChange && workspaces.length > 1 && (
             <Tooltip>
@@ -148,11 +148,9 @@ const WorkspaceBar: React.FC<WorkspaceBarProps> = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() =>
-                    onViewModeChange(viewMode === 'workspace' ? 'all' : 'workspace')
-                  }
-                  className={`h-6 w-6 cursor-pointer ${
-                    viewMode === 'all' ? 'bg-muted-foreground/20' : 'opacity-50 hover:opacity-80'
+                  onClick={() => onViewModeChange(viewMode === 'workspace' ? 'all' : 'workspace')}
+                  className={`h-7 w-7 cursor-pointer rounded-lg ${
+                    viewMode === 'all' ? 'bg-accent' : 'opacity-50 hover:opacity-80'
                   }`}
                 >
                   {viewMode === 'all' ? (
@@ -184,11 +182,11 @@ const WorkspaceBar: React.FC<WorkspaceBarProps> = ({
                         onDrop={(e) => handleDrop(e, ws.id)}
                         onDragEnd={handleDragEnd}
                         onClick={() => onSwitchWorkspace(ws.id)}
-                        className={`h-6 w-6 cursor-pointer ${
-                          isActive ? 'bg-muted-foreground/20' : 'opacity-50 hover:opacity-80'
+                        className={`h-7 w-7 cursor-pointer rounded-lg ${
+                          isActive ? 'bg-accent' : 'opacity-50 hover:opacity-80'
                         } ${dragOverId === ws.id ? 'ring-muted-foreground/40 ring-1' : ''}`}
                       >
-                        <div className="bg-muted-foreground/60 h-2.5 w-2.5 rounded-sm" />
+                        <div className="bg-muted-foreground/60 h-2.5 w-2.5 rounded-full" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="top" className="text-xs">

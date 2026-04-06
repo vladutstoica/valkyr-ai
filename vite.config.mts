@@ -12,9 +12,22 @@ export default defineConfig(({ command }) => ({
   plugins: [react(), tailwindcss()],
   root: './src/renderer',
   test: {
-    dir: '.',
+    root: resolve(__dirname),
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'text-summary', 'html'],
+      reportsDirectory: resolve(__dirname, 'coverage'),
+      all: true,
+      include: [
+        'src/main/services/**/*.ts',
+        'src/main/ipc/**/*.ts',
+        'src/main/utils/**/*.ts',
+        'src/shared/**/*.ts',
+      ],
+      exclude: ['**/*.test.ts', '**/*.d.ts', '**/__tests__/**'],
+    },
   },
   build: {
     outDir: '../../dist/renderer',

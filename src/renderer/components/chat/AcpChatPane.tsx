@@ -35,11 +35,7 @@ import {
   normalizeToolName,
   normalizeFromKind,
 } from '../../lib/toolRenderer';
-import type {
-  AcpSessionStatus,
-  AcpSessionModes,
-  AcpSessionModels,
-} from '../../types/electron-api';
+import type { AcpSessionStatus, AcpSessionModes, AcpSessionModels } from '../../types/electron-api';
 import { acpStatusStore } from '../../lib/acpStatusStore';
 import { unifiedStatusStore } from '../../lib/unifiedStatusStore';
 import { agentConfig } from '../../lib/agentConfig';
@@ -57,10 +53,7 @@ import {
   summarizeToolRun,
 } from './acpChatUtils';
 import { getSettings } from '../../services/settingsService';
-import {
-  renderTextWithCitations,
-  renderToolContent,
-} from './acpContentRenderers';
+import { renderTextWithCitations, renderToolContent } from './acpContentRenderers';
 import { renderToolPart, StreamingToolGroup } from './acpToolRenderers';
 import { MessageParts } from './MessageParts';
 
@@ -73,9 +66,7 @@ import {
   MessageAction,
 } from '../ai-elements/message';
 import { Reasoning, ReasoningTrigger, ReasoningContent } from '../ai-elements/reasoning';
-import {
-  mapToolStateToStepStatus,
-} from '../ai-elements/tool';
+import { mapToolStateToStepStatus } from '../ai-elements/tool';
 import {
   ChainOfThought,
   ChainOfThoughtHeader,
@@ -733,7 +724,8 @@ function AcpChatInner({
 
   // Derive pending approvals as a stable boolean to avoid re-running the effect on every message chunk
   const hasPendingApprovals = useMemo(
-    () => messages.some((m) => m.parts.some((p) => 'state' in p && p.state === 'approval-requested')),
+    () =>
+      messages.some((m) => m.parts.some((p) => 'state' in p && p.state === 'approval-requested')),
     [messages]
   );
 
@@ -1010,7 +1002,10 @@ function AcpChatInner({
   }, []);
 
   /** Snapshot the current textarea + attachments, converting blob URLs to data URLs. */
-  const captureInputPayload = useCallback(async (): Promise<{ text: string; files?: { url: string; mediaType: string; filename?: string }[] } | null> => {
+  const captureInputPayload = useCallback(async (): Promise<{
+    text: string;
+    files?: { url: string; mediaType: string; filename?: string }[];
+  } | null> => {
     const text = textareaRef.current?.value?.trim();
     if (!text) return null;
     const currentFiles = promptAttachmentsRef.current?.files;
@@ -1448,7 +1443,7 @@ function AcpChatInner({
         )}
 
       {/* Input area */}
-      <div className="border-border/50 shrink-0 border-t p-3 [&_[data-slot=input-group-addon]]:!px-0 [&_[data-slot=input-group-addon]]:!pt-0 [&_[data-slot=input-group-addon]]:!pb-0 [&_[data-slot=input-group]]:items-stretch [&_[data-slot=input-group]]:!border-0 [&_[data-slot=input-group]]:!bg-transparent [&_[data-slot=input-group]]:!ring-0 [&_[data-slot=input-group]]:![box-shadow:none] [&_[data-slot=input-group]]:dark:!bg-transparent [&_textarea]:!px-0 [&_textarea]:!py-1.5 [&_textarea]:!ring-offset-0 [&_textarea]:!outline-none">
+      <div className="[&_[data-slot=input-group]]:!border-border/50 [&_[data-slot=input-group]]:!bg-muted/30 [&_[data-slot=input-group]]:dark:!bg-muted/20 shrink-0 p-3 [&_[data-slot=input-group-addon]]:!px-0 [&_[data-slot=input-group-addon]]:!pt-0 [&_[data-slot=input-group-addon]]:!pb-0 [&_[data-slot=input-group]]:items-stretch [&_[data-slot=input-group]]:!rounded-xl [&_[data-slot=input-group]]:!border [&_[data-slot=input-group]]:!ring-0 [&_[data-slot=input-group]]:![box-shadow:none] [&_textarea]:!px-1 [&_textarea]:!py-1.5 [&_textarea]:!ring-offset-0 [&_textarea]:!outline-none">
         <PromptInput onSubmit={handleSubmit} multiple>
           <AttachmentSync targetRef={promptAttachmentsRef} />
           <PromptInputAttachments>

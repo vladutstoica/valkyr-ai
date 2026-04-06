@@ -1,13 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { FIRST_LAUNCH_KEY } from '../constants/layout';
 
-export type SettingsTab =
-  | 'general'
-  | 'appearance'
-  | 'agents'
-  | 'mcp'
-  | 'repository'
-  | 'about';
+export type SettingsTab = 'general' | 'appearance' | 'agents' | 'mcp' | 'repository' | 'about';
 
 export const ORDERED_TABS: SettingsTab[] = [
   'general',

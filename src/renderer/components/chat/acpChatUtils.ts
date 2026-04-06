@@ -78,9 +78,10 @@ export function extractMarkdownSources(
  * Returns { content, path } — content is set if the tool part has inline data,
  * path is set if we found a Write tool output referencing a /plans/*.md file.
  */
-export function findPlanFileInfo(
-  messages: UIMessage[]
-): { content: string | null; path: string | null } {
+export function findPlanFileInfo(messages: UIMessage[]): {
+  content: string | null;
+  path: string | null;
+} {
   for (let mi = messages.length - 1; mi >= 0; mi--) {
     const msg = messages[mi];
     if (msg.role !== 'assistant') continue;
@@ -140,8 +141,7 @@ export function summarizeToolRun(toolRun: Array<{ part: any }>): string {
   if (counts.edit_file)
     parts.push(`edited ${counts.edit_file} file${counts.edit_file > 1 ? 's' : ''}`);
   if (counts.bash) parts.push(`ran ${counts.bash} command${counts.bash > 1 ? 's' : ''}`);
-  if (counts.search)
-    parts.push(`searched ${counts.search} pattern${counts.search > 1 ? 's' : ''}`);
+  if (counts.search) parts.push(`searched ${counts.search} pattern${counts.search > 1 ? 's' : ''}`);
   if (counts.list_files)
     parts.push(`listed ${counts.list_files} dir${counts.list_files > 1 ? 's' : ''}`);
   if (counts.web_search)

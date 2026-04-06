@@ -72,6 +72,22 @@ export type ProviderStatusResult = {
   activeIncidents: { name: string; impact: string; startedAt: string }[];
 };
 
+// Resource metrics types
+export interface ResourceProcessInfo {
+  pid: number;
+  type: string;
+  name: string;
+  cpu: number;
+  memory: number;
+}
+
+export interface ResourceMetrics {
+  totalCpu: number;
+  totalMemory: number;
+  ramShare: number;
+  processes: ResourceProcessInfo[];
+}
+
 // Claude usage limits types
 export type ClaudeUsageBucket = {
   utilization: number;
@@ -262,6 +278,8 @@ declare global {
       listInstalledFonts: (args?: {
         refresh?: boolean;
       }) => Promise<{ success: boolean; fonts?: string[]; cached?: boolean; error?: string }>;
+      // Window state
+      onFullscreenChanged: (listener: (isFullscreen: boolean) => void) => () => void;
       // Updater
       checkForUpdates: () => Promise<{ success: boolean; result?: any; error?: string }>;
       downloadUpdate: () => Promise<{ success: boolean; error?: string }>;
@@ -282,7 +300,7 @@ declare global {
           repository: { branchPrefix: string; pushOnCreate: boolean };
           projectPrep?: { autoInstallOnOpenInEditor: boolean };
           browserPreview?: { enabled: boolean; engine: 'chromium' };
-          notifications?: { enabled: boolean; sound: boolean };
+          notifications?: { enabled: boolean; sound: boolean; mutedProjects?: string[] };
           mcp?: {
             context7?: {
               enabled: boolean;
@@ -367,7 +385,7 @@ declare global {
           repository: { branchPrefix?: string; pushOnCreate?: boolean };
           projectPrep: { autoInstallOnOpenInEditor?: boolean };
           browserPreview: { enabled?: boolean; engine?: 'chromium' };
-          notifications: { enabled?: boolean; sound?: boolean };
+          notifications: { enabled?: boolean; sound?: boolean; mutedProjects?: string[] };
           mcp: {
             context7?: {
               enabled?: boolean;
@@ -451,7 +469,7 @@ declare global {
           repository: { branchPrefix: string; pushOnCreate: boolean };
           projectPrep?: { autoInstallOnOpenInEditor: boolean };
           browserPreview?: { enabled: boolean; engine: 'chromium' };
-          notifications?: { enabled: boolean; sound: boolean };
+          notifications?: { enabled: boolean; sound: boolean; mutedProjects?: string[] };
           mcp?: {
             context7?: {
               enabled: boolean;
@@ -593,6 +611,7 @@ declare global {
         initialPrompt?: string;
         env?: Record<string, string>;
         resume?: boolean;
+        resumeSessionId?: string;
       }) => Promise<{ ok: boolean; reused?: boolean; error?: string }>;
       ptyInput: (args: { id: string; data: string }) => void;
       ptyResize: (args: { id: string; cols: number; rows?: number }) => void;
@@ -645,6 +664,19 @@ declare global {
         };
         error?: string;
       }>;
+
+      // Hook-based status updates (from Claude Code lifecycle hooks)
+      onHookStatusUpdate: (
+        listener: (data: { sessionId: string; event: string; status: string }) => void
+      ) => () => void;
+      pollHookStatus: () => Promise<Array<{ sessionId: string; event: string; status: string }>>;
+      // Report which session the user is currently viewing (smart notification trigger)
+      setActiveHookView: (
+        sessionId: string | null,
+        taskName?: string | null
+      ) => Promise<{ success: boolean }>;
+      // Deep-navigate to a specific session (triggered by notification click)
+      onHookNavigate: (listener: (data: { sessionId: string }) => void) => () => void;
 
       // Worktree management
       worktreeCreate: (args: {
@@ -1364,7 +1396,7 @@ declare global {
       ) => () => void;
 
       // Database operations
-      getProjects: () => Promise<any[]>;
+      getProjects: () => Promise<{ success: boolean; data?: any[]; error?: string }>;
       saveProject: (project: any) => Promise<{ success: boolean; error?: string }>;
       updateProjectOrder: (projectIds: string[]) => Promise<{ success: boolean; error?: string }>;
       // Project groups
@@ -1457,7 +1489,7 @@ declare global {
         projectId: string;
         workspaceId: string | null;
       }) => Promise<{ success: boolean; error?: string }>;
-      getTasks: (projectId?: string) => Promise<any[]>;
+      getTasks: (projectId?: string) => Promise<{ success: boolean; data?: any[]; error?: string }>;
       saveTask: (task: any) => Promise<{ success: boolean; error?: string }>;
       deleteProject: (projectId: string) => Promise<{ success: boolean; error?: string }>;
       renameProject: (args: {
@@ -1494,6 +1526,7 @@ declare global {
         provider?: string;
         isMain?: boolean;
         mode?: 'pty' | 'acp';
+        metadata?: string;
       }) => Promise<{ success: boolean; conversation?: any; error?: string }>;
       setActiveConversation: (params: {
         taskId: string;
@@ -1815,7 +1848,7 @@ declare global {
       // Script runner
       getScripts: (projectPath: string) => Promise<{
         success: boolean;
-        data?: { name: string; command: string }[];
+        data?: { name: string; command: string; source: 'package' | 'custom'; cwd?: string }[];
         error?: string;
       }>;
       runScript: (
@@ -1833,6 +1866,20 @@ declare global {
       getRunningScripts: (projectPath: string) => Promise<{
         success: boolean;
         data?: { scriptName: string; ptyId: string }[];
+        error?: string;
+      }>;
+      saveCustomScript: (
+        projectPath: string,
+        script: { name: string; command: string; cwd?: string }
+      ) => Promise<{
+        success: boolean;
+        error?: string;
+      }>;
+      deleteCustomScript: (
+        projectPath: string,
+        scriptName: string
+      ) => Promise<{
+        success: boolean;
         error?: string;
       }>;
       onScriptData: (ptyId: string, listener: (data: string) => void) => () => void;
@@ -1939,6 +1986,13 @@ declare global {
       modelMetadataGetStatus: (args: {
         providerId: string;
       }) => Promise<{ success: boolean; data?: ProviderStatusResult | null; error?: string }>;
+
+      // Resource metrics
+      getResourceMetrics: () => Promise<{
+        success: boolean;
+        data?: ResourceMetrics;
+        error?: string;
+      }>;
     };
   }
 }
@@ -1951,6 +2005,8 @@ export interface ElectronAPI {
   listInstalledFonts: (args?: {
     refresh?: boolean;
   }) => Promise<{ success: boolean; fonts?: string[]; cached?: boolean; error?: string }>;
+  // Window state
+  onFullscreenChanged: (listener: (isFullscreen: boolean) => void) => () => void;
   // Updater
   checkForUpdates: () => Promise<{ success: boolean; result?: any; error?: string }>;
   downloadUpdate: () => Promise<{ success: boolean; error?: string }>;
@@ -1986,6 +2042,7 @@ export interface ElectronAPI {
     initialPrompt?: string;
     env?: Record<string, string>;
     resume?: boolean;
+    resumeSessionId?: string;
   }) => Promise<{ ok: boolean; reused?: boolean; error?: string }>;
   ptyInput: (args: { id: string; data: string }) => void;
   ptyResize: (args: { id: string; cols: number; rows?: number }) => void;
@@ -2006,6 +2063,19 @@ export interface ElectronAPI {
     listener: (info: { exitCode: number; signal?: number }) => void
   ) => () => void;
   onPtyStarted: (listener: (data: { id: string }) => void) => () => void;
+
+  // Hook-based status updates (from Claude Code lifecycle hooks)
+  onHookStatusUpdate: (
+    listener: (data: { sessionId: string; event: string; status: string }) => void
+  ) => () => void;
+  pollHookStatus: () => Promise<Array<{ sessionId: string; event: string; status: string }>>;
+  // Report which session the user is currently viewing (smart notification trigger)
+  setActiveHookView: (
+    sessionId: string | null,
+    taskName?: string | null
+  ) => Promise<{ success: boolean }>;
+  // Deep-navigate to a specific session (triggered by notification click)
+  onHookNavigate: (listener: (data: { sessionId: string }) => void) => () => void;
 
   // Worktree management
   worktreeCreate: (args: {
@@ -2437,7 +2507,7 @@ export interface ElectronAPI {
   }>;
 
   // Database operations
-  getProjects: () => Promise<any[]>;
+  getProjects: () => Promise<{ success: boolean; data?: any[]; error?: string }>;
   saveProject: (project: any) => Promise<{ success: boolean; error?: string }>;
   updateProjectOrder: (projectIds: string[]) => Promise<{ success: boolean; error?: string }>;
   // Project groups
@@ -2526,7 +2596,7 @@ export interface ElectronAPI {
     projectId: string;
     workspaceId: string | null;
   }) => Promise<{ success: boolean; error?: string }>;
-  getTasks: (projectId?: string) => Promise<any[]>;
+  getTasks: (projectId?: string) => Promise<{ success: boolean; data?: any[]; error?: string }>;
   saveTask: (task: any) => Promise<{ success: boolean; error?: string }>;
   deleteProject: (projectId: string) => Promise<{ success: boolean; error?: string }>;
   renameProject: (args: {
@@ -2743,7 +2813,7 @@ export interface ElectronAPI {
   // Script runner
   getScripts: (projectPath: string) => Promise<{
     success: boolean;
-    data?: { name: string; command: string }[];
+    data?: { name: string; command: string; source: 'package' | 'custom'; cwd?: string }[];
     error?: string;
   }>;
   runScript: (
@@ -2761,6 +2831,20 @@ export interface ElectronAPI {
   getRunningScripts: (projectPath: string) => Promise<{
     success: boolean;
     data?: { scriptName: string; ptyId: string }[];
+    error?: string;
+  }>;
+  saveCustomScript: (
+    projectPath: string,
+    script: { name: string; command: string; cwd?: string }
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+  }>;
+  deleteCustomScript: (
+    projectPath: string,
+    scriptName: string
+  ) => Promise<{
+    success: boolean;
     error?: string;
   }>;
   onScriptData: (ptyId: string, listener: (data: string) => void) => () => void;
@@ -2866,6 +2950,13 @@ export interface ElectronAPI {
   modelMetadataGetStatus: (args: {
     providerId: string;
   }) => Promise<{ success: boolean; data?: ProviderStatusResult | null; error?: string }>;
+
+  // Resource metrics
+  getResourceMetrics: () => Promise<{
+    success: boolean;
+    data?: ResourceMetrics;
+    error?: string;
+  }>;
 }
 import type { TerminalSnapshotPayload } from '#types/terminalSnapshot';
 import type { OpenInAppId } from '#shared/openInApps';

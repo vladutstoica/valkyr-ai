@@ -8,7 +8,12 @@ import {
   normalizeToolName,
   normalizeFromKind,
 } from '../../lib/toolRenderer';
-import { extractBashCommand, computeDiffStats, summarizeToolRun, STACK_TRACE_PATTERN } from './acpChatUtils';
+import {
+  extractBashCommand,
+  computeDiffStats,
+  summarizeToolRun,
+  STACK_TRACE_PATTERN,
+} from './acpChatUtils';
 import { renderToolContent, renderAcpLocations } from './acpContentRenderers';
 import { ToolRunMiniIcons } from './ToolRunMiniIcons';
 import { StreamingTerminal } from './StreamingTerminal';

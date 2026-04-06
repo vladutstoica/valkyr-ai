@@ -4,26 +4,32 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import LeftSidebar from './components/LeftSidebar';
 import MainContentArea from './components/MainContentArea';
+import { unifiedStatusStore } from './lib/unifiedStatusStore';
 import { ThemeProvider } from './components/ThemeProvider';
 
 // Lazy-loaded modals — only fetched when opened
 const TaskModal = React.lazy(() => import('./components/project/TaskModal'));
-const CommandPaletteWrapper = React.lazy(() => import('./components/commands/CommandPaletteWrapper'));
-const NewProjectModal = React.lazy(
-  () => import('./components/project/NewProjectModal').then((m) => ({ default: m.NewProjectModal }))
+const CommandPaletteWrapper = React.lazy(
+  () => import('./components/commands/CommandPaletteWrapper')
 );
-const CloneFromUrlModal = React.lazy(
-  () => import('./components/project/CloneFromUrlModal').then((m) => ({ default: m.CloneFromUrlModal }))
+const NewProjectModal = React.lazy(() =>
+  import('./components/project/NewProjectModal').then((m) => ({ default: m.NewProjectModal }))
 );
-const AddRemoteProjectModal = React.lazy(
-  () => import('./components/ssh/AddRemoteProjectModal').then((m) => ({ default: m.AddRemoteProjectModal }))
+const CloneFromUrlModal = React.lazy(() =>
+  import('./components/project/CloneFromUrlModal').then((m) => ({ default: m.CloneFromUrlModal }))
 );
-const KeyboardShortcutsDialog = React.lazy(
-  () =>
-    import('./components/commands/KeyboardShortcutsDialog').then((m) => ({ default: m.KeyboardShortcutsDialog }))
+const AddRemoteProjectModal = React.lazy(() =>
+  import('./components/ssh/AddRemoteProjectModal').then((m) => ({
+    default: m.AddRemoteProjectModal,
+  }))
 );
-const PrerequisiteModal = React.lazy(
-  () => import('./components/PrerequisiteModal').then((m) => ({ default: m.PrerequisiteModal }))
+const KeyboardShortcutsDialog = React.lazy(() =>
+  import('./components/commands/KeyboardShortcutsDialog').then((m) => ({
+    default: m.KeyboardShortcutsDialog,
+  }))
+);
+const PrerequisiteModal = React.lazy(() =>
+  import('./components/PrerequisiteModal').then((m) => ({ default: m.PrerequisiteModal }))
 );
 import Titlebar from './components/titlebar/Titlebar';
 import { SidebarProvider } from './components/ui/sidebar';
@@ -90,13 +96,8 @@ const AppContent: React.FC = () => {
     window.electronAPI.checkPrerequisites().then((result) => {
       if (result.success) {
         const { git, agents } = result.data;
-        if (!git) {
-          setPrerequisiteModal({ open: true, gitMissing: true, agents });
-        } else if (agents.length === 0) {
-          toast({
-            title: 'No coding agents detected',
-            description: 'Install at least one agent (e.g. Claude Code, Codex) to get started.',
-          });
+        if (!git || agents.length === 0) {
+          setPrerequisiteModal({ open: true, gitMissing: !git, agents });
         }
       }
     });
@@ -140,6 +141,23 @@ const AppContent: React.FC = () => {
     toast,
     activateProjectView: projectMgmt.activateProjectView,
   });
+
+  // Deep-navigation from notification clicks: listen for navigate events
+  // and select the corresponding task
+  useEffect(() => {
+    const unsub = unifiedStatusStore.onNavigate((taskId) => {
+      // Find the task across all projects
+      for (const project of projectMgmt.projects) {
+        const task = project.tasks?.find((t: { id: string }) => t.id === taskId);
+        if (task) {
+          projectMgmt.activateProjectView(project);
+          taskMgmt.handleSelectTask(task);
+          break;
+        }
+      }
+    });
+    return unsub;
+  }, [projectMgmt.projects, projectMgmt.activateProjectView, taskMgmt.handleSelectTask]);
 
   // Sidebar context change handler for LeftSidebar
   const handleSidebarContextChange = useCallback(
@@ -200,6 +218,36 @@ const AppContent: React.FC = () => {
       localStorage.setItem(PINNED_TASKS_KEY, JSON.stringify([...next]));
       try {
         window.electronAPI?.setTaskPinned?.({ taskId: task.id, pinned });
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  // --- Muted project notifications ---
+  const [mutedProjectIds, setMutedProjectIds] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem('valkyr:mutedProjects');
+      return stored ? new Set(JSON.parse(stored) as string[]) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  const handleToggleProjectMute = useCallback((projectId: string) => {
+    setMutedProjectIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(projectId)) {
+        next.delete(projectId);
+      } else {
+        next.add(projectId);
+      }
+      const arr = [...next];
+      localStorage.setItem('valkyr:mutedProjects', JSON.stringify(arr));
+      // Persist to settings so main process can check
+      try {
+        window.electronAPI?.updateSettings?.({
+          notifications: { mutedProjects: arr },
+        });
       } catch {}
       return next;
     });
@@ -417,6 +465,8 @@ const AppContent: React.FC = () => {
         onReorderWorkspaces={projectMgmt.handleReorderWorkspaces}
         onMoveProjectToWorkspace={projectMgmt.handleMoveProjectToWorkspace}
         onOpenSettings={() => openSettingsView('general')}
+        mutedProjectIds={mutedProjectIds}
+        onToggleProjectMute={handleToggleProjectMute}
       />
     ),
     [
@@ -459,6 +509,8 @@ const AppContent: React.FC = () => {
       projectMgmt.handleReorderWorkspaces,
       projectMgmt.handleMoveProjectToWorkspace,
       openSettingsView,
+      mutedProjectIds,
+      handleToggleProjectMute,
     ]
   );
 

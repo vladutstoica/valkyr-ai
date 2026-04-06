@@ -48,21 +48,14 @@ import {
   FolderClosed,
   GripVertical,
   Layers,
-  Settings,
-  Search,
+  BellOff,
+  Bell,
 } from 'lucide-react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from './ui/alert-dialog';
 import SidebarEmptyState from './SidebarEmptyState';
 import { AddProjectMenu } from './sidebar/AddProjectMenu';
+import { SidebarHeader as SidebarHeaderBar } from './sidebar/SidebarHeader';
+import { SidebarSearch } from './sidebar/SidebarSearch';
+import { DeleteProjectDialog } from './sidebar/DeleteProjectDialog';
 import { TaskItem } from './project/TaskItem';
 import { TaskDeleteButton } from './project/TaskDeleteButton';
 import { MoveToGroupMenu, MoveToWorkspaceMenu } from './sidebar/MoveToMenuItems';
@@ -125,6 +118,8 @@ interface LeftSidebarProps {
     workspaceId: string | null
   ) => void | Promise<void>;
   onOpenSettings?: () => void;
+  mutedProjectIds?: Set<string>;
+  onToggleProjectMute?: (projectId: string) => void;
 }
 
 // Helper to determine if a project is remote
@@ -219,6 +214,8 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   onReorderWorkspaces,
   onMoveProjectToWorkspace,
   onOpenSettings,
+  mutedProjectIds,
+  onToggleProjectMute,
 }) => {
   const { open, isMobile, setOpen } = useSidebar();
   const sidebarRef = useWorkspaceSwipe(workspaces, activeWorkspaceId, onSwitchWorkspace);
@@ -358,66 +355,20 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
   return (
     <>
-      <AlertDialog
-        open={!!projectToDelete}
-        onOpenChange={(open) => !open && setProjectToDelete(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete project</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{projectToDelete?.name}"? This action cannot be
-              undone and will remove all sessions associated with this project.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="cursor-pointer">Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer"
-              onClick={() => projectToDelete && handleConfirmDeleteProject(projectToDelete)}
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteProjectDialog
+        project={projectToDelete}
+        onClose={() => setProjectToDelete(null)}
+        onConfirm={handleConfirmDeleteProject}
+      />
 
       <div ref={sidebarRef} className="h-full w-full">
         <Sidebar className="h-full w-full !border-r-0">
           <SidebarContent className="flex h-full w-full flex-col overflow-hidden !pb-0">
-            {/* Header: VALKYR AI + Settings */}
-            <div className="shrink-0 pb-0">
-              <Card className="w-full">
-                <CardContent className="flex items-center justify-between px-3 py-2">
-                  <span className="text-foreground text-xs font-semibold tracking-wider uppercase">Valkyr AI</span>
-                  {onOpenSettings && (
-                    <button
-                      type="button"
-                      className="text-muted-foreground hover:text-foreground rounded p-1 transition-colors"
-                      onClick={onOpenSettings}
-                      title="Settings"
-                    >
-                      <Settings className="h-4 w-4" />
-                    </button>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Search */}
-            <div className="shrink-0 py-2">
-              <div className="border-border bg-background flex items-center gap-2 rounded-md border px-2 py-1.5">
-                <Search className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  placeholder="Search sessions..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-transparent text-foreground placeholder:text-muted-foreground w-full text-xs outline-none"
-                />
-              </div>
-            </div>
+            <SidebarSearch
+              value={searchQuery}
+              onChange={setSearchQuery}
+              inputRef={searchInputRef}
+            />
 
             <ScrollArea className="min-h-0 w-full flex-1">
               <div className="w-full">
@@ -436,7 +387,8 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                   <SidebarGroupContent>
                     {(() => {
                       // Use all projects when in "all" view mode
-                      const sourceProjects = viewMode === 'all' && allProjects ? allProjects : projects;
+                      const sourceProjects =
+                        viewMode === 'all' && allProjects ? allProjects : projects;
 
                       // Filter projects by search query (matches project name or task names)
                       const query = searchQuery.trim().toLowerCase();
@@ -461,16 +413,40 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
                         // "Move to Group" and "Move to Workspace" submenu items
                         const moveToGroupDropdownItems = onMoveProjectToGroup ? (
-                          <MoveToGroupMenu variant="dropdown" projectId={typedProject.id} currentGroupId={typedProject.groupId} groups={groups} onMoveProjectToGroup={onMoveProjectToGroup} />
+                          <MoveToGroupMenu
+                            variant="dropdown"
+                            projectId={typedProject.id}
+                            currentGroupId={typedProject.groupId}
+                            groups={groups}
+                            onMoveProjectToGroup={onMoveProjectToGroup}
+                          />
                         ) : null;
                         const moveToGroupContextItems = onMoveProjectToGroup ? (
-                          <MoveToGroupMenu variant="context" projectId={typedProject.id} currentGroupId={typedProject.groupId} groups={groups} onMoveProjectToGroup={onMoveProjectToGroup} />
+                          <MoveToGroupMenu
+                            variant="context"
+                            projectId={typedProject.id}
+                            currentGroupId={typedProject.groupId}
+                            groups={groups}
+                            onMoveProjectToGroup={onMoveProjectToGroup}
+                          />
                         ) : null;
                         const moveToWorkspaceDropdownItems = onMoveProjectToWorkspace ? (
-                          <MoveToWorkspaceMenu variant="dropdown" projectId={typedProject.id} currentWorkspaceId={typedProject.workspaceId} workspaces={workspaces} onMoveProjectToWorkspace={onMoveProjectToWorkspace} />
+                          <MoveToWorkspaceMenu
+                            variant="dropdown"
+                            projectId={typedProject.id}
+                            currentWorkspaceId={typedProject.workspaceId}
+                            workspaces={workspaces}
+                            onMoveProjectToWorkspace={onMoveProjectToWorkspace}
+                          />
                         ) : null;
                         const moveToWorkspaceContextItems = onMoveProjectToWorkspace ? (
-                          <MoveToWorkspaceMenu variant="context" projectId={typedProject.id} currentWorkspaceId={typedProject.workspaceId} workspaces={workspaces} onMoveProjectToWorkspace={onMoveProjectToWorkspace} />
+                          <MoveToWorkspaceMenu
+                            variant="context"
+                            projectId={typedProject.id}
+                            currentWorkspaceId={typedProject.workspaceId}
+                            workspaces={workspaces}
+                            onMoveProjectToWorkspace={onMoveProjectToWorkspace}
+                          />
                         ) : null;
 
                         return (
@@ -776,6 +752,27 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                               )}
                               {moveToGroupContextItems}
                               {moveToWorkspaceContextItems}
+                              {onToggleProjectMute && (
+                                <ContextMenuItem
+                                  className="cursor-pointer"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onToggleProjectMute(typedProject.id);
+                                  }}
+                                >
+                                  {mutedProjectIds?.has(typedProject.id) ? (
+                                    <>
+                                      <Bell className="mr-2 h-3.5 w-3.5" />
+                                      Unmute notifications
+                                    </>
+                                  ) : (
+                                    <>
+                                      <BellOff className="mr-2 h-3.5 w-3.5" />
+                                      Mute notifications
+                                    </>
+                                  )}
+                                </ContextMenuItem>
+                              )}
                               <ContextMenuItem className="cursor-pointer" disabled>
                                 <Copy className="mr-2 h-3.5 w-3.5" />
                                 Make a copy
@@ -808,7 +805,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                       if (viewMode === 'all' && workspaces.length > 0) {
                         const defaultWs = workspaces.find((ws) => ws.isDefault);
                         return (
-                          <div className="flex w-full flex-col gap-0 overflow-hidden">
+                          <div className="flex w-full flex-col gap-1.5 overflow-hidden">
                             {workspaces.map((ws) => {
                               const isDefault = ws.isDefault;
                               const wsProjects = filteredProjects.filter((p) => {
@@ -819,13 +816,15 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                               if (wsProjects.length === 0) return null;
                               return (
                                 <div key={ws.id} className="mt-3 first:mt-0">
-                                  <div className="border-border text-muted-foreground flex items-center gap-1.5 rounded-t-md border border-b-0 px-3 py-1.5">
+                                  <div className="text-muted-foreground flex items-center gap-1.5 px-3 py-1.5">
                                     <div className="bg-muted-foreground/60 h-2 w-2 rounded-sm" />
-                                    <span className="text-[11px] font-semibold tracking-wider uppercase">
+                                    <span className="text-[11px] font-medium tracking-wider uppercase">
                                       {ws.name}
                                     </span>
                                   </div>
-                                  {wsProjects.map((p) => renderProjectCard(p))}
+                                  <div className="flex flex-col gap-2">
+                                    {wsProjects.map((p) => renderProjectCard(p))}
+                                  </div>
                                 </div>
                               );
                             })}
@@ -834,7 +833,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                       }
 
                       return (
-                        <div className="flex w-full flex-col gap-0 overflow-hidden">
+                        <div className="flex w-full flex-col gap-1.5 overflow-hidden">
                           {/* Ungrouped projects */}
                           <ReorderList
                             items={ungrouped}
@@ -843,6 +842,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                               onReorderProjectsFull?.([...newOrder, ...grouped]);
                             }}
                             getKey={(p) => p.id}
+                            className="flex flex-col gap-2"
                           >
                             {(project) => renderProjectCard(project)}
                           </ReorderList>
@@ -854,9 +854,12 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                               onReorderGroups?.(newOrder.map((g) => g.id));
                             }}
                             getKey={(g) => g.id}
+                            className="flex flex-col gap-2"
                           >
                             {(group) => {
-                              const groupProjects = filteredProjects.filter((p) => p.groupId === group.id);
+                              const groupProjects = filteredProjects.filter(
+                                (p) => p.groupId === group.id
+                              );
                               const isEditingThisGroup = editingGroupId === group.id;
 
                               return (
@@ -987,7 +990,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
                     {/* Add Project / Add Group buttons */}
                     {projects.length > 0 && (
-                      <div className="flex gap-1">
+                      <div className="flex gap-1 pb-1">
                         {onOpenProject && (
                           <AddProjectMenu
                             onOpenProject={onOpenProject}

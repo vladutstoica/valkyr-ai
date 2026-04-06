@@ -212,7 +212,7 @@ function convertHistoryToMessages(events: AcpUpdateEvent[]): UIMessage[] {
           toolName,
           state: 'input-available',
           input: update.rawInput ?? { title: update.title },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any);
         break;
       }

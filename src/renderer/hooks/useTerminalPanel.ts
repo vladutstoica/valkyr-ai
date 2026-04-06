@@ -3,17 +3,17 @@ import { useSyncExternalStore } from 'react';
 export type TerminalType = 'task' | 'global' | string;
 
 export interface TerminalPanelState {
-  /** Whether the terminal panel is collapsed */
-  isCollapsed: boolean;
   /** Height of the terminal panel as a percentage (default: 30) */
   height: number;
   /** Currently active terminal type: 'task', 'global', or a script name */
   activeTerminal: TerminalType;
   /** Status indicator: 'idle' | 'working' */
   status: 'idle' | 'working';
+  /** Per-session collapsed state (keyed by task/session ID) */
+  collapsedMap: Record<string, boolean>;
 }
 
-const STORAGE_KEY = 'valkyr:terminal-panel:v1';
+const STORAGE_KEY = 'valkyr:terminal-panel:v2';
 const DEFAULT_HEIGHT = 30;
 const MIN_HEIGHT = 15;
 const MAX_HEIGHT = 70;
@@ -51,12 +51,15 @@ function loadFromStorage(): Partial<TerminalPanelState> | null {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return null;
     return {
-      isCollapsed: typeof parsed.isCollapsed === 'boolean' ? parsed.isCollapsed : undefined,
       height:
         typeof parsed.height === 'number' && Number.isFinite(parsed.height)
           ? clampHeight(parsed.height)
           : undefined,
       activeTerminal: typeof parsed.activeTerminal === 'string' ? parsed.activeTerminal : undefined,
+      collapsedMap:
+        parsed.collapsedMap && typeof parsed.collapsedMap === 'object'
+          ? parsed.collapsedMap
+          : undefined,
     };
   } catch {
     return null;
@@ -70,9 +73,9 @@ function saveToStorage(state: TerminalPanelState): void {
   if (!storageAvailable) return;
   try {
     const payload = JSON.stringify({
-      isCollapsed: state.isCollapsed,
       height: state.height,
       activeTerminal: state.activeTerminal,
+      collapsedMap: state.collapsedMap,
     });
     window.localStorage.setItem(STORAGE_KEY, payload);
   } catch {
@@ -90,10 +93,10 @@ class TerminalPanelStore {
   constructor() {
     const stored = loadFromStorage();
     this.state = {
-      isCollapsed: stored?.isCollapsed ?? true,
       height: stored?.height ?? DEFAULT_HEIGHT,
       activeTerminal: stored?.activeTerminal ?? 'session',
-      status: 'idle', // Status is not persisted
+      status: 'idle',
+      collapsedMap: stored?.collapsedMap ?? {},
     };
   }
 
@@ -124,12 +127,24 @@ class TerminalPanelStore {
     this.emit();
   }
 
-  toggleCollapsed = (): void => {
-    this.update({ isCollapsed: !this.state.isCollapsed });
+  /** Check if a specific session's terminal is collapsed (defaults to true) */
+  isCollapsedFor = (sessionKey: string): boolean => {
+    return this.state.collapsedMap[sessionKey] ?? true;
   };
 
-  setCollapsed = (collapsed: boolean): void => {
-    this.update({ isCollapsed: collapsed });
+  /** Toggle collapsed state for a specific session */
+  toggleCollapsedFor = (sessionKey: string): void => {
+    const current = this.state.collapsedMap[sessionKey] ?? true;
+    this.update({
+      collapsedMap: { ...this.state.collapsedMap, [sessionKey]: !current },
+    });
+  };
+
+  /** Set collapsed state for a specific session */
+  setCollapsedFor = (sessionKey: string, collapsed: boolean): void => {
+    this.update({
+      collapsedMap: { ...this.state.collapsedMap, [sessionKey]: collapsed },
+    });
   };
 
   setHeight = (height: number): void => {
@@ -151,25 +166,29 @@ class TerminalPanelStore {
 const terminalPanelStore = new TerminalPanelStore();
 
 /**
- * Hook to access terminal panel state and actions
+ * Hook to access terminal panel state and actions, scoped to a session key.
+ * Each session gets its own collapsed state (defaults to collapsed).
  */
-export function useTerminalPanel() {
+export function useTerminalPanel(sessionKey?: string) {
   const state = useSyncExternalStore(
     terminalPanelStore.subscribe,
     terminalPanelStore.getSnapshot,
     terminalPanelStore.getSnapshot
   );
 
+  const key = sessionKey ?? '__global__';
+  const isCollapsed = state.collapsedMap[key] ?? true;
+
   return {
     // State
-    isCollapsed: state.isCollapsed,
+    isCollapsed,
     height: state.height,
     activeTerminal: state.activeTerminal,
     status: state.status,
 
     // Actions
-    toggleCollapsed: terminalPanelStore.toggleCollapsed,
-    setCollapsed: terminalPanelStore.setCollapsed,
+    toggleCollapsed: () => terminalPanelStore.toggleCollapsedFor(key),
+    setCollapsed: (collapsed: boolean) => terminalPanelStore.setCollapsedFor(key, collapsed),
     setHeight: terminalPanelStore.setHeight,
     setActiveTerminal: terminalPanelStore.setActiveTerminal,
     setStatus: terminalPanelStore.setStatus,
@@ -177,18 +196,21 @@ export function useTerminalPanel() {
 }
 
 /**
- * Hook to access only the collapsed state (useful for keyboard shortcut)
+ * Hook to access only the collapsed state for a session (useful for keyboard shortcut)
  */
-export function useTerminalPanelCollapsed() {
+export function useTerminalPanelCollapsed(sessionKey?: string) {
   const state = useSyncExternalStore(
     terminalPanelStore.subscribe,
     terminalPanelStore.getSnapshot,
     terminalPanelStore.getSnapshot
   );
 
+  const key = sessionKey ?? '__global__';
+  const isCollapsed = state.collapsedMap[key] ?? true;
+
   return {
-    isCollapsed: state.isCollapsed,
-    toggleCollapsed: terminalPanelStore.toggleCollapsed,
+    isCollapsed,
+    toggleCollapsed: () => terminalPanelStore.toggleCollapsedFor(key),
   };
 }
 

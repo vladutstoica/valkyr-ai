@@ -108,9 +108,7 @@ export const SshConnectionList: React.FC<Props> = ({
           key={connection.id}
           className={cn(
             'group relative rounded-lg border p-4 transition-all',
-            selectedId === connection.id
-              ? 'border-border'
-              : 'border-border',
+            selectedId === connection.id ? 'border-border' : 'border-border',
             onSelect && 'cursor-pointer'
           )}
           onClick={() => onSelect?.(connection)}

@@ -38,6 +38,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }>,
   listInstalledFonts: (args?: { refresh?: boolean }) =>
     ipcRenderer.invoke('app:listInstalledFonts', args),
+  // Window state
+  onFullscreenChanged: (listener: (isFullscreen: boolean) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, isFullscreen: boolean) =>
+      listener(isFullscreen);
+    ipcRenderer.on('window:fullscreen-changed', handler);
+    return () => {
+      ipcRenderer.removeListener('window:fullscreen-changed', handler);
+    };
+  },
   // Updater
   checkForUpdates: () => ipcRenderer.invoke('update:check'),
   downloadUpdate: () => ipcRenderer.invoke('update:download'),
@@ -105,6 +114,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     clickTime?: number;
     env?: Record<string, string>;
     resume?: boolean;
+    resumeSessionId?: string;
   }) => ipcRenderer.invoke('pty:startDirect', opts),
 
   onPtyData: (id: string, listener: (data: string) => void) => {
@@ -132,6 +142,36 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   terminalGetTheme: () => ipcRenderer.invoke('terminal:getTheme'),
 
+  // Hook-based status updates (from Claude Code lifecycle hooks)
+  onHookStatusUpdate: (
+    listener: (data: { sessionId: string; event: string; status: string }) => void
+  ) => {
+    const channel = 'hook:status-update';
+    const wrapped = (
+      _: Electron.IpcRendererEvent,
+      data: { sessionId: string; event: string; status: string }
+    ) => listener(data);
+    ipcRenderer.on(channel, wrapped);
+    return () => ipcRenderer.removeListener(channel, wrapped);
+  },
+  // Poll-based hook status (fallback when push doesn't work)
+  pollHookStatus: () =>
+    ipcRenderer.invoke('hook:poll-status') as Promise<
+      Array<{ sessionId: string; event: string; status: string }>
+    >,
+
+  // Report which session the user is currently viewing (for smart notifications)
+  setActiveHookView: (sessionId: string | null, taskName?: string | null) =>
+    ipcRenderer.invoke('hook:set-active-view', { sessionId, taskName }),
+
+  // Listen for deep-navigation requests from notification clicks
+  onHookNavigate: (listener: (data: { sessionId: string }) => void) => {
+    const channel = 'hook:navigate-to-session';
+    const wrapped = (_: Electron.IpcRendererEvent, data: { sessionId: string }) => listener(data);
+    ipcRenderer.on(channel, wrapped);
+    return () => ipcRenderer.removeListener(channel, wrapped);
+  },
+
   // App settings
   getSettings: () => ipcRenderer.invoke('settings:get'),
   updateSettings: (settings: any) => ipcRenderer.invoke('settings:update', settings),
@@ -139,12 +179,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Provider API key management
   setProviderKey: (args: { envVar: string; value: string }) =>
     ipcRenderer.invoke('providerKeys:set', args),
-  getProviderKey: (args: { envVar: string }) =>
-    ipcRenderer.invoke('providerKeys:get', args),
-  deleteProviderKey: (args: { envVar: string }) =>
-    ipcRenderer.invoke('providerKeys:delete', args),
-  listProviderKeys: () =>
-    ipcRenderer.invoke('providerKeys:list'),
+  getProviderKey: (args: { envVar: string }) => ipcRenderer.invoke('providerKeys:get', args),
+  deleteProviderKey: (args: { envVar: string }) => ipcRenderer.invoke('providerKeys:delete', args),
+  listProviderKeys: () => ipcRenderer.invoke('providerKeys:list'),
 
   // Whisper (voice input)
   whisperDownloadModel: () => ipcRenderer.invoke('whisper:download-model'),
@@ -400,8 +437,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('db:cleanupSessionDirectory', args),
 
   // Multi-chat support
-  createConversation: (params: { taskId: string; title: string; provider?: string; isMain?: boolean; mode?: 'pty' | 'acp' }) =>
-    ipcRenderer.invoke('db:createConversation', params),
+  createConversation: (params: {
+    taskId: string;
+    title: string;
+    provider?: string;
+    isMain?: boolean;
+    mode?: 'pty' | 'acp';
+    metadata?: string;
+  }) => ipcRenderer.invoke('db:createConversation', params),
   setActiveConversation: (params: { taskId: string; conversationId: string }) =>
     ipcRenderer.invoke('db:setActiveConversation', params),
   getActiveConversation: (taskId: string) => ipcRenderer.invoke('db:getActiveConversation', taskId),
@@ -482,7 +525,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getProviderStatuses: (opts?: { refresh?: boolean; providers?: string[]; providerId?: string }) =>
     ipcRenderer.invoke('provider:getStatuses', opts) as Promise<{
       success: boolean;
-      statuses?: Record<string, { installed: boolean; path?: string | null; version?: string | null; lastChecked: number }>;
+      statuses?: Record<
+        string,
+        { installed: boolean; path?: string | null; version?: string | null; lastChecked: number }
+      >;
       error?: string;
     }>,
 
@@ -636,6 +682,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('scripts:runScript', { projectPath, scriptName }),
   stopScript: (ptyId: string) => ipcRenderer.invoke('scripts:stopScript', ptyId),
   getRunningScripts: (projectPath: string) => ipcRenderer.invoke('scripts:getRunning', projectPath),
+  saveCustomScript: (
+    projectPath: string,
+    script: { name: string; command: string; cwd?: string }
+  ) => ipcRenderer.invoke('scripts:saveCustomScript', { projectPath, script }),
+  deleteCustomScript: (projectPath: string, scriptName: string) =>
+    ipcRenderer.invoke('scripts:deleteCustomScript', { projectPath, scriptName }),
   onScriptData: (ptyId: string, listener: (data: string) => void) => {
     const channel = `scripts:data:${ptyId}`;
     const wrapped = (_: Electron.IpcRendererEvent, data: string) => listener(data);
@@ -724,6 +776,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('modelMetadata:getUptime', args),
   modelMetadataGetStatus: (args: { providerId: string }) =>
     ipcRenderer.invoke('modelMetadata:getStatus', args),
+
+  // Resource metrics
+  getResourceMetrics: () => ipcRenderer.invoke('resource:getMetrics'),
 });
 
 // Type definitions for the exposed API
@@ -1089,6 +1144,28 @@ export interface ElectronAPI {
   sshWriteFile: (connectionId: string, path: string, content: string) => Promise<void>;
   sshGetState: (connectionId: string) => Promise<any>;
   sshGetConfig: () => Promise<{ success: boolean; hosts?: any[]; error?: string }>;
+
+  // Resource metrics
+  getResourceMetrics: () => Promise<{
+    success: boolean;
+    data?: ResourceMetrics;
+    error?: string;
+  }>;
+}
+
+export interface ResourceProcessInfo {
+  pid: number;
+  type: string;
+  name: string;
+  cpu: number;
+  memory: number;
+}
+
+export interface ResourceMetrics {
+  totalCpu: number;
+  totalMemory: number;
+  ramShare: number;
+  processes: ResourceProcessInfo[];
 }
 
 declare global {

@@ -9,12 +9,13 @@ import { StatusBar } from '@/components/navigation/StatusBar';
 import { TerminalPanel } from '@/components/terminal/TerminalPanel';
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 import { useTabState } from '@/hooks/useTabState';
+import { useAppMode } from '@/hooks/useAppMode';
 import type { Project, SubRepo, Task } from '@/types/app';
 import type { Agent } from '@/types';
 
 // Layout dimensions
-const TITLEBAR_HEIGHT = '36px';
-const STATUS_BAR_HEIGHT = '24px';
+const TITLEBAR_HEIGHT = '44px';
+const STATUS_BAR_HEIGHT = '28px';
 
 interface AppLayoutProps {
   /** Left sidebar content (sessions list) */
@@ -73,14 +74,18 @@ export function AppLayout({
   onAgentClick,
   onBranchChange,
 }: AppLayoutProps) {
+  // App mode (vibe vs ide)
+  const appMode = useAppMode((s) => s.mode);
+  const isVibeMode = appMode === 'vibe';
+
   // Register keyboard navigation for tabs (Cmd+1/2/3/4)
   useKeyboardNavigation();
 
   // Get tab state for navigation
   const setActiveTab = useTabState((state) => state.setActiveTab);
 
-  // Get worktree/task path for components
-  const taskPath = activeTask?.path ?? undefined;
+  // Get worktree/task path for components — fall back to project path when no task is active
+  const taskPath = activeTask?.path || selectedProject?.path || undefined;
   const taskId = activeTask?.id ?? undefined;
 
   // Read git changes count from the store (set by GitTab via useFileChanges)
@@ -205,44 +210,54 @@ export function AppLayout({
       {/* Main content area */}
       <div className={`flex flex-1 overflow-hidden ${showTitlebar ? 'pt-[var(--tb)]' : ''}`}>
         {/* Left Sidebar - Fixed width */}
-        <div className="w-[280px] flex-shrink-0 overflow-hidden border-r">
+        <div className="bg-sidebar w-[280px] flex-shrink-0 overflow-hidden">
           <ErrorBoundary componentName="Sidebar" variant="panel">
             {leftSidebar}
           </ErrorBoundary>
         </div>
 
-        {/* Main Panel with Tabs */}
+        {/* Main Panel */}
         <div className="min-w-0 flex-1 overflow-hidden p-3">
-        <div className="border-border flex h-full flex-col overflow-hidden rounded-md border">
-          {/* Tab Bar */}
-          <TabBar
-            openInPath={activeTask?.path || selectedProject?.path}
-            isRemote={!!selectedProject?.isRemote}
-            sshConnectionId={selectedProject?.sshConnectionId}
-          />
+          <div className="bg-card border-border/60 flex h-full flex-col overflow-hidden rounded-xl border shadow-sm">
+            {/* Tab Bar — hidden in Vibe mode */}
+            {!isVibeMode && (
+              <TabBar
+                openInPath={activeTask?.path || selectedProject?.path}
+                isRemote={!!selectedProject?.isRemote}
+                sshConnectionId={selectedProject?.sshConnectionId}
+              />
+            )}
 
-          {/* Tab Content */}
-          <TabContainer
-            agentsContent={
-              <ErrorBoundary componentName="Chat" variant="panel">
-                {agentsContent}
-              </ErrorBoundary>
-            }
-            editorContent={editorContent}
-            gitContent={gitContent}
-            previewContent={previewContent}
-            className="min-h-0 flex-1"
-          />
+            {/* Tab Content — Vibe mode shows only agents */}
+            {isVibeMode ? (
+              <div className="min-h-0 flex-1 overflow-hidden">
+                <ErrorBoundary componentName="Chat" variant="panel">
+                  {agentsContent}
+                </ErrorBoundary>
+              </div>
+            ) : (
+              <TabContainer
+                agentsContent={
+                  <ErrorBoundary componentName="Chat" variant="panel">
+                    {agentsContent}
+                  </ErrorBoundary>
+                }
+                editorContent={editorContent}
+                gitContent={gitContent}
+                previewContent={previewContent}
+                className="min-h-0 flex-1"
+              />
+            )}
 
-          {/* Bottom Terminal Panel */}
-          <ErrorBoundary componentName="Terminal" variant="panel">
-            <TerminalPanel
-              taskPath={taskPath}
-              taskId={taskId}
-              projectPath={selectedProject?.path}
-            />
-          </ErrorBoundary>
-        </div>
+            {/* Bottom Terminal Panel */}
+            <ErrorBoundary componentName="Terminal" variant="panel">
+              <TerminalPanel
+                taskPath={taskPath}
+                taskId={taskId}
+                projectPath={selectedProject?.path}
+              />
+            </ErrorBoundary>
+          </div>
         </div>
       </div>
 

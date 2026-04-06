@@ -146,7 +146,13 @@ describe('shellEnv', () => {
   describe('initializeShellEnvironment', () => {
     it('should set process.env.SSH_AUTH_SOCK when socket is detected', async () => {
       delete process.env.SSH_AUTH_SOCK;
+      // On macOS, launchctl execSync returns the socket directly.
+      // On Linux CI, it falls through to async exec. Mock both paths.
       mockedExecSync.mockReturnValue('/detected/socket');
+      mockedExec.mockImplementation((_cmd: any, _opts: any, cb: any) => {
+        cb(null, '/detected/socket\n', '');
+        return {} as any;
+      });
 
       await initializeShellEnvironment();
 

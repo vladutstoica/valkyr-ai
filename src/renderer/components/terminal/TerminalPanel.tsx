@@ -110,10 +110,10 @@ export function TerminalPanel({
   children,
 }: TerminalPanelProps) {
   const { effectiveTheme } = useTheme();
-  const { isCollapsed, toggleCollapsed } = useTerminalPanel();
+  const { isCollapsed, toggleCollapsed } = useTerminalPanel(taskId);
 
   // Register keyboard shortcut
-  useTerminalShortcut();
+  useTerminalShortcut(taskId);
 
   // Determine the terminal store key and cwd
   const terminalKey = taskId ? `bottom::${taskId}::${taskPath}` : 'bottom::project';
@@ -152,19 +152,23 @@ export function TerminalPanel({
   const [scripts, setScripts] = useState<{ name: string; command: string }[]>([]);
   useEffect(() => {
     if (!terminalCwd) return;
-    window.electronAPI?.getScripts?.(terminalCwd).then((result) => {
-      if (result?.success && result.data) {
-        setScripts(result.data);
-      }
-    }).catch(() => {});
+    window.electronAPI
+      ?.getScripts?.(terminalCwd)
+      .then((result) => {
+        if (result?.success && result.data) {
+          setScripts(result.data);
+        }
+      })
+      .catch(() => {});
   }, [terminalCwd]);
 
   const handleRunScript = useCallback(
-    (scriptName: string) => {
+    (scriptName: string, command?: string, cwd?: string) => {
       if (!terminalCwd) return;
-      // Detect package manager from lockfiles
-      const cmd = `pnpm run ${scriptName}`;
-      createTerminal({ title: scriptName, cwd: terminalCwd, initialPrompt: cmd });
+      // Custom scripts: use raw command + optional cwd. Package scripts: pnpm run.
+      const cmd = command || `pnpm run ${scriptName}`;
+      const resolvedCwd = cwd ? `${terminalCwd}/${cwd}` : terminalCwd;
+      createTerminal({ title: scriptName, cwd: resolvedCwd, initialPrompt: cmd });
       if (isCollapsed) toggleCollapsed();
     },
     [terminalCwd, createTerminal, isCollapsed, toggleCollapsed]
@@ -172,9 +176,9 @@ export function TerminalPanel({
 
   // Listen for run-script events from ScriptsMenu
   useEffect(() => {
-    return onScriptRun(({ scriptName, path: scriptPath }) => {
+    return onScriptRun(({ scriptName, path: scriptPath, command, cwd }) => {
       if (scriptPath === terminalCwd) {
-        handleRunScript(scriptName);
+        handleRunScript(scriptName, command, cwd);
       }
     });
   }, [terminalCwd, handleRunScript]);

@@ -24,19 +24,16 @@ export function registerSettingsIpc() {
   });
 
   // Provider API key management via keytar
-  ipcMain.handle(
-    'providerKeys:set',
-    async (_, args: { envVar: string; value: string }) => {
-      try {
-        const keytar = await import('keytar');
-        await keytar.setPassword(KEYTAR_SERVICE, args.envVar, args.value);
-        return { success: true };
-      } catch (error) {
-        log.error('Failed to store provider key', error);
-        return { success: false, error: (error as Error).message };
-      }
+  ipcMain.handle('providerKeys:set', async (_, args: { envVar: string; value: string }) => {
+    try {
+      const keytar = await import('keytar');
+      await keytar.setPassword(KEYTAR_SERVICE, args.envVar, args.value);
+      return { success: true };
+    } catch (error) {
+      log.error('Failed to store provider key', error);
+      return { success: false, error: (error as Error).message };
     }
-  );
+  });
 
   ipcMain.handle('providerKeys:get', async (_, args: { envVar: string }) => {
     try {

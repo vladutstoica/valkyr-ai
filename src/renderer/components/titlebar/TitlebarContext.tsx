@@ -43,7 +43,7 @@ const TitlebarContext: React.FC<TitlebarContextProps> = ({
   };
 
   return (
-    <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center">
+    <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center py-1">
       <div className="flex items-center justify-end">
         <Select value={projectValue} onValueChange={handleProjectChange}>
           <SelectTrigger

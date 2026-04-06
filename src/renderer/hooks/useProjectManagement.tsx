@@ -32,7 +32,11 @@ const log = createLogger('hook:useProjectManagement');
 
 interface UseProjectManagementOptions {
   platform: string;
-  toast: (opts: { title?: string; description?: string; variant?: 'default' | 'destructive' }) => void;
+  toast: (opts: {
+    title?: string;
+    description?: string;
+    variant?: 'default' | 'destructive';
+  }) => void;
   setShowNewProjectModal: React.Dispatch<React.SetStateAction<boolean>>;
   setShowCloneModal: React.Dispatch<React.SetStateAction<boolean>>;
   setShowTaskModal: React.Dispatch<React.SetStateAction<boolean>>;

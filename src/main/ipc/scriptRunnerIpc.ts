@@ -173,6 +173,43 @@ export function registerScriptRunnerIpc(): void {
     }
   });
 
+  // Save a custom script to .valkyr.json
+  ipcMain.handle(
+    'scripts:saveCustomScript',
+    async (
+      _,
+      args: { projectPath: string; script: { name: string; command: string; cwd?: string } }
+    ) => {
+      try {
+        await scriptRunnerService.saveCustomScript(args.projectPath, args.script);
+        return { success: true };
+      } catch (error) {
+        log.error('scripts:saveCustomScript failed', { error });
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    }
+  );
+
+  // Delete a custom script from .valkyr.json
+  ipcMain.handle(
+    'scripts:deleteCustomScript',
+    async (_, args: { projectPath: string; scriptName: string }) => {
+      try {
+        await scriptRunnerService.deleteCustomScript(args.projectPath, args.scriptName);
+        return { success: true };
+      } catch (error) {
+        log.error('scripts:deleteCustomScript failed', { error });
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    }
+  );
+
   // Write input to a script PTY
   ipcMain.on('scripts:input', (_, args: { ptyId: string; data: string }) => {
     try {

@@ -11,6 +11,7 @@ import type { Project, Task } from '../types/app';
 import { getConversations } from '../services/conversationService';
 import { renameBranch } from '../services/gitService';
 import { getTasks, saveTask } from '../services/projectService';
+import { unifiedStatusStore } from '../lib/unifiedStatusStore';
 
 const log = createLogger('hook:useTaskManagement');
 
@@ -66,7 +67,11 @@ interface UseTaskManagementOptions {
   setSelectedProject: React.Dispatch<React.SetStateAction<Project | null>>;
   setShowHomeView: React.Dispatch<React.SetStateAction<boolean>>;
   setShowTaskModal: React.Dispatch<React.SetStateAction<boolean>>;
-  toast: (opts: { title?: string; description?: string; variant?: 'default' | 'destructive' }) => void;
+  toast: (opts: {
+    title?: string;
+    description?: string;
+    variant?: 'default' | 'destructive';
+  }) => void;
   activateProjectView: (project: Project) => void;
 }
 
@@ -110,6 +115,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
 
   const handleSelectTask = useCallback((task: Task) => {
     log.debug('Task selected', { taskId: task.id, name: task.name });
+    unifiedStatusStore.markRead(task.id);
     setActiveTask(task);
     setActiveTaskAgent(getAgentForTask(task));
     saveActiveIds(task.projectId, task.id);
@@ -126,6 +132,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
       : -1;
     const nextIndex = (currentIndex + 1) % tasks.length;
     const { task, project } = tasks[nextIndex];
+    unifiedStatusStore.markRead(task.id);
     setSelectedProject(project);
     setShowHomeView(false);
     setActiveTask(task);
@@ -144,6 +151,7 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
       : -1;
     const prevIndex = currentIndex <= 0 ? tasks.length - 1 : currentIndex - 1;
     const { task, project } = tasks[prevIndex];
+    unifiedStatusStore.markRead(task.id);
     setSelectedProject(project);
     setShowHomeView(false);
     setActiveTask(task);
@@ -390,7 +398,9 @@ export function useTaskManagement(options: UseTaskManagementOptions) {
         // IMPORTANT: Tasks without worktrees have useWorktree === false
         const shouldRemoveWorktree = task.useWorktree !== false;
 
-        const promises: Promise<{ success?: boolean; error?: string }>[] = [window.electronAPI.deleteTask(task.id)];
+        const promises: Promise<{ success?: boolean; error?: string }>[] = [
+          window.electronAPI.deleteTask(task.id),
+        ];
 
         if (shouldRemoveWorktree) {
           // Safety check: Don't try to remove worktree if the task path equals project path

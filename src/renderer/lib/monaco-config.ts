@@ -182,7 +182,10 @@ function configureJavaScriptDefaults(monaco: Monaco): void {
  * @param editor - Monaco editor instance
  * @param monaco - Monaco namespace
  */
-export function configureMonacoEditor(editor: monacoEditor.IStandaloneCodeEditor, _monaco: Monaco): void {
+export function configureMonacoEditor(
+  editor: monacoEditor.IStandaloneCodeEditor,
+  _monaco: Monaco
+): void {
   editor.updateOptions({
     quickSuggestions: {
       other: true,

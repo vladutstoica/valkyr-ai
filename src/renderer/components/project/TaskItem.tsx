@@ -8,9 +8,10 @@ import {
   Archive,
   Trash2,
   GitBranch,
+  Loader2,
 } from 'lucide-react';
 import { usePrStatus } from '../../hooks/usePrStatus';
-import { useUnifiedStatus } from '../../hooks/useUnifiedStatus';
+import { useConversationDots, useUnreadStatus } from '../../hooks/useUnifiedStatus';
 import { normalizeTaskName, MAX_TASK_NAME_LENGTH } from '../../lib/taskNames';
 import { openExternal } from '../../services/shellService';
 import {
@@ -72,11 +73,14 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   isPinned,
   showDelete,
 }) => {
-  const { pr } = usePrStatus(task.path);
-  const unifiedDot = useUnifiedStatus(task.id);
+  const isCreating = task.id.startsWith('creating-');
+  const { pr } = usePrStatus(isCreating ? '' : task.path);
+  const conversationDots = useConversationDots(isCreating ? '' : task.id);
+  const isUnread = useUnreadStatus(isCreating ? '' : task.id);
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(task.name);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -151,33 +155,8 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   }, [isEditing]);
 
   const taskContent = (
-    <div className="flex min-w-0 items-center justify-between">
+    <div className="flex min-w-0 items-center justify-between gap-2">
       <div className="flex min-w-0 flex-1 items-center gap-2 py-1">
-        {/* Status dot indicator — unified across ACP and PTY modes */}
-        {(() => {
-          // Prefer unified status (handles both ACP and PTY)
-          const dot = unifiedDot;
-          const colorMap: Record<string, string> = {
-            green: 'bg-green-500',
-            amber: 'bg-amber-500',
-            red: 'bg-red-500',
-            gray: 'bg-gray-400',
-          };
-          const titleMap: Record<string, string> = {
-            green: 'Done',
-            amber: 'In progress',
-            red: 'Needs input',
-            gray: 'Initializing',
-          };
-          const bg = colorMap[dot.color] || 'bg-green-500';
-          const pulse = dot.style === 'pulsing' ? 'animate-pulse' : '';
-          return (
-            <span
-              className={`h-2 w-2 flex-shrink-0 rounded-full ${bg} ${pulse}`}
-              title={titleMap[dot.color] || 'Unknown'}
-            />
-          );
-        })()}
         {isEditing ? (
           <input
             ref={inputRef}
@@ -207,8 +186,21 @@ export const TaskItem: React.FC<TaskItemProps> = ({
           />
         ) : (
           <>
+            {isUnread && (
+              <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-blue-500" title="Unread" />
+            )}
             {isPinned && <Pin className="text-muted-foreground h-3 w-3 flex-shrink-0" />}
-            <span className="text-foreground block truncate text-xs font-medium">{task.name}</span>
+            <span className="text-foreground block truncate text-xs font-medium">
+              {isCreating && (
+                <Loader2 className="text-muted-foreground mr-1 inline h-3 w-3 animate-spin" />
+              )}
+              {task.name}
+              {isCreating && (
+                <span className="text-muted-foreground ml-1 text-[10px] font-normal">
+                  Creating...
+                </span>
+              )}
+            </span>
             {task.useWorktree !== false && (
               <span title="Running in worktree">
                 <GitBranch className="text-muted-foreground h-3 w-3 flex-shrink-0" />
@@ -217,7 +209,55 @@ export const TaskItem: React.FC<TaskItemProps> = ({
           </>
         )}
       </div>
-      <div className="flex flex-shrink-0 items-center gap-1">
+      <div className="flex flex-shrink-0 items-center gap-1.5">
+        {/* Status indicator — dot for 1 chat, pill for 2+ chats */}
+        {(() => {
+          const colorMap: Record<string, string> = {
+            green: 'bg-green-500',
+            amber: 'bg-amber-500',
+            red: 'bg-red-500',
+            gray: 'bg-gray-400',
+          };
+          const titleMap: Record<string, string> = {
+            green: 'Done',
+            amber: 'In progress',
+            red: 'Needs input',
+            gray: 'Initializing',
+          };
+          const dots = conversationDots;
+
+          if (dots.length <= 1) {
+            // Single dot
+            const d = dots[0] || { color: 'green', style: 'solid' };
+            const bg = colorMap[d.color] || 'bg-green-500';
+            const pulse = d.style === 'pulsing' ? 'animate-pulse' : '';
+            return (
+              <span
+                className={`h-2 w-2 flex-shrink-0 rounded-full ${bg} ${pulse}`}
+                title={titleMap[d.color] || 'Unknown'}
+              />
+            );
+          }
+
+          // Pill: colored halves with divider
+          return (
+            <span className="bg-background flex h-2.5 flex-shrink-0 items-center overflow-hidden rounded-full">
+              {dots.map((d, i) => {
+                const bg = colorMap[d.color] || 'bg-green-500';
+                const pulse = d.style === 'pulsing' ? 'animate-pulse' : '';
+                return (
+                  <span key={i} className="flex h-full items-center">
+                    {i > 0 && <span className="bg-background h-full w-px" />}
+                    <span
+                      className={`h-full w-2 ${bg} ${pulse}`}
+                      title={`Chat ${i + 1}: ${titleMap[d.color] || 'Unknown'}`}
+                    />
+                  </span>
+                );
+              })}
+            </span>
+          );
+        })()}
         {showDelete && (onDelete || onRename || onArchive || onPin) ? (
           <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
             <DropdownMenuTrigger asChild>
@@ -256,7 +296,19 @@ export const TaskItem: React.FC<TaskItemProps> = ({
                 </DropdownMenuItem>
               )}
               {onArchive && (
-                <DropdownMenuItem className="cursor-pointer" onClick={() => onArchive()}>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => {
+                    const hasRunning = conversationDots.some(
+                      (d) => d.color === 'amber' || d.color === 'red'
+                    );
+                    if (hasRunning) {
+                      setShowArchiveDialog(true);
+                    } else {
+                      onArchive();
+                    }
+                  }}
+                >
                   <Archive className="mr-2 h-3.5 w-3.5" />
                   Archive
                 </DropdownMenuItem>
@@ -320,11 +372,35 @@ export const TaskItem: React.FC<TaskItemProps> = ({
     </AlertDialog>
   );
 
+  const archiveDialog = onArchive ? (
+    <AlertDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Active processes running</AlertDialogTitle>
+          <AlertDialogDescription>
+            "{task.name}" has running agents or scripts. Archiving will kill all processes.
+            Continue?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel className="cursor-pointer">Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer"
+            onClick={() => onArchive()}
+          >
+            Archive anyway
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  ) : null;
+
   // Wrap with context menu if rename, archive, delete, or pin is available
   if (onRename || onArchive || onPin || onDelete) {
     return (
       <>
         {deleteDialog}
+        {archiveDialog}
         <ContextMenu>
           <ContextMenuTrigger asChild>{taskContent}</ContextMenuTrigger>
           <ContextMenuContent>
@@ -366,7 +442,14 @@ export const TaskItem: React.FC<TaskItemProps> = ({
                 className="cursor-pointer"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onArchive();
+                  const hasRunning = conversationDots.some(
+                    (d) => d.color === 'amber' || d.color === 'red'
+                  );
+                  if (hasRunning) {
+                    setShowArchiveDialog(true);
+                  } else {
+                    onArchive();
+                  }
                 }}
               >
                 <Archive className="mr-2 h-3.5 w-3.5" />
@@ -397,6 +480,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   return (
     <>
       {deleteDialog}
+      {archiveDialog}
       {taskContent}
     </>
   );

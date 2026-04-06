@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { log } from '../lib/logger';
 
 export interface TerminalTheme {
@@ -158,7 +158,7 @@ function loadiTerm2Config(): TerminalConfig | null {
     // Use plutil to convert plist to JSON (macOS built-in)
     let jsonContent: string;
     try {
-      jsonContent = execSync(`plutil -convert json -o - "${plistPath}"`, {
+      jsonContent = execFileSync('plutil', ['-convert', 'json', '-o', '-', plistPath], {
         encoding: 'utf8',
         maxBuffer: 10 * 1024 * 1024, // 10MB
       });
@@ -332,7 +332,7 @@ function loadTerminalAppConfig(): TerminalConfig | null {
 
     let jsonContent: string;
     try {
-      jsonContent = execSync(`plutil -convert json -o - "${plistPath}"`, {
+      jsonContent = execFileSync('plutil', ['-convert', 'json', '-o', '-', plistPath], {
         encoding: 'utf8',
         maxBuffer: 10 * 1024 * 1024,
       });

@@ -1,12 +1,6 @@
 import React from 'react';
 import { Streamdown } from 'streamdown';
-import {
-  CheckCircleIcon,
-  ClockIcon,
-  ListPlusIcon,
-  Loader2,
-  XIcon,
-} from 'lucide-react';
+import { CheckCircleIcon, ClockIcon, ListPlusIcon, Loader2, XIcon } from 'lucide-react';
 import { Button } from '../ui/button';
 import type { AcpPlanEntry } from '../../lib/acpChatTransport';
 import {
@@ -18,11 +12,7 @@ import {
   PlanContent,
   PlanFooter,
 } from '../ai-elements/plan';
-import {
-  QueueList,
-  QueueItem,
-  QueueItemContent,
-} from '../ai-elements/queue';
+import { QueueList, QueueItem, QueueItemContent } from '../ai-elements/queue';
 
 interface PendingPlanApproval {
   toolCallId: string;
@@ -74,13 +64,11 @@ export function AcpPlanPanel({
         <PlanHeader>
           <div>
             <div className="flex items-center gap-2">
-              <PlanTitle>
-                {pendingPlanApproval ? 'Plan ready for review' : 'Agent Plan'}
-              </PlanTitle>
+              <PlanTitle>{pendingPlanApproval ? 'Plan ready for review' : 'Agent Plan'}</PlanTitle>
               {planEntries.length > 0 && !pendingPlanApproval && (
                 <PlanDescription>
-                  {planEntries.filter((e) => e.status === 'completed').length}/
-                  {planEntries.length} completed
+                  {planEntries.filter((e) => e.status === 'completed').length}/{planEntries.length}{' '}
+                  completed
                 </PlanDescription>
               )}
             </div>
@@ -101,14 +89,13 @@ export function AcpPlanPanel({
         </PlanHeader>
         <PlanContent className="mt-2">
           {/* Plan preview content from ExitPlanMode */}
-          {pendingPlanApproval?.content &&
-            pendingPlanApproval.content !== 'Loading plan...' && (
-              <div className="border-border/50 bg-muted/30 mb-2 max-h-80 overflow-y-auto rounded border p-3 text-sm [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                <Streamdown shikiTheme={['github-light', 'github-dark']}>
-                  {pendingPlanApproval.content}
-                </Streamdown>
-              </div>
-            )}
+          {pendingPlanApproval?.content && pendingPlanApproval.content !== 'Loading plan...' && (
+            <div className="border-border/50 bg-muted/30 mb-2 max-h-80 overflow-y-auto rounded border p-3 text-sm [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+              <Streamdown shikiTheme={['github-light', 'github-dark']}>
+                {pendingPlanApproval.content}
+              </Streamdown>
+            </div>
+          )}
           {pendingPlanApproval?.content === 'Loading plan...' && (
             <div className="border-border/50 bg-muted/30 mb-2 flex items-center gap-2 rounded border p-3 text-sm">
               <Loader2 className="text-muted-foreground size-4 animate-spin" />

@@ -1,4 +1,4 @@
-import { app, ipcMain, WebContents, BrowserWindow, Notification } from 'electron';
+import { app, ipcMain, WebContents, BrowserWindow } from 'electron';
 import { broadcastToAllWindows } from '../lib/safeSend';
 import {
   startPty,
@@ -17,28 +17,30 @@ import { providerStatusCache } from './providerStatusCache';
 import { terminalSnapshotService } from './TerminalSnapshotService';
 import { errorTracking } from '../errorTracking';
 import type { TerminalSnapshotPayload } from '../types/terminalSnapshot';
-import { getAppSettings } from '../settings';
 import * as telemetry from '../telemetry';
-import { PROVIDER_IDS, getProvider, type ProviderId } from '../../shared/providers/registry';
+import { getProvider, type ProviderId } from '../../shared/providers/registry';
+import {
+  parseProviderPty,
+  markStart,
+  markFinish,
+  getProviderForPty,
+} from './pty/PtyTelemetryTracker';
 import { detectAndLoadTerminalConfig } from './TerminalConfigParser';
 import { getStoredProviderKeys } from '../ipc/settingsIpc';
+import {
+  quoteShellArg,
+  escapeForDoubleQuotes,
+  resolveSshInvocation,
+  buildRemoteInitCommand,
+  buildRemoteProviderInvocation,
+} from './pty/SshPtyBuilder';
 import { databaseService } from './DatabaseService';
-import { getDrizzleClient } from '../db/drizzleClient';
-import { sshConnections as sshConnectionsTable } from '../db/schema';
-import { eq } from 'drizzle-orm';
 
 const owners = new Map<string, WebContents>();
 const listeners = new Set<string>();
-const providerPtyTimers = new Map<string, number>();
-// Map PTY IDs to provider IDs for multi-agent tracking
-const ptyProviderMap = new Map<string, ProviderId>();
-// Prevent duplicate finish handling when cleanup and onExit race for the same PTY.
-const finalizedPtys = new Set<string>();
 // Track WebContents that have a 'destroyed' listener to avoid duplicates
 const wcDestroyedListeners = new Set<number>();
 let isAppQuitting = false;
-
-type FinishCause = 'process_exit' | 'app_quit' | 'owner_destroyed' | 'manual_kill';
 
 // Buffer PTY output to reduce IPC overhead (helps SSH feel less laggy)
 const ptyDataBuffers = new Map<string, string>();
@@ -110,134 +112,6 @@ function bufferedSendPtyData(id: string, chunk: string): void {
     flushPtyData(id);
   }, PTY_DATA_FLUSH_MS);
   ptyDataTimers.set(id, t);
-}
-
-function quoteShellArg(arg: string): string {
-  return /[\s'"\\$`\n\r\t]/.test(arg) ? `'${arg.replace(/'/g, "'\\''")}'` : arg;
-}
-
-function escapeForDoubleQuotes(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-}
-
-function buildRemoteInitCommand(args: {
-  cwd?: string;
-  provider?: { cli: string; cmd: string; installCommand?: string };
-}): string {
-  const parts: string[] = [];
-  if (args.cwd) {
-    // Avoid `cd --` for maximum shell portability.
-    parts.push(
-      `cd ${quoteShellArg(args.cwd)} || echo "valkyr: could not cd to ${escapeForDoubleQuotes(args.cwd)}"`
-    );
-  }
-  if (args.provider) {
-    const cli = args.provider.cli;
-    const install = args.provider.installCommand ? ` Install: ${args.provider.installCommand}` : '';
-    const msg = `valkyr: ${cli} not found on remote.${install}`;
-    parts.push(
-      `if command -v ${quoteShellArg(cli)} >/dev/null 2>&1; then ${args.provider.cmd}; else echo "${escapeForDoubleQuotes(
-        msg
-      )}"; fi`
-    );
-  }
-
-  // Prefer bash for interactive shells when available.
-  // This avoids bash-specific init scripts failing under /bin/sh (e.g. `[[` not found).
-  parts.push(
-    `if [ -x /bin/bash ]; then exec /bin/bash -i; elif [ -x /usr/bin/bash ]; then exec /usr/bin/bash -i; elif command -v bash >/dev/null 2>&1; then exec bash -i; else exec "${'${SHELL:-sh}'}" -i; fi`
-  );
-
-  const init = parts.join('; ');
-  const quotedInit = quoteShellArg(init);
-
-  // Ensure init runs under bash when available (falls back to sh).
-  // We log the chosen shell minimally to the terminal output.
-  return `if [ -x /bin/bash ]; then echo "valkyr: remote init shell=/bin/bash"; exec /bin/bash -ic ${quotedInit}; elif [ -x /usr/bin/bash ]; then echo "valkyr: remote init shell=/usr/bin/bash"; exec /usr/bin/bash -ic ${quotedInit}; elif command -v bash >/dev/null 2>&1; then echo "valkyr: remote init shell=bash"; exec bash -ic ${quotedInit}; else echo "valkyr: remote init shell=sh"; exec sh -ic ${quotedInit}; fi`;
-}
-
-async function resolveSshInvocation(
-  connectionId: string
-): Promise<{ target: string; args: string[] }> {
-  // If created from ssh config selection, prefer using the alias so OpenSSH config
-  // (ProxyJump, UseKeychain, etc.) is honored by system ssh.
-  if (connectionId.startsWith('ssh-config:')) {
-    const raw = connectionId.slice('ssh-config:'.length);
-    let alias = raw;
-    try {
-      // New scheme uses encodeURIComponent.
-      if (/%[0-9A-Fa-f]{2}/.test(raw)) {
-        alias = decodeURIComponent(raw);
-      }
-    } catch {
-      alias = raw;
-    }
-    if (alias) {
-      return { target: alias, args: [] };
-    }
-  }
-
-  const { db } = await getDrizzleClient();
-  const rows = await db
-    .select({
-      id: sshConnectionsTable.id,
-      host: sshConnectionsTable.host,
-      port: sshConnectionsTable.port,
-      username: sshConnectionsTable.username,
-      privateKeyPath: sshConnectionsTable.privateKeyPath,
-    })
-    .from(sshConnectionsTable)
-    .where(eq(sshConnectionsTable.id, connectionId))
-    .limit(1);
-
-  const row = rows[0];
-  if (!row) {
-    throw new Error(`SSH connection not found: ${connectionId}`);
-  }
-
-  const args: string[] = [];
-  if (row.port && row.port !== 22) {
-    args.push('-p', String(row.port));
-  }
-  if (row.privateKeyPath) {
-    args.push('-i', row.privateKeyPath);
-  }
-
-  const target = row.username ? `${row.username}@${row.host}` : row.host;
-  return { target, args };
-}
-
-function buildRemoteProviderInvocation(args: {
-  providerId: string;
-  autoApprove?: boolean;
-  initialPrompt?: string;
-  resume?: boolean;
-}): { cli: string; cmd: string; installCommand?: string } {
-  const { providerId, autoApprove, initialPrompt, resume } = args;
-  const provider = getProvider(providerId as ProviderId);
-
-  const cliArgs: string[] = [];
-  if (provider?.resumeFlag && resume) {
-    cliArgs.push(...provider.resumeFlag.split(' '));
-  }
-  if (provider?.defaultArgs?.length) {
-    cliArgs.push(...provider.defaultArgs);
-  }
-  if (autoApprove && provider?.autoApproveFlag) {
-    cliArgs.push(provider.autoApproveFlag);
-  }
-  if (provider?.initialPromptFlag !== undefined && initialPrompt?.trim()) {
-    if (provider.initialPromptFlag) {
-      cliArgs.push(provider.initialPromptFlag);
-    }
-    cliArgs.push(initialPrompt.trim());
-  }
-
-  const cliCommand = provider?.cli || providerId.toLowerCase();
-  const cmd =
-    cliArgs.length > 0 ? `${cliCommand} ${cliArgs.map(quoteShellArg).join(' ')}` : cliCommand;
-
-  return { cli: cliCommand, cmd, installCommand: provider?.installCommand };
 }
 
 export function registerPtyIpc(): void {
@@ -481,12 +355,7 @@ export function registerPtyIpc(): void {
               return;
             }
             safeSendToOwner(id, `pty:exit:${id}`, { exitCode, signal });
-            maybeMarkProviderFinish(
-              id,
-              exitCode,
-              signal,
-              isAppQuitting ? 'app_quit' : 'process_exit'
-            );
+            markFinish(id, exitCode, signal, isAppQuitting ? 'app_quit' : 'process_exit');
             owners.delete(id);
             listeners.delete(id);
           });
@@ -504,7 +373,7 @@ export function registerPtyIpc(): void {
             for (const [ptyId, owner] of owners.entries()) {
               if (owner === wc) {
                 try {
-                  maybeMarkProviderFinish(
+                  markFinish(
                     ptyId,
                     null,
                     undefined,
@@ -521,7 +390,7 @@ export function registerPtyIpc(): void {
 
         // Track agent start even when reusing PTY (happens after shell respawn)
         // This ensures subsequent agent runs in the same task are tracked
-        maybeMarkProviderStart(id);
+        markStart(id);
 
         // Signal that PTY is ready
         broadcastToAllWindows('pty:started', { id });
@@ -561,7 +430,7 @@ export function registerPtyIpc(): void {
       // Only count Enter key presses for known agent PTYs
       if (args.data === '\r' || args.data === '\n') {
         // Check if this PTY is associated with an agent
-        const providerId = ptyProviderMap.get(args.id) || parseProviderPty(args.id)?.providerId;
+        const providerId = getProviderForPty(args.id) || parseProviderPty(args.id)?.providerId;
 
         if (providerId) {
           // This is an agent terminal, track the prompt
@@ -586,7 +455,7 @@ export function registerPtyIpc(): void {
   ipcMain.on('pty:kill', (_event, args: { id: string }) => {
     try {
       // Ensure telemetry timers are cleared even on manual kill
-      maybeMarkProviderFinish(args.id, null, undefined, 'manual_kill');
+      markFinish(args.id, null, undefined, 'manual_kill');
       killPty(args.id);
       owners.delete(args.id);
       listeners.delete(args.id);
@@ -652,6 +521,7 @@ export function registerPtyIpc(): void {
         initialPrompt?: string;
         env?: Record<string, string>;
         resume?: boolean;
+        resumeSessionId?: string;
       }
     ) => {
       if (process.env.VALKYR_DISABLE_PTY === '1') {
@@ -659,8 +529,19 @@ export function registerPtyIpc(): void {
       }
 
       try {
-        const { id, providerId, cwd, remote, cols, rows, autoApprove, initialPrompt, env, resume } =
-          args;
+        const {
+          id,
+          providerId,
+          cwd,
+          remote,
+          cols,
+          rows,
+          autoApprove,
+          initialPrompt,
+          env,
+          resume,
+          resumeSessionId,
+        } = args;
         const existing = getPty(id);
 
         if (remote?.connectionId) {
@@ -708,7 +589,7 @@ export function registerPtyIpc(): void {
               flushPtyData(id);
               clearPtyData(id);
               safeSendToOwner(id, `pty:exit:${id}`, { exitCode, signal });
-              maybeMarkProviderFinish(id, exitCode, signal, 'process_exit');
+              markFinish(id, exitCode, signal, 'process_exit');
               owners.delete(id);
               listeners.delete(id);
               removePtyRecord(id);
@@ -716,7 +597,7 @@ export function registerPtyIpc(): void {
             listeners.add(id);
           }
 
-          maybeMarkProviderStart(id);
+          markStart(id);
           broadcastToAllWindows('pty:started', { id });
 
           return { ok: true };
@@ -726,7 +607,7 @@ export function registerPtyIpc(): void {
           const wc = event.sender;
           owners.set(id, wc);
           // Still track agent start even when reusing PTY (happens after shell respawn)
-          maybeMarkProviderStart(id, providerId as ProviderId);
+          markStart(id, providerId as ProviderId);
           return { ok: true, reused: true };
         }
 
@@ -743,6 +624,7 @@ export function registerPtyIpc(): void {
           initialPrompt,
           env,
           resume,
+          resumeSessionId,
           storedKeys,
         });
 
@@ -778,15 +660,57 @@ export function registerPtyIpc(): void {
           });
 
           proc.onExit(({ exitCode, signal }) => {
+            // Detect failed resume: quick exit (<5s) with non-zero code while resuming.
+            // Retry as fresh session instead of dropping to shell.
+            const rec = getPty(id) as any;
+            const elapsed = rec?.spawnTime ? Date.now() - rec.spawnTime : Infinity;
+            if (rec?.wasResume && exitCode !== 0 && elapsed < 5000 && !isAppQuitting) {
+              log.info('ptyIpc: resume failed, retrying as fresh session', {
+                id,
+                providerId,
+                exitCode,
+                elapsed,
+              });
+              listeners.delete(id);
+
+              // Retry without resume flag
+              const freshProc = startDirectPty({
+                id,
+                providerId,
+                cwd,
+                cols,
+                rows,
+                autoApprove,
+                initialPrompt,
+                env,
+                resume: false,
+                resumeSessionId,
+                storedKeys,
+              });
+
+              if (freshProc) {
+                // Re-wire data and exit handlers to the fresh process
+                freshProc.onData((data) => {
+                  bufferedSendPtyData(id, data);
+                });
+                freshProc.onExit(({ exitCode: ec, signal: sig }) => {
+                  flushPtyData(id);
+                  clearPtyData(id);
+                  safeSendToOwner(id, `pty:exit:${id}`, { exitCode: ec, signal: sig });
+                  markFinish(id, ec, sig, isAppQuitting ? 'app_quit' : 'process_exit');
+                  if (usedFallback) owners.delete(id);
+                  listeners.delete(id);
+                });
+                listeners.add(id);
+                markStart(id, providerId as ProviderId);
+                return;
+              }
+            }
+
             flushPtyData(id);
             clearPtyData(id);
             safeSendToOwner(id, `pty:exit:${id}`, { exitCode, signal });
-            maybeMarkProviderFinish(
-              id,
-              exitCode,
-              signal,
-              isAppQuitting ? 'app_quit' : 'process_exit'
-            );
+            markFinish(id, exitCode, signal, isAppQuitting ? 'app_quit' : 'process_exit');
             // For direct spawn: keep owner (shell respawn reuses it), delete listeners (shell respawn re-adds)
             // For fallback: clean up owner since no shell respawn happens
             if (usedFallback) {
@@ -806,7 +730,7 @@ export function registerPtyIpc(): void {
             for (const [ptyId, owner] of owners.entries()) {
               if (owner === wc) {
                 try {
-                  maybeMarkProviderFinish(
+                  markFinish(
                     ptyId,
                     null,
                     undefined,
@@ -821,7 +745,7 @@ export function registerPtyIpc(): void {
           });
         }
 
-        maybeMarkProviderStart(id, providerId as ProviderId);
+        markStart(id, providerId as ProviderId);
         broadcastToAllWindows('pty:started', { id });
 
         return { ok: true };
@@ -835,10 +759,7 @@ export function registerPtyIpc(): void {
   // ── Provider CLI detection ──────────────────────────────────────────
   ipcMain.handle(
     'provider:getStatuses',
-    async (
-      _event,
-      opts?: { refresh?: boolean; providers?: string[]; providerId?: string }
-    ) => {
+    async (_event, opts?: { refresh?: boolean; providers?: string[]; providerId?: string }) => {
       try {
         const { execFile } = await import('child_process');
         const { PROVIDERS } = await import('../../shared/providers/registry');
@@ -857,12 +778,9 @@ export function registerPtyIpc(): void {
             });
           });
 
-        const targetIds = opts?.providers
-          ?? (opts?.providerId ? [opts.providerId] : undefined);
+        const targetIds = opts?.providers ?? (opts?.providerId ? [opts.providerId] : undefined);
 
-        const providers = targetIds
-          ? PROVIDERS.filter((p) => targetIds.includes(p.id))
-          : PROVIDERS;
+        const providers = targetIds ? PROVIDERS.filter((p) => targetIds.includes(p.id)) : PROVIDERS;
 
         const cached = providerStatusCache.getAll();
         const statuses: Record<string, any> = { ...cached };
@@ -914,138 +832,6 @@ export function registerPtyIpc(): void {
   );
 }
 
-function parseProviderPty(id: string): {
-  providerId: ProviderId;
-  taskId: string;
-} | null {
-  // Chat terminals can be:
-  // - `${provider}-main-${taskId}` for main task terminals
-  // - `${provider}-chat-${conversationId}` for chat-specific terminals
-  const mainMatch = /^([a-z0-9_-]+)-main-(.+)$/.exec(id);
-  const chatMatch = /^([a-z0-9_-]+)-chat-(.+)$/.exec(id);
-
-  const match = mainMatch || chatMatch;
-  if (!match) return null;
-
-  const providerId = match[1] as ProviderId;
-  if (!PROVIDER_IDS.includes(providerId)) return null;
-
-  const taskId = match[2]; // This is either taskId or conversationId
-  return { providerId, taskId };
-}
-
-function providerRunKey(providerId: ProviderId, taskId: string) {
-  return `${providerId}:${taskId}`;
-}
-
-function maybeMarkProviderStart(id: string, providerId?: ProviderId) {
-  finalizedPtys.delete(id);
-
-  // First check if we have a direct provider ID (for multi-agent mode)
-  if (providerId && PROVIDER_IDS.includes(providerId)) {
-    ptyProviderMap.set(id, providerId);
-    const key = `${providerId}:${id}`;
-    if (providerPtyTimers.has(key)) return;
-    providerPtyTimers.set(key, Date.now());
-    telemetry.capture('agent_run_start', { provider: providerId });
-    return;
-  }
-
-  // Check if we have a stored mapping (for subsequent calls)
-  const storedProvider = ptyProviderMap.get(id);
-  if (storedProvider) {
-    const key = `${storedProvider}:${id}`;
-    if (providerPtyTimers.has(key)) return;
-    providerPtyTimers.set(key, Date.now());
-    telemetry.capture('agent_run_start', { provider: storedProvider });
-    return;
-  }
-
-  // Fall back to parsing the ID (single-agent mode)
-  const parsed = parseProviderPty(id);
-  if (!parsed) return;
-  const key = providerRunKey(parsed.providerId, parsed.taskId);
-  if (providerPtyTimers.has(key)) return;
-  providerPtyTimers.set(key, Date.now());
-  telemetry.capture('agent_run_start', { provider: parsed.providerId });
-}
-
-function maybeMarkProviderFinish(
-  id: string,
-  exitCode: number | null | undefined,
-  signal: number | undefined,
-  cause: FinishCause
-) {
-  if (finalizedPtys.has(id)) return;
-  finalizedPtys.add(id);
-
-  let providerId: ProviderId | undefined;
-  let key: string;
-
-  // First check if we have a stored mapping (multi-agent mode)
-  const storedProvider = ptyProviderMap.get(id);
-  if (storedProvider) {
-    providerId = storedProvider;
-    key = `${storedProvider}:${id}`;
-  } else {
-    // Fall back to parsing the ID (single-agent mode)
-    const parsed = parseProviderPty(id);
-    if (!parsed) return;
-    providerId = parsed.providerId;
-    key = providerRunKey(parsed.providerId, parsed.taskId);
-  }
-
-  const started = providerPtyTimers.get(key);
-  providerPtyTimers.delete(key);
-
-  // Clean up the provider mapping
-  ptyProviderMap.delete(id);
-
-  // No valid exit code means the process was killed during cleanup, not a real completion
-  if (typeof exitCode !== 'number') return;
-
-  const duration = started ? Math.max(0, Date.now() - started) : undefined;
-  const wasSignaled = signal !== undefined && signal !== null;
-  const outcome = exitCode !== 0 && !wasSignaled ? 'error' : 'ok';
-
-  telemetry.capture('agent_run_finish', {
-    provider: providerId,
-    outcome,
-    duration_ms: duration,
-  });
-
-  if (cause === 'process_exit' && exitCode === 0) {
-    const providerName = getProvider(providerId)?.name ?? providerId;
-    showCompletionNotification(providerName);
-  }
-}
-
-/**
- * Show a system notification for provider completion.
- * Only shows if: notifications are enabled, supported, and app is not focused.
- */
-function showCompletionNotification(providerName: string) {
-  try {
-    const settings = getAppSettings();
-
-    if (!settings.notifications?.enabled) return;
-    if (!Notification.isSupported()) return;
-
-    const windows = BrowserWindow.getAllWindows();
-    const anyFocused = windows.some((w) => w.isFocused());
-    if (anyFocused) return;
-
-    const notification = new Notification({
-      title: `${providerName} Task Complete`,
-      body: 'Your agent has finished working',
-      silent: !settings.notifications?.sound,
-    });
-    notification.show();
-  } catch (error) {
-    log.warn('Failed to show completion notification', { error });
-  }
-}
-
 // Kill all PTYs on app shutdown to prevent crash loop
 try {
   app.on('before-quit', () => {
@@ -1053,7 +839,7 @@ try {
     for (const id of Array.from(owners.keys())) {
       try {
         // Ensure telemetry timers are cleared on app quit
-        maybeMarkProviderFinish(id, null, undefined, 'app_quit');
+        markFinish(id, null, undefined, 'app_quit');
         killPty(id);
       } catch {}
     }

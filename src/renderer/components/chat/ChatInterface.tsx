@@ -20,7 +20,11 @@ import { useTaskComments } from '../../hooks/useLineComments';
 import { type Agent } from '../../types';
 import { Task } from '../../types/chat';
 import { useTaskTerminals } from '@/lib/taskTerminalsStore';
-import { getInstallCommandForProvider, getProvider, type ProviderId } from '@shared/providers/registry';
+import {
+  getInstallCommandForProvider,
+  getProvider,
+  type ProviderId,
+} from '@shared/providers/registry';
 import { AcpChatPane } from './AcpChatPane';
 import { TerminalPane } from '../TerminalPane';
 import { unifiedStatusStore } from '../../lib/unifiedStatusStore';
@@ -69,8 +73,11 @@ const ChatInterface: React.FC<Props> = ({
   const initialAgentRef = useRef(initialAgent);
   initialAgentRef.current = initialAgent;
   const [cliStartFailed, setCliStartFailed] = useState(false);
-  const { isAgentInstalled, setIsAgentInstalled, installedAgents } =
-    useAgentStatus(agent, task.id, activated);
+  const { isAgentInstalled, setIsAgentInstalled, installedAgents } = useAgentStatus(
+    agent,
+    task.id,
+    activated
+  );
 
   // Ref to control terminal focus imperatively if needed
   const terminalRef = useRef<{ focus: () => void }>(null);
@@ -133,10 +140,30 @@ const ChatInterface: React.FC<Props> = ({
     return conv?.mode === 'pty' ? 'pty' : 'acp';
   }, [conversations, activeConversationId]);
 
+  // Report active view to main process for smart notification triggering
+  useEffect(() => {
+    if (!isActive) return;
+    const sessionId = terminalId || activeConversationId || null;
+    // Also update the unified status store for in-app toast suppression
+    unifiedStatusStore.setActiveView(sessionId);
+    window.electronAPI.setActiveHookView(sessionId, task.name);
+    return () => {
+      // Clear when this task is no longer active
+      unifiedStatusStore.setActiveView(null);
+      window.electronAPI.setActiveHookView(null);
+    };
+  }, [isActive, terminalId, activeConversationId, task.name, task.projectId]);
+
   // Claude needs consistent working directory to maintain session state
   const terminalCwd = useMemo(() => {
     return task.path || projectPath || undefined;
   }, [task.path, projectPath]);
+
+  // Use a ref for defaultBranch to avoid taskEnv reference changes when
+  // switching projects (defaultBranch toggles between a value and undefined
+  // for non-selected projects, causing unnecessary TerminalPane detach/reattach).
+  const defaultBranchRef = useRef(defaultBranch);
+  defaultBranchRef.current = defaultBranch;
 
   const taskEnv = useMemo(() => {
     if (!projectPath) return undefined;
@@ -145,10 +172,12 @@ const ChatInterface: React.FC<Props> = ({
       taskName: task.name,
       taskPath: task.path,
       projectPath,
-      defaultBranch: defaultBranch || undefined,
+      defaultBranch: defaultBranchRef.current || undefined,
     });
-  }, [task.id, task.name, task.path, projectPath, defaultBranch]);
-
+    // Intentionally exclude defaultBranch — stored in ref to prevent
+    // env reference instability during project switches.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [task.id, task.name, task.path, projectPath]);
 
   // Provider CLI command overrides from settings
   const [providerOverrides, setProviderOverrides] = useState<
@@ -162,7 +191,9 @@ const ChatInterface: React.FC<Props> = ({
         setProviderOverrides(settings.providerOverrides);
       }
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const { activeTerminalId } = useTaskTerminals(task.id, task.path);
@@ -227,9 +258,10 @@ const ChatInterface: React.FC<Props> = ({
 
     let off: (() => void) | null = null;
     try {
-      off = window.electronAPI?.onPtyStarted?.((info: { id: string }) => {
-        if (info?.id === terminalId) send();
-      }) ?? null;
+      off =
+        window.electronAPI?.onPtyStarted?.((info: { id: string }) => {
+          if (info?.id === terminalId) send();
+        }) ?? null;
     } catch {}
 
     const t = setTimeout(send, 1200);
@@ -350,6 +382,23 @@ const ChatInterface: React.FC<Props> = ({
     return null;
   }, [isTerminal, task.metadata, commentsContext]);
 
+  // Register hook session IDs in UI tab order once conversations load,
+  // so per-conversation dots match the chat tabs. The main session ID
+  // is auto-parsed from hook events (no registration needed for it to work),
+  // but explicit registration is needed for ordered multi-chat pill display.
+  useEffect(() => {
+    if (!isTerminal || agent !== 'claude' || conversations.length === 0) return;
+    const sessionIds = conversations.map((conv) =>
+      conv.isMain ? `${agent}-main-${task.id}` : `${agent}-chat-${conv.id}`
+    );
+    unifiedStatusStore.registerHookSessions(sessionIds, task.id);
+    return () => {
+      for (const sid of sessionIds) {
+        unifiedStatusStore.unregisterHookSession(sid);
+      }
+    };
+  }, [isTerminal, agent, task.id, conversations]);
+
   // Only use keystroke injection for agents WITHOUT CLI flag support
   // Agents with initialPromptFlag use CLI arg injection via TerminalPane instead
   useInitialPromptInjection({
@@ -402,7 +451,7 @@ const ChatInterface: React.FC<Props> = ({
 
         <div className="flex min-h-0 flex-1 flex-col">
           {(() => {
-            if (isAgentInstalled !== true) {
+            if (isAgentInstalled === false) {
               return (
                 <InstallBanner
                   agent={agent}
@@ -427,7 +476,7 @@ const ChatInterface: React.FC<Props> = ({
           })()}
           <div
             ref={chatScrollContainerRef}
-            className="flex min-h-0 flex-1 gap-3 overflow-x-auto p-3 pt-3"
+            className="flex min-h-0 flex-1 gap-3 overflow-x-auto p-2"
           >
             {conversationsLoaded &&
               sortedConversations.map((conv, idx) => {
@@ -449,13 +498,13 @@ const ChatInterface: React.FC<Props> = ({
                 return (
                   <div
                     key={conv.id}
-                    className={`border-border/50 min-w-[400px] flex-1 overflow-hidden rounded-md border ${agentBg}`}
+                    className={`border-border/50 min-w-[400px] flex-1 overflow-hidden rounded-lg border ${agentBg}`}
                     onClick={() => setActiveConversationId(conv.id)}
                   >
                     {conv.mode === 'pty' ? (
                       <div className="flex h-full flex-col">
                         {/* Per-pane toolbar */}
-                        <div className="border-border/50 flex shrink-0 items-center justify-between border-b p-3">
+                        <div className="border-border/50 flex shrink-0 items-center justify-between border-b px-4 py-2.5">
                           {/* Left: agent logo + name */}
                           <div className="text-muted-foreground flex h-7 shrink-0 items-center gap-1.5 px-1 text-xs">
                             {agentConfig[convAgent as Agent] && (
@@ -465,10 +514,12 @@ const ChatInterface: React.FC<Props> = ({
                                 className={`size-3.5 rounded-sm ${agentConfig[convAgent as Agent].invertInDark ? 'dark:invert' : ''}`}
                               />
                             )}
-                            <span>{conv.title || agentConfig[convAgent as Agent]?.name || convAgent}</span>
+                            <span>
+                              {conv.title || agentConfig[convAgent as Agent]?.name || convAgent}
+                            </span>
                           </div>
                           {/* Right: action buttons */}
-                          <div className="flex items-center gap-0.5">
+                          <div className="flex items-center gap-1">
                             <button
                               type="button"
                               onClick={handleCreateNewChat}
@@ -488,16 +539,25 @@ const ChatInterface: React.FC<Props> = ({
                                 </button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-44">
-                                <DropdownMenuItem onClick={() => handleMoveChat(conv.id, 'right')} disabled={idx >= sortedConversations.length - 1}>
+                                <DropdownMenuItem
+                                  onClick={() => handleMoveChat(conv.id, 'right')}
+                                  disabled={idx >= sortedConversations.length - 1}
+                                >
                                   <ArrowRight className="size-4" />
                                   Move Right
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleMoveChat(conv.id, 'left')} disabled={idx <= 0}>
+                                <DropdownMenuItem
+                                  onClick={() => handleMoveChat(conv.id, 'left')}
+                                  disabled={idx <= 0}
+                                >
                                   <ArrowLeft className="size-4" />
                                   Move Left
                                 </DropdownMenuItem>
-                                {!conv.isMain && (
-                                  <DropdownMenuItem onClick={() => handleDeleteChatById(conv.id)} className="text-destructive">
+                                {conversations.length > 1 && (
+                                  <DropdownMenuItem
+                                    onClick={() => handleDeleteChatById(conv.id)}
+                                    className="text-destructive"
+                                  >
                                     <Trash2 className="size-4" />
                                     Delete Chat
                                   </DropdownMenuItem>
@@ -507,14 +567,31 @@ const ChatInterface: React.FC<Props> = ({
                           </div>
                         </div>
                         <TerminalPane
-                          id={`${convAgent}-chat-${conv.id}`}
+                          id={
+                            conv.isMain
+                              ? `${convAgent}-main-${task.id}`
+                              : `${convAgent}-chat-${conv.id}`
+                          }
                           cwd={terminalCwd || task.path || '.'}
                           {...(providerOverrides[convAgent]?.cliCommand
                             ? { shell: providerOverrides[convAgent]!.cliCommand }
                             : { providerId: convAgent })}
                           env={taskEnv}
                           keepAlive
+                          autoApprove={!!task.metadata?.autoApprove}
                           className="min-h-0 flex-1"
+                          claudeSessionId={
+                            convAgent === 'claude'
+                              ? (() => {
+                                  try {
+                                    const meta = conv.metadata ? JSON.parse(conv.metadata) : {};
+                                    return meta.claudeSessionId as string | undefined;
+                                  } catch {
+                                    return undefined;
+                                  }
+                                })()
+                              : undefined
+                          }
                         />
                       </div>
                     ) : (
@@ -526,7 +603,9 @@ const ChatInterface: React.FC<Props> = ({
                         projectPath={projectPath || undefined}
                         isActive={isActive}
                         conversationTitle={conv.title}
-                        onConversationTitleChange={(title) => updateConversationTitle(conv.id, title)}
+                        onConversationTitleChange={(title) =>
+                          updateConversationTitle(conv.id, title)
+                        }
                         onStatusChange={(status) => {
                           try {
                             window.localStorage.setItem(`agent:locked:${task.id}`, convAgent);

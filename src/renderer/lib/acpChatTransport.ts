@@ -293,7 +293,10 @@ export interface AcpToolMetadata {
  * Returns undefined if no ACP metadata is present.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function getAcpMeta(toolPart: { callProviderMetadata?: { acp?: AcpToolMetadata }; [key: string]: any }): AcpToolMetadata | undefined {
+export function getAcpMeta(toolPart: {
+  callProviderMetadata?: { acp?: AcpToolMetadata };
+  [key: string]: any;
+}): AcpToolMetadata | undefined {
   return toolPart?.callProviderMetadata?.acp;
 }
 
