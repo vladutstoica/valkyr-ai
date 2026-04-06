@@ -447,7 +447,7 @@ const ChatInterface: React.FC<Props> = ({
   return (
     <TaskScopeProvider value={{ taskId: task.id, taskPath: task.path }}>
       <div
-        className={`flex h-full flex-col ${effectiveTheme === 'dark-black' ? 'bg-black' : 'bg-card'} ${multiView ? 'flex-shrink-0 rounded-lg' : ''} ${className}`}
+        className={`flex h-full flex-col ${effectiveTheme === 'dark-black' ? 'bg-black' : 'bg-card'} ${multiView ? 'flex-shrink-0 rounded-2xl' : ''} ${className}`}
       >
         <CreateChatModal
           isOpen={showCreateChatModal}
@@ -513,7 +513,7 @@ const ChatInterface: React.FC<Props> = ({
                 return (
                   <div
                     key={conv.id}
-                    className={`border-border/50 relative overflow-hidden rounded-lg border ${multiView ? 'flex-shrink-0' : 'min-w-[520px] flex-1'} ${agentBg}`}
+                    className={`border-border/50 relative overflow-hidden border ${multiView ? 'flex-shrink-0 rounded-lg' : 'min-w-[520px] flex-1 rounded-lg'} ${agentBg}`}
                     style={multiView ? { width: paneWidths[conv.id] || 520 } : undefined}
                     onClick={() => setActiveConversationId(conv.id)}
                   >
