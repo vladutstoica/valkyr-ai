@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { useAppMode, type AppMode } from '@/hooks/useAppMode';
 
 const modes: { id: AppMode; label: string }[] = [
+  { id: 'multi', label: 'Ultravibe' },
   { id: 'vibe', label: 'Vibe' },
   { id: 'ide', label: 'IDE' },
 ];

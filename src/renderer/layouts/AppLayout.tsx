@@ -77,6 +77,7 @@ export function AppLayout({
   // App mode (vibe vs ide)
   const appMode = useAppMode((s) => s.mode);
   const isVibeMode = appMode === 'vibe';
+  const isMultiMode = appMode === 'multi';
 
   // Register keyboard navigation for tabs (Cmd+1/2/3/4)
   useKeyboardNavigation();
@@ -209,18 +210,22 @@ export function AppLayout({
 
       {/* Main content area */}
       <div className={`flex flex-1 overflow-hidden ${showTitlebar ? 'pt-[var(--tb)]' : ''}`}>
-        {/* Left Sidebar - Fixed width */}
-        <div className="bg-sidebar w-[280px] flex-shrink-0 overflow-hidden">
-          <ErrorBoundary componentName="Sidebar" variant="panel">
-            {leftSidebar}
-          </ErrorBoundary>
-        </div>
+        {/* Left Sidebar - Fixed width, hidden in Multi mode */}
+        {!isMultiMode && (
+          <div className="bg-sidebar w-[280px] flex-shrink-0 overflow-hidden">
+            <ErrorBoundary componentName="Sidebar" variant="panel">
+              {leftSidebar}
+            </ErrorBoundary>
+          </div>
+        )}
 
         {/* Main Panel */}
-        <div className="min-w-0 flex-1 overflow-hidden p-3">
-          <div className="bg-card border-border/60 flex h-full flex-col overflow-hidden rounded-xl border shadow-sm">
-            {/* Tab Bar — hidden in Vibe mode */}
-            {!isVibeMode && (
+        <div className={`min-w-0 flex-1 overflow-hidden ${isMultiMode ? 'p-0' : 'p-3'}`}>
+          <div
+            className={`flex h-full flex-col overflow-hidden ${isMultiMode ? '' : 'bg-card border-border/60 rounded-xl border shadow-sm'}`}
+          >
+            {/* Tab Bar — only in IDE mode */}
+            {appMode === 'ide' && (
               <TabBar
                 openInPath={activeTask?.path || selectedProject?.path}
                 isRemote={!!selectedProject?.isRemote}
@@ -228,14 +233,8 @@ export function AppLayout({
               />
             )}
 
-            {/* Tab Content — Vibe mode shows only agents */}
-            {isVibeMode ? (
-              <div className="min-h-0 flex-1 overflow-hidden">
-                <ErrorBoundary componentName="Chat" variant="panel">
-                  {agentsContent}
-                </ErrorBoundary>
-              </div>
-            ) : (
+            {/* Tab Content — Vibe/Multi mode shows only agents, IDE shows tabbed */}
+            {appMode === 'ide' ? (
               <TabContainer
                 agentsContent={
                   <ErrorBoundary componentName="Chat" variant="panel">
@@ -247,16 +246,24 @@ export function AppLayout({
                 previewContent={previewContent}
                 className="min-h-0 flex-1"
               />
+            ) : (
+              <div className="min-h-0 flex-1 overflow-hidden">
+                <ErrorBoundary componentName="Chat" variant="panel">
+                  {agentsContent}
+                </ErrorBoundary>
+              </div>
             )}
 
-            {/* Bottom Terminal Panel */}
-            <ErrorBoundary componentName="Terminal" variant="panel">
-              <TerminalPanel
-                taskPath={taskPath}
-                taskId={taskId}
-                projectPath={selectedProject?.path}
-              />
-            </ErrorBoundary>
+            {/* Bottom Terminal Panel — hidden in Multi mode */}
+            {!isMultiMode && (
+              <ErrorBoundary componentName="Terminal" variant="panel">
+                <TerminalPanel
+                  taskPath={taskPath}
+                  taskId={taskId}
+                  projectPath={selectedProject?.path}
+                />
+              </ErrorBoundary>
+            )}
           </div>
         </div>
       </div>

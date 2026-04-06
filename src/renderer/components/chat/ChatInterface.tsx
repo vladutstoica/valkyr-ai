@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { Plus, X, MoreHorizontal, ArrowLeft, ArrowRight, Trash2 } from 'lucide-react';
+import { Plus, X, MoreHorizontal, ArrowLeft, ArrowRight, Trash2, GitBranch } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
 } from '../ui/dropdown-menu';
 import { toast, useToast } from '../../hooks/use-toast';
+import { useConversationDots } from '../../hooks/useUnifiedStatus';
 import { useTheme } from '../../hooks/useTheme';
 import InstallBanner from '../agents/InstallBanner';
 import { agentMeta } from '../../providers/meta';
@@ -40,6 +42,15 @@ import { type Conversation } from '../../../main/services/DatabaseService';
 import { terminalSessionRegistry } from '../../terminal/SessionRegistry';
 import { getTaskEnvVars } from '@shared/task/envVars';
 
+interface MultiViewProps {
+  projectLabel: string;
+  canMoveLeft: boolean;
+  canMoveRight: boolean;
+  onMoveLeft: () => void;
+  onMoveRight: () => void;
+  onRemove: () => void;
+}
+
 interface Props {
   task: Task;
   isActive?: boolean;
@@ -50,6 +61,7 @@ interface Props {
   defaultBranch?: string | null;
   className?: string;
   initialAgent?: Agent;
+  multiView?: MultiViewProps;
 }
 
 const ChatInterface: React.FC<Props> = ({
@@ -62,12 +74,15 @@ const ChatInterface: React.FC<Props> = ({
   defaultBranch,
   className,
   initialAgent,
+  multiView,
 }) => {
   // Defer heavy IPC work until the task has been activated at least once.
   const [activated, setActivated] = useState(isActive);
+  const [paneWidths, setPaneWidths] = useState<Record<string, number>>({});
   if (isActive && !activated) setActivated(true);
 
   const { effectiveTheme } = useTheme();
+  const multiViewDots = useConversationDots(multiView ? task.id : '');
   const { toast } = useToast();
   const [agent, setAgent] = useState<Agent>(initialAgent || 'claude');
   const initialAgentRef = useRef(initialAgent);
@@ -432,7 +447,7 @@ const ChatInterface: React.FC<Props> = ({
   return (
     <TaskScopeProvider value={{ taskId: task.id, taskPath: task.path }}>
       <div
-        className={`flex h-full flex-col ${effectiveTheme === 'dark-black' ? 'bg-black' : 'bg-card'} ${className}`}
+        className={`flex h-full flex-col ${effectiveTheme === 'dark-black' ? 'bg-black' : 'bg-card'} ${multiView ? 'flex-shrink-0 rounded-lg' : ''} ${className}`}
       >
         <CreateChatModal
           isOpen={showCreateChatModal}
@@ -476,7 +491,7 @@ const ChatInterface: React.FC<Props> = ({
           })()}
           <div
             ref={chatScrollContainerRef}
-            className="flex min-h-0 flex-1 gap-3 overflow-x-auto p-2"
+            className={`flex min-h-0 flex-1 gap-3 p-2 ${multiView ? '' : 'overflow-x-auto'}`}
           >
             {conversationsLoaded &&
               sortedConversations.map((conv, idx) => {
@@ -498,15 +513,49 @@ const ChatInterface: React.FC<Props> = ({
                 return (
                   <div
                     key={conv.id}
-                    className={`border-border/50 min-w-[400px] flex-1 overflow-hidden rounded-lg border ${agentBg}`}
+                    className={`border-border/50 relative overflow-hidden rounded-lg border ${multiView ? 'flex-shrink-0' : 'min-w-[520px] flex-1'} ${agentBg}`}
+                    style={multiView ? { width: paneWidths[conv.id] || 520 } : undefined}
                     onClick={() => setActiveConversationId(conv.id)}
                   >
                     {conv.mode === 'pty' ? (
                       <div className="flex h-full flex-col">
                         {/* Per-pane toolbar */}
                         <div className="border-border/50 flex shrink-0 items-center justify-between border-b px-4 py-2.5">
-                          {/* Left: agent logo + name */}
+                          {/* Left: project badge (multi-view) + agent logo + name */}
                           <div className="text-muted-foreground flex h-7 shrink-0 items-center gap-1.5 px-1 text-xs">
+                            {multiView && (
+                              <>
+                                {(() => {
+                                  const dot = multiViewDots[0] || {
+                                    color: 'green',
+                                    style: 'solid',
+                                  };
+                                  const bg: Record<string, string> = {
+                                    green: 'bg-green-500',
+                                    amber: 'bg-amber-500',
+                                    red: 'bg-red-500',
+                                    gray: 'bg-gray-400',
+                                  };
+                                  return (
+                                    <span
+                                      className={`h-2 w-2 flex-shrink-0 rounded-full ${bg[dot.color] || 'bg-green-500'} ${dot.style === 'pulsing' ? 'animate-pulse' : ''}`}
+                                    />
+                                  );
+                                })()}
+                                <span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-[10px] font-medium">
+                                  {multiView.projectLabel}
+                                </span>
+                                <span className="text-foreground text-xs font-medium">
+                                  {task.name}
+                                </span>
+                                {task.useWorktree !== false && (
+                                  <span title="Running in worktree">
+                                    <GitBranch className="text-muted-foreground h-3 w-3 flex-shrink-0" />
+                                  </span>
+                                )}
+                                <span className="text-border">|</span>
+                              </>
+                            )}
                             {agentConfig[convAgent as Agent] && (
                               <img
                                 src={agentConfig[convAgent as Agent].logo}
@@ -561,6 +610,32 @@ const ChatInterface: React.FC<Props> = ({
                                     <Trash2 className="size-4" />
                                     Delete Chat
                                   </DropdownMenuItem>
+                                )}
+                                {multiView && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onClick={multiView.onMoveLeft}
+                                      disabled={!multiView.canMoveLeft}
+                                    >
+                                      <ArrowLeft className="size-4" />
+                                      Move Pane Left
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={multiView.onMoveRight}
+                                      disabled={!multiView.canMoveRight}
+                                    >
+                                      <ArrowRight className="size-4" />
+                                      Move Pane Right
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={multiView.onRemove}
+                                      className="text-destructive"
+                                    >
+                                      <X className="size-4" />
+                                      Remove from Multi-View
+                                    </DropdownMenuItem>
+                                  </>
                                 )}
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -638,6 +713,34 @@ const ChatInterface: React.FC<Props> = ({
                         className="h-full w-full"
                       />
                     )}
+                    {/* Resize handle — drag to resize, double-click to reset */}
+                    <div
+                      className="bg-border/0 hover:bg-border active:bg-ring absolute top-0 right-0 z-10 h-full w-1 cursor-col-resize transition-colors"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        const startX = e.clientX;
+                        const paneEl = e.currentTarget.parentElement;
+                        if (!paneEl) return;
+                        const startWidth = paneEl.getBoundingClientRect().width;
+                        const onMove = (ev: MouseEvent) => {
+                          const newWidth = Math.max(520, startWidth + ev.clientX - startX);
+                          setPaneWidths((prev) => ({ ...prev, [conv.id]: newWidth }));
+                        };
+                        const onUp = () => {
+                          document.removeEventListener('mousemove', onMove);
+                          document.removeEventListener('mouseup', onUp);
+                        };
+                        document.addEventListener('mousemove', onMove);
+                        document.addEventListener('mouseup', onUp);
+                      }}
+                      onDoubleClick={() => {
+                        setPaneWidths((prev) => {
+                          const next = { ...prev };
+                          delete next[conv.id];
+                          return next;
+                        });
+                      }}
+                    />
                   </div>
                 );
               })}

@@ -5,6 +5,8 @@ import { WelcomeScreen } from './components/WelcomeScreen';
 import LeftSidebar from './components/LeftSidebar';
 import MainContentArea from './components/MainContentArea';
 import { unifiedStatusStore } from './lib/unifiedStatusStore';
+import { useMultiViewStore } from './hooks/useMultiViewStore';
+import { useAppMode } from './hooks/useAppMode';
 import { ThemeProvider } from './components/ThemeProvider';
 
 // Lazy-loaded modals — only fetched when opened
@@ -379,6 +381,23 @@ const AppContent: React.FC = () => {
     [projectMgmt.activateProjectView, toast, appInit.saveProjectOrder]
   );
 
+  // --- Auto-add newly created tasks to multi-view ---
+  const appMode = useAppMode((s) => s.mode);
+  const addMultiViewColumn = useMultiViewStore((s) => s.addColumn);
+  const prevActiveTaskIdRef = React.useRef<string | null>(null);
+  useEffect(() => {
+    const currentId = taskMgmt.activeTask?.id ?? null;
+    const prevId = prevActiveTaskIdRef.current;
+    prevActiveTaskIdRef.current = currentId;
+    // If in multi mode and activeTask changed to a new task, auto-add it
+    if (appMode === 'multi' && currentId && currentId !== prevId) {
+      const projectId = taskMgmt.activeTask?.projectId;
+      if (projectId) {
+        addMultiViewColumn(currentId, projectId);
+      }
+    }
+  }, [appMode, taskMgmt.activeTask?.id, taskMgmt.activeTask?.projectId, addMultiViewColumn]);
+
   // --- Convenience aliases ---
   const { selectedProject } = projectMgmt;
   const { activeTask, activeTaskAgent } = taskMgmt;
@@ -541,6 +560,7 @@ const AppContent: React.FC = () => {
         handleCloneProjectClick={projectMgmt.handleCloneProjectClick}
         handleAddRemoteProject={handleAddRemoteProjectClick}
         setShowTaskModal={(show: boolean) => setShowTaskModal(show)}
+        setSelectedProject={projectMgmt.setSelectedProject}
       />
     ),
     [

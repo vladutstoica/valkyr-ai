@@ -5,6 +5,8 @@ import ProjectMainView from './ProjectMainView';
 import HomeView from './HomeView';
 import SkillsView from './skills/SkillsView';
 import SettingsView from './settings/SettingsView';
+import { MultiViewLayout } from './multi-view';
+import { useAppMode } from '../hooks/useAppMode';
 import type { Agent } from '../types';
 import type { Project, Task } from '../types/app';
 import type { SettingsTab } from '../hooks/useModalState';
@@ -41,6 +43,7 @@ interface MainContentAreaProps {
   handleCloneProjectClick: () => void;
   handleAddRemoteProject: () => void;
   setShowTaskModal: (show: boolean) => void;
+  setSelectedProject: (project: Project) => void;
 }
 
 const MainContentArea: React.FC<MainContentAreaProps> = ({
@@ -67,11 +70,18 @@ const MainContentArea: React.FC<MainContentAreaProps> = ({
   handleCloneProjectClick,
   handleAddRemoteProject,
   setShowTaskModal,
+  setSelectedProject,
 }) => {
+  const appMode = useAppMode((s) => s.mode);
+  const isMultiMode = appMode === 'multi';
+
   // Determine which overlay view is active (if any).
   // Task components are ALWAYS kept mounted underneath to preserve
   // ACP transports, PTY sessions, useChat state, and IPC listeners.
-  const showOverlay = showSettingsView || showSkillsView || showHomeView;
+  // In multi mode, only Settings acts as an overlay — Home and Skills are suppressed.
+  const showOverlay = isMultiMode
+    ? showSettingsView
+    : showSettingsView || showSkillsView || showHomeView;
   const showProjectView = !!selectedProject && !showOverlay;
 
   return (
@@ -84,16 +94,28 @@ const MainContentArea: React.FC<MainContentAreaProps> = ({
           projectPath={settingsProjectPath}
         />
       )}
-      {showSkillsView && <SkillsView />}
-      {showHomeView && !showSettingsView && !showSkillsView && <HomeView />}
+      {!isMultiMode && showSkillsView && <SkillsView />}
+      {!isMultiMode && showHomeView && !showSettingsView && !showSkillsView && <HomeView />}
+
+      {/* Multi-view mode — shows multiple sessions side by side */}
+      {isMultiMode && !showOverlay && (
+        <div className="flex h-full min-h-0 flex-col overflow-hidden">
+          <MultiViewLayout
+            allProjects={allProjects}
+            setShowTaskModal={setShowTaskModal}
+            setSelectedProject={setSelectedProject}
+          />
+        </div>
+      )}
 
       {/* Task components — always mounted, hidden when an overlay or different task is active.
           This keeps ACP transports, useChat state, PTY sessions, and IPC listeners alive
           so background agents continue working while the user switches
-          between sessions, projects, workspaces, and overlay views. */}
+          between sessions, projects, workspaces, and overlay views.
+          In multi mode, these stay hidden — MultiViewLayout renders its own ChatInterfaces. */}
       <div
         className="flex h-full min-h-0 flex-col overflow-hidden"
-        style={{ display: showOverlay ? 'none' : undefined }}
+        style={{ display: showOverlay || isMultiMode ? 'none' : undefined }}
       >
         {allProjects.map((project) => {
           const tasks = project.tasks || [];
@@ -151,7 +173,7 @@ const MainContentArea: React.FC<MainContentAreaProps> = ({
       </div>
 
       {/* Fallback when no project is selected and no overlay is active */}
-      {!selectedProject && !showOverlay && null}
+      {!selectedProject && !showOverlay && !isMultiMode && null}
     </>
   );
 };

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type AppMode = 'vibe' | 'ide';
+export type AppMode = 'vibe' | 'ide' | 'multi';
 
 interface AppModeState {
   mode: AppMode;
