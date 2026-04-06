@@ -722,9 +722,21 @@ const ChatInterface: React.FC<Props> = ({
                         const paneEl = e.currentTarget.parentElement;
                         if (!paneEl) return;
                         const startWidth = paneEl.getBoundingClientRect().width;
+                        // Find the scrollable ancestor for auto-scroll during drag
+                        const scrollContainer = paneEl.closest(
+                          '.overflow-x-auto'
+                        ) as HTMLElement | null;
                         const onMove = (ev: MouseEvent) => {
                           const newWidth = Math.max(520, startWidth + ev.clientX - startX);
                           setPaneWidths((prev) => ({ ...prev, [conv.id]: newWidth }));
+                          // Auto-scroll when dragging near the right edge
+                          if (scrollContainer) {
+                            const rect = scrollContainer.getBoundingClientRect();
+                            const edgeZone = 60;
+                            if (ev.clientX > rect.right - edgeZone) {
+                              scrollContainer.scrollLeft += ev.clientX - (rect.right - edgeZone);
+                            }
+                          }
                         };
                         const onUp = () => {
                           document.removeEventListener('mousemove', onMove);

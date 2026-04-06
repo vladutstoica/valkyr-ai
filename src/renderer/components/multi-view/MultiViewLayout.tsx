@@ -96,8 +96,8 @@ export const MultiViewLayout: React.FC<MultiViewLayoutProps> = ({
           />
         ))}
 
-        {/* Add pane button — wide enough to allow resizing the last pane */}
-        <div className="flex min-w-[300px] flex-shrink-0 items-center justify-center">
+        {/* Add pane button */}
+        <div className="flex min-w-[60px] flex-shrink-0 items-center justify-center">
           <Button
             variant="ghost"
             size="icon"
