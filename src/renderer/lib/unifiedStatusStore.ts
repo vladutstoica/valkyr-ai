@@ -111,6 +111,9 @@ class UnifiedStatusStore {
   /** Track active toasts to enforce max 3 stacked */
   private activeToastCount = 0;
   private static readonly MAX_TOASTS = 3;
+  /** Dedup: last toast time per task to avoid repeated toasts within a short window */
+  private lastToastTime = new Map<string, number>();
+  private static readonly TOAST_DEDUP_MS = 10_000;
 
   constructor() {
     this.initHookListener();
@@ -584,6 +587,13 @@ class UnifiedStatusStore {
     // Mark the task as unread since user isn't viewing it
     const taskId = this.hookSessionToTask.get(sessionId);
     if (taskId) this.markUnread(taskId);
+
+    // Dedup: skip if we already showed a toast for this task recently
+    const dedupKey = taskId || sessionId;
+    const lastTime = this.lastToastTime.get(dedupKey) || 0;
+    if (Date.now() - lastTime < UnifiedStatusStore.TOAST_DEDUP_MS) return;
+    this.lastToastTime.set(dedupKey, Date.now());
+
     // Enforce max toast count
     if (this.activeToastCount >= UnifiedStatusStore.MAX_TOASTS) return;
 

@@ -491,6 +491,11 @@ export function registerPtyIpc(): void {
     return { ok: true };
   });
 
+  ipcMain.handle('pty:hasChildProcess', async (_event, args: { id: string }) => {
+    const { ptyHasChildProcess } = require('./ptyManager');
+    return { ok: true, hasChild: ptyHasChildProcess(args.id) };
+  });
+
   ipcMain.handle('terminal:getTheme', async () => {
     try {
       const config = detectAndLoadTerminalConfig();

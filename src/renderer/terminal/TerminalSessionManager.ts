@@ -74,6 +74,11 @@ export class TerminalSessionManager {
   >();
   private firstFrameRendered = false;
   private ptyStarted = false;
+
+  /** Whether the PTY process is currently running */
+  get isRunning(): boolean {
+    return this.ptyStarted && !this.disposed;
+  }
   private lastSnapshotAt: number | null = null;
   private lastSnapshotReason: 'interval' | 'detach' | 'dispose' | null = null;
   private customFontFamily = '';

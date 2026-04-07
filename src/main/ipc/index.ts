@@ -26,6 +26,7 @@ import { registerModelMetadataIpc } from './modelMetadataIpc';
 import { registerMcpIpc } from './mcpIpc';
 import { registerWhisperIpc } from './whisperIpc';
 import { registerResourceIpc } from './resourceIpc';
+import { registerUiStateIpc } from './uiStateIpc';
 
 export function registerAllIpc() {
   // Core app/utility IPC
@@ -60,4 +61,5 @@ export function registerAllIpc() {
   registerMcpIpc();
   registerWhisperIpc();
   registerResourceIpc();
+  registerUiStateIpc();
 }

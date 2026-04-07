@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { Plus, X, MoreHorizontal, ArrowLeft, ArrowRight, Trash2, GitBranch } from 'lucide-react';
+import { Plus, X, MoreHorizontal, ArrowLeft, ArrowRight, Trash2, GitBranch, TerminalSquare, Pencil, Archive } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -38,6 +38,16 @@ import { useConversationManager } from '../../hooks/useConversationManager';
 import { TaskScopeProvider } from '../project/TaskScopeContext';
 import { CreateChatModal } from './CreateChatModal';
 import { DeleteChatModal } from './DeleteChatModal';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../ui/alert-dialog';
 import { type Conversation } from '../../../main/services/DatabaseService';
 import { terminalSessionRegistry } from '../../terminal/SessionRegistry';
 import { getTaskEnvVars } from '@shared/task/envVars';
@@ -49,6 +59,10 @@ interface MultiViewProps {
   onMoveLeft: () => void;
   onMoveRight: () => void;
   onRemove: () => void;
+  onDragStart?: (e: React.PointerEvent) => void;
+  onArchive?: () => void;
+  onDelete?: () => void;
+  onRename?: (newName: string) => void;
 }
 
 interface Props {
@@ -62,6 +76,7 @@ interface Props {
   className?: string;
   initialAgent?: Agent;
   multiView?: MultiViewProps;
+  suppressTerminal?: boolean;
 }
 
 const ChatInterface: React.FC<Props> = ({
@@ -75,10 +90,18 @@ const ChatInterface: React.FC<Props> = ({
   className,
   initialAgent,
   multiView,
+  suppressTerminal = false,
 }) => {
   // Defer heavy IPC work until the task has been activated at least once.
   const [activated, setActivated] = useState(isActive);
   const [paneWidths, setPaneWidths] = useState<Record<string, number>>({});
+  // Multi-view bottom terminal panel state
+  const [mvTerminals, setMvTerminals] = useState<Record<string, Array<{ id: string; label: string }>>>({});
+  const [mvActiveTerminal, setMvActiveTerminal] = useState<Record<string, string>>({});
+  const [mvTerminalHeight, setMvTerminalHeight] = useState<Record<string, number>>({});
+  const [mvTerminalCloseTarget, setMvTerminalCloseTarget] = useState<{ convId: string; termId: string } | null>(null);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
   if (isActive && !activated) setActivated(true);
 
   const { effectiveTheme } = useTheme();
@@ -447,7 +470,7 @@ const ChatInterface: React.FC<Props> = ({
   return (
     <TaskScopeProvider value={{ taskId: task.id, taskPath: task.path }}>
       <div
-        className={`flex h-full flex-col ${effectiveTheme === 'dark-black' ? 'bg-black' : 'bg-card'} ${multiView ? 'flex-shrink-0 rounded-2xl' : ''} ${className}`}
+        className={`flex h-full flex-col ${effectiveTheme === 'dark-black' ? 'bg-black' : 'bg-card'} ${multiView ? 'flex-1' : ''} ${className}`}
       >
         <CreateChatModal
           isOpen={showCreateChatModal}
@@ -463,6 +486,46 @@ const ChatInterface: React.FC<Props> = ({
           onConfirm={handleConfirmDeleteChat}
           onCancel={handleCancelDeleteChat}
         />
+
+        {/* Confirm terminal close */}
+        <AlertDialog
+          open={!!mvTerminalCloseTarget}
+          onOpenChange={(open) => { if (!open) setMvTerminalCloseTarget(null); }}
+        >
+          <AlertDialogContent className="max-w-sm">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Close Terminal?</AlertDialogTitle>
+            </AlertDialogHeader>
+            <AlertDialogDescription className="text-sm">
+              This terminal may have a running process. Closing it will terminate the process.
+            </AlertDialogDescription>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => {
+                  if (mvTerminalCloseTarget) {
+                    const { convId, termId } = mvTerminalCloseTarget;
+                    terminalSessionRegistry.dispose(termId);
+                    setMvTerminals((prev) => {
+                      const remaining = (prev[convId] || []).filter((t) => t.id !== termId);
+                      if (remaining.length === 0) {
+                        setMvTerminalHeight((p) => ({ ...p, [convId]: 0 }));
+                        setMvActiveTerminal((p) => { const n = { ...p }; delete n[convId]; return n; });
+                      } else if ((mvActiveTerminal[convId] || '') === termId) {
+                        setMvActiveTerminal((p) => ({ ...p, [convId]: remaining[remaining.length - 1].id }));
+                      }
+                      return { ...prev, [convId]: remaining };
+                    });
+                  }
+                  setMvTerminalCloseTarget(null);
+                }}
+              >
+                Close Terminal
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <div className="flex min-h-0 flex-1 flex-col">
           {(() => {
@@ -491,7 +554,7 @@ const ChatInterface: React.FC<Props> = ({
           })()}
           <div
             ref={chatScrollContainerRef}
-            className={`flex min-h-0 flex-1 p-2 ${multiView ? 'gap-2' : 'gap-3 overflow-x-auto'}`}
+            className={`flex min-h-0 flex-1 ${multiView ? 'gap-2' : 'gap-3 overflow-x-auto p-2'}`}
           >
             {conversationsLoaded &&
               sortedConversations.map((conv, idx) => {
@@ -513,14 +576,19 @@ const ChatInterface: React.FC<Props> = ({
                 return (
                   <div
                     key={conv.id}
-                    className={`border-border/50 relative overflow-hidden border ${multiView ? 'flex-shrink-0 rounded-lg' : 'min-w-[520px] flex-1 rounded-lg'} ${agentBg}`}
-                    style={multiView ? { width: paneWidths[conv.id] || 520 } : undefined}
+                    data-mv-pane
+                    className={`border-border/50 relative min-w-[520px] flex-1 overflow-hidden rounded-lg border ${agentBg}`}
+                    style={multiView && paneWidths[conv.id] ? { flexBasis: paneWidths[conv.id], flexGrow: 0, flexShrink: 0 } : undefined}
                     onClick={() => setActiveConversationId(conv.id)}
                   >
+                    <div className="flex h-full flex-col">
                     {conv.mode === 'pty' ? (
-                      <div className="flex h-full flex-col">
-                        {/* Per-pane toolbar */}
-                        <div className="border-border/50 flex shrink-0 items-center justify-between border-b px-4 py-2.5">
+                      <div className="flex min-h-0 flex-1 flex-col">
+                        {/* Per-pane toolbar — drag handle for reordering in multi-view */}
+                        <div
+                          className={`border-border/50 flex shrink-0 items-center justify-between border-b px-4 py-2.5 ${multiView?.onDragStart ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                          onPointerDown={multiView?.onDragStart}
+                        >
                           {/* Left: project badge (multi-view) + agent logo + name */}
                           <div className="text-muted-foreground flex h-7 shrink-0 items-center gap-1.5 px-1 text-xs">
                             {multiView && (
@@ -545,9 +613,28 @@ const ChatInterface: React.FC<Props> = ({
                                 <span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-[10px] font-medium">
                                   {multiView.projectLabel}
                                 </span>
-                                <span className="text-foreground text-xs font-medium">
-                                  {task.name}
-                                </span>
+                                {isRenaming && multiView.onRename ? (
+                                  <input
+                                    autoFocus
+                                    className="bg-transparent text-sm font-medium outline-none border-b border-accent w-32"
+                                    value={renameValue}
+                                    onChange={(e) => setRenameValue(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter' && renameValue.trim()) {
+                                        multiView.onRename!(renameValue.trim());
+                                        setIsRenaming(false);
+                                      }
+                                      if (e.key === 'Escape') {
+                                        setIsRenaming(false);
+                                      }
+                                    }}
+                                    onBlur={() => setIsRenaming(false)}
+                                  />
+                                ) : (
+                                  <span className="text-foreground text-xs font-medium">
+                                    {task.name}
+                                  </span>
+                                )}
                                 {task.useWorktree !== false && (
                                   <span title="Running in worktree">
                                     <GitBranch className="text-muted-foreground h-3 w-3 flex-shrink-0" />
@@ -614,6 +701,28 @@ const ChatInterface: React.FC<Props> = ({
                                 {multiView && (
                                   <>
                                     <DropdownMenuSeparator />
+                                    {multiView.onRename && (
+                                      <DropdownMenuItem onClick={() => {
+                                        setRenameValue(task.name);
+                                        setIsRenaming(true);
+                                      }}>
+                                        <Pencil className="size-4" />
+                                        Rename Session
+                                      </DropdownMenuItem>
+                                    )}
+                                    {multiView.onArchive && (
+                                      <DropdownMenuItem onClick={multiView.onArchive}>
+                                        <Archive className="size-4" />
+                                        Archive Session
+                                      </DropdownMenuItem>
+                                    )}
+                                    {multiView.onDelete && (
+                                      <DropdownMenuItem onClick={multiView.onDelete} className="text-destructive focus:text-destructive">
+                                        <Trash2 className="size-4" />
+                                        Delete Session
+                                      </DropdownMenuItem>
+                                    )}
+                                    <DropdownMenuSeparator />
                                     <DropdownMenuItem
                                       onClick={multiView.onMoveLeft}
                                       disabled={!multiView.canMoveLeft}
@@ -641,33 +750,35 @@ const ChatInterface: React.FC<Props> = ({
                             </DropdownMenu>
                           </div>
                         </div>
-                        <TerminalPane
-                          id={
-                            conv.isMain
-                              ? `${convAgent}-main-${task.id}`
-                              : `${convAgent}-chat-${conv.id}`
-                          }
-                          cwd={terminalCwd || task.path || '.'}
-                          {...(providerOverrides[convAgent]?.cliCommand
-                            ? { shell: providerOverrides[convAgent]!.cliCommand }
-                            : { providerId: convAgent })}
-                          env={taskEnv}
-                          keepAlive
-                          autoApprove={!!task.metadata?.autoApprove}
-                          className="min-h-0 flex-1"
-                          claudeSessionId={
-                            convAgent === 'claude'
-                              ? (() => {
-                                  try {
-                                    const meta = conv.metadata ? JSON.parse(conv.metadata) : {};
-                                    return meta.claudeSessionId as string | undefined;
-                                  } catch {
-                                    return undefined;
-                                  }
-                                })()
-                              : undefined
-                          }
-                        />
+                        {!suppressTerminal && (
+                          <TerminalPane
+                            id={
+                              conv.isMain
+                                ? `${convAgent}-main-${task.id}`
+                                : `${convAgent}-chat-${conv.id}`
+                            }
+                            cwd={terminalCwd || task.path || '.'}
+                            {...(providerOverrides[convAgent]?.cliCommand
+                              ? { shell: providerOverrides[convAgent]!.cliCommand }
+                              : { providerId: convAgent })}
+                            env={taskEnv}
+                            keepAlive
+                            autoApprove={!!task.metadata?.autoApprove}
+                            className="min-h-0 flex-1"
+                            claudeSessionId={
+                              convAgent === 'claude'
+                                ? (() => {
+                                    try {
+                                      const meta = conv.metadata ? JSON.parse(conv.metadata) : {};
+                                      return meta.claudeSessionId as string | undefined;
+                                    } catch {
+                                      return undefined;
+                                    }
+                                  })()
+                                : undefined
+                            }
+                          />
+                        )}
                       </div>
                     ) : (
                       <AcpChatPane
@@ -710,9 +821,161 @@ const ChatInterface: React.FC<Props> = ({
                         onMoveRight={() => handleMoveChat(conv.id, 'right')}
                         canMoveLeft={idx > 0}
                         canMoveRight={idx < sortedConversations.length - 1}
-                        className="h-full w-full"
+                        className="min-h-0 flex-1"
                       />
                     )}
+
+                    {/* Bottom terminal panel (multi-view only) */}
+                    {multiView && (() => {
+                      const tabs = mvTerminals[conv.id] || [];
+                      const activeTab = mvActiveTerminal[conv.id] || '';
+                      const panelHeight = mvTerminalHeight[conv.id] || 0;
+
+                      const addTerminal = () => {
+                        const idx = tabs.length + 1;
+                        const newId = `shell-mv-${conv.id}-${Date.now()}`;
+                        const newTab = { id: newId, label: `Terminal${idx > 1 ? ` ${idx}` : ''}` };
+                        setMvTerminals((prev) => ({ ...prev, [conv.id]: [...(prev[conv.id] || []), newTab] }));
+                        setMvActiveTerminal((prev) => ({ ...prev, [conv.id]: newId }));
+                        if (!panelHeight) {
+                          setMvTerminalHeight((prev) => ({ ...prev, [conv.id]: 200 }));
+                        }
+                      };
+
+                      const closeTerminal = (termId: string) => {
+                        terminalSessionRegistry.dispose(termId);
+                        setMvTerminals((prev) => {
+                          const remaining = (prev[conv.id] || []).filter((t) => t.id !== termId);
+                          if (remaining.length === 0) {
+                            setMvTerminalHeight((p) => ({ ...p, [conv.id]: 0 }));
+                            setMvActiveTerminal((p) => { const n = { ...p }; delete n[conv.id]; return n; });
+                          } else if (activeTab === termId) {
+                            setMvActiveTerminal((p) => ({ ...p, [conv.id]: remaining[remaining.length - 1].id }));
+                          }
+                          return { ...prev, [conv.id]: remaining };
+                        });
+                      };
+
+                      const handleCloseClick = async (termId: string) => {
+                        try {
+                          const result = await window.electronAPI.ptyHasChildProcess(termId);
+                          if (result.ok && result.hasChild) {
+                            setMvTerminalCloseTarget({ convId: conv.id, termId });
+                            return;
+                          }
+                        } catch {
+                          // If check fails, close without confirmation
+                        }
+                        closeTerminal(termId);
+                      };
+
+                      return (
+                        <>
+                          {/* Drag handle — always visible */}
+                          <div
+                            className="border-border/30 group flex h-3 shrink-0 cursor-row-resize items-center justify-center border-t transition-colors hover:bg-accent/50"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              const startY = e.clientY;
+                              const paneEl = e.currentTarget.closest('[data-mv-pane]') as HTMLElement | null;
+                              if (!paneEl) return;
+                              const paneRect = paneEl.getBoundingClientRect();
+                              const currentH = panelHeight;
+                              const onMove = (ev: MouseEvent) => {
+                                const delta = startY - ev.clientY;
+                                const newH = Math.max(0, currentH + delta);
+                                const clamped = Math.min(newH, paneRect.height * 0.6);
+                                setMvTerminalHeight((prev) => ({
+                                  ...prev,
+                                  [conv.id]: clamped < 60 ? 0 : clamped,
+                                }));
+                              };
+                              const onUp = () => {
+                                document.removeEventListener('mousemove', onMove);
+                                document.removeEventListener('mouseup', onUp);
+                              };
+                              document.addEventListener('mousemove', onMove);
+                              document.addEventListener('mouseup', onUp);
+                            }}
+                            onDoubleClick={() => {
+                              if (tabs.length === 0) {
+                                addTerminal();
+                              } else {
+                                setMvTerminalHeight((prev) => ({
+                                  ...prev,
+                                  [conv.id]: prev[conv.id] ? 0 : 200,
+                                }));
+                              }
+                            }}
+                          >
+                            <span className="bg-muted-foreground/30 group-hover:bg-muted-foreground/60 h-[2px] w-8 rounded-full transition-colors" />
+                          </div>
+
+                          {/* Tab bar — always visible when terminals exist */}
+                          {tabs.length > 0 && (
+                            <div className="border-border/30 flex shrink-0 items-center gap-1 border-t px-2 py-1">
+                              {tabs.map((tab) => (
+                                <button
+                                  key={tab.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setMvActiveTerminal((prev) => ({ ...prev, [conv.id]: tab.id }));
+                                    if (!panelHeight) setMvTerminalHeight((prev) => ({ ...prev, [conv.id]: 200 }));
+                                  }}
+                                  className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
+                                    activeTab === tab.id
+                                      ? 'bg-accent text-accent-foreground'
+                                      : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                                  }`}
+                                >
+                                  <TerminalSquare className="h-3 w-3" />
+                                  {tab.label}
+                                  <span
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={(e) => { e.stopPropagation(); handleCloseClick(tab.id); }}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); handleCloseClick(tab.id); } }}
+                                    className="text-muted-foreground hover:text-foreground hover:bg-muted -mr-0.5 rounded p-0.5 transition-colors"
+                                  >
+                                    <X className="h-2.5 w-2.5" />
+                                  </span>
+                                </button>
+                              ))}
+                              <button
+                                type="button"
+                                onClick={addTerminal}
+                                className="text-muted-foreground hover:bg-accent/50 hover:text-foreground inline-flex h-6 w-6 items-center justify-center rounded-md transition-colors"
+                                title="New Terminal"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Terminal content — only when panel is open */}
+                          {tabs.length > 0 && panelHeight > 0 && (
+                            <div className="shrink-0 overflow-hidden" style={{ height: panelHeight }}>
+                              {tabs.map((tab) => (
+                                <div
+                                  key={tab.id}
+                                  className="h-full w-full"
+                                  style={{ display: activeTab === tab.id ? 'block' : 'none' }}
+                                >
+                                  <TerminalPane
+                                    id={tab.id}
+                                    cwd={terminalCwd || task.path || '.'}
+                                    keepAlive={false}
+                                    className="h-full w-full"
+                                    disableSnapshots
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                    </div>
                     {/* Resize handle — drag to resize, double-click to reset */}
                     <div
                       className="bg-border/0 hover:bg-border active:bg-ring absolute top-0 right-0 z-10 h-full w-1 cursor-col-resize transition-colors"

@@ -255,8 +255,11 @@ const AppContent: React.FC = () => {
     });
   }, []);
 
+  const removeMultiViewColumn = useMultiViewStore((s) => s.removeColumn);
+
   const handleDeleteTaskAndUnpin: typeof taskMgmt.handleDeleteTask = useCallback(
     async (project, task, options) => {
+      removeMultiViewColumn(task.id);
       setPinnedTaskIds((prev) => {
         if (!prev.has(task.id)) return prev;
         const next = new Set(prev);
@@ -266,7 +269,15 @@ const AppContent: React.FC = () => {
       });
       return taskMgmt.handleDeleteTask(project, task, options);
     },
-    [taskMgmt.handleDeleteTask]
+    [taskMgmt.handleDeleteTask, removeMultiViewColumn]
+  );
+
+  const handleArchiveTaskAndCleanup: typeof taskMgmt.handleArchiveTask = useCallback(
+    async (project, task, options) => {
+      removeMultiViewColumn(task.id);
+      return taskMgmt.handleArchiveTask(project, task, options);
+    },
+    [taskMgmt.handleArchiveTask, removeMultiViewColumn]
   );
 
   // --- Task creation wrapper ---
@@ -461,7 +472,7 @@ const AppContent: React.FC = () => {
         onCreateTaskForProject={taskMgmt.handleStartCreateTaskFromSidebar}
         onDeleteTask={handleDeleteTaskAndUnpin}
         onRenameTask={taskMgmt.handleRenameTask}
-        onArchiveTask={taskMgmt.handleArchiveTask}
+        onArchiveTask={handleArchiveTaskAndCleanup}
         onRestoreTask={taskMgmt.handleRestoreTask}
         onDeleteProject={projectMgmt.handleDeleteProject}
         onRenameProject={projectMgmt.handleRenameProject}
@@ -505,7 +516,7 @@ const AppContent: React.FC = () => {
       taskMgmt.handleStartCreateTaskFromSidebar,
       handleDeleteTaskAndUnpin,
       taskMgmt.handleRenameTask,
-      taskMgmt.handleArchiveTask,
+      handleArchiveTaskAndCleanup,
       taskMgmt.handleRestoreTask,
       projectMgmt.handleDeleteProject,
       projectMgmt.handleRenameProject,
@@ -552,8 +563,9 @@ const AppContent: React.FC = () => {
         isLoadingBranches={projectMgmt.isLoadingBranches}
         setProjectDefaultBranch={projectMgmt.setProjectDefaultBranch}
         handleSelectTask={taskMgmt.handleSelectTask}
-        handleDeleteTask={taskMgmt.handleDeleteTask}
-        handleArchiveTask={taskMgmt.handleArchiveTask}
+        handleDeleteTask={handleDeleteTaskAndUnpin}
+        handleArchiveTask={handleArchiveTaskAndCleanup}
+        handleRenameTask={taskMgmt.handleRenameTask}
         handleDeleteProject={projectMgmt.handleDeleteProject}
         handleOpenProject={projectMgmt.handleOpenProject}
         handleNewProjectClick={projectMgmt.handleNewProjectClick}
@@ -578,8 +590,9 @@ const AppContent: React.FC = () => {
       projectMgmt.isLoadingBranches,
       projectMgmt.setProjectDefaultBranch,
       taskMgmt.handleSelectTask,
-      taskMgmt.handleDeleteTask,
-      taskMgmt.handleArchiveTask,
+      handleDeleteTaskAndUnpin,
+      handleArchiveTaskAndCleanup,
+      taskMgmt.handleRenameTask,
       projectMgmt.handleDeleteProject,
       projectMgmt.handleOpenProject,
       projectMgmt.handleNewProjectClick,

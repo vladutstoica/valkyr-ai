@@ -37,6 +37,7 @@ interface MainContentAreaProps {
     task: Task,
     options?: { silent?: boolean }
   ) => Promise<boolean>;
+  handleRenameTask?: (project: Project, task: Task, newName: string) => Promise<void>;
   handleDeleteProject: (project: Project) => Promise<void>;
   handleOpenProject: () => void;
   handleNewProjectClick: () => void;
@@ -64,6 +65,7 @@ const MainContentArea: React.FC<MainContentAreaProps> = ({
   handleSelectTask,
   handleDeleteTask,
   handleArchiveTask,
+  handleRenameTask,
   handleDeleteProject,
   handleOpenProject,
   handleNewProjectClick,
@@ -104,6 +106,9 @@ const MainContentArea: React.FC<MainContentAreaProps> = ({
             allProjects={allProjects}
             setShowTaskModal={setShowTaskModal}
             setSelectedProject={setSelectedProject}
+            onArchiveTask={(project, task) => handleArchiveTask(project, task)}
+            onDeleteTask={(project, task) => handleDeleteTask(project, task)}
+            onRenameTask={handleRenameTask ? (project, task, newName) => handleRenameTask(project, task, newName) : undefined}
           />
         </div>
       )}
@@ -148,6 +153,7 @@ const MainContentArea: React.FC<MainContentAreaProps> = ({
                     defaultBranch={isSelectedProject ? projectDefaultBranch : undefined}
                     className="h-full min-h-0"
                     initialAgent={isActive ? activeTaskAgent || undefined : undefined}
+                    suppressTerminal={isMultiMode}
                   />
                 )}
               </div>

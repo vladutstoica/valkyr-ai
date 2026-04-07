@@ -112,7 +112,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   defaultProvider: DEFAULT_PROVIDER_ID,
   tasks: {
     autoGenerateName: true,
-    autoApproveByDefault: false,
+    autoApproveByDefault: true,
   },
   projects: {
     defaultDirectory: join(homedir(), 'valkyr-projects'),

@@ -43,6 +43,7 @@ declare global {
       ptyInput: (args: { id: string; data: string }) => void;
       ptyResize: (args: { id: string; cols: number; rows: number }) => void;
       ptyKill: (id: string) => void;
+      ptyHasChildProcess: (id: string) => Promise<{ ok: boolean; hasChild: boolean }>;
       onPtyData: (id: string, listener: (data: string) => void) => () => void;
       ptyGetSnapshot: (args: { id: string }) => Promise<{
         ok: boolean;
@@ -315,6 +316,10 @@ declare global {
       githubLogout: () => Promise<void>;
       getSettings: () => Promise<any>;
       updateSettings: (settings: any) => Promise<void>;
+      // UI state persistence
+      uiStateGetItem: (key: string) => Promise<{ success: boolean; data?: string | null; error?: string }>;
+      uiStateSetItem: (key: string, value: string) => Promise<{ success: boolean; error?: string }>;
+      uiStateRemoveItem: (key: string) => Promise<{ success: boolean; error?: string }>;
       linearCheckConnection?: () => Promise<{
         connected: boolean;
         taskName?: string;

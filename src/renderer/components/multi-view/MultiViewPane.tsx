@@ -10,6 +10,11 @@ interface MultiViewPaneProps {
   onMoveLeft: () => void;
   onMoveRight: () => void;
   onRemove: () => void;
+  dragTaskId?: string;
+  onDragStart?: (e: React.PointerEvent) => void;
+  onArchive?: () => void;
+  onDelete?: () => void;
+  onRename?: (newName: string) => void;
 }
 
 export const MultiViewPane: React.FC<MultiViewPaneProps> = ({
@@ -20,6 +25,10 @@ export const MultiViewPane: React.FC<MultiViewPaneProps> = ({
   onMoveLeft,
   onMoveRight,
   onRemove,
+  onDragStart,
+  onArchive,
+  onDelete,
+  onRename,
 }) => {
   return (
     <ChatInterface
@@ -36,6 +45,10 @@ export const MultiViewPane: React.FC<MultiViewPaneProps> = ({
         onMoveLeft,
         onMoveRight,
         onRemove,
+        onDragStart,
+        onArchive,
+        onDelete,
+        onRename,
       }}
     />
   );

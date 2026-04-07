@@ -127,8 +127,12 @@ export function markFinish(
   });
 
   if (cause === 'process_exit' && exitCode === 0) {
-    const providerName = getProvider(providerId)?.name ?? providerId;
-    showCompletionNotification(providerName);
+    // Skip for Claude — hook-based notifications handle it with smarter
+    // batching, cooldowns, and active view awareness
+    if (providerId !== 'claude') {
+      const providerName = getProvider(providerId)?.name ?? providerId;
+      showCompletionNotification(providerName);
+    }
   }
 }
 

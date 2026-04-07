@@ -100,6 +100,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   ptyResize: (args: { id: string; cols: number; rows: number }) =>
     ipcRenderer.send('pty:resize', args),
   ptyKill: (id: string) => ipcRenderer.send('pty:kill', { id }),
+  ptyHasChildProcess: (id: string) =>
+    ipcRenderer.invoke('pty:hasChildProcess', { id }) as Promise<{ ok: boolean; hasChild: boolean }>,
 
   // Direct PTY spawn (no shell wrapper, bypasses shell config loading)
   ptyStartDirect: (opts: {
@@ -779,6 +781,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Resource metrics
   getResourceMetrics: () => ipcRenderer.invoke('resource:getMetrics'),
+
+  // UI state persistence (IPC-backed, survives origin changes)
+  uiStateGetItem: (key: string) => ipcRenderer.invoke('ui-state:get-item', key),
+  uiStateSetItem: (key: string, value: string) => ipcRenderer.invoke('ui-state:set-item', key, value),
+  uiStateRemoveItem: (key: string) => ipcRenderer.invoke('ui-state:remove-item', key),
 });
 
 // Type definitions for the exposed API
@@ -829,6 +836,7 @@ export interface ElectronAPI {
   ptyInput: (args: { id: string; data: string }) => void;
   ptyResize: (args: { id: string; cols: number; rows: number }) => void;
   ptyKill: (id: string) => void;
+  ptyHasChildProcess: (id: string) => Promise<{ ok: boolean; hasChild: boolean }>;
   onPtyData: (id: string, listener: (data: string) => void) => () => void;
   ptyGetSnapshot: (args: { id: string }) => Promise<{
     ok: boolean;
@@ -1151,6 +1159,11 @@ export interface ElectronAPI {
     data?: ResourceMetrics;
     error?: string;
   }>;
+
+  // UI state persistence
+  uiStateGetItem: (key: string) => Promise<{ success: boolean; data?: string | null; error?: string }>;
+  uiStateSetItem: (key: string, value: string) => Promise<{ success: boolean; error?: string }>;
+  uiStateRemoveItem: (key: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 export interface ResourceProcessInfo {

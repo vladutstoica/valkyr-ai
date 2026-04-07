@@ -707,3 +707,19 @@ export function getPty(id: string): IPty | undefined {
 export function getPtyKind(id: string): 'local' | 'ssh' | undefined {
   return ptys.get(id)?.kind;
 }
+
+/** Check if the PTY shell has child processes (i.e. a script is running). */
+export function ptyHasChildProcess(id: string): boolean {
+  const rec = ptys.get(id);
+  if (!rec) return false;
+  const pid = rec.proc.pid;
+  if (!pid) return false;
+  try {
+    const { execSync } = require('child_process');
+    // pgrep -P <pid> returns child PIDs; exit code 0 = children exist
+    execSync(`pgrep -P ${pid}`, { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}

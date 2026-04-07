@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { electronStorage } from '../lib/electronStorage';
 
 export interface MultiViewColumn {
   taskId: string;
@@ -11,6 +12,7 @@ interface MultiViewState {
   addColumn: (taskId: string, projectId: string) => void;
   removeColumn: (taskId: string) => void;
   moveColumn: (taskId: string, direction: 'left' | 'right') => void;
+  reorderColumns: (columns: MultiViewColumn[]) => void;
   clearColumns: () => void;
 }
 
@@ -41,8 +43,13 @@ export const useMultiViewStore = create<MultiViewState>()(
           return { columns: cols };
         }),
 
+      reorderColumns: (columns) => set({ columns }),
+
       clearColumns: () => set({ columns: [] }),
     }),
-    { name: 'multi-view-columns' }
+    {
+      name: 'multi-view-columns',
+      storage: createJSONStorage(() => electronStorage),
+    }
   )
 );

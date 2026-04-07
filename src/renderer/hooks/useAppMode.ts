@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { electronStorage } from '../lib/electronStorage';
 
 export type AppMode = 'vibe' | 'ide' | 'multi';
 
@@ -11,11 +12,12 @@ interface AppModeState {
 export const useAppMode = create<AppModeState>()(
   persist(
     (set) => ({
-      mode: 'vibe',
+      mode: 'multi',
       setMode: (mode) => set({ mode }),
     }),
     {
       name: 'app-mode',
+      storage: createJSONStorage(() => electronStorage),
     }
   )
 );
